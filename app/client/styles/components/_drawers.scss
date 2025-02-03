@@ -1,0 +1,47 @@
+.drawer-toggle-open {
+  opacity: 0.5;
+}
+
+.navigator-view {
+
+  .drawer-content {
+    .fetch-container, .tree-container,
+    .navigator-drawer-content,
+    .css-ca0k19-container .css-1tm8zlz-control ,
+    .css-ca0k19-container .css-1ko4u72-control {
+      /*min-width prevents drawer content to reflow downwards on drawer close*/
+      /*value is consistent with .control max-width in ipa-core*/
+      min-width: 265px;
+    }
+  }
+
+  hr {
+    border-top: 2px solid  var(--app-accent-color);
+  }
+
+  .drawer-title {
+    font-weight: bold;
+    font-size: 24px;
+    letter-spacing: 0;
+    color: #333333;
+  }
+}
+
+.entities-view {
+
+  .drawer-content {
+    .fetch-container, .tree-container,
+    .navigator-drawer-content,
+    .css-ca0k19-container .css-1tm8zlz-control ,
+    .css-ca0k19-container .css-1ko4u72-control {
+      /*min-width prevents drawer content to reflow downwards on drawer close*/
+      /*value is consistent with .control max-width in ipa-core*/
+      min-width: 265px;
+    }
+  }
+
+  > .content {
+    min-width: 500px;
+  }
+
+}
