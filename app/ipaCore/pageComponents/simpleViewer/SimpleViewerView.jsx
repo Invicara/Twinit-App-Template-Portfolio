@@ -54,8 +54,17 @@ const SimpleViewerView = (props) => {
       setLoadingElement(true)
       setSelectedElement(null)
 
-      let pkgid = parseInt(pkgids[0])
-      setSelection([pkgid])
+      let pkgidIsString = typeof pkgids[0] === 'string' || pkgids[0] instanceof String
+      let pkgidIsNotANumber = isNaN(pkgids[0])
+
+      let query
+      if (pkgidIsString && pkgidIsNotANumber) {
+         query = { source_id: pkgids[0] }
+         setSelection([pkgids[0]])
+      } else {
+         query = { package_id: parseInt(pkgids[0]) }
+         setSelection([parseInt(pkgids[0])])
+      }
 
       // get collections contained in the NamedCompositeItem representing the model
       let collectionsModelCompositeItem = (await IafItemSvc.getRelatedInItem(selectedModelComposite._userItemId, {}))._list
@@ -73,7 +82,7 @@ const SimpleViewerView = (props) => {
       // and follow relationships to the child instance and type properties
       let selectedModelElements = await IafScriptEngine.findWithRelated({
          parent: { 
-            query: {package_id: pkgid},
+            query: query,
             collectionDesc: {_userItemId: elementCollection._userItemId, _userType: elementCollection._userType},
          },
          related: [
