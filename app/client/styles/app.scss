@@ -1,0 +1,48 @@
+@import '~bootstrap/dist/css/bootstrap.min.css';
+
+@import "abstracts/variables";
+@import "icons";
+
+@import "components/tree";
+@import "components/modless-search-tab";
+@import "components/service-request-modal";
+@import "components/ipa-modal-collection-management.scss";
+@import "components/controls/scriptedmatterportviewer";
+@import "components/controls/genericiframe";
+@import "components/controls/simpletextthrobber";
+@import "components/controls/filtercontrol";
+@import "components/controls/fancytree";
+@import "components/controls/imageCarousel";
+@import "components/drawers";
+
+$react-blue: #00d8ff;
+$bar-dark-text: $react-blue;
+$dark: #000000;
+$positive: $react-blue;
+$ios-statusbar-height: 20px;
+$stable: f8f8f8;
+
+:root {
+  --app-accent-color: #C71784;
+}
+
+
+/*overwrite styles from react-ifef*/
+//1. clear "i" right padding - react-ifef-styles.css' is forcing 10px which breaks spinning wheel
+i.fa-spin {
+    padding-right: 0px;
+    margin-right: 10px;//this is to create same space as the padding did
+}
+
+/*undo iaf-viewer styles until PLAT-4950 is resolved */
+.db-panel {
+  .container {
+    position: unset;
+    left: unset;
+    align-items: unset;
+    border: unset;
+    border-radius: unset;
+  }
+}
+
+
