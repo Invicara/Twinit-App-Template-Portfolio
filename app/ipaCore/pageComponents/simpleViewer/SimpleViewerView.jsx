@@ -146,9 +146,17 @@ const SimpleViewerView = (props) => {
             {loadingElement && <SimpleTextThrobber throbberText='Loading Element Data' />}
             {selectedElement && <table className='element-info-table'>
                <tbody>
-               <tr>
+                  <tr>
+                     <td className='prop-name'>_id</td>
+                     <td>{selectedElement._id}</td>
+                  </tr>
+                  <tr>
                      <td className='prop-name'>Package Id</td>
                      <td>{selectedElement.package_id}</td>
+                  </tr>
+                  <tr>
+                     <td className='prop-name'>Source Id</td>
+                     <td>{selectedElement.source_id}</td>
                   </tr>
                   <tr>
                      <td colSpan='2' className='prop-type'>Type Properties</td>
