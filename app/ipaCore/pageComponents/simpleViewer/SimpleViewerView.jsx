@@ -63,6 +63,10 @@ const SimpleViewerView = (props) => {
       setLoadingElement(true)
       setSelectedElement(null)
 
+      // Different models return different element properties when clicked in the viewer
+      // IFC models return a string that matches an elements source_id
+      // Revit models return an integer that maches an elements package_id
+      // We try to guess what we get from the viewer and make the appropriate query
       let pkgidIsString = typeof pkgids[0] === 'string' || pkgids[0] instanceof String
       let pkgidIsNotANumber = isNaN(pkgids[0])
 
