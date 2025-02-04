@@ -10,7 +10,6 @@ import { GenericMatButton } from '@invicara/ipa-core/modules/IpaControls';
 
 import ImportStatusList from './components/ImportStatusList';
 
-import '@dtplatform/invicara-lib/dist/invicara-lib.css';
 import './SimpleModelImportView.scss'
 
 import {
@@ -292,7 +291,7 @@ class SimpleModelImportView extends React.Component {
               this.setState({ isPageWorking: false });
             }
             await this.getOrchStatus(result.id);
-          }, 10000);
+          }, 30000);
 
           this.setState({ importIntervalId: interval });
         }
