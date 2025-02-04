@@ -45,8 +45,17 @@ const SimpleViewerView = (props) => {
    }
 
    const handleModelSelect = (modelCompositeId) => {
-      let selectedModel = availableModelComposites.find(amc => amc._id === modelCompositeId)
-      setSelectedModelComposite(selectedModel)
+
+      setSelection([])
+      setSelectedElement(null)
+      setSelectedModelComposite(undefined)
+
+      setTimeout(() => {
+         let selectedModel = availableModelComposites.find(amc => amc._id === modelCompositeId)
+         setSelectedModelComposite(selectedModel)
+      }, 1000)
+      
+
    }
 
    const getSelectedElements = async (pkgids) => {
@@ -86,14 +95,14 @@ const SimpleViewerView = (props) => {
             collectionDesc: {_userItemId: elementCollection._userItemId, _userType: elementCollection._userType},
          },
          related: [
-         {
-            relatedDesc: { _relatedUserType: elementPropCollection._userType},
-            as: 'instanceProperties'
-         },
-         {
-            relatedDesc: { _relatedUserType: elementTypePropCollection._userType},
-            as: 'typeProperties'
-         }
+            {
+               relatedDesc: { _relatedUserType: elementPropCollection._userType},
+               as: 'instanceProperties'
+            },
+            {
+               relatedDesc: { _relatedUserType: elementTypePropCollection._userType},
+               as: 'typeProperties'
+            }
          ]
       })
 
