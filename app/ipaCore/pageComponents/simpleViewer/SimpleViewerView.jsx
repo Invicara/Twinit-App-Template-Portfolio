@@ -141,14 +141,38 @@ const SimpleViewerView = (props) => {
                </select>}
             </label>
          </div>
-         <hr/>
+         {selectedModelComposite && <table className='element-info-table element-info-table-model'>
+            <tbody>
+               {selectedModelComposite._versions[0]._userAttributes.model?.source && <tr>
+                  <td className='prop-name small'>Source</td>
+               </tr>}
+               {selectedModelComposite._versions[0]._userAttributes.model?.source &&  <tr>
+                  <td className='small'>{selectedModelComposite._versions[0]._userAttributes.model?.source}</td>
+               </tr>}
+               {selectedModelComposite._versions[0]._userAttributes.model?.originalSource && <tr>
+                  <td className='prop-name small'>Original Source</td>
+               </tr>}
+               {selectedModelComposite._versions[0]._userAttributes.model?.originalSource && <tr>
+                  <td className='small'>{selectedModelComposite._versions[0]._userAttributes.model?.originalSource}</td>
+               </tr>}
+            </tbody>
+         </table>}
+   
          <div className="element-info">
             {loadingElement && <SimpleTextThrobber throbberText='Loading Element Data' />}
             {selectedElement && <table className='element-info-table'>
                <tbody>
-               <tr>
+                  <tr>
+                     <td className='prop-name'>_id</td>
+                     <td>{selectedElement._id}</td>
+                  </tr>
+                  <tr>
                      <td className='prop-name'>Package Id</td>
                      <td>{selectedElement.package_id}</td>
+                  </tr>
+                  <tr>
+                     <td className='prop-name'>Source Id</td>
+                     <td>{selectedElement.source_id}</td>
                   </tr>
                   <tr>
                      <td colSpan='2' className='prop-type'>Type Properties</td>
