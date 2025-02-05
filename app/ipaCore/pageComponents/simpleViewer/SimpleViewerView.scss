@@ -31,29 +31,42 @@
       .element-info {
          overflow-y: auto;
 
-         .element-info-table {
-            width: 100%;
+      }
 
-            td {
-               padding: 3px;
-               border-bottom: lightgray solid 1px;
-            }
+      .element-info-table {
+         width: 100%;
 
-            .prop-name {
-               font-weight: bold;
-            }
-
-            .prop-type {
-               padding-top: 20px;
-               padding-bottom: 5px;
-               font-weight: bold;
-               text-align: center;
-               font-size: large;
-               color: var(--app-accent-color);
-            }
+         td {
+            padding: 3px;
+            border-bottom: lightgray solid 1px;
+            -webkit-user-select: text;
+            user-select: text;
          }
 
-         
+         .prop-name {
+            font-weight: bold;
+         }
+
+         .small {
+            font-size: smaller;
+         }
+
+         .prop-type {
+            padding-top: 20px;
+            padding-bottom: 5px;
+            font-weight: bold;
+            text-align: center;
+            font-size: large;
+            color: var(--app-accent-color);
+         }
+      }
+
+      .element-info-table-model {
+         background-color: #f0f0f0;
+
+         tr:last-child td:last-child {
+            border-bottom: 2px solid black;
+         }
       }
       
    }
