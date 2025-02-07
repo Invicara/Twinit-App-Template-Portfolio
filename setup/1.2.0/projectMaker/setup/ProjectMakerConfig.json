@@ -13,6 +13,20 @@
       "config": {
         "projectCreateScript": "createNewQuickModelViewProject"
       }
+    },
+    "userGroups": {
+      "title": "User Group",
+      "actionTitle": "User Group Actions",
+      "icon": "fas fa-users fa-2x",
+      "pageComponent": "users/UserGroupView",
+      "path": "/UserGroupView",
+      "config": {
+        "appUrl": "/",
+        "allowUserGroupEdit": true,
+        "allowUserGroupInvite": true,
+        "allowManageInvites": true,
+        "allowManageUsers": true
+      }
     }
   },
   "homepage": {
@@ -26,6 +40,16 @@
         {
           "page": "QMV Project Maker",
           "handler": "projectMaker"
+        }
+      ]
+    },
+    "users": {
+      "icon": "fas fa-users fa-2x",
+      "position": 2,
+      "pages": [
+        {
+          "page": "Users",
+          "handler": "userGroups"
         }
       ]
     }
