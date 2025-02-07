@@ -1,0 +1,34 @@
+{
+  "handlers": {
+    "projectMaker": {
+      "title": "QMV Project Maker",
+      "icon": "fas fa-folder-plus fa-2x",
+      "shortName": "projmk",
+      "description": "Create New Quick Model View Projects",
+      "pageComponent": "projectMaker/projectMakerView",
+      "path": "/projectmaker",
+      "scriptTypes": [
+        "project-maker"
+      ],
+      "config": {
+        "projectCreateScript": "createNewQuickModelViewProject"
+      }
+    }
+  },
+  "homepage": {
+    "handler": "projectMaker"
+  },
+  "groupedPages": {
+    "projects": {
+      "icon": "fas fa-folder-plus fa-2x",
+      "position": 1,
+      "pages": [
+        {
+          "page": "QMV Project Maker",
+          "handler": "projectMaker"
+        }
+      ]
+    }
+  },
+  "settings": {}
+}

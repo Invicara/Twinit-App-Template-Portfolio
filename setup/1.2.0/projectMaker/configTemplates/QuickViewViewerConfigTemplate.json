@@ -1,0 +1,29 @@
+{
+  "handlers": {
+    "modelView": {
+      "title": "Model View",
+      "icon": "fas fa-building fa-2x",
+      "shortName": "modelview",
+      "description": "Model View",
+      "pageComponent": "simpleViewer/SimpleViewerView",
+      "path": "/modelview",
+      "config": {}
+    }
+  },
+  "homepage": {
+    "handler": "modelView"
+  },
+  "groupedPages": {
+    "model": {
+      "icon": "fas fa-building fa-2x",
+      "position": 1,
+      "pages": [
+        {
+          "page": "Model View",
+          "handler": "modelView"
+        }
+      ]
+    }
+  },
+  "settings": {}
+}

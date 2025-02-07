@@ -1,0 +1,69 @@
+{
+  "handlers": {
+    "modelImport": {
+      "title": "Model Import",
+      "icon": "fas fa-file-import fa-2x",
+      "shortName": "modelimp",
+      "description": "Model Import",
+      "pageComponent": "modelImport/SimpleModelImportView",
+      "path": "/modelimp",
+      "config": {
+        "bimpkUserType": "bimpk_importer",
+        "sgpkUserType": "sgpk_importer"
+      }
+    },
+    "modelView": {
+      "title": "Model View",
+      "icon": "fas fa-building fa-2x",
+      "shortName": "modelview",
+      "description": "Model View",
+      "pageComponent": "simpleViewer/SimpleViewerView",
+      "path": "/modelview",
+      "config": {}
+    },
+    "userGroups": {
+      "title": "User Group",
+      "actionTitle": "User Group Actions",
+      "icon": "fas fa-users fa-2x",
+      "pageComponent": "users/UserGroupView",
+      "path": "/UserGroupView",
+      "config": {
+        "appUrl": "/",
+        "allowUserGroupEdit": true,
+        "allowUserGroupInvite": true,
+        "allowManageInvites": true,
+        "allowManageUsers": true
+      }
+    }
+  },
+  "homepage": {
+    "handler": "modelView"
+  },
+  "groupedPages": {
+    "model": {
+      "icon": "fas fa-building fa-2x",
+      "position": 1,
+      "pages": [
+        {
+          "page": "Model View",
+          "handler": "modelView"
+        },
+        {
+          "page": "Model Import",
+          "handler": "modelImport"
+        }
+      ]
+    },
+    "users": {
+      "icon": "fas fa-users fa-2x",
+      "position": 2,
+      "pages": [
+        {
+          "page": "Users",
+          "handler": "userGroups"
+        }
+      ]
+    }
+  },
+  "settings": {}
+}
