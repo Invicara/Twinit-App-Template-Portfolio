@@ -23,7 +23,8 @@ import {
   validateFile,
 } from './helpers';
 
-const VALID_FILE_EXT = ['.bimpk', '.sgpk'];
+// navis exports are no currently supported in quick model view so do not allow sgpk files to be uploaded
+const VALID_FILE_EXT = ['.bimpk'/*, '.sgpk'*/];
 
 class SimpleModelImportView extends React.Component {
 
