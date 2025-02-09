@@ -437,6 +437,18 @@ class SimpleModelImportView extends React.Component {
           <div className="tableContainer" style={{ width: '50%', margin: 'auto', paddingTop: '20px' }}>
             <CtrlFlxp validFExt={VALID_FILE_EXT} setNewFile={this.setNewFile} innerRef={this.fileUpload} />
 
+            <div className='download-notice'>
+              <div>Plugins for publishing models directly from supported CAD authoring tools can be downloaded <a href='https://apps.invicara.com/ipaplugins/' target='_bank'>here</a>.</div>
+              <div>If you already have a published model bimpk file, you can upload it using the button below.</div>
+              <GenericMatButton
+                  onClick={() => this.openFilePicker()}
+                  disabled={(!bimpkOrch && !sgpkOrch) || isPageLoading || isPageWorking || !uploadProcessAvailable}
+                  styles={{ marginRight: '15px', width: '90px' }}
+                >
+                  {uploadPercentage > 0 && uploadPercentage < 100 ? `${uploadPercentage}%` : 'UPLOAD'}
+                </GenericMatButton>
+            </div>
+
             <h4>Select Model</h4>
             <Select
               name="modelSelect"
@@ -485,13 +497,6 @@ class SimpleModelImportView extends React.Component {
               </table>
 
               <div style={{ textAlign: 'right', marginTop: '15px', display: 'flex', justifyContent: 'center' }}>
-                <GenericMatButton
-                  onClick={() => this.openFilePicker()}
-                  disabled={(!bimpkOrch && !sgpkOrch) || isPageLoading || isPageWorking || !uploadProcessAvailable}
-                  styles={{ marginRight: '15px', width: '90px' }}
-                >
-                  {uploadPercentage > 0 && uploadPercentage < 100 ? `${uploadPercentage}%` : 'UPLOAD'}
-                </GenericMatButton>
                 <GenericMatButton
                   onClick={this.onImport}
                   disabled={!this.canImport() || isPageLoading || isPageWorking}
