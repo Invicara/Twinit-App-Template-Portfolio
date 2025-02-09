@@ -111,7 +111,7 @@ const AccountMenu = ({ user, ...props }) => {
             { label: <span className={classes.logoutOption}><img src={ExitIcon} /> Log out</span>, onClick: userLogout },
         ].filter((item) => {
             if (
-                (item.label == 'User Group' && !props.userConfig?.handlers?.userGroups)
+                (item.label == 'User Groups' && !props.userConfig?.handlers?.userGroups)
                 || (item.label == 'Theme & Brand' && !props.userConfig?.handlers?.theme)
             ) {
                 return false
