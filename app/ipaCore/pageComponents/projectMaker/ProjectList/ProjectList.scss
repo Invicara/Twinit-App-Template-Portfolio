@@ -1,0 +1,23 @@
+.project-list {
+   display: flex;
+   flex-direction: column;
+
+   .current-version {
+      margin: 20px;
+      align-self: flex-end;
+      font-weight: bold;
+      color: var(--app-accent-color);
+   }
+
+   table {
+
+      tr {
+
+         .project-status {
+
+            text-align: center
+            
+         }
+      }
+   }
+}
