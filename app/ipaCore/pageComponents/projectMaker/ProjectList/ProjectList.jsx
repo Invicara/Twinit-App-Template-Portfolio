@@ -25,20 +25,20 @@ const ProjectList = ({currentVer, projects}) => {
       <table>
          <thead>
             <tr>
-               <th className='project-status'>Status</th>
+               <th className='center'>Status</th>
                <th>Project</th>
-               <th>Current Version</th>
-               <th>Original Version</th>
+               <th className='center'>Current Version</th>
+               <th className='center'>Original Version</th>
             </tr>
          </thead>
          <tbody>
             {projects.map(p => <tr key={p._id}>
-               <td className='project-status'>
+               <td className='center'>
                   {isUpToDate(p) ? 'Up to Date' : <div>Update</div>}
                </td>
                <td>{p._name}</td>
-               <td>{getProjectVer(p)}</td>
-               <td>{getProjectOriginalVer(p)}</td>
+               <td className='center'>{getProjectVer(p)}</td>
+               <td className='center'>{getProjectOriginalVer(p)}</td>
             </tr>)}
          </tbody>
       </table>
