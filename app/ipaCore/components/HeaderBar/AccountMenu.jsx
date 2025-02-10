@@ -114,12 +114,16 @@ const AccountMenu = ({ user, ...props }) => {
     const handlers = props?.userConfig?.handlers
 
     useEffect(() => {
-        let project = IafProj.getCurrent()
+        getProjectVersion()
+    }, [props.userConfig])
+
+    const getProjectVersion = async () => {
+        let project = await IafProj.getCurrent()
 
         let projVersion = project._userAttrbiutes?.projectMaker?.currentVersion ? project._userAttrbiutes?.projectMaker?.currentVersion : '1.2.0'
         projVersion = props?.userConfig?.homepage.handler === 'projectMaker' ? 'Project Maker' : projVersion
         setProjectVersion(projVersion)
-    })
+    }
 
     const menuItems = useMemo(() => {
         const items = [
