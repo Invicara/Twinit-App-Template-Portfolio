@@ -105,7 +105,7 @@ const AccountMenu = ({ user, ...props }) => {
         const items = [
             { label: 'My Profile', onClick: goToUserAccount  },
             { label: 'User Groups', onClick: () => window.location = `#${handlers[USERGROUP_HANDLER_NAME]?.path}`},
-            { label: 'Switch User Group', onClick: switchProj  },
+            { label: 'Switch Project', onClick: switchProj  },
             { label: 'Downloads', onClick: () => window.open(DOWNLOAD_PLUGNS_URL, '_blank')},
             /*{ label: 'Theme & Brand', onClick: () => window.location = `#${handlers[THEME_HANDLER_NAME]?.path}`  },*/
             { label: <span className={classes.logoutOption}><img src={ExitIcon} /> Log out</span>, onClick: userLogout },
