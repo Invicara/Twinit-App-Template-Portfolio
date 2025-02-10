@@ -1,3 +1,5 @@
+const CURRENT_MAKER_VERSION = '1.2.0'
+
 let scriptModule = {
 	// input { projName: <REQUIRED>, projDesc: <OPTIONAL> }
 	async createNewQuickModelViewProject(input, libraries, ctx, callback) {
@@ -27,7 +29,11 @@ let scriptModule = {
 			_description: !!projDesc && projDesc.length ? projDesc : '',
 			_shortName: projName.slice(0,6),
 			_userAttributes: {
-				nextScriptEngine: true
+				nextScriptEngine: true,
+				projectMaker: {
+					originalVersion: CURRENT_MAKER_VERSION,
+					currentVersion: CURRENT_MAKER_VERSION
+				}
 			}
 		}))._list[0]
 		console.log('Step 2: newProject', newProject)
