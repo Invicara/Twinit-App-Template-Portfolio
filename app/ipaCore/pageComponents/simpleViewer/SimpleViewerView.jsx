@@ -137,7 +137,7 @@ const SimpleViewerView = (props) => {
             <label>Select a Model
                {!!availableModelComposites?.length && <select onChange={(e) => handleModelSelect(e.target.value)}>
                   <option value={0} disabled selected>Select a Model to View</option>
-                  {availableModelComposites.map(amc => <option key={amc._id} value={amc._id}>{amc._name}</option>)}
+                  {availableModelComposites.sort((a,b) => a._name.localeCompare(b._name)).map(amc => <option key={amc._id} value={amc._id}>{amc._name}</option>)}
                </select>}
             </label>
          </div>
