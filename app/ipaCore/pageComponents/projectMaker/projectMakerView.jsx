@@ -3,6 +3,9 @@ import React, { useState, useEffect } from 'react'
 import { IafProj, IafApplication } from '@dtplatform/platform-api'
 import { ScriptHelper } from '@invicara/ipa-core/modules/IpaUtils'
 
+import ProjectCreate from './ProjectCreate/ProjectCreate.jsx'
+import ProjectList from './ProjectList/ProjectList.jsx'
+
 import './projectMakerView.scss'
 
 const ProjectMakerView = (props) => {
@@ -10,14 +13,13 @@ const ProjectMakerView = (props) => {
    const [ checkingAdmin, setCheckingAdmin ] = useState(true)
    const [ isAdmin, setIsAdmin ] = useState(false)
 
-   const [ newProjectName, setNewProjectName ] = useState('')
-
-   const [ creating, setCreating ] = useState(false)
-   const [ createProgress, setCreateProgress ] = useState([])
-   const [ progressError, setProgressError ] = useState()
+   const [ currentMakerVersion, setCurrentMakerVersion ] = useState()
+   const [ myProjects, setMyProjects ] = useState([])
 
    useEffect(() => {
       checkAppAdmin()
+      getMakerVersion()
+      getMyProjects()
    }, [])
 
    const checkAppAdmin = async () => {
@@ -39,62 +41,51 @@ const ProjectMakerView = (props) => {
 
    }
 
-   const handleChange = (type, value) => {
-      if (type === 'name') {
-         setNewProjectName(value)
-      }
-   }
+   const getMakerVersion = async () => {
 
-   const createProject = async () => {
-
-      setCreating(true)
-      setCreateProgress([])
-      setProgressError(null)
-
-      try {
-
-         let result = await ScriptHelper.executeScript(props.handler.config.projectCreateScript, {
-            projName: newProjectName
-         }, null, null, handleProgress)
-
-         handleProgress(result)
-         setNewProjectName('')
-
-      } catch (error) {
-
-         handleProgress('ERROR')
-         setProgressError(error)
-
-      }
-
-      setCreating(false)
+      let ver = await ScriptHelper.executeScript(props.handler.config.currentVersionScript)
+      setCurrentMakerVersion(ver)
 
    }
 
-   const handleProgress = (update) => {
+   const getMyProjects = async () => {
 
-      setCreateProgress(prevProg => [...prevProg, update])
+      let _pageSize = 20
+      let _offset = 0
+      let total = 0
+      let allProjects = []
+
+      do {
+         let projPage = await IafProj.getProjectsWithPagination(null, null, {_pageSize, _offset})
+         console.log(projPage)
+
+         total = projPage._total
+         _offset += _pageSize
+
+         allProjects.push(...projPage._list)
+
+      } while (allProjects.length < total)
+
+      allProjects.sort((a,b) => a._name.localeCompare(b._name))
+      allProjects = allProjects.filter(p => !p._name.includes('QMV Project Maker'))
+      setMyProjects(allProjects)
 
    }
 
    return <div className='projectmake-page'>
-      {checkingAdmin && <div className='checking-admin-notice'>
-         <i className="fas fa-spinner fa-spin"></i> Checking Admin User Status
-      </div>}
-      {!checkingAdmin && !isAdmin && <div className='checking-admin-notice checking-admin-fail'>
-         <i className="fas fa-exclamation-triangle"></i> You are not an Admin!
-      </div>}
-      {!checkingAdmin && isAdmin && <div className='projectmake-admin'>
-         <input type='text' value={newProjectName} onChange={(e) => handleChange('name', e.target.value)} placeholder='New Project Name'></input>
-         {!creating && <div className='create-btn' onClick={createProject}>Create Project</div>}
-         {creating && <div className='create-btn-disabled'><i className="fas fa-spinner fa-spin"></i></div>}
-      </div>}
-      {progressError && <div className='create-error'>
-         <i className="fas fa-exclamation-triangle"></i> {progressError}
-      </div>}
-      {!!createProgress.length && <ul>
-         {createProgress.map((txt, i) => <li key={i}>{txt}</li>)}
-      </ul>}
+      <div className='projectmake-left'>
+         {checkingAdmin && <div className='checking-admin-notice'>
+            <i className="fas fa-spinner fa-spin"></i> Checking Admin User Status
+         </div>}
+         {!checkingAdmin && !isAdmin && <div className='checking-admin-notice checking-admin-fail'>
+            <i className="fas fa-exclamation-triangle"></i> You are not an Admin!
+         </div>}
+         {!checkingAdmin && isAdmin && <ProjectCreate checkingAdmin={checkingAdmin} isAdmin={isAdmin} />}
+      </div>
+      <div className='projectmake-right'>
+         {!checkingAdmin && isAdmin && <ProjectList projects={myProjects} currentVer={currentMakerVersion} />}
+      </div>
+      
    </div>
 }
 
