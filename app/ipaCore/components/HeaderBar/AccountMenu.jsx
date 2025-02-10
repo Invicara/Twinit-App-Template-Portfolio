@@ -117,6 +117,7 @@ const AccountMenu = ({ user, ...props }) => {
         let project = IafProj.getCurrent()
 
         let projVersion = project._userAttrbiutes?.projectMaker?.currentVersion ? project._userAttrbiutes?.projectMaker?.currentVersion : '1.2.0'
+        projVersion = props?.userConfig?.homepage.handler === 'projectMaker' ? 'Project Maker' : projVersion
         setProjectVersion(projVersion)
     })
 
