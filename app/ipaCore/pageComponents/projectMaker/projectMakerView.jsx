@@ -86,7 +86,7 @@ const ProjectMakerView = (props) => {
             {!checkingAdmin && isAdmin && <ProjectCreate onCreate={getMyProjects} />}
          </div>
          <div className='projectmake-right'>
-            {!checkingAdmin && isAdmin && <ProjectList projects={myProjects} currentVer={currentMakerVersion} />}
+            {!checkingAdmin && isAdmin && <ProjectList projects={myProjects} currentVer={currentMakerVersion} onUpdate={getMyProjects}/>}
          </div>
       </ConfigContext.Provider>
    </div>
