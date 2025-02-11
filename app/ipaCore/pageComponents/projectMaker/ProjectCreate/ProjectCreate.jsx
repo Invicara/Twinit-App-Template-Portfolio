@@ -1,8 +1,14 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useContext } from 'react'
 
 import { ScriptHelper } from '@invicara/ipa-core/modules/IpaUtils'
 
+import { ConfigContext } from '../projectMakerView'
+
+import './ProjectCreate.scss'
+
 const ProjectCreate = ({onCreate}) => {
+
+   const { projectCreateScript } = useContext(ConfigContext)
 
    const [ creating, setCreating ] = useState(false)
    const [ createProgress, setCreateProgress ] = useState([])
@@ -24,7 +30,7 @@ const ProjectCreate = ({onCreate}) => {
 
       try {
 
-         let result = await ScriptHelper.executeScript(props.handler.config.projectCreateScript, {
+         let result = await ScriptHelper.executeScript(projectCreateScript, {
             projName: newProjectName
          }, null, null, handleProgress)
 
@@ -49,8 +55,8 @@ const ProjectCreate = ({onCreate}) => {
 
    }
 
-   return <div>
-      <div className='projectmake-admin'>
+   return <div className='projectmake-admin'>
+      <div className='projectmake-input'>
          <input type='text' value={newProjectName} onChange={(e) => handleChange('name', e.target.value)} placeholder='New Project Name'></input>
          {!creating && <div className='create-btn' onClick={createProject}>Create Project</div>}
          {creating && <div className='create-btn-disabled'><i className="fas fa-spinner fa-spin"></i></div>}
@@ -61,7 +67,6 @@ const ProjectCreate = ({onCreate}) => {
       {!!createProgress.length && <ul>
          {createProgress.map((txt, i) => <li key={i}>{txt}</li>)}
       </ul>}
-
    </div>
 
 }
