@@ -10,13 +10,24 @@
    }
 
    table {
+      width: 100%;
+      
+      .center {
 
-      tr {
+         text-align: center
+         
+      }
+      
+      tbody {
+         
+         tr {
+            border-top: 1px solid lightgray;
 
-         .center {
+            td {
+               padding: 10px;
+            }
 
-            text-align: center
-            
+           
          }
       }
    }

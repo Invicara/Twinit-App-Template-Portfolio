@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 
 import * as semver from 'semver'
 
+import ProjectUpdater from './ProjectUpdater'
+
 import './ProjectList.scss'
 
 const ProjectList = ({currentVer, projects}) => {
@@ -14,9 +16,9 @@ const ProjectList = ({currentVer, projects}) => {
       return p._userAttributes?.projectMaker?.originalVersion ? p._userAttributes.projectMaker.originalVersion : '1.2.0'
    }
 
-   const isUpToDate = (project) => {
+   const isOutOfDate = (project) => {
       let projVersion = getProjectVer(project)
-      return !semver.lt(projVersion, currentVer)
+      return semver.lt(projVersion, currentVer)
    }
 
 
@@ -34,7 +36,7 @@ const ProjectList = ({currentVer, projects}) => {
          <tbody>
             {projects.map(p => <tr key={p._id}>
                <td className='center'>
-                  {isUpToDate(p) ? 'Up to Date' : <div>Update</div>}
+                  {isOutOfDate(p) ? <ProjectUpdater project={p}/> : 'Up to Date'}
                </td>
                <td>{p._name}</td>
                <td className='center'>{getProjectVer(p)}</td>
