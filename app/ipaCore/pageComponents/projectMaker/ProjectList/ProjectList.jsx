@@ -16,7 +16,7 @@ const ProjectList = ({currentVer, projects}) => {
 
    const isUpToDate = (project) => {
       let projVersion = getProjectVer(project)
-      return semver.lt(projVersion, currentVer)
+      return !semver.lt(projVersion, currentVer)
    }
 
 
