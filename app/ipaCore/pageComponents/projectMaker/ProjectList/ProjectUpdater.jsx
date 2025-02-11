@@ -7,7 +7,7 @@ import { ConfigContext } from '../projectMakerView'
 
 import './ProjectUpdater.scss'
 
-const ProjectUpdater = ({isOutOfDate, project, onUpdateStart, onUpdateProgress, onUpdateComplete, onClose, disabled}) => {
+const ProjectUpdater = ({isOutOfDate, project, version, onUpdateStart, onUpdateProgress, onUpdateComplete, disabled}) => {
 
    const { projectUpdateScript } = useContext(ConfigContext)
 
@@ -19,15 +19,20 @@ const ProjectUpdater = ({isOutOfDate, project, onUpdateStart, onUpdateProgress, 
       if (onUpdateStart) onUpdateStart(project)
       if (onUpdateProgress) onUpdateProgress('Starting Project Update')
       
-      setTimeout(() => {
-         if (onUpdateProgress) onUpdateProgress('Update')
-      }, 5000)
+      try {
+         let result = await ScriptHelper.executeScript(projectUpdateScript, {
+            project,
+            version
+         }, null, null, onUpdateProgress)
+         if (onUpdateProgress) onUpdateProgress(result)
+      } catch (error) {
+         console.log(error)
+         if (onUpdateProgress) onUpdateProgress('ERROR during update!')
+      }
 
-      setTimeout(() => {
-         setIsUpdating(false)
-         if (onUpdateProgress) onUpdateProgress('Done!')
-         if (onUpdateComplete) onUpdateComplete(project)
-      }, 10000)
+      
+      if (onUpdateComplete) onUpdateComplete(project)
+      setIsUpdating(false)
 
    }
 

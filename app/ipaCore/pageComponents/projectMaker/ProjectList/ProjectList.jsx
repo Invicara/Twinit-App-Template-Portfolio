@@ -6,6 +6,8 @@ import ProjectUpdater from './ProjectUpdater'
 
 import './ProjectList.scss'
 
+const DEFAULT_VERSION = '1.2.0'
+
 const ProjectList = ({currentVer, projects, onUpdate}) => {
 
    const [ updatingProject, setUpdatingProject ] = useState()
@@ -13,11 +15,11 @@ const ProjectList = ({currentVer, projects, onUpdate}) => {
    const [ showClose, setShowClose ] = useState(false)
 
    const getProjectVer = (p) => {
-      return p._userAttributes?.projectMaker?.currentVersion ? p._userAttributes.projectMaker.currentVersion : '1.2.0'
+      return p._userAttributes?.projectMaker?.currentVersion ? p._userAttributes.projectMaker.currentVersion : DEFAULT_VERSION
    }
 
    const getProjectOriginalVer = (p) => {
-      return p._userAttributes?.projectMaker?.originalVersion ? p._userAttributes.projectMaker.originalVersion : '1.2.0'
+      return p._userAttributes?.projectMaker?.originalVersion ? p._userAttributes.projectMaker.originalVersion : DEFAULT_VERSION
    }
 
    const isOutOfDate = (project) => {
@@ -59,6 +61,7 @@ const ProjectList = ({currentVer, projects, onUpdate}) => {
                   <td className='first-col center'>
                      <ProjectUpdater 
                         project={p}
+                        version={getProjectVer(p)}
                         isOutOfDate={isOutOfDate(p)}
                         disabled={!!updatingProject && updatingProject._id !== p._id} 
                         onUpdateStart={setUpdatingProject}
