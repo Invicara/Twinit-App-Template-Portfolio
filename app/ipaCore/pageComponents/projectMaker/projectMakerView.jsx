@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, createContext } from 'react'
 
 import { IafProj, IafApplication } from '@dtplatform/platform-api'
 import { ScriptHelper } from '@invicara/ipa-core/modules/IpaUtils'
@@ -7,6 +7,8 @@ import ProjectCreate from './ProjectCreate/ProjectCreate.jsx'
 import ProjectList from './ProjectList/ProjectList.jsx'
 
 import './projectMakerView.scss'
+
+export const ConfigContext = createContext()
 
 const ProjectMakerView = (props) => {
 
@@ -73,19 +75,20 @@ const ProjectMakerView = (props) => {
    }
 
    return <div className='projectmake-page'>
-      <div className='projectmake-left'>
-         {checkingAdmin && <div className='checking-admin-notice'>
-            <i className="fas fa-spinner fa-spin"></i> Checking Admin User Status
-         </div>}
-         {!checkingAdmin && !isAdmin && <div className='checking-admin-notice checking-admin-fail'>
-            <i className="fas fa-exclamation-triangle"></i> You are not an Admin!
-         </div>}
-         {!checkingAdmin && isAdmin && <ProjectCreate onCreate={getMyProjects} />}
-      </div>
-      <div className='projectmake-right'>
-         {!checkingAdmin && isAdmin && <ProjectList projects={myProjects} currentVer={currentMakerVersion} />}
-      </div>
-      
+      <ConfigContext.Provider value={props.handler.config}>
+         <div className='projectmake-left'>
+            {checkingAdmin && <div className='checking-admin-notice'>
+               <i className="fas fa-spinner fa-spin"></i> Checking Admin User Status
+            </div>}
+            {!checkingAdmin && !isAdmin && <div className='checking-admin-notice checking-admin-fail'>
+               <i className="fas fa-exclamation-triangle"></i> You are not an Admin!
+            </div>}
+            {!checkingAdmin && isAdmin && <ProjectCreate onCreate={getMyProjects} />}
+         </div>
+         <div className='projectmake-right'>
+            {!checkingAdmin && isAdmin && <ProjectList projects={myProjects} currentVer={currentMakerVersion} />}
+         </div>
+      </ConfigContext.Provider>
    </div>
 }
 
