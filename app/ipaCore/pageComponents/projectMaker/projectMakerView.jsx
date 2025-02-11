@@ -80,7 +80,7 @@ const ProjectMakerView = (props) => {
          {!checkingAdmin && !isAdmin && <div className='checking-admin-notice checking-admin-fail'>
             <i className="fas fa-exclamation-triangle"></i> You are not an Admin!
          </div>}
-         {!checkingAdmin && isAdmin && <ProjectCreate checkingAdmin={checkingAdmin} isAdmin={isAdmin} />}
+         {!checkingAdmin && isAdmin && <ProjectCreate onCreate={getMyProjects} />}
       </div>
       <div className='projectmake-right'>
          {!checkingAdmin && isAdmin && <ProjectList projects={myProjects} currentVer={currentMakerVersion} />}
