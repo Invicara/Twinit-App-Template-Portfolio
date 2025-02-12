@@ -24,8 +24,13 @@ const ProjectList = ({currentVer, projects, onUpdate}) => {
 
    const isOutOfDate = (project) => {
       let projVersion = getProjectVer(project)
-      // TO DO: REMOVE THIS BAD CHECK FOR TESTING
-      return semver.lt(projVersion, currentVer)
+      
+      try {
+         return semver.lt(projVersion, currentVer)
+      } catch (error) {
+         console.error(error)
+         return false
+      }
    }
 
    const updateTheLog = (update) => {
