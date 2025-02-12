@@ -1,0 +1,21 @@
+.project-updater {
+   
+
+   .fa-play-circle {
+      color: var(--app-accent-color);
+      cursor: pointer;
+   }
+
+   .disabled {
+      color: lightgray;
+   }
+
+   .fa-times-circle {
+      color: red;
+      cursor: not-allowed;
+   }
+
+   .fa-circle {
+      color: green;
+   }
+}

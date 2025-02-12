@@ -1,0 +1,91 @@
+.projectmake-admin {
+   width: 100%;
+   display: flex;
+   flex-direction: column;
+   margin: 30px;
+   padding: 30px;
+   border-left: 4px solid var(--app-accent-color);
+
+   .projectmake-input {
+      width: 60%;
+
+      input {
+         margin-top: 30px;
+         margin-bottom: 30px;
+         border: none;
+         border-bottom: 2px solid var(--app-accent-color);
+         width: 100%;
+      }
+
+      .config-script-missing-warning {
+         color: red;
+         font-weight: bold;;
+      }
+
+   }
+   
+
+   .create-btn {
+      margin-left: auto;
+      padding: 5px;
+      color: var(--app-accent-color);
+      font-weight: bold;
+      border: 2px solid var(--app-accent-color);
+      width: 120px;
+      text-align: center;
+      border-radius: 5px;
+      cursor: pointer;
+
+   }
+
+   .create-btn:hover {
+      background-color: var(--app-accent-color);
+      color: whitesmoke;
+   }
+
+   .create-btn-disabled {
+      margin-left: auto;
+      padding: 5px;
+      color: gray;
+      font-weight: bold;
+      border: 2px solid gray;
+      background-color: lightgray;
+      width: 120px;
+      text-align: center;
+      border-radius: 5px;
+      cursor: not-allowed ;
+
+   }
+
+   .create-error {
+      width: 30%;
+      margin: 30px;
+      padding: 30px;
+      border: 4px solid red;
+      border-radius: 5px;;
+      background-color: red;
+      color:whitesmoke;
+      font-weight: bold;
+      font-style: italic;
+      filter: drop-shadow(gray 1rem 1rem 10px);
+   }
+   
+   ul {
+      margin: 30px;
+      list-style-type: circle;
+      list-style-position: outside;
+      width: 80%;
+   
+      :first-child {
+         font-weight: bold;
+         border-bottom: 2px solid black;
+      }
+   
+      :last-child {
+         font-weight: bold;
+         border-top: 2px solid black;
+      }
+   }
+
+}
+
