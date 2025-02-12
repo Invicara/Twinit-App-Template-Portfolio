@@ -492,7 +492,7 @@ class SimpleModelImportView extends React.Component {
                     <td>{bv.displayCreateDate}</td>
                   </tr>)}
                   <tr>
-                    <td colSpan='3'>Only tip version may be imported. Imported verions will display with a check mark.</td>
+                    <td colSpan='3'>Only tip versions may be imported. Imported versions will display with a check mark. Currently the model viewer only supports viewing the tip imported version of a model.</td>
                   </tr>
                 </tbody>
               </table>
