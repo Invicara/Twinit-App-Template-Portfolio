@@ -57,9 +57,15 @@ const ProjectCreate = ({onCreate}) => {
 
    return <div className='projectmake-admin'>
       <div className='projectmake-input'>
-         <input type='text' value={newProjectName} onChange={(e) => handleChange('name', e.target.value)} placeholder='New Project Name'></input>
-         {!creating && <div className='create-btn' onClick={createProject}>Create Project</div>}
+         <input type='text' 
+            value={newProjectName}
+            onChange={(e) => handleChange('name', e.target.value)}
+            placeholder='New Project Name' 
+            disabled={!projectCreateScript || creating}>
+         </input>
+         {projectCreateScript && !creating && <div className='create-btn' onClick={createProject}>Create Project</div>}
          {creating && <div className='create-btn-disabled'><i className="fas fa-spinner fa-spin"></i></div>}
+         {!projectCreateScript && <div className='config-script-missing-warning'>Project Creation Script configuration is missing.</div>}
       </div>
       {progressError && <div className='create-error'>
          <i className="fas fa-exclamation-triangle"></i> {progressError}
