@@ -45,8 +45,16 @@ const ProjectMakerView = (props) => {
 
    const getMakerVersion = async () => {
 
-      let ver = await ScriptHelper.executeScript(props.handler.config.currentVersionScript)
-      setCurrentMakerVersion(ver)
+      if (props.handler.config.currentVersionScript) {
+         try {
+            let ver = await ScriptHelper.executeScript(props.handler.config.currentVersionScript)
+            setCurrentMakerVersion(ver)
+         } catch (error) {
+            setCurrentMakerVersion('ERROR')
+         }
+      } else {
+         setCurrentMakerVersion('ERROR')
+      }
 
    }
 
