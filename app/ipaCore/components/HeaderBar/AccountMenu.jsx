@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from "react"
+import React, { useMemo, useState, useEffect } from "react"
 import { makeStyles } from "@material-ui/core"
 import { palette } from "../../../styles/defaultTheme"
+
+import { IafProj } from '@dtplatform/platform-api'
 
 import TextButton from "../atoms/TextButton"
 import ArrowDownIcon from "../../../assets/icons/arrow-down.svg"
@@ -91,6 +93,14 @@ const useStyles = makeStyles((theme) => ({
         fontSize: 13,
         color: palette.neutral['600'],
         borderTop: `1px solid ${palette.neutral['200']}`
+    },
+    projVersion: {
+        display: 'flex',
+        alignItems: 'center',
+        height: theme.spacing(4),
+        padding: `0 ${theme.spacing(2)}px`,
+        fontSize: 13,
+        color: palette.neutral['600']
     }
 }))
 
@@ -99,7 +109,21 @@ const AccountMenu = ({ user, ...props }) => {
     const [anchorEl, setAnchorEl] = useState(null)
     const classes = useStyles({ open: Boolean(anchorEl) })
 
+    const [ projectVersion, setProjectVersion ] = useState('')
+
     const handlers = props?.userConfig?.handlers
+
+    useEffect(() => {
+        getProjectVersion()
+    }, [props.userConfig])
+
+    const getProjectVersion = async () => {
+        let project = await IafProj.getCurrent()
+
+        let projVersion = project._userAttrbiutes?.projectMaker?.currentVersion ? project._userAttrbiutes?.projectMaker?.currentVersion : '1.2.0'
+        projVersion = props?.userConfig?.homepage.handler === 'projectMaker' ? 'Project Maker' : projVersion
+        setProjectVersion(projVersion)
+    }
 
     const menuItems = useMemo(() => {
         const items = [
@@ -147,6 +171,7 @@ const AccountMenu = ({ user, ...props }) => {
                     </MenuItem>
                 ))}
                 <div className={classes.appVersion}>App version: {version?.version}</div>
+                <div className={classes.projVersion}>Project version: {projectVersion}</div>
             </Menu>
         </div>
     )
