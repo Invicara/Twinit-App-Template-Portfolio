@@ -47,6 +47,12 @@ const HeaderBar = (props) => {
                         <span className={classes.appTitle}>{appTitle}</span>
                     </>
                 }
+                {props.selectedItems.selectedProject &&
+                    <>
+                        <img className={classes.separator} src={SeparatorIcon} />
+                        <span className={classes.appTitle}>{props.selectedItems.selectedProject._name}</span>
+                    </>
+                }
             </div>
             <AccountMenu { ...props } />
         </div>
