@@ -439,8 +439,8 @@ class SimpleModelImportView extends React.Component {
             <CtrlFlxp validFExt={VALID_FILE_EXT} setNewFile={this.setNewFile} innerRef={this.fileUpload} />
 
             <div className='download-notice'>
-              <div>Plugins for publishing models directly from supported CAD authoring tools can be downloaded <a href='https://apps.invicara.com/ipaplugins/' target='_bank'>here</a>.</div>
-              <div>If you already have a published model bimpk file, you can upload it using the button below.</div>
+              <div>Plugins for publishing models directly from supported CAD authoring tools can be downloaded <a href='https://apps.invicara.com/ipaplugins/' target='_blank'>here</a>.</div>
+              <div>If you already have a published model bimpk file, you can upload it using the button below. A sample bimpk file is available in the <a href='https://github.com/Invicara/digitaltwin-factory/raw/refs/heads/master/sampleFiles/General%20Medical%20-%20Architecture.bimpk' target='_blank'>digitaltwin-factory GitHub repo</a>.</div>
               <GenericMatButton
                   onClick={() => this.openFilePicker()}
                   disabled={(!bimpkOrch && !sgpkOrch) || isPageLoading || isPageWorking || !uploadProcessAvailable}
@@ -492,7 +492,7 @@ class SimpleModelImportView extends React.Component {
                     <td>{bv.displayCreateDate}</td>
                   </tr>)}
                   <tr>
-                    <td colSpan='3'>Only tip version may be imported. Imported verions will display with a check mark.</td>
+                    <td colSpan='3'>Only tip versions may be imported. Imported versions will display with a check mark. Currently the model viewer only supports viewing the tip imported version of a model.</td>
                   </tr>
                 </tbody>
               </table>
