@@ -7,7 +7,7 @@ let scriptModule = {
 	// input { projName: <REQUIRED>, projDesc: <OPTIONAL> }
 	async createNewQuickModelViewProject(input, libraries, ctx, callback) {
 
-		const { IafProj, IafUserGroup, IafDataSource } = libraries.PlatformApi
+		const { IafProj, IafUserGroup, IafWorkspace, IafDataSource, IafPermission } = libraries.PlatformApi
 
 		const { projName, projDesc } = input
 
@@ -90,12 +90,14 @@ let scriptModule = {
 			let viewerGroup = (await IafProj.addUserGroups(newProject, [{
 				_name: 'Viewers',
 				_shortName: 'Viewers',
-				_description: 'Viewers user group',
-				permissions: {
-					accessAll: true
-				}
+				_description: 'Viewers user group'
 			}]))[0]
-			console.log('Step 7: viewerGroup', viewerGroup)
+
+			// create read only permissions for the viewer user group on across all of Twinit
+			let readViewerPermCreate = await IafWorkspace.addAllAccess(newProject, viewerGroup, [ IafPermission.PermConst.Action.Read ])
+
+			console.log('Step 7: viewerGroup', viewerGroup, readViewerPermCreate)
+			console.log('Step 7: viewerGroup read permissons create', readViewerPermCreate)
 			if (callback) callback(`Step 7: Created Viewers User Group ${viewerGroup._id}`)
 
 			// create viewers user config
