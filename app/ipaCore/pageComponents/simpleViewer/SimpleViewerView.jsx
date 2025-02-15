@@ -72,9 +72,11 @@ const SimpleViewerView = (props) => {
 
       let query
       if (pkgidIsString && pkgidIsNotANumber) {
+         // IFC Specific Query
          query = { source_id: pkgids[0] }
          setSelection([pkgids[0]])
       } else {
+         // all other bimpk format model query
          query = { package_id: parseInt(pkgids[0]) }
          setSelection([parseInt(pkgids[0])])
       }
