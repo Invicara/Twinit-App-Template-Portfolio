@@ -3,21 +3,46 @@ import React, { useState, useEffect, createContext } from 'react'
 import { IafProj, IafApplication } from '@dtplatform/platform-api'
 import { ScriptHelper } from '@invicara/ipa-core/modules/IpaUtils'
 
+// the component on the page used to create new projects
 import ProjectCreate from './ProjectCreate/ProjectCreate.jsx'
+
+// the component on the page used to display and update existing projects
 import ProjectList from './ProjectList/ProjectList.jsx'
 
 import './projectMakerView.scss'
 
+// a React Context providing the page handler.config to child components
 export const ConfigContext = createContext()
 
+/*
+ * The ProjecMakerVew pageComponent allows for the creation of new
+ * Quick Model View projects and updates of existing Quick Model View
+ * projects.
+ * 
+ * In order for a user to be able to use this pageComponent, they must
+ * first be added to the application's App Developer User Group and
+ * must be added to a project and user group with the ProjectMakerView
+ * configured in a user config.
+*/
 const ProjectMakerView = (props) => {
 
+   // whether the page is currently checking if the user is 
+   // in the App Developer user group
    const [ checkingAdmin, setCheckingAdmin ] = useState(true)
+   // if th user is in the App Developer user group or not
    const [ isAdmin, setIsAdmin ] = useState(false)
 
+   // the current version assigned to projects when they are created
+   // this is retrieved from the ProjectMaker script
    const [ currentMakerVersion, setCurrentMakerVersion ] = useState()
+
+   // the list of projects to which my user has access
    const [ myProjects, setMyProjects ] = useState([])
 
+   // when the page mounts:
+   // 1. check if the user is an admin
+   // 2. geth the current project maker version for new projects
+   // 3. load the projects to which the user has access
    useEffect(() => {
       checkAppAdmin()
       getMakerVersion()
@@ -27,9 +52,9 @@ const ProjectMakerView = (props) => {
    const checkAppAdmin = async () => {
 
       let project = await IafProj.getCurrent()
-      console.log('project', project)
 
       // just make sure this doesnt fly by in the UI confusing users
+      // so we just put it behind a quick timeout
       setTimeout(() => {
          IafApplication.getAppAdminsUserGroup(project).then((ug) => {
             
@@ -45,6 +70,9 @@ const ProjectMakerView = (props) => {
 
    const getMakerVersion = async () => {
 
+      // the handler for this pageComponent has a script configured to return the
+      // current Page Maker version, run the script
+      // if not set the current version to ERROR
       if (props.handler.config.currentVersionScript) {
          try {
             let ver = await ScriptHelper.executeScript(props.handler.config.currentVersionScript)
@@ -60,6 +88,8 @@ const ProjectMakerView = (props) => {
 
    const getMyProjects = async () => {
 
+      //retrieve all projects to which the user has access
+      // a page of 20 at a time
       let _pageSize = 20
       let _offset = 0
       let total = 0
@@ -76,8 +106,13 @@ const ProjectMakerView = (props) => {
 
       } while (allProjects.length < total)
 
+      // sort all projects by their name
       allProjects.sort((a,b) => a._name.localeCompare(b._name))
+
+      // filter out Page Maker projects as they are not managed by this inteface
+      // Page Maker projects must have 'QMV Project Maker' in their name to be recognized
       allProjects = allProjects.filter(p => !p._name.includes('QMV Project Maker'))
+
       setMyProjects(allProjects)
 
    }
