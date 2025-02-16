@@ -47,7 +47,7 @@
     }
   },
   "settings": {
-    "appTitle": "QMV Project Maker",
+    "appTitle": "Quick Model View",
     "appImage": {},
     "headerComponent": "components/HeaderBar/HeaderBar",
     "styles": {
