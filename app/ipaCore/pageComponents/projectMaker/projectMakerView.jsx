@@ -109,9 +109,9 @@ const ProjectMakerView = (props) => {
       // sort all projects by their name
       allProjects.sort((a,b) => a._name.localeCompare(b._name))
 
-      // filter out Page Maker projects as they are not managed by this inteface
-      // Page Maker projects must have 'QMV Project Maker' in their name to be recognized
-      allProjects = allProjects.filter(p => !p._name.includes('QMV Project Maker'))
+      // filter out Page Maker projects as they are not managed by this interface
+      // Page Maker projects must not have _userAttributes.projectMaker settings
+      allProjects = allProjects.filter(p => !p._userAttributes?.projectMaker)
 
       setMyProjects(allProjects)
 
