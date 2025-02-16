@@ -80,6 +80,11 @@ Instructions on how to do both, if you need a refresher, are available on [twini
 
 ![vscode signed in](../../img/vscode-signed-in.jpg)
 
+## Next Steps
+
+In the previous steps you have collected all the information and access you will need to successfully deploy and use the template.
+
+In the next step you will deploy the template scripts, user configs, and template configurations to a new Twinit project.
 
 ---
 [Developer Guide](../README.md) < Back | **Next** > [Deploy the Application Template to Twinit](./d2-deploy-twinit.md)
