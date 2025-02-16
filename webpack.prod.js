@@ -27,9 +27,6 @@ const CONFIG = {
     clean: true,
     assetModuleFilename: '[name][contenthash][ext]'
   },
-  devServer: {
-    hoy: true
-  },
   mode: 'production',
   optimization: {
     minimizer: [
