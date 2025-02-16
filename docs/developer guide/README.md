@@ -20,13 +20,13 @@ Later, when you are ready, explore the in-depth implementation documentation to 
 
 Once you have read the [general introduction](./implementation/general-intro.md) to the template you can proceed with deploying it.
 
-To deploy the Quick Model View Twinit Application Template to Twinit and to deploy the web client you follow these steps in order:
+To deploy the Quick Model View Twinit Application Template to Twinit and to deploy the web client, follow these steps in order:
 
 1. [Gather Necessary Info and Check Twinit Access](./deploy/d1-gather.md)
 2. [Deploy the Application Template to Twinit](./deploy/d2-deploy-twinit.md)
-3. [Build, Run, and Deploy the Web Client]()
-4. [Test the Template]()
-5. [Add Your First Users]()
+3. [Build and Run the Web Client](./deploy/d3-webclient.md)
+4. [Test the Template](./deploy/d4-test.md)
+5. [Deploy the Web Client for Users](./deploy/d5-deploy-to-cloud.md)
 
 ## Gain In-Depth Knowledge of the Application Template
 

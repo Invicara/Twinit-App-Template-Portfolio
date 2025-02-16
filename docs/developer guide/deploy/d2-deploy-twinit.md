@@ -20,7 +20,7 @@ Remember, as mentioned in the [General Introduction](../implementation/general-i
 
 Copying the code out of the GitHub Clone will allow you to more easily manage the template and better build, run, and deploy the template web client.
 
-## Sign in to Your Application using Twinit VS COde Extension
+## Sign in to Your Application using the Twinit VS Code Extension
 
 1. Sign in to Twinit using the Twinit VS Code extension
 2. Select the Twinit instance in which you be working when prompted
@@ -68,6 +68,10 @@ You'll see a notice in the bottom right corner of the VS Cod window once the new
 1. Right click on the "ProjectMakerConfig (quick-view)" user config in your project, and select "Relate Config to User Group"
 2. Select the "Admin" user group when prompted
 
+You'll see a notice in the bottom right corner of the VS Code window once the user config has been related to the user group.
+
+![user config rel](../../img/vscode-config-rel.jpg)
+
 ## Next Steps
 
 In the previous steps you deployed the Project Maker configuration and scripts to Twinit along with the template script and user configurations it needs to crate new Quick Model View projects.
@@ -75,4 +79,4 @@ In the previous steps you deployed the Project Maker configuration and scripts t
 In the next step you will build and run the template web client, and learn how to deploy it to a cloud hosting service of your choosing.
 
 ---
-[Gather Necessary Info and Check Twinit Access](./d1-gather.md) < Back | **Next** > [Build, Run, and Deploy the Web Client](./d3-webclient.md)
+[Gather Necessary Info and Check Twinit Access](./d1-gather.md) < Back | **Next** > [Build and Run the Web Client](./d3-webclient.md)
