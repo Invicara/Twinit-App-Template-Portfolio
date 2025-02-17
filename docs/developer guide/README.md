@@ -39,3 +39,15 @@ When the first update is released, refer back to this section for instructions o
 ## Customizing, Theming, and Extending the Application Template
 
 ## Finding Support
+
+As you work through the deployment of the template or the template's web client, you may encounter issues or have questions about what you are doing.
+
+Be sure to visit the [digitaltwin-factory community](https://community.digitaltwin-factory.com/) to find help.
+
+You'll find easy reference links to [Twinit Academy](https://community.digitaltwin-factory.com/cohorts-npcs64ni) if you ned to quickly refresh your memory on topics covered in the training.
+
+The [Knowledgebase](https://community.digitaltwin-factory.com/knowledgebase-5wzpkylt) is a growing library of common issues and their solutions to help keep you working.
+
+And a community of developers are waiting to answer your questions in the [Ask the Community forum](https://community.digitaltwin-factory.com/ask-the-community).
+
+![dtf logo](../img/dtfactoryv3.png)
