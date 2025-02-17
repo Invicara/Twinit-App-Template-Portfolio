@@ -33,3 +33,5 @@ To deploy the Quick Model View Twinit Application Template to Twinit and to depl
 ## Gain In-Depth Knowledge of the Application Template
 
 ## Customizing, Theming, and Extending the Application Template
+
+## Finding Support
