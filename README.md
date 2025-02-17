@@ -25,7 +25,7 @@ Be sure to check back often as new features and capabilities will be added to th
 
 Two sets of documentation have also been provided:
 
-* A [Developer Guide](./docs/developer%20guide/README.md) providing instructions on how to configure Twinit in order to deploy the Quick Model Viewer application to Twinit and to build and deploy the template web client. The Developer Guide also includes explanations of how the Quick Model View Twinit Application works, the Twinit services it makes use of, the data model it puts in place, and where to start if you wish to make some common extensions to the code.
+* A [Developer Guide](./docs/developer%20guide/README.md) providing instructions on how to deploy the Quick Model View application to Twinit and to build and deploy the template web client. The Developer Guide also includes explanations of how the Quick Model View Twinit Application works, the Twinit services it makes use of, the data model it puts in place, and where to start if you wish to make some common extensions to the code.
 * A [User Guide](./docs/user%20guide/README.md) providing instructions on the usage of the Quick Model View Twinit Application.
 
 ![Quick Model View Project Maker](./docs/img/project-maker.jpg)

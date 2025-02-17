@@ -7,6 +7,8 @@ an educational tool to show how Twinit can be used
 
 a balance between readable and efficient code standards
 
-2 types of projects
+2 types of projects - 1 creates the other
+
+
 
 

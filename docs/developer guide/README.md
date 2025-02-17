@@ -28,6 +28,8 @@ To deploy the Quick Model View Twinit Application Template to Twinit and to depl
 4. [Test the Template](./deploy/d4-test.md)
 5. [Deploy the Web Client for Users](./deploy/d5-deploy-to-cloud.md)
 
+## Consuming Updates to the Quick Model View Twinit Application Template
+
 ## Gain In-Depth Knowledge of the Application Template
 
 ## Customizing, Theming, and Extending the Application Template

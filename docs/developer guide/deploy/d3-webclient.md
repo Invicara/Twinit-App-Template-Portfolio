@@ -20,11 +20,13 @@ Node version 18 has been tested and certified for this template. Using other ver
 ## Install the Web Client Dependencies
 
 1. Open a terminal window in the directory to which you copied the template code
-2. Run ```npm install``
+2. Run ```npm install```
+
+If you experience authentication issues for @dtplatform or @invicara packages when installing dependencies please follow the steps in [this knowledgebase article](https://community.digitaltwin-factory.com/knowledgebase-5wzpkylt/post/authentication-errors-installing-twinit-npm-libraries-ySEzOpPtA3uKVfw) to ensure you have correctly configured your system environment variables to work with the template's .npmrc file.
 
 ## Update the Web Client Configuration
 
-Once the web client dependencies have finished installng you'll need to update the web client confguration to specify your application id.
+Once the web client dependencies have finished installing you'll need to update the web client configuration to specify your application id.
 
 1. Open ```app/ipaCore/ipaConfig.js```
 2. Add your application ID to the "applicationId" field
