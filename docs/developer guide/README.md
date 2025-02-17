@@ -30,6 +30,10 @@ To deploy the Quick Model View Twinit Application Template to Twinit and to depl
 
 ## Consuming Updates to the Quick Model View Twinit Application Template
 
+The Quick Model View Twinit Application Template will be updated with new features and capabilities in the future. The template has a built in mechanism for consuming those updates and rolling them out to all of your projects.
+
+When the first update is released, refer back to this section for instructions on how you can consume the template changes.
+
 ## Gain In-Depth Knowledge of the Application Template
 
 ## Customizing, Theming, and Extending the Application Template
