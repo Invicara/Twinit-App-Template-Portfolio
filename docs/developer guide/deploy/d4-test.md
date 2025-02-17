@@ -116,7 +116,7 @@ There are umber of ways of create a test user. These steps will use mailinator.c
 
 Congratulations, you have successfully deployed and tested the Twinit template and web client.
 
-If you are interested n learning how to build and deploy the template web client for other users to use, continuing on to the next step. Otherwise, return to the [Developer Guide](../README.md) to continue learning more about the template.
+If you are interested in learning how to build and deploy the template web client for other users to use, continuing on to the next step. Otherwise, return to the [Developer Guide](../README.md) to continue learning more about the template.
 
 ---
 [Build and Run the Web Client](./d3-webclient.md) < Back | **Next** > [Deploy the Web Client for Users](./d5-deploy-to-cloud.md)
