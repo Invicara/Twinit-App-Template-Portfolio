@@ -34,3 +34,7 @@ Two sets of documentation have also been provided:
 
 * **If you are developer** looking to deploy the template for your users or to learn how a Twinit Application template works, start with the [Developer Guide](./docs/developer%20guide/README.md) to get started with deploying the template and learning about the implementation behind it.
 * **If you are a user** looking for training and guidance on using the template that a developer has deployed for you, start with the [User Guide](./docs/user%20guide/README.md) where you can learn how to upload and view models and how to invite other users to participate in your Quick Model View projects.
+
+## Release Notes
+
+Detailed release notes for each release of the Quick Model View Application Template are available on the [Release Notes page](./docs/release-notes.md)

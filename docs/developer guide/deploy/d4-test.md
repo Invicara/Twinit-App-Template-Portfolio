@@ -34,6 +34,8 @@ Once the log displays "New project creation complete!" you'll see the list of pr
 
 ![project creation complete](../../img/project-maker-test.jpg)
 
+
+
 ## Sign In the New Quick Model View Project
 
 1. From the header menu select "Switch Project"

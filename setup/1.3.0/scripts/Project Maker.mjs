@@ -9,7 +9,10 @@ let scriptModule = {
 
 		const { IafProj, IafUserGroup, IafWorkspace, IafDataSource, IafPermission } = libraries.PlatformApi
 
-		const { projName, projDesc } = input
+		const {
+			projName,	// REQUIRED: name of the new project to create
+			projDesc 	// description of the new project to create
+		} = input
 
 		if (!projName || !projName.length) {
 			throw("New Projects Require a Name!")
@@ -190,39 +193,31 @@ let scriptModule = {
 		return `New project creation complete!`
 
 	},
-	// input { project }
+	// input { project, version }
 	async updateQuickModelViewProject(input, libraries, ctx, callback) {
 
 		const { IafProj } = libraries.PlatformApi
-		const { project, version } = input
+		const { 	project,	// REQUIRED: the project to migrate
+					version 	// REQUIRED: the current version of the project to migrate
+		} = input
 
-		const migrate_120_130 = async () => {
+		if (!project || !version) {
+			throw("Project and Version are required!")
+		}
+
+		const migrate_X_Y = async () => {
 			
 			callback(`Updating project ${project._name} version`)
-			let projectToUpdate = await IafProj.getById(project._id)
-			console.log(projectToUpdate)
-
-			if (!projectToUpdate._userAttributes.projectMaker) {
-				projectToUpdate._userAttributes.projectMaker = {
-					currentVersion: '1.3.0',
-					originalVersion: '1.2.0'
-				}
-			} else {
-				projectToUpdate._userAttributes.projectMaker.currentVersion = '1.3.0'
-			}
+			await IafProj.switchProject(currentProject._id)
 			
-			if (!projectToUpdate._description || !projectToUpdate._description) {
-				projectToUpdate._description = projectToUpdate._name
-			}
-			console.log(projectToUpdate)
+			// TO DO: perform migration of project
 
-			await IafProj.update(projectToUpdate)
+			// 
 			callback(`Updated project ${project._name} version`)
 		}
 
 		const migrations = [
-			{ from: '1.2.0', to: '1.3.0', migrateFunction: migrate_120_130 },
-			{ from: '1.2.1', to: '1.3.0', migrateFunction: migrate_120_130 }
+			{ from: '1.2.0', to: '1.3.0', migrateFunction: migrate_X_Y }
 		]
 
 		const currentProject = await IafProj.getCurrent()
