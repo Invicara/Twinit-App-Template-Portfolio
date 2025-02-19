@@ -34,7 +34,7 @@ class SimpleModelImportView extends React.Component {
     this.fileUpload = React.createRef();
 
     this.state = {
-      isPageLoading: false, //is the page doign an initial loading
+      isPageLoading: false, //is the page doing an initial loading
       isPageWorking: false, //is the page doing an operation like import
       project: null,
       handler: null,
@@ -64,31 +64,8 @@ class SimpleModelImportView extends React.Component {
 
     await this._loadAsyncData();
 
-    //create options for dropdown menu for model
-    let bimpkOptions = [];
-
-    if (this.state.bimpks.length) {
-      bimpkOptions = this.state.bimpks.map((bimpk) => ({ value: bimpk._id, label: bimpk.nameNoExt }));
-    } else {
-      bimpkOptions = { value: 'none', label: 'No Models in Project' };
-    }
-
-    //make sure the file which is selected by default is the currently loaded model
-    //if no model or if it cant be found use first file
-    let defaultSelection = bimpkOptions[0];
-
-    let bversions = []
-    if (defaultSelection !== undefined && defaultSelection?.value !== 'none') {
-      //get the version of the model for display
-      bversions = getSelectedBimpkVersions(this.state.bimpks, defaultSelection.value);
-    }
-    
-
     this.setState(
       {
-        bimpkOptions: bimpkOptions,
-        selectedBimpk: defaultSelection,
-        selectedBimpkVersions: bversions,
         isPageLoading: false
       },
       this.props.onLoadComplete
@@ -103,6 +80,32 @@ class SimpleModelImportView extends React.Component {
     const handler = this.props.handler;
 
     const project = this.props.selectedItems.selectedProject;
+
+    //create options for dropdown menu for model
+    let bimpkOptions = [];
+
+    if (this.state.bimpks.length) {
+      bimpkOptions = this.state.bimpks.map((bimpk) => ({ value: bimpk._id, label: bimpk.nameNoExt }));
+    } else {
+      bimpkOptions = { value: 'none', label: 'No Models in Project' };
+    }
+
+    //make sure the file which is selected by default is the currently loaded model
+    //if no model or if it cant be found use first file
+    let defaultSelection = bimpkOptions[0];
+
+    this.setState(
+      {
+        bimpkOptions: bimpkOptions,
+        selectedBimpk: defaultSelection,
+        selectedBimpkVersions: bversions
+      })
+
+    let bversions = []
+    if (defaultSelection !== undefined && defaultSelection?.value !== 'none') {
+      //get the version of the model for display
+      bversions = getSelectedBimpkVersions(this.state.bimpks, defaultSelection.value);
+    }
 
     this._getOrchs();
 

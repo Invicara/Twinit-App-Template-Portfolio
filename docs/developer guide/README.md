@@ -4,6 +4,7 @@ The Developer Guide provides information to guide developers through:
 
 * Understanding the Twinit application implementation and data
 * Deploying the Quick Model View Template for your users
+* Consuming future updates to the template
 * Ideas and examples for customizing and extending the template to suit your needs, including how to customize the theme and logo in your deployed web client
 
 > **Required**: The Quick Model View Twinit Application Template requires that you have a valid Twinit account and that you are capable of running a React web client locally and/or deploying a React web client for your users. **As such it is mandatory that you have completed the Self-Led Developer training courses, including the React UI courses, on Twinit Academy prior to attempting to implement the Quick Model View Twinit Application** Steps outlined in the Developer Guide will assume you know how to work with the Twinit VS Code extension and that you have a working knowledge of Twinit concepts such as Workspaces/Projects, script and user configs, and how Twinit ipa-core based web clients function.
@@ -32,11 +33,18 @@ To deploy the Quick Model View Twinit Application Template to Twinit and to depl
 
 The Quick Model View Twinit Application Template will be updated with new features and capabilities in the future. The template has a built in mechanism for consuming those updates and rolling them out to all of your projects.
 
-When the first update is released, refer back to this section for instructions on how you can consume the template changes.
+When the first update is released, refer back to this section at that time for instructions on how you can consume the template changes.
 
-## Gain In-Depth Knowledge of the Application Template
+## In-Depth Knowledge of the Application Template
 
-## Customizing, Theming, and Extending the Application Template
+You can drill down further into the details of the template and how it works in the In-Depth Guides blow. These guides describe the low level details of the template and its inner workings. If you are looking to make changes to the template code or configuration to add your own use cases, you'll want to make sure you read the In-Depth guides first.
+
+* [In-Depth: The Template Web Client](./implementation/imp-webclient.md)
+* [In-Depth: Quick Model View Project Maker](./implementation/imp-projmake.md)
+* [In-Depth: Quick Model View Projects](./implementation/imp-qmvprojects.md)
+* [In-Depth: Template Data Model](./implementation/imp-data-model.md)
+
+## Customizing and Extending the Application Template
 
 ## Finding Support
 
@@ -50,4 +58,4 @@ The [Knowledgebase](https://community.digitaltwin-factory.com/knowledgebase-5wzp
 
 And a community of developers are waiting to answer your questions in the [Ask the Community forum](https://community.digitaltwin-factory.com/ask-the-community).
 
-![dtf logo](../img/dtfactoryv3.png)
+[![dtf logo](../img/dtfactoryv3.png)](https://community.digitaltwin-factory.com/)
