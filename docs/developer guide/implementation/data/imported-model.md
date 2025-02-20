@@ -74,11 +74,25 @@ Here is an example model NamedCompositeItem:
 }
 ```
 
+You can query for model NamedCompositeItems like so:
+
+```js
+// get NamdCompsiteItems representing imported models
+let importedModelComposites = await IafProj.getModels(currentProject)
+```
+
 Each model NamedCompositeItem is related to a number of NamedUserCollections. The three containing model element data are:
 
 * Element Collection
 * Element Properties Collection
 * Element Type Properties Collection
+
+You can query for the NamedUserCollections relad to a NamdCOmpositeItem like so:
+
+```js
+// get collections contained in the NamedCompositeItem representing the model
+let collectionsModelCompositeItem = (await IafItemSvc.getRelatedInItem(selectedModelComposite._userItemId, {}))._list
+```
 
 ### Element Collection
 

@@ -46,6 +46,13 @@ You can drill down further into the details of the template and how it works in 
 
 ## Customizing and Extending the Application Template
 
+Since the template provides all the Twinit scripts and user configs, and web client source code, you can take the template and make it your own. Here are some common customization or additions you may wish to make and how to go about implementing them.
+
+* [Change the Logo in the Web Client](./customize/change-logo.md)
+* [Change the Title of the App in the Web Client](./customize/change-name.md)
+* [Change the Theme Colors in the Web Client](./customize/change-theme.md)
+* [Customize Your Email Invitations](./customize/customize-email.md)
+
 ## Finding Support
 
 As you work through the deployment of the template or the template's web client, you may encounter issues or have questions about what you are doing.
