@@ -1,5 +1,7 @@
 # Learn how to use the Quick Model View Application
 
+![qmv image](../../img/model-view.jpg)
+
 ## Features
 
 The Quick Model View Application provides capabilities to upload, import, and view model data on Twinit. Features include:
