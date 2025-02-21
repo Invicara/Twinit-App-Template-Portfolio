@@ -6,7 +6,7 @@ The Quick Model View Application provides capabilities to upload, import, and vi
 
 * **Access to download Twinit CAD authoring tool plugins**. Once the Twinit plugin is installed on your CAD authoring tool of choice, you can sign in to Twinit and upload a representation of your model. This is a representation of your model, not the actual file the CAD authoring tool saves and manages. The model representation is referred to as a "bimpk" file.
 * **Importing of uploaded model representations**. The Quick Model View Application provides a Model Import page that allows the user to view the different model representations (bimpks) uploaded to the project and the different file version of those bimpks. The user can then select one at a time to be imported to the project.
-* **Viewing the graphics for imported models**. The Quick Model View Application provides a Model View page that provides for viewing the imported models in the project. Both 2D ad 3D views of the model are supported. All the viewer features are also supported such as cutting planes, and view modes.
+* **Viewing the graphics for imported models**. The Quick Model View Application provides a Model View page that provides for viewing the imported models in the project. Both 2D and 3D views of the model are supported. All the viewer features are also supported such as cutting planes, and view modes.
 * **Viewing model element properties**. Using the Model View page, model elements can be selected in the model 2D/3D viewer, and the properties on the element can be viewed.
 * **Invite users to view models**. Using the Quick Model View Application User Groups page, users ca be invited to participate and view models.
 
