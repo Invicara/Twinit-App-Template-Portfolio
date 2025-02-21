@@ -87,7 +87,7 @@ Each model NamedCompositeItem is related to a number of NamedUserCollections. Th
 * Element Properties Collection
 * Element Type Properties Collection
 
-You can query for the NamedUserCollections relad to a NamdCOmpositeItem like so:
+You can query for the NamedUserCollections related to a NamedCompositeItem like so:
 
 ```js
 // get collections contained in the NamedCompositeItem representing the model
@@ -302,3 +302,58 @@ let selectedModelElements = await IafScriptEngine.findWithRelated({
 })
 ```
 You can see a complete example of querying model elements in the [SimpleViewerView pageComponent](../../../../app/ipaCore/pageComponents/simpleViewer/SimpleViewerView.jsx)
+
+## Imported Model Versioning
+
+Each time a new version of the model is imported, the import process will create a new version of the model NamedCompositeItem and new versions of the element, element property, and element type property collections.
+
+Using
+```js
+// get NamdCompsiteItems representing imported models
+let importedModelComposites = await IafProj.getModels(currentProject)
+```
+to fetch the models will always return the latest version of the imported model NamedCompositeItems.
+
+The Twinit IafViewer, which is used to view the models in the web client, currently only supports viewing the latest imported version of a model NamedCompositeItem.
+
+You can find version info on the NamedCompositeItem.
+```json
+{
+  "_name": "General Medical - Architecture",
+  "_userType": "bim_model_version",
+  "_itemClass": "NamedCompositeItem",
+  ...
+  "_tipId": "67a3c********d82c5",
+  "_tipVersion": 1,
+  "_nextVersion": 2,
+  "_versionsCount": 1,
+  "_versions": [
+    {
+      "_version": 1,
+      "_isTip": true,
+      "_userAttributes": {
+        "thumbnail": {
+          "fileVersionId": "4b994723********62040305d095",
+          "fileId": "e6b83386********0c689cd69554"
+        },
+        "bimpk": {
+          "fileVersionId": "92c400dc********e4d2bb0558bc",
+          "fileId": "d5d9f888********ab8365df752b"
+        },
+        "model": {
+          "source": "IFC; Version: Ifc2X3",
+          "originalSource": "ID: Revit; Name: Autodesk Revit 2020 (ENU); Ver: 2020; Dev: Autodesk Revit 2020 (ENU)"
+        }
+      },
+      "_userItemDbId": "67a3c7*******d82c4",
+      "_id": "67a3c7********fd82c5",
+      "_metadata": {
+        "_updatedById": "517d6da6********8ed69e70a7a5",
+        "_createdAt": 1738786800029,
+        "_createdById": "517d6da6********8ed69e70a7a5",
+        "_updatedAt": 1738786998711
+      },
+    }
+  ]
+}
+```
