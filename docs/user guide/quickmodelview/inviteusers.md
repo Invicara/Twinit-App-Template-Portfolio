@@ -6,7 +6,7 @@
 
 2. On the User Groups page expand the "Send Invites" panel
 3. Select the Admin, Viewers, or both User Groups in the "Select UserGroups" dropdown
-4. Enter the emails of the users you wat to invite to the selected User Groups
+4. Enter the emails of the users you want to invite to the selected User Groups
 5. Click Add Email
 6. Click Send Invites
 
