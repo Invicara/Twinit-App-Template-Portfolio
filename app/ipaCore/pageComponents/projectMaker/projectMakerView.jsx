@@ -56,14 +56,20 @@ const ProjectMakerView = (props) => {
       // just make sure this doesnt fly by in the UI confusing users
       // so we just put it behind a quick timeout
       setTimeout(() => {
-         IafApplication.getAppAdminsUserGroup(project).then((ug) => {
-            
-            setCheckingAdmin(false)
-            if (ug) {
-               setIsAdmin(true)
-            }
-            
-         })
+
+         try {
+            IafApplication.getAppAdminsUserGroup(project).then((ug) => {
+               
+               setCheckingAdmin(false)
+               if (ug) {
+                  setIsAdmin(true)
+               }
+               
+            })
+         } catch(err) {
+            console.error("ERROR: Checking Admin Permissions")
+            console.error(err)
+         }
       }, 2000)
 
    }
@@ -95,25 +101,31 @@ const ProjectMakerView = (props) => {
       let total = 0
       let allProjects = []
 
-      do {
-         let projPage = await IafProj.getProjectsWithPagination(null, null, {_pageSize, _offset})
-         console.log(projPage)
+      try {
 
-         total = projPage._total
-         _offset += _pageSize
+         do {
+            let projPage = await IafProj.getProjectsWithPagination(null, null, {_pageSize, _offset})
+            console.log(projPage)
 
-         allProjects.push(...projPage._list)
+            total = projPage._total
+            _offset += _pageSize
 
-      } while (allProjects.length < total)
+            allProjects.push(...projPage._list)
 
-      // sort all projects by their name
-      allProjects.sort((a,b) => a._name.localeCompare(b._name))
+         } while (allProjects.length < total)
 
-      // filter out Page Maker projects as they are not managed by this interface
-      // Page Maker projects must not have _userAttributes.projectMaker settings
-      allProjects = allProjects.filter(p => !p._userAttributes?.projectMaker)
+         // sort all projects by their name
+         allProjects.sort((a,b) => a._name.localeCompare(b._name))
 
-      setMyProjects(allProjects)
+         // filter out Page Maker projects as they are not managed by this interface
+         // Page Maker projects must not have _userAttributes.projectMaker settings
+         allProjects = allProjects.filter(p => !p._userAttributes?.projectMaker)
+
+         setMyProjects(allProjects)
+      } catch (err) {
+         console.error("ERROR: Retrieving Projects")
+            console.error(err)
+      }
 
    }
 
