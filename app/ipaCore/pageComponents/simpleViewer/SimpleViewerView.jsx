@@ -39,9 +39,16 @@ const SimpleViewerView = (props) => {
    }, [])
 
    const loadModels = async () => {
-      let currentProject = await IafProj.getCurrent()
-      let importedModelComposites = await IafProj.getModels(currentProject)
-      setAvailableModelComposites(importedModelComposites)
+
+      try {
+         let currentProject = await IafProj.getCurrent()
+         let importedModelComposites = await IafProj.getModels(currentProject)
+         setAvailableModelComposites(importedModelComposites)
+      } catch (err) {
+         console.error("ERROR: Retrieving Imported Models")
+         console.error(err)
+         setAvailableModelComposites([{ _id: 0, _name:"Error Retrieving Imported Models"}])
+      }
    }
 
    const handleModelSelect = (modelCompositeId) => {
@@ -63,62 +70,69 @@ const SimpleViewerView = (props) => {
       setLoadingElement(true)
       setSelectedElement(null)
 
-      // Different models return different element properties when clicked in the viewer
-      // IFC models return a string that matches an elements source_id
-      // Revit models return an integer that maches an elements package_id
-      // We try to guess what we get from the viewer and make the appropriate query
-      let pkgidIsString = typeof pkgids[0] === 'string' || pkgids[0] instanceof String
-      let pkgidIsNotANumber = isNaN(pkgids[0])
+      try {
 
-      let query
-      if (pkgidIsString && pkgidIsNotANumber) {
-         // IFC Specific Query
-         query = { source_id: pkgids[0] }
-         setSelection([pkgids[0]])
-      } else {
-         // all other bimpk format model query
-         query = { package_id: parseInt(pkgids[0]) }
-         setSelection([parseInt(pkgids[0])])
-      }
+         // Different models return different element properties when clicked in the viewer
+         // IFC models return a string that matches an elements source_id
+         // Revit models return an integer that maches an elements package_id
+         // We try to guess what we get from the viewer and make the appropriate query
+         let pkgidIsString = typeof pkgids[0] === 'string' || pkgids[0] instanceof String
+         let pkgidIsNotANumber = isNaN(pkgids[0])
 
-      // get collections contained in the NamedCompositeItem representing the model
-      let collectionsModelCompositeItem = (await IafItemSvc.getRelatedInItem(selectedModelComposite._userItemId, {}))._list
+         let query
+         if (pkgidIsString && pkgidIsNotANumber) {
+            // IFC Specific Query
+            query = { source_id: pkgids[0] }
+            setSelection([pkgids[0]])
+         } else {
+            // all other bimpk format model query
+            query = { package_id: parseInt(pkgids[0]) }
+            setSelection([parseInt(pkgids[0])])
+         }
 
-      // elements collection
-      let elementCollection = collectionsModelCompositeItem.find(c => c._userType === 'rvt_elements')
+         // get collections contained in the NamedCompositeItem representing the model
+         let collectionsModelCompositeItem = (await IafItemSvc.getRelatedInItem(selectedModelComposite._userItemId, {}))._list
 
-      // element instance properties collection
-      let elementPropCollection = collectionsModelCompositeItem.find(c => c._userType === 'rvt_element_props')
+         // elements collection
+         let elementCollection = collectionsModelCompositeItem.find(c => c._userType === 'rvt_elements')
 
-      // elements type properties collection
-      let elementTypePropCollection = collectionsModelCompositeItem.find(c => c._userType === 'rvt_type_elements')
+         // element instance properties collection
+         let elementPropCollection = collectionsModelCompositeItem.find(c => c._userType === 'rvt_element_props')
 
-      // query the element collection as the parent
-      // and follow relationships to the child instance and type properties
-      let selectedModelElements = await IafScriptEngine.findWithRelated({
-         parent: { 
-            query: query,
-            collectionDesc: {_userItemId: elementCollection._userItemId, _userType: elementCollection._userType},
-         },
-         related: [
-            {
-               relatedDesc: { _relatedUserType: elementPropCollection._userType},
-               as: 'instanceProperties'
+         // elements type properties collection
+         let elementTypePropCollection = collectionsModelCompositeItem.find(c => c._userType === 'rvt_type_elements')
+
+         // query the element collection as the parent
+         // and follow relationships to the child instance and type properties
+         let selectedModelElements = await IafScriptEngine.findWithRelated({
+            parent: { 
+               query: query,
+               collectionDesc: {_userItemId: elementCollection._userItemId, _userType: elementCollection._userType},
             },
-            {
-               relatedDesc: { _relatedUserType: elementTypePropCollection._userType},
-               as: 'typeProperties'
-            }
-         ]
-      })
+            related: [
+               {
+                  relatedDesc: { _relatedUserType: elementPropCollection._userType},
+                  as: 'instanceProperties'
+               },
+               {
+                  relatedDesc: { _relatedUserType: elementTypePropCollection._userType},
+                  as: 'typeProperties'
+               }
+            ]
+         })
 
-      let userSelectedElement = selectedModelElements._list[0]
-      if (userSelectedElement) {
-         userSelectedElement.typeProperties = userSelectedElement.typeProperties._list.length ? userSelectedElement.typeProperties._list[0]?.properties : {}
-         userSelectedElement.instanceProperties =  userSelectedElement.instanceProperties._list.length ? userSelectedElement.instanceProperties._list[0].properties : {}
+         let userSelectedElement = selectedModelElements._list[0]
+         if (userSelectedElement) {
+            userSelectedElement.typeProperties = userSelectedElement.typeProperties._list.length ? userSelectedElement.typeProperties._list[0]?.properties : {}
+            userSelectedElement.instanceProperties =  userSelectedElement.instanceProperties._list.length ? userSelectedElement.instanceProperties._list[0].properties : {}
 
-         setSelectedElement(userSelectedElement)
+            setSelectedElement(userSelectedElement)
+         }
+      } catch (err) {
+         console.error("ERROR: Retrieving Selected Model Element")
+         console.error(err)
       }
+
       setLoadingElement(false)
 
    }
