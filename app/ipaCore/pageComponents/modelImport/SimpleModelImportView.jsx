@@ -81,32 +81,6 @@ class SimpleModelImportView extends React.Component {
 
     const project = this.props.selectedItems.selectedProject;
 
-    //create options for dropdown menu for model
-    let bimpkOptions = [];
-
-    if (this.state.bimpks.length) {
-      bimpkOptions = this.state.bimpks.map((bimpk) => ({ value: bimpk._id, label: bimpk.nameNoExt }));
-    } else {
-      bimpkOptions = { value: 'none', label: 'No Models in Project' };
-    }
-
-    //make sure the file which is selected by default is the currently loaded model
-    //if no model or if it cant be found use first file
-    let defaultSelection = bimpkOptions[0];
-
-    this.setState(
-      {
-        bimpkOptions: bimpkOptions,
-        selectedBimpk: defaultSelection,
-        selectedBimpkVersions: bversions
-      })
-
-    let bversions = []
-    if (defaultSelection !== undefined && defaultSelection?.value !== 'none') {
-      //get the version of the model for display
-      bversions = getSelectedBimpkVersions(this.state.bimpks, defaultSelection.value);
-    }
-
     this._getOrchs();
 
     const bimpkCriteria = {
@@ -131,8 +105,6 @@ class SimpleModelImportView extends React.Component {
 
     const modelFiles = await constructModelFileVersions([...bimpks, ...sgpks]);
 
-    const selectedBimpkVersions = getSelectedBimpkVersions(modelFiles, this.state.selectedBimpk?.value);
-
     let importedModels = await IafProj.getModels(project);
 
     let importedModelVersions = []
@@ -147,8 +119,23 @@ class SimpleModelImportView extends React.Component {
       }
     }
 
+     //create options for dropdown menu for model
+     let bimpkOptions = [];
+
+     if (modelFiles.length) {
+       bimpkOptions = modelFiles.map((bimpk) => ({ value: bimpk._id, label: bimpk.nameNoExt }));
+     } else {
+       bimpkOptions = { value: 'none', label: 'No Models in Project' };
+     }
+ 
+     //make sure the file which is selected by default is the currently loaded model
+     //if no model or if it cant be found use first file
+     let defaultSelection = bimpkOptions[0];
+ 
+     const selectedBimpkVersions = getSelectedBimpkVersions(modelFiles, defaultSelection?.value);
+
     //update the UI while we load the script after
-    await this.setState({ handler, project, bimpks: modelFiles, selectedBimpkVersions, allImportedModelVersions: importedModelVersions });
+    await this.setState({ handler, project, bimpks: modelFiles, bimpkOptions, selectedBimpk: defaultSelection, selectedBimpkVersions, allImportedModelVersions: importedModelVersions });
   };
 
   _getOrchs = async () => {
