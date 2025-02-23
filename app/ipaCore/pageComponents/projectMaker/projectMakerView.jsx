@@ -119,7 +119,7 @@ const ProjectMakerView = (props) => {
 
          // filter out Page Maker projects as they are not managed by this interface
          // Page Maker projects must not have _userAttributes.projectMaker settings
-         allProjects = allProjects.filter(p => !p._userAttributes?.projectMaker)
+         allProjects = allProjects.filter(p => p._userAttributes.projectMaker)
 
          setMyProjects(allProjects)
       } catch (err) {
