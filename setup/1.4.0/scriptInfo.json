@@ -1,0 +1,14 @@
+[
+   {
+      "_name": "Project Maker",
+      "_shortName": "Project Maker",
+      "_description": "Project Maker",
+      "_userType": "project-maker"
+   },
+   {
+      "_name": "importHelperTemplate",
+      "_shortName": "importHelperTemplate",
+      "_description": "importHelperTemplate",
+      "_userType": "quick-temp"
+   }
+]
