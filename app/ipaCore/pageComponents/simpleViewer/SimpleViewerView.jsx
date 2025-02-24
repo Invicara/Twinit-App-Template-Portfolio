@@ -1,14 +1,21 @@
 // version dtf-1.0
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, createContext } from 'react'
+
+import { Panel, PanelGroup } from "react-resizable-panels"
+import ResizeHandle from './panels/ResizeHandle'
 
 import { IafViewerDBM } from '@dtplatform/iaf-viewer'
 import { IafProj, IafItemSvc } from '@dtplatform/platform-api'
 import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
 import { SimpleTextThrobber } from '@invicara/ipa-core/modules/IpaControls'
 
+import SearchPane from './search/SearchPane'
+
 import "@dtplatform/iaf-viewer/dist/iaf-viewer.css";
 import './SimpleViewerView.scss'
+
+export const ModelContext = createContext()
 
 const SimpleViewerView = (props) => {
 
@@ -19,6 +26,7 @@ const SimpleViewerView = (props) => {
    const [ availableModelComposites, setAvailableModelComposites ] = useState([])
    // the currently selected NamedCompositeItem (model) to display in the viewer
    const [ selectedModelComposite, setSelectedModelComposite ] = useState()
+   const [ modelRelatedCollections, setModelRelatedCollections ] = useState()
 
    // the ids of the selected elements in the 3D/2D view
    // this example enforces single element selection by only ever assigning
@@ -33,6 +41,8 @@ const SimpleViewerView = (props) => {
    // these are not used in this example, but must be provided to the viewer
    const [ sliceElementIds, setSliceElementIds ] = useState([])
    const [ colorGroups, setColorGroups ] = useState([])
+
+   const [ selectedPropRefs, setSelectedPropRefs ] = useState([])
 
    useEffect(() => {
       loadModels()
@@ -57,9 +67,20 @@ const SimpleViewerView = (props) => {
       setSelectedElement(null)
       setSelectedModelComposite(undefined)
 
-      setTimeout(() => {
+      setTimeout(async () => {
          let selectedModel = availableModelComposites.find(amc => amc._id === modelCompositeId)
          setSelectedModelComposite(selectedModel)
+
+         // get collections contained in the NamedCompositeItem representing the model
+         let collectionsModelCompositeItem = (await IafItemSvc.getRelatedInItem(selectedModel._userItemId, {}))._list
+
+         setModelRelatedCollections({
+            elements: collectionsModelCompositeItem.find(c => c._userType === 'rvt_elements'),
+            instanceProps: collectionsModelCompositeItem.find(c => c._userType === 'rvt_element_props'),
+            typeProps: collectionsModelCompositeItem.find(c => c._userType === 'rvt_type_elements'),
+            dataCache: collectionsModelCompositeItem.find(c => c._userType === 'data_cache')
+         })
+
       }, 1000)
       
 
@@ -90,32 +111,20 @@ const SimpleViewerView = (props) => {
             setSelection([parseInt(pkgids[0])])
          }
 
-         // get collections contained in the NamedCompositeItem representing the model
-         let collectionsModelCompositeItem = (await IafItemSvc.getRelatedInItem(selectedModelComposite._userItemId, {}))._list
-
-         // elements collection
-         let elementCollection = collectionsModelCompositeItem.find(c => c._userType === 'rvt_elements')
-
-         // element instance properties collection
-         let elementPropCollection = collectionsModelCompositeItem.find(c => c._userType === 'rvt_element_props')
-
-         // elements type properties collection
-         let elementTypePropCollection = collectionsModelCompositeItem.find(c => c._userType === 'rvt_type_elements')
-
          // query the element collection as the parent
          // and follow relationships to the child instance and type properties
          let selectedModelElements = await IafScriptEngine.findWithRelated({
             parent: { 
                query: query,
-               collectionDesc: {_userItemId: elementCollection._userItemId, _userType: elementCollection._userType},
+               collectionDesc: {_userItemId: modelRelatedCollections.elements._userItemId, _userType: modelRelatedCollections.elements._userType},
             },
             related: [
                {
-                  relatedDesc: { _relatedUserType: elementPropCollection._userType},
+                  relatedDesc: { _relatedUserType: modelRelatedCollections.instanceProps._userType},
                   as: 'instanceProperties'
                },
                {
-                  relatedDesc: { _relatedUserType: elementTypePropCollection._userType},
+                  relatedDesc: { _relatedUserType: modelRelatedCollections.typeProps._userType},
                   as: 'typeProperties'
                }
             ]
@@ -138,76 +147,90 @@ const SimpleViewerView = (props) => {
    }
 
    return <div className='simple-viewer-view'>
-      <div className='viewer'>
-         {selectedModelComposite && <IafViewerDBM
-            ref={viewerRef} model={selectedModelComposite}
-            serverUri={endPointConfig.graphicsServiceOrigin}
-            sliceElementIds={sliceElementIds}
-            colorGroups={colorGroups}
-            selection={selection}
-            OnSelectedElementChangeCallback={getSelectedElements}
-         />}
-      </div>
-      <div className='viewer-sidebar'>
-         <div>
-            <label>Select a Model
-               {!!availableModelComposites?.length && <select onChange={(e) => handleModelSelect(e.target.value)}>
-                  <option value={0} disabled selected>Select a Model to View</option>
-                  {availableModelComposites.sort((a,b) => a._name.localeCompare(b._name)).map(amc => <option key={amc._id} value={amc._id}>{amc._name}</option>)}
-               </select>}
-            </label>
-         </div>
-         {selectedModelComposite && <table className='element-info-table element-info-table-model'>
-            <tbody>
-               {selectedModelComposite._versions[0]._userAttributes.model?.source && <tr>
-                  <td className='prop-name small'>Source</td>
-               </tr>}
-               {selectedModelComposite._versions[0]._userAttributes.model?.source &&  <tr>
-                  <td className='small'>{selectedModelComposite._versions[0]._userAttributes.model?.source}</td>
-               </tr>}
-               {selectedModelComposite._versions[0]._userAttributes.model?.originalSource && <tr>
-                  <td className='prop-name small'>Original Source</td>
-               </tr>}
-               {selectedModelComposite._versions[0]._userAttributes.model?.originalSource && <tr>
-                  <td className='small'>{selectedModelComposite._versions[0]._userAttributes.model?.originalSource}</td>
-               </tr>}
-            </tbody>
-         </table>}
-   
-         <div className="element-info">
-            {loadingElement && <SimpleTextThrobber throbberText='Loading Element Data' />}
-            {selectedElement && <table className='element-info-table'>
-               <tbody>
-                  <tr>
-                     <td className='prop-name'>_id</td>
-                     <td>{selectedElement._id}</td>
-                  </tr>
-                  <tr>
-                     <td className='prop-name'>Package Id</td>
-                     <td>{selectedElement.package_id}</td>
-                  </tr>
-                  <tr>
-                     <td className='prop-name'>Source Id</td>
-                     <td>{selectedElement.source_id}</td>
-                  </tr>
-                  <tr>
-                     <td colSpan='2' className='prop-type'>Type Properties</td>
-                  </tr>
-                  {Object.keys(selectedElement.typeProperties).sort().map((tp, i) => <tr key={`t${i}`}>
-                     <td className='prop-name'>{selectedElement.typeProperties[tp].dName}</td>
-                     <td>{selectedElement.typeProperties[tp].val}</td>
-                  </tr>)}
-                  <tr>
-                     <td colSpan='2' className='prop-type'>Instance Properties</td>
-                  </tr>
-                  {Object.keys(selectedElement.instanceProperties).sort().map((ip, i) => <tr key={`t${i}`}>
-                     <td className='prop-name'>{selectedElement.instanceProperties[ip].dName}</td>
-                     <td>{selectedElement.instanceProperties[ip].val}</td>
-                  </tr>)}
-               </tbody>
-            </table>}
-         </div>
-      </div>
+      <ModelContext.Provider value={{selectedModelComposite, modelRelatedCollections}}>
+         <PanelGroup autoSaveId="elemtable" direction="vertical">
+            <Panel id="viewer-panel" collapsible={false} order={1}>
+               <div className="row">
+                  <div className='viewer'>
+                     {selectedModelComposite && <IafViewerDBM
+                        ref={viewerRef} model={selectedModelComposite}
+                        serverUri={endPointConfig.graphicsServiceOrigin}
+                        sliceElementIds={sliceElementIds}
+                        colorGroups={colorGroups}
+                        selection={selection}
+                        OnSelectedElementChangeCallback={getSelectedElements}
+                     />}
+                  </div>
+                  <div className='viewer-sidebar'>
+                     <div>
+                        <label>Select a Model
+                           {!!availableModelComposites?.length && <select onChange={(e) => handleModelSelect(e.target.value)}>
+                              <option value={0} disabled selected>Select a Model to View</option>
+                              {availableModelComposites.sort((a,b) => a._name.localeCompare(b._name)).map(amc => <option key={amc._id} value={amc._id}>{amc._name}</option>)}
+                           </select>}
+                        </label>
+                     </div>
+                     {selectedModelComposite && <table className='element-info-table element-info-table-model'>
+                        <tbody>
+                           {selectedModelComposite._versions[0]._userAttributes.model?.source && <tr>
+                              <td className='prop-name small'>Source</td>
+                           </tr>}
+                           {selectedModelComposite._versions[0]._userAttributes.model?.source &&  <tr>
+                              <td className='small'>{selectedModelComposite._versions[0]._userAttributes.model?.source}</td>
+                           </tr>}
+                           {selectedModelComposite._versions[0]._userAttributes.model?.originalSource && <tr>
+                              <td className='prop-name small'>Original Source</td>
+                           </tr>}
+                           {selectedModelComposite._versions[0]._userAttributes.model?.originalSource && <tr>
+                              <td className='small'>{selectedModelComposite._versions[0]._userAttributes.model?.originalSource}</td>
+                           </tr>}
+                        </tbody>
+                     </table>}
+
+                     {selectedModelComposite && modelRelatedCollections && <SearchPane onPropertyChange={setSelectedPropRefs} />}
+               
+                     {/*<div className="element-info">
+                        {loadingElement && <SimpleTextThrobber throbberText='Loading Element Data' />}
+                        {selectedElement && <table className='element-info-table'>
+                           <tbody>
+                              <tr>
+                                 <td className='prop-name'>_id</td>
+                                 <td>{selectedElement._id}</td>
+                              </tr>
+                              <tr>
+                                 <td className='prop-name'>Package Id</td>
+                                 <td>{selectedElement.package_id}</td>
+                              </tr>
+                              <tr>
+                                 <td className='prop-name'>Source Id</td>
+                                 <td>{selectedElement.source_id}</td>
+                              </tr>
+                              <tr>
+                                 <td colSpan='2' className='prop-type'>Type Properties</td>
+                              </tr>
+                              {Object.keys(selectedElement.typeProperties).sort().map((tp, i) => <tr key={`t${i}`}>
+                                 <td className='prop-name'>{selectedElement.typeProperties[tp].dName}</td>
+                                 <td>{selectedElement.typeProperties[tp].val}</td>
+                              </tr>)}
+                              <tr>
+                                 <td colSpan='2' className='prop-type'>Instance Properties</td>
+                              </tr>
+                              {Object.keys(selectedElement.instanceProperties).sort().map((ip, i) => <tr key={`t${i}`}>
+                                 <td className='prop-name'>{selectedElement.instanceProperties[ip].dName}</td>
+                                 <td>{selectedElement.instanceProperties[ip].val}</td>
+                              </tr>)}
+                           </tbody>
+                        </table>}
+                     </div>*/}
+                  </div>
+               </div>
+            </Panel>
+            <ResizeHandle />
+            <Panel id="table-panel" collapsible={true} order={2} defaultSize={1}>
+               Table
+            </Panel>
+         </PanelGroup>
+      </ModelContext.Provider>
    </div>
 
 }
