@@ -24,9 +24,15 @@ const SimpleViewerView = (props) => {
 
    // the list of NamedCompositeItemns in the Item Service which represent imported models
    const [ availableModelComposites, setAvailableModelComposites ] = useState([])
+
+   // MODEL CONTEXT
    // the currently selected NamedCompositeItem (model) to display in the viewer
    const [ selectedModelComposite, setSelectedModelComposite ] = useState()
    const [ modelRelatedCollections, setModelRelatedCollections ] = useState()
+   const [ selectedPropRefs, setSelectedPropRefs ] = useState([])
+   // the currently selected element in the model with element and property data
+   const [ selectedElement, setSelectedElement ] = useState()
+   const [ sliceElementIds, setSliceElementIds ] = useState([])
 
    // the ids of the selected elements in the 3D/2D view
    // this example enforces single element selection by only ever assigning
@@ -35,14 +41,12 @@ const SimpleViewerView = (props) => {
 
    // if we are fetching individual element item data fom Twinit
    const [ loadingElement, setLoadingElement ] = useState(false)
-   // the currently selected element in the model with element and property data
-   const [ selectedElement, setSelectedElement ] = useState()
+   
 
    // these are not used in this example, but must be provided to the viewer
-   const [ sliceElementIds, setSliceElementIds ] = useState([])
    const [ colorGroups, setColorGroups ] = useState([])
 
-   const [ selectedPropRefs, setSelectedPropRefs ] = useState([])
+   
 
    useEffect(() => {
       loadModels()
@@ -147,7 +151,15 @@ const SimpleViewerView = (props) => {
    }
 
    return <div className='simple-viewer-view'>
-      <ModelContext.Provider value={{selectedModelComposite, modelRelatedCollections}}>
+      <ModelContext.Provider value={{
+         selectedModelComposite,
+         modelRelatedCollections,
+         selectedElement,
+         selectedPropRefs,
+         setSelectedPropRefs,
+         sliceElementIds,
+         setSliceElementIds}}
+      >
          <PanelGroup autoSaveId="elemtable" direction="vertical">
             <Panel id="viewer-panel" collapsible={false} order={1}>
                <div className="row">

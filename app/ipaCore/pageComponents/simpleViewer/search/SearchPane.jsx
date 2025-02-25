@@ -3,7 +3,6 @@ import React, { useEffect, useState, useContext } from "react";
 import { TreeSelect } from 'antd';
 
 import { IafItemSvc } from "@dtplatform/platform-api";
-import { IafScriptEngine } from "@dtplatform/iaf-script-engine";
 
 import { ModelContext } from "../SimpleViewerView";
 
@@ -15,9 +14,11 @@ const SEARCH_DISABLED_STATE = 'disabled'
 
 const { SHOW_PARENT } = TreeSelect;
 
-const SearchPane = ({onPropertyChange}) => {
+const SearchPane = ({}) => {
 
-   const { selectedModelComposite, modelRelatedCollections } = useContext(ModelContext)
+   const { selectedModelComposite, modelRelatedCollections, setSelectedPropRefs } = useContext(ModelContext)
+   const [ totalElementsCount, setTotalElementsCount ] = useState()
+   const [ filteredElementsCount, setFilteredElementsCount ] = useState()
 
    const [ searchEnabled, setSearchEnabled ] = useState(SEARCH_CHECK_STATE)
    const [ instPropRefs, setInstPropRefs ] = useState()
@@ -25,16 +26,27 @@ const SearchPane = ({onPropertyChange}) => {
    const [ typePropRefs, setTypePropRefs ] = useState()
    const [ typePropTreeNodes, setTypePropTreeNodes ] = useState([])
 
+   const [ selectedLocalPropRefs, setSelectedLocalPropRefs ] = useState([])
+
    useEffect(() => {
 
       setSearchEnabled(SEARCH_CHECK_STATE)
-      if (selectedModelComposite) checkSearchable()
+      if (selectedModelComposite) {
+         checkSearchable()
+         setInstPropRefs(null)
+         setInstPropTreeNodes(null)
+         setTypePropRefs(null)
+         setTypePropTreeNodes(null)
+      }
 
    }, [selectedModelComposite])
 
    useEffect(() => {
 
-      if (searchEnabled === SEARCH_ENABLED_STATE) loadAllProperties()
+      if (searchEnabled === SEARCH_ENABLED_STATE) {
+         loadAllProperties()
+         getTotalElementCount()
+      }
 
    }, [searchEnabled])
 
@@ -97,6 +109,17 @@ const SearchPane = ({onPropertyChange}) => {
 
    }
 
+   const getTotalElementCount = () => {
+
+      IafItemSvc.getRelatedItems(modelRelatedCollections.elements._userItemId, {
+         query : {},
+      }, null, { page: { _pageSize: 0, _offset: 0 } }).then((result => {
+         setTotalElementsCount(result._total)
+         setFilteredElementsCount(result._total)
+      }))
+
+   }
+
    const getPropRefsAsTreeNodes = (propRefs, stateSetFunc) => {
 
       let nodes = []
@@ -139,40 +162,46 @@ const SearchPane = ({onPropertyChange}) => {
 
    const onTreeChange = (type, selectedPropertyNames) => {
 
-      if (onPropertyChange) {
+      let allPropRefs = type === 'type' ? typePropRefs : instPropRefs
+      let tempPropRefs = selectedLocalPropRefs.filter(slpr => slpr.property.propertyType !== type)
+      if (!tempPropRefs) tempPropRefs = []
+      console.log('1', tempPropRefs)
 
-         let allPropRefs = type === 'type' ? typePropRefs : instPropRefs
-         let selectedPropRefs = []
+      selectedPropertyNames.forEach(nv => {
 
-         selectedPropertyNames.forEach(nv => {
+         if (nv.includes(' -|- ')) {
 
-            if (nv.includes(' -|- ')) {
+            let [ propSet, propName ] = nv.split(' -|- ')
+            console.log('3', propSet, propName)
+            let propRef = allPropRefs.find(pr => pr.property.propSetName === propSet && pr.property.dName === propName)
+            if (propRef) tempPropRefs.push(propRef)
+            console.log('3', propRef)
 
-               let { propSet, propName } = nv.split(' -|- ')
-               let propRef = allPropRefs.find(pr => pr.property.propSetName === propSet && pr.property.dName === propName)
-               if (propRef) selectedPropRefs.push(propRef)
+         } else {
+            
+            let allPropRefsInSet = allPropRefs.filter(pr => pr.property.propSetName === nv)
+            if (allPropRefsInSet?.length) tempPropRefs.push(...allPropRefsInSet)
+            console.log('4', allPropRefsInSet)
 
-            } else {
-               
-               let allPropRefsInSet = allPropRefs.filter(pr => pr.property.propSetName === nv)
-               if (allPropRefsInSet?.length) selectedPropRefs.push(...allPropRefsInSet)
+         }
 
-            }
+      })
+      console.log('2', tempPropRefs)
 
-         })
-         console.log(selectedPropRefs)
+      setSelectedLocalPropRefs(tempPropRefs)
+      setSelectedPropRefs(tempPropRefs)
 
-         onPropertyChange(selectedPropRefs)
-      }
 
    }
+
+   
   
 
    return <div className='search-pane'>
       {searchEnabled === SEARCH_CHECK_STATE && <div>Checking for search enabled model cache content</div>}
       {searchEnabled === SEARCH_DISABLED_STATE && <div>Search Disabled!</div>}
       {searchEnabled === SEARCH_ENABLED_STATE && <div>
-         <div className='section-header'><span>Select Table Properties</span></div>
+         <div className='section-header'><span>Select Properties</span></div>
          <TreeSelect
             className='tree-select'
             treeData={typePropTreeNodes}
@@ -189,6 +218,9 @@ const SearchPane = ({onPropertyChange}) => {
             onChange={(newVal) => onTreeChange('instance', newVal)}
             placeholder='Select Instance Properties'
          />
+         <div className='section-header'><span>Filter Elements</span></div>
+         <hr />
+         Element Count: {filteredElementsCount} of {totalElementsCount} 
       </div>}
    </div>
 
