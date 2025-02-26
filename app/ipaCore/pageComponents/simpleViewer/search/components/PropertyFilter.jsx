@@ -20,31 +20,22 @@ const numValueComparisons = {
 
 const stringValueTypes = [ 'STRING' ]
 
-const PropertyFilter = ({filter, onFilterSave, onFilterDelete}) => {
+const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) => {
 
    // Model Context
    const { modelRelatedCollections } = useContext(ModelContext)
 
-   const [ localValue, setLocalValue ] = useState([])
    const [ propertyValues, setPropertyValues ] = useState()
 
    const [ selectedComp, setSelectedComp ] = useState(numValueComparisons.EQ)
-   const [ numberOne, setNumberOne ] = useState(0)
-   const [ numberTwo, setNumberTwo ] = useState(0)
 
-   const [ queryPartial, setQueryPartial ] = useState()
-
-   const [ hasChanged, setHasChanged ] = useState(false)
+   const [ hasChanged, setHasChanged ] = useState(true)
 
    useEffect(() => {
       if (filter && stringValueTypes.includes(filter.propRef.property.srcType)) {
          getStringPropValues()
       }
    }, [])
-
-   useEffect(() => {
-      onNumberChange()
-   }, [numberOne, numberTwo])
 
    const getStringPropValues = () => {
 
@@ -73,31 +64,45 @@ const PropertyFilter = ({filter, onFilterSave, onFilterDelete}) => {
 
          setPropertyValues(treeNodes)
 
-         if (filter.values) {
-            setLocalValue(filter.values)
-         }
       })
    }
 
-   const onStringChange = (values) => {
+   const onFilterChange = (type, value) => {
+
+      let updatedFilter = JSON.parse(JSON.stringify(filter))
 
       let query = {}
-      query[`properties.${filter.propRef.property.key}.val`] = {$in: values}
 
-      setLocalValue(values)
-      setQueryPartial(query)
+      if (type === 'string') {
+         updatedFilter.stringValue = value
+         query[`properties.${filter.propRef.property.key}.val`] = {$in: value}
+      } else if (type === 'comp') {
+         updatedFilter.comparisonValue = value
+         query = makeNumberQueryPartial(updatedFilter)
+      } else if (type === 'numOne') {
+         if (!value) value = 0
+         updatedFilter.numberOneValue = value
+         query = makeNumberQueryPartial(updatedFilter)
+      } else if (type === 'numTwo') {
+         if (!value) value = 0
+         updatedFilter.numberTwoValue = value
+         query = makeNumberQueryPartial(updatedFilter)
+      }
+
+      updatedFilter.queryPartial = query
+      onFilterUpdate(updatedFilter)
+
       setHasChanged(true)
    }
 
-   const onCompareChange = (value) => {
-      setSelectedComp(value)
-      setHasChanged(true)
-   }
-
-   const onNumberChange = () => {
+   const makeNumberQueryPartial = (updatedFilter) => {
 
       let query = {}
-      if (['between', 'outside'].includes(selectedComp)) {
+      let numberOne = updatedFilter.numberOneValue
+      let numberTwo = updatedFilter.numberTwoValue
+
+
+      if (['between', 'outside'].includes(updatedFilter.comparisonValue)) {
          
          let low, high
 
@@ -109,11 +114,11 @@ const PropertyFilter = ({filter, onFilterSave, onFilterDelete}) => {
             high = numberOne
          }
 
-         if (selectedComp === numValueComparisons.BT) {
+         if (updatedFilter.comparisonValue === numValueComparisons.BT) {
 
             query[`properties.${filter.propRef.property.key}.val`] = {$gt: low, $lt: high}
 
-         } else if (selectedComp === numValueComparisons.OT) {
+         } else if (updatedFilter.comparisonValue === numValueComparisons.OT) {
 
             query[`properties.${filter.propRef.property.key}.val`] = {$lt: low, $gt: high}
 
@@ -122,24 +127,23 @@ const PropertyFilter = ({filter, onFilterSave, onFilterDelete}) => {
 
       } else {
          
-         if (selectedComp === numValueComparisons.EQ) {
+         if (updatedFilter.comparisonValue === numValueComparisons.EQ) {
             query[`properties.${filter.propRef.property.key}.val`] = numberOne
-         } else if (selectedComp === numValueComparisons.GT) {
+         } else if (updatedFilter.comparisonValue === numValueComparisons.GT) {
             query[`properties.${filter.propRef.property.key}.val`] = {$gt: numberOne}
-         } else if (selectedComp === numValueComparisons.LT) {
+         } else if (updatedFilter.comparisonValue === numValueComparisons.LT) {
             query[`properties.${filter.propRef.property.key}.val`] = {$lt: numberOne}
          }
 
       }
 
-      setQueryPartial(query)
-      setHasChanged(true)
+      return query
 
    }
 
    const saveFilter = () => {
       setHasChanged(false)
-      onFilterSave({...filter, queryPartial, values: localValue})
+      onFilterSave(filter)
    }
 
    return <div className='property-filter'>
@@ -149,10 +153,10 @@ const PropertyFilter = ({filter, onFilterSave, onFilterDelete}) => {
          <TreeSelect
             className='filter-tree-select'
             treeData={propertyValues}
-            value={localValue}
+            value={filter.stringValue}
             treeCheckable= {true}
             placeholder='Select Property Values'
-            onChange={onStringChange}
+            onChange={(values) => onFilterChange('string', values)}
          />
       </div>}
       {numValueTypes.includes(filter.propRef.property.srcType) && <div className='number-filter-values'>
@@ -164,19 +168,19 @@ const PropertyFilter = ({filter, onFilterSave, onFilterDelete}) => {
                   value: v
                }
             })}
-            value={selectedComp}
-            onChange={onCompareChange}
+            value={filter.comparisonValue || numValueComparisons.EQ}
+            onChange={(value) => onFilterChange('comp', value)}
             placeholder='Select Comparison'
          />
          <div className='num-input-section'>
             <InputNumber id='numOne' className='filter-num-input' 
-               value={numberOne}
-               onChange={(value) => setNumberOne(parseFloat(value))}
+               value={filter.numberOneValue}
+               onChange={(value) => onFilterChange('numOne', parseFloat(value))}
             />
-            {['between', 'outside'].includes(selectedComp) && <div> and </div>}
-            {['between', 'outside'].includes(selectedComp) && <InputNumber id='numTwo' className='filter-num-input' 
-                  value={numberTwo}
-                  onChange={(value) => setNumberTwo(parseFloat(value))}
+            {['between', 'outside'].includes(filter.comparisonValue) && <div> and </div>}
+            {['between', 'outside'].includes(filter.comparisonValue) && <InputNumber id='numTwo' className='filter-num-input' 
+                  value={filter.numberTwoValue}
+                  onChange={(value) => onFilterChange('numTwo', parseFloat(value))}
             />}
          </div>
       </div>}
