@@ -1,8 +1,12 @@
+[Developer Guide](../README.md) < Back | **Start a Deploy** > [Gather Necessary Info and Check Twinit Access](../deploy/d1-gather.md)
+
+---
+
 # General Introduction: Quick Model View Twinit Application Template
 
 ## Purpose of the Template
 
-This template servers many different purposes, and an understanding of what those purposes are will help you understand why the template is designed and delivered the way that it is.
+This template serves many different purposes, and an understanding of what those purposes are will help you understand why the template is designed and delivered the way that it is.
 
 ### An Out-Of-The-Box Usable Application
 
@@ -10,7 +14,7 @@ One purpose the template serves is to be an out-of-the-box usable application su
 
 ### An Educational Tool
 
-The template also serves as an educational tool about how templates work on Twinit, how to build web clients for Twinit applications, and even how to to build your own templates. As such, the code delivered as part of the template is thoroughly (some may say excessively) commented and the template is accompanied by both a developer guide (describing the technical details of the template's implementation) and a user guide. The code is also written to be readable, which means in some cases some coding best practices may have been ignored in favor of delivering easier to read code. As you take the template code and modify for your needs, feel free to improve areas of the code where more efficient and cleaner choices could have been made.
+The template also serves as an educational tool about how templates work on Twinit, how to build web clients for Twinit applications, and even how to build your own templates. As such, the code delivered as part of the template is thoroughly (some may say excessively) commented and the template is accompanied by both a developer guide (describing the technical details of the template's implementation) and a user guide. The code is also written to be readable, which means in some cases some coding best practices may have been ignored in favor of delivering easier to read code. As you take the template code and modify for your needs, feel free to improve areas of the code where more efficient and cleaner choices could have been made.
 
 ## How the Template Works
 
@@ -27,8 +31,8 @@ When you deploy the Quick Model View template, what you first deploy is a specia
 
 The "Quick Model View Project Maker" project contains:
 
-* A "ProjectMakerConfig" User Config with the configuration for hoe the template web client should display the Project Maker user interface and what scripts should be used to create new Quick Model View projects
-* A "Project Maker" web client script, that contains all the logic for creating and configuring new Quick Model View projects
+* A ["ProjectMakerConfig" User Config](../../../setup/configs/ProjectMakerConfig.json) with the configuration for how the template web client should display the Project Maker user interface and what scripts should be used to create new Quick Model View projects
+* A ["Project Maker" web client script](../../../setup/scripts/Project%20Maker.mjs), that contains all the logic for creating and configuring new Quick Model View projects
 * Template model import scripts and user configs that will be used in newly created Quick Model View projects
 
 ### Quick Model View Projects
@@ -46,11 +50,11 @@ Viewers users can only view models and only have read-only access to the project
 
 The Quick Model View projects contain:
 
-* A user config for the Admin group for the template web client UI
+* A [user config for the Admin group](../../../setup/configs/QuickViewAdminConfigTemplate.json) for the template web client UI
     * Configured to display the Model Import, Model View, and User Groups pages
-* A user config for the Viewers group for the template web client UI
+* A [user config for the Viewers group](../../../setup/configs/QuickViewViewerConfigTemplate.json) for the template web client UI
     * Configured to display the Model View page
-* An "importHelper" script with the logic used to import model bimpks to Twinit
+* An ["importHelper" script](../../../setup/scripts/importHelperTemplate.mjs) with the logic used to import model bimpks to Twinit
 * A Datasources orchestrator configured to use the "importHelper" script to import model bimpks uploaded to the Twinit File Service
 
 ### The Quick Model View Template Workflow

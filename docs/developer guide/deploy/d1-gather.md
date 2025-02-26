@@ -1,4 +1,11 @@
+
+[Developer Guide](../README.md) < Back | **Next** > [Deploy the Application Template to Twinit](./d2-deploy-twinit.md)
+
+---
+
 # Deploy Step 1: Gather Necessary Info and Check Twinit Access
+
+> **Note**: Be sure you have read [the General Introduction](../implementation/general-intro.md) before continuing.
 
 The first step to deploying the template is to make sure you have the necessary information and access to successfully deploy the template. You will need:
 
