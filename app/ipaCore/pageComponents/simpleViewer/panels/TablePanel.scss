@@ -1,0 +1,27 @@
+.element-table-container {
+   padding: 50px;
+   width: 100%;
+   overflow-y: auto;
+
+   display: flex;
+   justify-content: center;
+   align-items: center;
+
+   .no-table-data {
+
+      border: 2px solid lightgray;
+      border-radius: 20px;
+      padding: 20px;
+      color: lightgray;
+      font-weight: bold;
+
+   }
+
+   .table-wrapper {
+      max-height: 100%;
+      overflow-y: auto;
+   }
+
+
+}
+

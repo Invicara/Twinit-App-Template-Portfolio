@@ -11,6 +11,7 @@ import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
 import { SimpleTextThrobber } from '@invicara/ipa-core/modules/IpaControls'
 
 import SearchPane from './search/SearchPane'
+import TablePanel from './panels/TablePanel'
 
 import "@dtplatform/iaf-viewer/dist/iaf-viewer.css";
 import './SimpleViewerView.scss'
@@ -201,45 +202,12 @@ const SimpleViewerView = (props) => {
 
                      {selectedModelComposite && modelRelatedCollections && <SearchPane onPropertyChange={setSelectedPropRefs} />}
                
-                     {/*<div className="element-info">
-                        {loadingElement && <SimpleTextThrobber throbberText='Loading Element Data' />}
-                        {selectedElement && <table className='element-info-table'>
-                           <tbody>
-                              <tr>
-                                 <td className='prop-name'>_id</td>
-                                 <td>{selectedElement._id}</td>
-                              </tr>
-                              <tr>
-                                 <td className='prop-name'>Package Id</td>
-                                 <td>{selectedElement.package_id}</td>
-                              </tr>
-                              <tr>
-                                 <td className='prop-name'>Source Id</td>
-                                 <td>{selectedElement.source_id}</td>
-                              </tr>
-                              <tr>
-                                 <td colSpan='2' className='prop-type'>Type Properties</td>
-                              </tr>
-                              {Object.keys(selectedElement.typeProperties).sort().map((tp, i) => <tr key={`t${i}`}>
-                                 <td className='prop-name'>{selectedElement.typeProperties[tp].dName}</td>
-                                 <td>{selectedElement.typeProperties[tp].val}</td>
-                              </tr>)}
-                              <tr>
-                                 <td colSpan='2' className='prop-type'>Instance Properties</td>
-                              </tr>
-                              {Object.keys(selectedElement.instanceProperties).sort().map((ip, i) => <tr key={`t${i}`}>
-                                 <td className='prop-name'>{selectedElement.instanceProperties[ip].dName}</td>
-                                 <td>{selectedElement.instanceProperties[ip].val}</td>
-                              </tr>)}
-                           </tbody>
-                        </table>}
-                     </div>*/}
                   </div>
                </div>
             </Panel>
             <ResizeHandle />
             <Panel id="table-panel" collapsible={true} order={2} defaultSize={1} className='table-panel'>
-               Table
+               <TablePanel />
             </Panel>
          </PanelGroup>
       </ModelContext.Provider>
