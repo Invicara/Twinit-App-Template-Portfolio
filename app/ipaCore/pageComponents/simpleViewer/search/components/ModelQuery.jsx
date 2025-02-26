@@ -28,12 +28,23 @@ const ModelQuery = () => {
    }, [])
 
    useEffect(() => {
-      if (filters.length) getFilteredElementCount()
-      else {
-         setFilteredElementsCount(totalElementsCount)
-         setSliceElements([])
-      }
-   }, [filters])
+
+      // remove any filters for selectedPropRefs that were removed
+      let updatedFilters = []
+
+      selectedPropRefs.forEach(spr => {
+
+         let existingFilter = filters.find(f => spr.property.propertyType === f.propRef.property.propertyType && 
+            spr.property.propSetName === f.propRef.property.propSetName && 
+            spr.property.dName === f.propRef.property.dName)
+
+         if (existingFilter) updatedFilters.push(f)
+
+      })
+
+      setFilters(updatedFilters)
+      
+   }, [selectedPropRefs])
 
    const getTotalElementCount = () => {
       setGettingFilteredCount(true)
@@ -64,7 +75,7 @@ const ModelQuery = () => {
             title: `${av.property.propertyType} | ${av.property.propSetName} | ${av.property.dName}`,
             value: `${av.property.propertyType} | ${av.property.propSetName} | ${av.property.dName}`
          }
-      })
+      }).sort((a,b) => a.title.localeCompare(b.title))
 
    }
 
@@ -72,21 +83,30 @@ const ModelQuery = () => {
 
       let [ type, propSet, propName ] = selectedValue.split(' | ')
       let sourcePropRef = selectedPropRefs.find(spr => spr.property.propertyType === type &&  spr.property.propSetName === propSet && spr.property.dName === propName)
-      setFilters([...filters, { propRef: sourcePropRef, label: selectedValue}])
+      setFilters([...filters, { propRef: sourcePropRef, label: selectedValue, stringValue: null, comparisonValue: null, numberOneValue: 0, numberTwoValue: 0}])
 
    }
 
-   const onFilterSave = (updatedFilter) => {
+   const onFilterUpdate = (updatedFilter) => {
 
       let updatedFilters = filters.filter(f => f.label !== updatedFilter.label)
+      if (!updatedFilters) updatedFilters = []
       updatedFilters.push(updatedFilter)
       setFilters(updatedFilters)
 
    }
 
-   const onFilterDelete = (deletedFilter) => {
+   const onFilterSave = () => {
 
-      console.log(deletedFilter)
+      if (filters.length) getFilteredElementCount()
+      else {
+         setFilteredElementsCount(totalElementsCount)
+         setSliceElements([])
+      }
+
+   }
+
+   const onFilterDelete = (deletedFilter) => {
 
       let updatedFilters = filters.filter(f => f.label !== deletedFilter.label)
       setFilters(updatedFilters)
@@ -164,7 +184,9 @@ const ModelQuery = () => {
             setFilteredElementsCount(filteredCounts.reduce((acc, curr) => acc + curr), 0)
             setGettingFilteredCount(false)
          })
-      } 
+      } else {
+         setFilteredElementsCount(totalElementsCount)
+      }
    }
 
    const doSearch = () => {
@@ -215,7 +237,7 @@ const ModelQuery = () => {
             onChange={addFilter}
          />
          {filters.map((f,i) => <div>
-            <PropertyFilter key={f.label} filter={f} onFilterSave={onFilterSave} onFilterDelete={onFilterDelete}/>
+            <PropertyFilter key={f.label} filter={f} onFilterUpdate={onFilterUpdate} onFilterSave={onFilterSave} onFilterDelete={onFilterDelete}/>
             {i < filters.length-1 && <div className='sep'><div className='filter-add-div'><span>and</span></div></div>}
          </div>)}
       </div>}
