@@ -4,7 +4,8 @@ import { IafItemSvc } from "@dtplatform/platform-api";
 
 import { ModelContext } from "../SimpleViewerView";
 
-import PropertySelector from "./PropertySelector";
+import PropertySelector from "./components/PropertySelector";
+import ModelQuery from "./components/ModelQuery";
 
 import './SearchPane.scss'
 
@@ -19,10 +20,7 @@ const SearchPane = ({}) => {
 
    // Model Context
    const { selectedModelComposite, modelRelatedCollections } = useContext(ModelContext)
-
-   const [ totalElementsCount, setTotalElementsCount ] = useState()
-   const [ filteredElementsCount, setFilteredElementsCount ] = useState()
-
+   
    // whether the search pane is enabled or not
    const [ searchEnabled, setSearchEnabled ] = useState(SEARCH_CHECK_STATE)
 
@@ -34,14 +32,6 @@ const SearchPane = ({}) => {
       }
 
    }, [selectedModelComposite])
-
-   useEffect(() => {
-
-      if (searchEnabled === SEARCH_ENABLED_STATE) {
-         getTotalElementCount()
-      }
-
-   }, [searchEnabled])
 
    // check if model data_cache items exist with the Property References information
    // this data is required to enabe the search pane and produced during model import
@@ -66,17 +56,6 @@ const SearchPane = ({}) => {
 
    }
 
-   const getTotalElementCount = () => {
-
-      IafItemSvc.getRelatedItems(modelRelatedCollections.elements._userItemId, {
-         query : {},
-      }, null, { page: { _pageSize: 0, _offset: 0 } }).then((result => {
-         setTotalElementsCount(result._total)
-         setFilteredElementsCount(result._total)
-      }))
-
-   }
-
    return <div className='search-pane'>
       {searchEnabled === SEARCH_CHECK_STATE && <div className='search-check-msg'><i className="fas fa-spinner fa-spin"></i> Checking if this model is search enabled.</div>}
       {searchEnabled === SEARCH_DISABLED_STATE && <div className='search-disabled-msg'>This model is not search enabled. Please re-import your model to generate property data to enable model search.</div>}
@@ -84,8 +63,7 @@ const SearchPane = ({}) => {
          <div className='section-header'><span>Select Properties</span></div>
          <PropertySelector />
          <div className='section-header'><span>Filter Elements</span></div>
-         <hr />
-         Element Count: {filteredElementsCount} of {totalElementsCount} 
+         <ModelQuery />
       </div>}
    </div>
 
