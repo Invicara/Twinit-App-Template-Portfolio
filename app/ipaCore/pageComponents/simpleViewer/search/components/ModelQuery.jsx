@@ -13,7 +13,7 @@ import './ModelQuery.scss'
 const ModelQuery = () => {
 
    // Model Context
-   const { selectedModelComposite, modelRelatedCollections, selectedPropRefs, setSliceElements } = useContext(ModelContext)
+   const { modelRelatedCollections, selectedPropRefs, setSliceElements } = useContext(ModelContext)
 
    const [ filters, setFilters ] = useState([])
 
@@ -38,7 +38,7 @@ const ModelQuery = () => {
             spr.property.propSetName === f.propRef.property.propSetName && 
             spr.property.dName === f.propRef.property.dName)
 
-         if (existingFilter) updatedFilters.push(f)
+         if (existingFilter) updatedFilters.push(existingFilter)
 
       })
 
@@ -126,11 +126,23 @@ const ModelQuery = () => {
 				relatedDesc: { _relatedUserType: modelRelatedCollections.instanceProps._userType},
 				as: 'instanceProps'
          })
+      } else {
+         relatedFilter.$and.push({
+            query: {},
+				relatedDesc: { _relatedUserType: modelRelatedCollections.instanceProps._userType},
+				as: 'instanceProps'
+         })
       }
 
       if (typeQueryPartials && typeQueryPartials.length) {
          relatedFilter.$and.push({
             query: {$and: typeQueryPartials.map(qp => qp.queryPartial)},
+				relatedDesc: { _relatedUserType: modelRelatedCollections.typeProps._userType},
+				as: 'typeProps'
+         })
+      } else {
+         relatedFilter.$and.push({
+            query: {},
 				relatedDesc: { _relatedUserType: modelRelatedCollections.typeProps._userType},
 				as: 'typeProps'
          })
