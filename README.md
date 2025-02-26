@@ -4,13 +4,13 @@
 
 The Quick Model View Twinit Application Template provides an easy to learn,  easy to deploy, easy to use, and easy to extend model viewing application utilizing the capabilities Twinit provides for importing and viewing models imported using supported CAD authoring or file types. This template is also a good place to start if you are looking for a first step toward using and deploying other more complex templates or if you plan to develop your own templates.
 
-> **Note**: The Quick Model View Twinit Application Template requires that you have a valid Twinit account and that you are capable of running a React web client locally and/or deploying a React web client for your users. **As such it is mandatory that you have completed the Self-Led Developer training courses, including the React UI courses, on Twinit Academy prior to attempting to implement the Quick Model View Twinit Application**
+> **Note**: The Quick Model View Twinit Application Template requires that you have a valid Twinit account and that you are capable of running a React web client locally and/or deploying a React web client for your users. **As such it is mandatory that you have completed the Self-Led Developer training courses, including the React UI courses, on [Twinit Academy](https://academy.twinit.io/) prior to attempting to implement the Quick Model View Twinit Application**
 
-## Features currently included in his application template include:
+## Features currently included in this application template include:
 
 | | |
 | --------------- | -------------------|
-| Create new and update existing  Quick Model View projects with the click of a button | ![](./docs/img/project-maker.jpg) |
+| Create new and update existing Quick Model View projects with the click of a button | ![](./docs/img/project-maker.jpg) |
 | ![](./docs/img/import-view.jpg) |  Import multiple CAD models to your Quick Model View projects |
 | View your imported models and review the properties on model elements you select in the viewer | ![](./docs/img/model-view.jpg) |
 | ![](./docs/img/invite-users.jpg) | Collaborate with other users by inviting them to your Quick Model View projects |
@@ -19,8 +19,8 @@ Be sure to check back often as new features and capabilities will be added to th
 
 ## Materials included in the template are:
 
-* A React web client that you can build and deploy to provide a use interface for the Quick Model View Application
-* A Quick Model View Application Project Maker to allow you create new Quick Model View projects for users and to update existing projects to new versions
+* A React web client that you can build and deploy to provide a user interface for the Quick Model View Application
+* A Quick Model View Application Project Maker to allow you create new Quick Model View projects for users and to update existing Quick Model View projects to the latest released version
 * All the script and user config templates needed to setup and extend both the Project Maker and the Quick Model View applications and user interface.
 
 Two sets of documentation have also been provided:
