@@ -31,8 +31,8 @@ When you deploy the Quick Model View template, what you first deploy is a specia
 
 The "Quick Model View Project Maker" project contains:
 
-* A "ProjectMakerConfig" User Config with the configuration for how the template web client should display the Project Maker user interface and what scripts should be used to create new Quick Model View projects
-* A "Project Maker" web client script, that contains all the logic for creating and configuring new Quick Model View projects
+* A ["ProjectMakerConfig" User Config](../../../setup/configs/ProjectMakerConfig.json) with the configuration for how the template web client should display the Project Maker user interface and what scripts should be used to create new Quick Model View projects
+* A ["Project Maker" web client script](../../../setup/scripts/Project%20Maker.mjs), that contains all the logic for creating and configuring new Quick Model View projects
 * Template model import scripts and user configs that will be used in newly created Quick Model View projects
 
 ### Quick Model View Projects
@@ -50,11 +50,11 @@ Viewers users can only view models and only have read-only access to the project
 
 The Quick Model View projects contain:
 
-* A user config for the Admin group for the template web client UI
+* A [user config for the Admin group](../../../setup/configs/QuickViewAdminConfigTemplate.json) for the template web client UI
     * Configured to display the Model Import, Model View, and User Groups pages
-* A user config for the Viewers group for the template web client UI
+* A [user config for the Viewers group](../../../setup/configs/QuickViewViewerConfigTemplate.json) for the template web client UI
     * Configured to display the Model View page
-* An "importHelper" script with the logic used to import model bimpks to Twinit
+* An ["importHelper" script](../../../setup/scripts/importHelperTemplate.mjs) with the logic used to import model bimpks to Twinit
 * A Datasources orchestrator configured to use the "importHelper" script to import model bimpks uploaded to the Twinit File Service
 
 ### The Quick Model View Template Workflow
