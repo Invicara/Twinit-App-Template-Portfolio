@@ -7,7 +7,7 @@ The Developer Guide provides information to guide developers through:
 * Consuming future updates to the template
 * Ideas and examples for customizing and extending the template to suit your needs, including how to customize the theme and logo in your deployed web client
 
-> **Required**: The Quick Model View Twinit Application Template requires that you have a valid Twinit account and that you are capable of running a React web client locally and/or deploying a React web client for your users. **As such it is mandatory that you have completed the Self-Led Developer training courses, including the React UI courses, on Twinit Academy prior to attempting to implement the Quick Model View Twinit Application** Steps outlined in the Developer Guide will assume you know how to work with the Twinit VS Code extension and that you have a working knowledge of Twinit concepts such as Workspaces/Projects, script and user configs, and how Twinit ipa-core based web clients function.
+> **Required**: The Quick Model View Twinit Application Template requires that you have a valid Twinit account and that you are capable of running a React web client locally and/or deploying a React web client for your users. **As such it is mandatory that you have completed the Self-Led Developer training courses, including the React UI courses, on [Twinit Academy](https://academy.twinit.io/) prior to attempting to implement the Quick Model View Twinit Application** Steps outlined in the Developer Guide will assume you know how to work with the Twinit VS Code extension and that you have a working knowledge of Twinit concepts such as Workspaces/Projects, script and user configs, and how Twinit ipa-core based web clients function.
 
 ## Understanding How the Application Template Works
 
