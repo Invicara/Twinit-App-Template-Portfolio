@@ -32,7 +32,7 @@ const SimpleViewerView = (props) => {
    const [ selectedPropRefs, setSelectedPropRefs ] = useState([])
    // the currently selected element in the model with element and property data
    const [ selectedElement, setSelectedElement ] = useState()
-   const [ sliceElementIds, setSliceElementIds ] = useState([])
+   const [ sliceElements, setSliceElements ] = useState([])
 
    // the ids of the selected elements in the 3D/2D view
    // this example enforces single element selection by only ever assigning
@@ -157,17 +157,17 @@ const SimpleViewerView = (props) => {
          selectedElement,
          selectedPropRefs,
          setSelectedPropRefs,
-         sliceElementIds,
-         setSliceElementIds}}
+         sliceElements,
+         setSliceElements}}
       >
          <PanelGroup autoSaveId="elemtable" direction="vertical">
             <Panel id="viewer-panel" collapsible={false} order={1}>
-               <div className="row">
+               <div className="panel-row">
                   <div className='viewer'>
                      {selectedModelComposite && <IafViewerDBM
                         ref={viewerRef} model={selectedModelComposite}
                         serverUri={endPointConfig.graphicsServiceOrigin}
-                        sliceElementIds={sliceElementIds}
+                        sliceElementIds={sliceElements.map(se => [se.package_id, se.source_id]).flat()}
                         colorGroups={colorGroups}
                         selection={selection}
                         OnSelectedElementChangeCallback={getSelectedElements}
@@ -238,7 +238,7 @@ const SimpleViewerView = (props) => {
                </div>
             </Panel>
             <ResizeHandle />
-            <Panel id="table-panel" collapsible={true} order={2} defaultSize={1}>
+            <Panel id="table-panel" collapsible={true} order={2} defaultSize={1} className='table-panel'>
                Table
             </Panel>
          </PanelGroup>
