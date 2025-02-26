@@ -16,7 +16,6 @@ Remember, as mentioned in the [General Introduction](../implementation/general-i
 ## Clone the Template Code Local
 
 1. Using the tool of your choice, clone this GitHub repo locally to your system.
-2. Copy the QuickModelView Template folder out of the directory to which you cloned it and to another directory on its own
 
 Copying the code out of the GitHub Clone will allow you to more easily manage the template and better build, run, and deploy the template web client.
 
