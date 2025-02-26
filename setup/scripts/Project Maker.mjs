@@ -157,7 +157,8 @@ let scriptModule = {
 						{
 							// our import helper script that runs importModel from the script
 							// uses the parameter passed to it at runtime
-							name: 'default_script_target',
+							_orchcomp: 'default_script_target',
+							_name: 'Import Model from bimpk File',
 							'_actualparams': {
 								'userType': 'importHelper',
 								'_scriptName': 'importModel'
@@ -166,7 +167,8 @@ let scriptModule = {
 						},
 						{
 							// our import helper script again, but this time running createModelDataCache
-							name: 'default_script_target',
+							_orchcomp: 'default_script_target',
+							_name: 'Post Process Imported Model',
 							'_actualparams': {
 								'userType': 'importHelper',
 								'_scriptName': 'createModelDataCache'
@@ -212,7 +214,6 @@ let scriptModule = {
 			
 			// TO DO: perform migration of project
 
-			// 
 			callback(`Updated project ${project._name} version`)
 		}
 
