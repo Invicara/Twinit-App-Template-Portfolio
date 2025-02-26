@@ -1,3 +1,7 @@
+[Deploy the Application Template to Twinit](./d2-deploy-twinit.md) < Back | **Next** > [Test the Template](./d4-test.md)
+
+---
+
 # Deploy Step 3: Build and Run the Web Client
 
 The template web client is a React ipa-core application. If you are familiar with React applications and node, then the process of building and running the web client locally on your system will be very familiar to you. If you are not experienced in React and node and if you have not completed the Self-Led Developer React UI courses on Twinit Academy, it is highly recommended you do so as a familiarity with React, node, and ipa-core will be assumed in the following steps.

@@ -1,3 +1,7 @@
+[Test the Template](./d4-test.md) < Back | **Return to** > [Developer Guide](../README.md)
+
+---
+
 # Deploy Step 5: Deploy the Web Client for Users
 
 Now that you have a working web client, you'll want to deploy it for users.
