@@ -9,7 +9,7 @@ To do so, you will need to:
 
 ## Build the Static Web Client Files
 
-1. Open a terminal window in the directory in which you copied the template code
+1. Open a terminal window in the directory in which you cloned the template code
 2. Run ```npm run build```
 
 This will use Webpack to build deployable static files in the ```./build``` folder. If you wish to modfy the wbpack config, you can do so in the ```webpack.prod.js``` file.
