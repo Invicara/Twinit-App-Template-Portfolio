@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext } from 'react'
 
 import { CompactTable } from '@table-library/react-table-library/compact'
 import { useTheme } from "@table-library/react-table-library/theme"
-import { getTheme } from "@table-library/react-table-library/baseline"
+import * as page from "@table-library/react-table-library/pagination";
 
 import { ModelContext } from '../SimpleViewerView'
 
@@ -69,11 +69,18 @@ const TablePanel = () => {
 
    const { selectedPropRefs, sliceElements } = useContext(ModelContext)
 
+   const paginationSetting = page.usePagination(sliceElements, {
+      state: {
+        page: 0,
+        size: 100,
+      }
+    })
+
    const [ columns, setColumns ] = useState([])
    const [ theme, setTheme ] = useState()
 
    useEffect(() => {
-
+      console.log(page, typeof page)
       if (selectedPropRefs.length && sliceElements.length) getTableConfig()
 
    }, [selectedPropRefs, sliceElements])
@@ -96,7 +103,6 @@ const TablePanel = () => {
 
       setColumns([])
 
-
       let columns = [{
          label: '_id', renderCell: (item) => item._id
       }]
@@ -108,12 +114,6 @@ const TablePanel = () => {
          }
       }))
 
-      let baselineTheme = getTheme
-
-      console.log(baselineTheme)
-      console.log(typeof baselineTheme)
-
-
       let theme = useTheme([
          BASELINE_THEME,
          {
@@ -121,10 +121,10 @@ const TablePanel = () => {
              --data-table-library_grid-template-columns: 20% repeat(${columns.length-1}, min-content);
            `,
          },
-       ])
+      ])
 
       setTheme(theme)
-      setColumns(columns)
+      setColumns(columns.sort((a,b) => a.label.localeCompare(b.label)))
 
    }
 
@@ -132,12 +132,24 @@ const TablePanel = () => {
       {!sliceElements.length && <div className='no-table-data'>
          Perform a Search to Display Element Data
       </div>}
-      {!!columns.length && <div className='table-wrapper'><CompactTable
-         columns={columns}
-         theme={theme}
-         data={{nodes: sliceElements}}
-         layout={{ custom: true, horizontalScroll: true }}
-      /></div>}
+      {!!columns.length && <div className='table-wrapper'>
+         <div className='table-actions'>
+            <div className='action-ctrls'>download</div>
+            <div className='page-ctrls'>
+               <span><i className="fas fa-angle-double-left"></i></span>
+               <span><i className="fas fa-angle-left"></i></span>
+               {paginationSetting.state.page+1} of {paginationSetting.state.getTotalPages(sliceElements)}
+               <span><i className="fas fa-angle-right"></i></span>
+               <span><i className="fas fa-angle-double-right"></i></span>
+            </div>
+         </div>
+         <CompactTable
+            columns={columns}
+            theme={theme}
+            data={{nodes: sliceElements}}
+            layout={{ custom: true, horizontalScroll: true }}
+            pagination={paginationSetting}
+         /></div>}
    </div>
 
 }
