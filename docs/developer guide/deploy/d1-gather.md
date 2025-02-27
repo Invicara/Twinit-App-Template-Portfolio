@@ -55,6 +55,8 @@ If your Application Owner does not have your application ID, it can be retrieved
 
 ![console steps app id](../../img/console-retrieve-appid.jpg)
 
+> **Note**: Your application will not likely have a name other than Quick Model View.
+
 ## Getting Access as an Application Owner or Application Developer
 
 When speaking with you Application Owner, you'll also want to ask that you are, at a minimum, a member of your application's Application Developer user group.
@@ -74,6 +76,8 @@ Your application admin can add you to these group by:
 6. You can then be added to the user groups using the "Invite and remove users" tab in the dialog "View and edit" dialog
 
 ![console steps user groups](../../img/console-app-user-groups.jpg)
+
+> **Note**: Your application will not likely have a name other than Quick Model View.
 
 ## Configure Your Twinit VS Code Extension
 
