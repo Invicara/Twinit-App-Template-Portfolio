@@ -58,26 +58,24 @@ The Project Maker pageComponent relies on a script or scripts to create and upda
 Those scripts are specified in the handler in two places.
 
 1. **scriptTypes**: the _userType of the script in Twinit must be specified in the handlers scriptTypes array so that the necessary script item can be loaded when the page loads, making the scripts the page needs available o be run
-2. **config**: three scripts must configured in the handlers config to support creating and updating projects:
+2. **config**: three scripts must be configured in the handlers config to support creating and updating projects:
    * **currentVersionScript**: returns the current version assigned to newly created Quick Model View projects. This is also used to determine if existing projects are out of date
    * **projectCreateScript**: the script used to create new Quick Model View projects
    * **projectUpdateScript**: the script used to migrate a project from an older version to the current version
 
 > **Why use a script for the creation and update code, instead of including the logic directly in the pageComponent?** While we could have included the code to create a new project or update an existing project directly in the pageComponent, we would have required a web client deployment in order to change the project creation or update process. By using a script, we can independently change the processes without needing a web client change. If, for instance, we wanted to create an additional user group during Quick Model View project creation, we could simply update the script, commit it to our Project Maker project on Twinit. The changes would immediately take effect. If the code was in the pageComponent, we'd need to deploy a new web client version to update the business logic of the application.
 
-To learn more about the Project Maker scripts read [In-Depth: Quick Model View Project Maker](./imp-projmake.md).
+### Project Maker Script File
 
-### Project Maker Script
-
-The Project Maker script is named "Project Maker" and has the _userType "project-make".
+The Project Maker script file is named "Project Maker" and has the _userType "project-maker".
 
 ![project maker config](../../img/vscode-proj-maker-script.jpg)
 
-This script contains the individual scripts configured in the page handler. In addition to the script descriptions below, read through the commented script code to understand how the script works.
+This script file contains the individual scripts configured in the page handler. In addition to the script descriptions below, read through the [commented script code](../../../setup/scripts/Project%20Maker.mjs) to understand how the script works.
 
 #### getCurrentMakerVersion
 
-The getCurrentMakerVersion script simply returns the current version of the Project Maker script. This is version is applied to each new Quick Model View project it creates and is used to determine if existing projects are out of date.
+The getCurrentMakerVersion script simply returns the current version of the Project Maker script. This version is applied to each new Quick Model View project it creates and is used to determine if existing projects are out of date.
 
 #### createNewQuickModelViewProject
 
@@ -169,4 +167,4 @@ The QuickViewViewerConfigTemplate user config is added to new Quick Model View p
 To learn more about the QuickViewViewerConfig User Config read [In-Depth: Quick Model View Projects](./imp-qmvprojects.md).
 
 ---
-[Developer Guide](../README.md) < Back | Next > [In-Depth: Quick Model View Projects](./imp-qmvprojects)
+[Developer Guide](../README.md) < Back | Next > [In-Depth: Quick Model View Projects](./imp-qmvprojects.md)

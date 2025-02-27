@@ -18,7 +18,7 @@ The first step to deploying the template is to make sure you have the necessary 
 
 First, you will need to know on which instance of Twinit you will be working. You'll use the URL for the Twinit instance's API in a number of steps while configuring and deploying the template.
 
-In most cases, if you are just starting out and deploying a template for the first time, you will working on Twinit Sandbox. If you are ready to deploy a production version of the template, you'll most likely do so on Twinit Production.
+In most cases, if you are just starting out and deploying a template for the first time, you will be working on Twinit Sandbox. If you are ready to deploy a production version of the template, you're most likely to do so on Twinit Production.
 
 **Twinit Sandbox Info**
 

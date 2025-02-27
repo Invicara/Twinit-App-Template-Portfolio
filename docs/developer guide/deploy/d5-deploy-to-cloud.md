@@ -16,12 +16,12 @@ To do so, you will need to:
 1. Open a terminal window in the directory in which you cloned the template code
 2. Run ```npm run build```
 
-This will use Webpack to build deployable static files in the ```./build``` folder. If you wish to modfy the wbpack config, you can do so in the ```webpack.prod.js``` file.
+This will use Webpack to build deployable static files in the ```./build``` folder. If you wish to modify the webpack config, you can do so in the ```webpack.prod.js``` file.
 
 In the ```./build``` folder there are two files you will need to modify as part of your build process.
 
-* config.js : This file will be a copy of ```app/public/config.js```. If you wish to point the built version to a different instance of Twinit, you will ned to create a ```./build/config.js``` file with the appropriate endpointConfig. Additionally, you will need to replace the "baseRoot" with the URL where the web client will be hosted.
-* version.js : This file  This file will be a copy of ```app/public/version.js``` and contains the version number (and any other info you wish to include) that will be displayed by default in the web client header menu.
+* config.js : This file will be a copy of ```app/public/config.js```. If you wish to point the built version to a different instance of Twinit, you will need to create a ```./build/config.js``` file with the appropriate endpointConfig. Additionally, you will need to replace the "baseRoot" with the URL where the web client will be hosted.
+* version.js : This file will be a copy of ```app/public/version.js``` and contains the version number (and any other info you wish to include) that will be displayed by default in the web client header menu.
 
 ## Deploy the Static Files to a Web Hosting Service
 

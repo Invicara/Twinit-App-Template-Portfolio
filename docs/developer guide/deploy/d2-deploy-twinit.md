@@ -8,7 +8,7 @@ Next you will deploy the template and its configuration to Twinit. This is the f
 
 To deploy the template to Twinit you will:
 
-1. Clone the template code local
+1. Clone the template code locally
 2. Sign in to Twinit and your application using the Twinit VSCode Extension
 3. Create a new "Quick Model View Project Maker" project for your application
 4. Upload the scripts, configurations, and template configurations to your new project
@@ -47,7 +47,7 @@ A new project should now be visible in the extension panel.
 ## Upload the Scripts, Configurations, and Template Configurations
 
 1. Expand your new "QMV Project Maker" project in the extension panel
-2. Right click on the Scripts folder ad select "Bulk Load Scripts"
+2. Right click on the Scripts folder and select "Bulk Load Scripts"
 3. When prompted for a Script Info file, navigate to the directory in which you have saved the template code, and select ```setup/1.3.0/scriptInfo.json```
 4. When prompted to select script files, navigate to the directory in which you have saved the template code, and select all the ```.mjs``` files in ```setup/1.3.0/scripts```
 5. Once the script upload has completed, the panel will refresh and scripts will be displayed in your Scripts folder

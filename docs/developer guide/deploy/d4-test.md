@@ -85,9 +85,11 @@ The status of each task will change from QUEUED to RUNNING to COMPLETE as the or
 
 So far, you've done all testing as a member of the Admin User Group. Next we'll need to make sure that members of the Viewers User Group can also view and interact with the model.
 
-To to do his you will need to create a new test user. You can't simply switch the Viewers User Group with your user. Recall in the Twinit Academy training that permissions in Twinit are **cumulative**. So even though you may choose to interact with the web client as a Viewer, all requests to Twinit would be authorized on your cumulative **Admin and Viewer** permissions. Meaning testing with your user would never test if the read-only permissions assigned to Viewers work correctly.
+To to do this you will need to create a new test user. You can't simply switch the Viewers User Group with your user. Recall in the Twinit Academy training that permissions in Twinit are **cumulative**. So even though you may choose to interact with the web client as a Viewer, all requests to Twinit would be authorized on your cumulative **Admin and Viewer** permissions. Meaning testing with your user would never test if the read-only permissions assigned to Viewers work correctly.
 
-There are umber of ways of create a test user. These steps will use mailinator.com, but if you have other ways please feel free to use them.
+There are a number of ways to create a test user. These steps will use mailinator.com as a disposable email inbox service for the test user, but if you have other ways please feel free to use them.
+
+> **Note**: Mailinator.com allows for creating temporary public email inboxes that can receive emails sent to any mailinator.com email address. Emails sent to public Mailinator email inboxes are automatically deleted after a few hours if you do not delete the emails first. However, Mailinator public inboxes can be found by anyone who knows the email address you used. So if you are using a confidential model to test the application, you may wish to use a different method to create a test user.
 
 1. In the header menu select "User Groups"
 
@@ -106,7 +108,7 @@ There are umber of ways of create a test user. These steps will use mailinator.c
 ![logout](../../img/logout.jpg)
 
 8. Open a browser tab to [https://mailinator.com](https://mailinator.com)
-9. Using the input at the op of the mailinator page search for he email address to which you sent the invitation
+9. Using the input at the top of the Mailinator page search for he email address to which you sent the invitation
 10. Open the invitation email and follow the process to create the new test user account on Twinit
 11. After signing in as the new user, the invitation to the Viewers User Group will appear in the Project Select dialog
 12. Click Accept on the invite, select the "Test QMV Project" when he project dropdown appears, and click the "Load Project" button
