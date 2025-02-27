@@ -144,14 +144,14 @@ const PropertySelector = () => {
       // get the complete list of prop refs based on prop ref type: instance or type
       let allPropRefs = type === 'type' ? typePropRefs : instPropRefs
 
-      // get the current list of propRefs on the Model Context for the typ of prop refs that are not changing
+      // get the current list of propRefs on the Model Context for the type of prop refs that are not changing
       let tempPropRefs = selectedPropRefs.filter(slpr => slpr.property.propertyType !== type)
       if (!tempPropRefs) tempPropRefs = []
 
       // for each currently selected tree node value
       selectedPropertyNames.forEach(nv => {
 
-         // if the vaue represent a prop ref
+         // if the value represent a prop ref
          // split it to get the prop set and prop name
          // then find the original prop ref in the complete list
          if (nv.includes(' -|- ')) {
@@ -164,8 +164,8 @@ const PropertySelector = () => {
 
          } else {
             
-            // else the value represents all propr refs in a prop set bing selected
-            // find all prop refs with the pro set name from the complete list
+            // else the value represents all prop refs in a prop set being selected
+            // find all prop refs with the prop set name from the complete list
             let allPropRefsInSet = allPropRefs.filter(pr => pr.property.propSetName === nv)
             if (allPropRefsInSet?.length) tempPropRefs.push(...allPropRefsInSet)
 
