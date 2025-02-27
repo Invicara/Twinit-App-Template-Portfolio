@@ -18,4 +18,4 @@
 For instructions on installing and using the plugins visit [twinit.dev](https://twinit.dev/docs/concepts/plug-ins/ipa-plugins)
 
 ---
-[Quick Model View User Guide](./README.md) < Back
+[Quick Model View User Guide](./README.md) < Back | Next > [How to Import a Model](./importmodel.md)
