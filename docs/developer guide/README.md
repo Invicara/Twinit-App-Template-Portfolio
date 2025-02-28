@@ -40,7 +40,7 @@ When the first update is released, refer back to this section at that time for i
 You can drill down further into the details of the template and how it works in the In-Depth Guides blow. These guides describe the low level details of the template and its inner workings. If you are looking to make changes to the template code or configuration to add your own use cases, you'll want to make sure you read the In-Depth guides first.
 
 * [In-Depth: The Template Web Client](./implementation/imp-webclient.md)
-* [In-Depth: Quick Model View Project Maker](./implementation/imp-projmake.md)
+* [In-Depth: Quick Model View Manager](./implementation/imp-projmake.md)
 * [In-Depth: Quick Model View Projects](./implementation/imp-qmvprojects.md)
 * [In-Depth: Template Data Model](./implementation/imp-data-model.md)
 

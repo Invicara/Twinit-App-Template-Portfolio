@@ -36,7 +36,7 @@ let scriptModule = {
 			_shortName: projName.slice(0,6),
 			_userAttributes: {
 				nextScriptEngine: true,
-				projectMaker: {
+				quickModelView: {
 					originalVersion: CURRENT_MAKER_VERSION,
 					currentVersion: CURRENT_MAKER_VERSION
 				}

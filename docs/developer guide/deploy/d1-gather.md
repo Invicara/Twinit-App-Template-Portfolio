@@ -18,7 +18,7 @@ The first step to deploying the template is to make sure you have the necessary 
 
 First, you will need to know on which instance of Twinit you will be working. You'll use the URL for the Twinit instance's API in a number of steps while configuring and deploying the template.
 
-In most cases, if you are just starting out and deploying a template for the first time, you will working on Twinit Sandbox. If you are ready to deploy a production version of the template, you'll most likely do so on Twinit Production.
+In most cases, if you are just starting out and deploying a template for the first time, you will be working on Twinit Sandbox. If you are ready to deploy a production version of the template, you're most likely to do so on Twinit Production.
 
 **Twinit Sandbox Info**
 
@@ -55,6 +55,8 @@ If your Application Owner does not have your application ID, it can be retrieved
 
 ![console steps app id](../../img/console-retrieve-appid.jpg)
 
+> **Note**: Your application will not likely have a name other than Quick Model View.
+
 ## Getting Access as an Application Owner or Application Developer
 
 When speaking with you Application Owner, you'll also want to ask that you are, at a minimum, a member of your application's Application Developer user group.
@@ -75,7 +77,11 @@ Your application admin can add you to these group by:
 
 ![console steps user groups](../../img/console-app-user-groups.jpg)
 
+> **Note**: Your application will not likely have a name other than Quick Model View.
+
 ## Configure Your Twinit VS Code Extension
+
+> **Before Continuing**: Make sure you have the latest version of the Twinit VS Code Extension installed. If a newer version of the extension is available you will be prompted to download and install it when you start VS Code. It is important to always use the latest extension.
 
 As part of the Self-Led Developer courses on Twinit Academy, you configured your Twinit VS Code Extension to connect to Twinit Sandbox. You can follow the same steps to add the Twinit Production instance (if needed) or your self-managed instance.
 
@@ -83,7 +89,7 @@ You may also need to add your application ID to your Twinit VS Code extension co
 
 Instructions on how to do both, if you need a refresher, are available on [twinit.dev](https://twinit.dev/docs/marketplace/Tools/vscode-ext-docs/getting-started).
 
-**Do not proceed on to the next step unless you can sign into Twinit and your application through the Twinit VS Code extension.** You should be able to see something similar to the mage below with your application's name displayed in the extension panel.
+**Do not proceed on to the next step unless you can sign into Twinit and your application through the Twinit VS Code extension.** You should be able to see something similar to the image below with your application's name displayed in the extension panel.
 
 ![vscode signed in](../../img/vscode-signed-in.jpg)
 

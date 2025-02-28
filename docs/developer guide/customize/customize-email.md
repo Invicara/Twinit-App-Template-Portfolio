@@ -10,7 +10,7 @@ You can customize the email invitations for your application by simply providing
 
 ### Sample Invite Templates
 
-The Quick Model View Application Template includes a set of sample email invites you can use in the followng steps. They are located in the [setup folder](../../../setup/_email%20templates).
+The Quick Model View Application Template includes a set of sample email invites you can use in the following steps. They are located in the [setup folder](../../../setup/_email%20templates).
 
 ### Open the Twinit Console
 
