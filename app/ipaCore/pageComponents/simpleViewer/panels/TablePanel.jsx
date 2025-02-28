@@ -4,6 +4,8 @@ import { CompactTable } from '@table-library/react-table-library/compact'
 import { useTheme } from "@table-library/react-table-library/theme"
 import * as page from "@table-library/react-table-library/pagination";
 
+import TablePager from './TablePanelComponents/TablePager'
+
 import { ModelContext } from '../SimpleViewerView'
 
 import './TablePanel.scss'
@@ -134,13 +136,18 @@ const TablePanel = () => {
       </div>}
       {!!columns.length && <div className='table-wrapper'>
          <div className='table-actions'>
-            <div className='action-ctrls'>download</div>
-            <div className='page-ctrls'>
-               <span><i className="fas fa-angle-double-left"></i></span>
-               <span><i className="fas fa-angle-left"></i></span>
-               {paginationSetting.state.page+1} of {paginationSetting.state.getTotalPages(sliceElements)}
-               <span><i className="fas fa-angle-right"></i></span>
-               <span><i className="fas fa-angle-double-right"></i></span>
+            <div className='ctrls action-ctrls'>
+               <span className='actions-header'>Actions:</span>
+               <span className='action download-action'>
+                  <i className='fas fa-file-download'></i>
+               </span>
+            </div>
+            <div className='ctrls page-ctrls'>
+               <TablePager
+                  setPage={paginationSetting.fns.onSetPage}
+                  currentPage={paginationSetting.state.page}
+                  totalPages={paginationSetting.state.getTotalPages(sliceElements)}
+               />
             </div>
          </div>
          <CompactTable

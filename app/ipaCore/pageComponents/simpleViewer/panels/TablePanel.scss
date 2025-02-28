@@ -23,6 +23,40 @@
       height: 90%;
       margin-bottom: 50px;
 
+      .table-actions {
+         display: flex;
+         flex-direction: row;
+         justify-content: space-between;
+         
+
+         .ctrls {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+
+            .actions-header {
+               font-weight: bold;
+               margin-right: 10px;
+            }
+
+            .download-action {
+               color: green;
+               font-size: 1.25rem;
+            }
+
+            .action {
+               margin: 5px;
+               cursor: pointer;
+            }
+
+            .action-disabled {
+               color: lightgray;
+               cursor: not-allowed;
+            }
+         }
+         
+      }
+
       .table {
          height: 100%;
       }
