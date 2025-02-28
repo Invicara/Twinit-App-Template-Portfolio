@@ -230,6 +230,13 @@ const ModelQuery = () => {
       }
 
       Promise.all(allCountPromises).then(() => {
+
+         // simplfy element structure by bringing the type and instance
+         // properties further up the object path
+         allElements.forEach(elem => {
+            elem.instanceProps = elem.instanceProps._list[0].properties
+            elem.typeProps = elem.typeProps._list[0].properties
+         })
          setSliceElements(allElements)
          setGettingFilteredElements(false)
       })
