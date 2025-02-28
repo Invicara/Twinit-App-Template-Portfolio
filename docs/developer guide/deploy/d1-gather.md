@@ -93,6 +93,16 @@ Instructions on how to do both, if you need a refresher, are available on [twini
 
 ![vscode signed in](../../img/vscode-signed-in.jpg)
 
+## Clone the Template Code Local
+
+1. Using the tool of your choice, clone this GitHub repo locally to your system.
+
+If using the git command line, run the following from the directory in which you want to clone the repository:
+
+```git clone https://github.com/Invicara/Twinit-App-Template-Quick-Model-View```
+
+For more help on cloning repositories, refer to [GitHub Docs](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository).
+
 ## Next Steps
 
 In the previous steps you have collected all the information and access you will need to successfully deploy and use the template.

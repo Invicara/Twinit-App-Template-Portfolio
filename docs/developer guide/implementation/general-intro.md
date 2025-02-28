@@ -35,7 +35,7 @@ When you deploy the Quick Model View template, what you first deploy is a specia
 
 The "Quick Model View Manager" project contains:
 
-* A ["ProjectMakerConfig" User Config](../../../setup/configs/ProjectMakerConfig.json) with the configuration for how the template web client should display the Project Maker user interface and what scripts should be used to create new Quick Model View projects
+* A ["QuickViewManagerConfig" User Config](../../../setup/configs/ProjectMakerConfig.json) with the configuration for how the template web client should display the Project Maker user interface and what scripts should be used to create new Quick Model View projects
 * A ["Project Maker" web client script](../../../setup/scripts/Project%20Maker.mjs), that contains all the logic for creating and configuring new Quick Model View projects
 * Template model import scripts and user configs that will be used in newly created Quick Model View projects
 
