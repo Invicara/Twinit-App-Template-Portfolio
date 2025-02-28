@@ -4,6 +4,10 @@
    flex-wrap: nowrap;
    height: calc(100vh - 80px);
 
+   .side-panel {
+      z-index: 1;
+   }
+
    .panel-row {
       display: flex;
       flex-direction: row;
