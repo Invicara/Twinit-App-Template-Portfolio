@@ -4,11 +4,13 @@ import { CompactTable } from '@table-library/react-table-library/compact'
 import { useTheme } from "@table-library/react-table-library/theme"
 import * as page from "@table-library/react-table-library/pagination";
 
+import ExcelDownloader from './TablePanelComponents/ExcelDownloader'
 import TablePager from './TablePanelComponents/TablePager'
 
 import { ModelContext } from '../SimpleViewerView'
 
 import './TablePanel.scss'
+
 
 const COLORS = {
    FONT_PRIMARY: '#141414',
@@ -138,9 +140,7 @@ const TablePanel = () => {
          <div className='table-actions'>
             <div className='ctrls action-ctrls'>
                <span className='actions-header'>Actions:</span>
-               <span className='action download-action'>
-                  <i className='fas fa-file-download'></i>
-               </span>
+                  <ExcelDownloader />
             </div>
             <div className='ctrls page-ctrls'>
                <TablePager
