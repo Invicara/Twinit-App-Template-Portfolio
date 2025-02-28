@@ -25,12 +25,14 @@ const ProjectList = ({
 
    // the current version of a project
    const getProjectVer = (p) => {
-      return p._userAttributes?.projectMaker?.currentVersion
+      return p._userAttributes?.quickModelView?.currentVersion || 
+         p._userAttributes?.projectMaker?.currentVersion // backwards compatible for previous release projects
    }
 
    // the orginal version that created the project
    const getProjectOriginalVer = (p) => {
-      return p._userAttributes?.projectMaker?.originalVersion
+      return p._userAttributes?.quickModelView?.originalVersion || 
+         p._userAttributes?.projectMaker?.originalVersion // backwards compatible for previous release projects
    }
 
    // whether a project is out of date with the current Project Maker version

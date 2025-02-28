@@ -34,7 +34,7 @@ The User Config related to the User Group expose the pages by configuring the fo
 
 ### User Groups Page
 
-The User Groups page for managing users access to the Project Maker (via the header menu). This page is provided by ipa-core. Read more about this pageComponent and how to configure it on [twinit.dev](https://twinit.dev/docs/uiframework/userconfigs/pagehandlers/usergroup).
+The User Groups page for managing users access to the Quick Model View project (via the header menu). This page is provided by ipa-core. Read more about this pageComponent and how to configure it on [twinit.dev](https://twinit.dev/docs/uiframework/userconfigs/pagehandlers/usergroup).
 
 ### Model Import Page
 

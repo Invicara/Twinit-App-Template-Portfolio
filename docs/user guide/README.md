@@ -8,6 +8,6 @@ The **Quick Model View Application** gives you the ability to upload and import 
 
  ![maker](../img/project-maker.jpg)
 
-Using the **Quick Model View Project Maker** you can create new Quick Model View projects. This allows you to separate models and users for different designs or activities into their own workspaces. The **Quick Model View Project Maker** also allows you to update existing workspaces as new releases of the template become available.
+Using the **Quick Model View Manager** you can create new Quick Model View projects. This allows you to separate models and users for different designs or activities into their own workspaces. The **Quick Model View Manager** also allows you to update existing workspaces as new releases of the template become available.
 
-[Learn how to use the Quick Model View Project Maker](./projectmaker/README.md)
+[Learn how to use the Quick Model View Manager](./projectmaker/README.md)

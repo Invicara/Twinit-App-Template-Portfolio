@@ -1,33 +1,33 @@
-# In-Depth: Quick Model View Project Maker
+# In-Depth: Quick Model View Manager
 
-The Quick Model View Project Maker project contains two types of items:
+The Quick Model View Manager project contains two types of items:
 
-* Project Maker User Configs and Scripts needed for the Project Maker functionality and user interface
-* Template Scripts and User Configs to deploy to the new Quick Model View projects the Project Maker creates and updates
+* Manager User Configs and Scripts needed for the Project Maker functionality and user interface
+* Template Scripts and User Configs to deploy to the new Quick Model View projects the Manager creates and updates
 
-## Project Maker User Groups
+## QMV Manager User Groups
 
-The Project Maker project has only one User Group:
+The Quick Model View Manager project has only one User Group:
 
-* Admin
+* QMV Managers
 
-Adding uses to the Admin user group will give them access to the Project Maker project, but it will not permit them to also create new projects.
+Adding uses to the QMV Managers user group will give them access to the QMV Manager project, but it will not permit them to also create new projects.
 
-In order to use the Project Maker, users must also be added to your application's Application Developer user group. This access is necessary to allow the user to create new projects and user groups. Refer to the "Getting Access as an Application Owner or Application Developer" step in the [Deployment Guide](../deploy/d1-gather.md) for more information.
+In order to use the QMV Manager, users must also be added to your application's Application Developer user group. This access is necessary to allow the user to create new projects and user groups. Refer to the "Getting Access as an Application Owner or Application Developer" step in the [Deployment Guide](../deploy/d1-gather.md) for more information.
 
-## Project Maker User Configs and Scripts
+## QMV Manager User Configs and Scripts
 
-The Project Maker has one user config to provide the user interface and one script to provide the logic for creating and updating Quick Model View projects.
+The QMV Manager project has one user config to provide the user interface and one script to provide the logic for creating and updating Quick Model View projects.
 
-### Project Maker User Config
+### QMV Manager User Config
 
-The Project Maker user config is named "ProjectMakerConfig" and has the _userType "quick-view".
+The QMV Manager user config is named "QuickViewManagerConfig" and has the _userType "quick-view".
 
 ![project maker config](../../img/vscode-proj-maker-config.jpg)
 
 The User Config exposes two pages to the user:
 
-* The User Groups page for managing users access to the Project Maker (via the header menu)
+* The User Groups page for managing users access to the QMV Manager project (via the header menu)
 * The Project Maker page handler
 
 ### Project Maker Page Handler
@@ -36,7 +36,7 @@ The Project Maker pageComponent is configured to display in the web client by th
 
 ```json
 "projectMaker": {
-   "title": "QMV Project Maker",
+   "title": "QMV Manager",
    "icon": "fas fa-folder-plus fa-2x",
    "shortName": "projmk",
    "description": "Create New Quick Model View Projects",
@@ -86,7 +86,7 @@ The createNewQuickModelViewProject script creates new Quick Model View projects.
 
 The script does the following:
 
-1. Retrieves the template scripts and user configs that will be added to the new Quick Model View project, from the Project Maker project. The scripts and user configs all have the _userType "quick-temp".
+1. Retrieves the template scripts and user configs that will be added to the new Quick Model View project, from the QMV Manager project. The scripts and user configs all have the _userType "quick-temp".
 
 ![template items](../../img/vscode-proj-maker-temps.jpg)
 
@@ -99,7 +99,7 @@ The script does the following:
 8. Creates a Viewers user config from the QuickViewViewerConfigTemplate and relates the new config to the Viewers User Group
 9. Creates a new importHelper script from the importHelperTemplate script.
 10. Creates an import orchestrator that uses the newly created importHelper script.
-11. Switches its context back to working within the Project Maker project
+11. Switches its context back to working within the QMV Manager project
 
 While the script is running it uses the callback function provided by the web client to provide success or error updates to the user interface like so:
 
@@ -138,7 +138,7 @@ Detailed results of each step or errors are also logged to the browser console, 
 
 ## Template Scripts and User Configs
 
-The template scripts and user configs are the templates for the scripts and user configs that will be created in new projects created using the Project Maker. Templates all have the _userType "quick-temp".
+The template scripts and user configs are the templates for the scripts and user configs that will be created in new projects created using the QMV Manager. Templates all have the _userType "quick-temp".
 
 ![template items](../../img/vscode-proj-maker-temps.jpg)
 

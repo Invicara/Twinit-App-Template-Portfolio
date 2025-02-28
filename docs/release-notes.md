@@ -8,10 +8,10 @@ _February 2025_
 ### Features
 
 * An application template that can be deployed to Twinit, including a template web client user interface for the application
-   * Project Maker that allows you create new Quick Model View Projects
+   * Quick Model View Manager that allows you create new Quick Model View Projects
    * Quick Model View functionality allowing for
       * Upload and importing CAD models in bimpk format
       * Viewing imported CAD models and the properties on model elements
-      * Inviting user to Project Maker and Quick Model View projects
+      * Inviting user to Quick Model View Manager and Quick Model View projects
 * User Guide for using the Application Template
 * Developer Guide for deploying, supporting, and extending the Application Template

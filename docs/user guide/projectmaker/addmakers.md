@@ -1,14 +1,14 @@
-# How to Add New Project Maker Users
+# How to Add New Quick Model View Manager Users
 
-To give a user access to the Quick Model View Project Maker, you will add them to two user groups.
+To give a user access to the Quick Model View Manager, you will add them to two user groups.
 
 * The application's App Developer User Group
-* The Project Maker Admin User Group
+* The QMV Managers User Group
 
 1. Send your Application Owner responsible for administrating the Quick Model View application the email address for the user you wish to add and ask they are added to the App Developer User Group. Information on how to add App Developers is available in the "Getting Access as an Application Owner or Application Developer" section of the [Developer Guide](../../developer%20guide/deploy/d1-gather.md).
 2. Sign in to a Project Make project
 
-![project maker project](../../img/proj-maker-proj.jpg)
+![project maker project](../../img/project-select-maker.jpg)
 
 3. In the header menu select "User Groups"
 
@@ -21,7 +21,7 @@ To give a user access to the Quick Model View Project Maker, you will add them t
 
 ![invites](../../img/proj-make-invite.jpg)
 
-The users will receive two emails with a links to accept the invitations to the App Developer group and the Project Maker project Admin group.
+The users will receive two emails with a links to accept the invitations to the App Developer group and the QMV Managers group.
 
 ---
-[Project Maker User Guide](./README.md) < Back
+[Quick Model View Manager User Guide](./README.md) < Back

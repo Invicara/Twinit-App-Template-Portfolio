@@ -2,7 +2,7 @@
 
 1. Sign in to a Project Make project
 
-![project maker project](../../img/proj-maker-proj.jpg)
+![project maker project](../../img/project-select-maker.jpg)
 
 2. The page will check to make sure the user has the admin access necessary to create a new project
 

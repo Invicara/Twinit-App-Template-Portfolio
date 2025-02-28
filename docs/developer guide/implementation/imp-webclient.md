@@ -57,4 +57,4 @@ Read through [the pageComponent code](../../../app/ipaCore/pageComponents/simple
 To learn more about how the Simple Viewer pageComponent works read [In-Depth: Quick Model View Projects](./imp-qmvprojects.md)
 
 ---
-[Developer Guide](../README.md) < Back | Next > [In-Depth: Quick Model View Project Maker](./imp-projmake.md)
+[Developer Guide](../README.md) < Back | Next > [In-Depth: Quick Model View Manager](./imp-projmake.md)
