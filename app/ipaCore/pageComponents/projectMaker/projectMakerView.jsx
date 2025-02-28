@@ -118,8 +118,9 @@ const ProjectMakerView = (props) => {
          allProjects.sort((a,b) => a._name.localeCompare(b._name))
 
          // filter out Page Maker projects as they are not managed by this interface
-         // Page Maker projects must not have _userAttributes.projectMaker settings
-         allProjects = allProjects.filter(p => p._userAttributes.projectMaker)
+         // Page Maker projects must not have _userAttributes.projectMaker settings (older projects)
+         // or _userAttributes.quickModelView (newest projects)
+         allProjects = allProjects.filter(p => p._userAttributes.projectMaker || p._userAttributes.quickModelView)
 
          setMyProjects(allProjects)
       } catch (err) {

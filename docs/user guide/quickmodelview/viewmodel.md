@@ -4,9 +4,11 @@
 
 ![modelviewnav](../../img/pick-model-view.jpg)
 
-2. Select a model n the Select a Model dropdown
+2. Select a model in the Select a Model dropdown
 
 ![view model select](../../img/view-model-select.jpg)
+
+> **Note**: If the Select a Model dropdown does not appear, or if the dropdown is empty, then most likely a model has not yet been imported. See [How to Import a Model](./importmodel.md).
 
 3. The selected model will load in the viewer
 
@@ -17,4 +19,4 @@
 ![view model elem](../../img/view-model-elem.jpg)
 
 ---
-[Quick Model View User Guide](./README.md) < Back
+[Quick Model View User Guide](./README.md) < Back | Next > [How to Invite Users to a Quick Model View Project](./inviteusers.md)

@@ -20,16 +20,16 @@ The template also serves as an educational tool about how templates work on Twin
 
 When using the template you will be using two different types of Quick Model View projects on Twinit:
 
-* A "Quick Model View Project Maker" project
+* A "Quick Model View Manager" project
 * Quick Model View projects
 
-### Quick Model View Project Maker Projects
+### Quick Model View Manager Projects
 
-When you deploy the Quick Model View template, what you first deploy is a special project on Twinit that contains the scripts, configs, and template files used to create Quick Model View projects. This special project is called a "Quick Model View Project Maker" project. You will then use the "Quick Model View Project Maker" and the templates included in it to create Quick Model View projects for your users where they can upload and view models.
+When you deploy the Quick Model View template, what you first deploy is a special project on Twinit that contains the scripts, configs, and template files used to create Quick Model View projects. This special project is called a "Quick Model View Manager" project. You will then use the "Quick Model View Manager" and the templates included in it to create Quick Model View projects for your users where they can upload and view models.
 
 ![project maker diagram](../../img/project-maker-diagram.jpg)
 
-The "Quick Model View Project Maker" project contains:
+The "Quick Model View Manager" project contains:
 
 * A ["ProjectMakerConfig" User Config](../../../setup/configs/ProjectMakerConfig.json) with the configuration for how the template web client should display the Project Maker user interface and what scripts should be used to create new Quick Model View projects
 * A ["Project Maker" web client script](../../../setup/scripts/Project%20Maker.mjs), that contains all the logic for creating and configuring new Quick Model View projects
@@ -37,7 +37,7 @@ The "Quick Model View Project Maker" project contains:
 
 ### Quick Model View Projects
 
-Quick Model View projects are created by the "Quick Model View Project Maker" and are configured to allow users to upload and view models.
+Quick Model View projects are created by the "Quick Model View Manager" and are configured to allow users to upload and view models.
 
 Two user groups are created in each Quick Model View project:
 
@@ -61,8 +61,8 @@ The Quick Model View projects contain:
 
 A typical workflow for using the Quick Model View Twinit Application Template would be:
 
-1. Sign in to the Quick Model View application and the "Quick Model View Project Maker"
-2. Create a new project using the "Quick Model View Project Maker" user interface
+1. Sign in to the Quick Model View application and the "Quick Model View Manager"
+2. Create a new project using the "Quick Model View Manager" user interface
 3. Switch to the newly created Quick Model View project
 4. Upload and import a model using the model import page or one of the supported CAD Twinit plugins
 5. View the model in the Twinit 2D/3D model viewer

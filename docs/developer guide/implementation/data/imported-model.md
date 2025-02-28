@@ -4,7 +4,7 @@
 
 For more on importing models and the resulting data model please review the "Twinit Self-Led Developer Training Intermediate" course on [Twinit Academy](https://academy.twinit.io/enrollments).
 
-![model imp process](../../img/import-process.jpg)
+![model imp process](../../../img/import-process.jpg)
 
 The model import process involves:
 
