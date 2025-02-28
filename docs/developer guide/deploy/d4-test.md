@@ -8,18 +8,18 @@ Now that you have deployed the template to Twinit and have the template web clie
 
 To do so we will:
 
-1. Sign in to the "QMV Project Maker" project
-2. Use the "QMV Project Maker" project to create a new Quick Model View project
+1. Sign in to the "QMV Manager" project
+2. Use the "QMV Manager" project to create a new Quick Model View project
 3. Sign in to the newly created Quick Model View project
 4. Upload and import a sample model
 5. View the imported model
 6. Test the Viewer User Group
 
-## Sign In to the "QMV Project Maker" Project
+## Sign In to the "QMV Manager" Project
 
 1. If the web client is not already running, open a terminal window in the directory in which you copied the template code and run ```npm run watch```
 2. If not already signed in, sign in to Twinit when the web client redirects you to do so
-3. When the Project Selection dialog appears select the "QMV Project Maker" and click "Load Project"
+3. When the Project Selection dialog appears select the "QMV Manager" and click "Load Project"
 
 ![project select maker](../../img/project-select-maker.jpg)
 

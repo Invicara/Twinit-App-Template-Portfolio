@@ -51,7 +51,7 @@ After updating your configurations, you can now run the client locally using a w
 
 Webpack will compile the web client and serve it at http://localhost:8083. A browser window will automatically open with the web client loaded after webpack has finished compiling it. In some cases you may need to refresh the browser window to finish loading the client after webpack has completed in he terminal.
 
-If the client is functioning correctly, you will be automatically directed to sign in to Twinit. After signing in, you should see the Project Selection dialog with the "QMV Project Maker" project you created using VS Code already selected.
+If the client is functioning correctly, you will be automatically directed to sign in to Twinit. After signing in, you should see the Project Selection dialog with the "QMV Manager" project you created using VS Code already selected.
 
 ![project select maker dialog](../../img/project-select-maker.jpg)
 

@@ -1,7 +1,7 @@
 {
   "handlers": {
     "projectMaker": {
-      "title": "QMV Project Maker",
+      "title": "QMV Manager",
       "icon": "fas fa-folder-plus fa-2x",
       "shortName": "projmk",
       "description": "Create New Quick Model View Projects",
