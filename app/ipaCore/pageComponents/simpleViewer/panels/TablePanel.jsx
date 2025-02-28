@@ -84,7 +84,7 @@ const TablePanel = () => {
    const [ theme, setTheme ] = useState()
 
    useEffect(() => {
-      console.log(page, typeof page)
+
       if (selectedPropRefs.length && sliceElements.length) getTableConfig()
 
    }, [selectedPropRefs, sliceElements])
