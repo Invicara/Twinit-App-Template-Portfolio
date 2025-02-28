@@ -32,13 +32,19 @@ There are potentially three places you will need to make the setting change to d
 
 If you wish the new logo to appear in the QMV Manager user interface, you'll need to modify the QuickViewManagerConfig in the "QMV Manager" project.
 
+![qmvman config](../../img/vscode-proj-maker-config.jpg)
+
 ### Newly Created Quick Model View Projects
 
 If you wish the new logo to appear in newly created Quick Model View projects, you'll need to modify the QuickViewAdminConfigTemplate and QuickViewViewerConfigTemplate in the "QMV Manager" project.
 
+![qvmman temps](../../img/vscode-config-temps.jpg)
+
 ### Existing Quick Model View Projects
 
 If you wish to update existing Quick Model View projects to display the new logo, you'll need to modify the QuickViewAdminConfig and QuickViewViewerConfig in each of the existing projects.
+
+![qmv proj configs](../../img/vscode-qmvproj-configs.jpg)
 
 > This could be done by creating a custom migration and running these updates through the Project Maker pageComponent UI, but you will need to be careful when consuming future template updates.
 
