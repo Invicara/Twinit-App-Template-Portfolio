@@ -17,10 +17,6 @@ To deploy the template to Twinit you will:
 
 Remember, as mentioned in the [General Introduction](../implementation/general-intro.md), what you are setting up now is the ability to create new Quick Model View projects, not actually creating new Quick Model View projects themselves.
 
-## Clone the Template Code Local
-
-1. Using the tool of your choice, clone this GitHub repo locally to your system.
-
 ## Sign in to Your Application using the Twinit VS Code Extension
 
 1. Sign in to Twinit using the Twinit VS Code extension

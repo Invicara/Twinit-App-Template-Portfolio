@@ -18,20 +18,24 @@ The template also serves as an educational tool about how templates work on Twin
 
 ## How the Template Works
 
-When using the template you will be using two different types of Quick Model View projects on Twinit:
+The Quick Model View Application Template provides one web client that displays a different user interface depending on which type of Quick Model View project you are using.
 
-* A "Quick Model View Manager" project
+* A Quick Model View Manager project
 * Quick Model View projects
+
+![project maker diagram](../../img/template-structure.jpeg)
+
+When using the Quick Model View Manager project, the user config related to the QMV Manager user group is used to display a user interface that allows the user to create new Quick Model View projects.
+
+When using a Quick Model View project, created by the Quick Model View Manager, the user config related to either the Admin or Viewers user group is used to display a user interface allowing the user to view and interact with 2D/3D models.
 
 ### Quick Model View Manager Projects
 
 When you deploy the Quick Model View template, what you first deploy is a special project on Twinit that contains the scripts, configs, and template files used to create Quick Model View projects. This special project is called a "Quick Model View Manager" project. You will then use the "Quick Model View Manager" and the templates included in it to create Quick Model View projects for your users where they can upload and view models.
 
-![project maker diagram](../../img/project-maker-diagram.jpg)
-
 The "Quick Model View Manager" project contains:
 
-* A ["ProjectMakerConfig" User Config](../../../setup/configs/ProjectMakerConfig.json) with the configuration for how the template web client should display the Project Maker user interface and what scripts should be used to create new Quick Model View projects
+* A ["QuickViewManagerConfig" User Config](../../../setup/configs/ProjectMakerConfig.json) with the configuration for how the template web client should display the Project Maker user interface and what scripts should be used to create new Quick Model View projects
 * A ["Project Maker" web client script](../../../setup/scripts/Project%20Maker.mjs), that contains all the logic for creating and configuring new Quick Model View projects
 * Template model import scripts and user configs that will be used in newly created Quick Model View projects
 
