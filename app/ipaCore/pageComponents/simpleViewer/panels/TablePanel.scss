@@ -59,6 +59,8 @@
 
       .table {
          height: 100%;
+         -webkit-user-select: text;
+         user-select: text;
       }
    }
 
