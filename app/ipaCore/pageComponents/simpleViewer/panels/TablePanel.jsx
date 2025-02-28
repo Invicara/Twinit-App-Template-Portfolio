@@ -92,8 +92,8 @@ const TablePanel = () => {
       let propertyList = spr.property.propertyType === 'type' ? item.typeProps : item.instanceProps
 
       if (propertyList) {
-         if (propertyList._list[0] && propertyList._list[0].properties[spr.property.key] && propertyList._list[0].properties[spr.property.key].hasOwnProperty('val')) {
-            return propertyList._list[0].properties[spr.property.key].val
+         if (propertyList[spr.property.key] && propertyList[spr.property.key].hasOwnProperty('val')) {
+            return propertyList[spr.property.key].val
          } 
       }
 
