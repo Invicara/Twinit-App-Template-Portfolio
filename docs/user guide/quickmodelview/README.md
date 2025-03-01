@@ -36,3 +36,7 @@ The features available to each user group are listed below:
 * [How to import a model](./importmodel.md)
 * [How to view a model and model element properties](./viewmodel.md)
 * [How to invite users to a Quick Model View project](./inviteusers.md)
+
+---
+
+[User Guide](../README.md) < Back
