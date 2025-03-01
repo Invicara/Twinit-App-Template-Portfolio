@@ -19,3 +19,7 @@ Users in the **QMV Managers** user group have full permissions to all resources 
 
 * [How to create a new project](./createproject.md)
 * [How to add new Quick Model View Manager Users](./addmakers.md)
+
+---
+
+[User Guide](../README.md) < Back
