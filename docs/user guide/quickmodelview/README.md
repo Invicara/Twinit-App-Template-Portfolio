@@ -1,4 +1,4 @@
-# Learn how to use the Quick Model View Application
+# Learn How to Use the Quick Model View Application
 
 ![qmv image](../../img/model-view.jpg)
 
