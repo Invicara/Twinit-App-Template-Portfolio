@@ -4,81 +4,91 @@
    flex-wrap: nowrap;
    height: calc(100vh - 80px);
 
-   .side-panel {
-      z-index: 1;
-   }
-
    .panel-row {
       display: flex;
       flex-direction: row;
       height: calc(100vh - 80px);
 
       .viewer {
-         position: relative;
-         align-items: stretch;
-         width: 80%;
+         position: absolute;
+         width: 100%;
          height: 100%;
       }
-   
-      .viewer-sidebar {
-         width: 20%;
-         padding: 20px;
-         display: flex;
-         flex-direction: column;
-   
-         label {
-            font-weight: bold;
-   
-            select {
-               all: revert;
-               height: 30px;
-               border-radius: 10px;
-               width: 100%;
-            }
-         }
-   
-         .element-info {
-            overflow-y: auto;
-         }
-   
-         .element-info-table {
+
+      .drawer {
+         background-color: white;
+         z-index: 1000;
+
+         .viewer-sidebar {
             width: 100%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
    
-            td {
-               padding: 3px;
-               border-bottom: lightgray solid 1px;
-               -webkit-user-select: text;
-               user-select: text;
+            .model-select {
+               width: 85%;
             }
-   
-            .prop-name {
+      
+            label {
                font-weight: bold;
+      
+               select {
+                  all: revert;
+                  height: 30px;
+                  border-radius: 10px;
+                  width: 100%;
+               }
             }
-   
-            .small {
-               font-size: smaller;
+      
+            .element-info {
+               overflow-y: auto;
             }
-   
-            .prop-type {
-               padding-top: 20px;
-               padding-bottom: 5px;
-               font-weight: bold;
-               text-align: center;
-               font-size: large;
-               color: var(--app-accent-color);
+      
+            .element-info-table {
+               width: 100%;
+      
+               td {
+                  padding: 3px;
+                  border-bottom: lightgray solid 1px;
+                  -webkit-user-select: text;
+                  user-select: text;
+               }
+      
+               .prop-name {
+                  font-weight: bold;
+               }
+      
+               .small {
+                  font-size: smaller;
+               }
+      
+               .prop-type {
+                  padding-top: 20px;
+                  padding-bottom: 5px;
+                  font-weight: bold;
+                  text-align: center;
+                  font-size: large;
+                  color: var(--app-accent-color);
+               }
             }
+      
+            .element-info-table-model {
+               background-color: #f0f0f0;
+      
+               tr:last-child td:last-child {
+                  border-bottom: 2px solid black;
+               }
+            }
+            
          }
-   
-         .element-info-table-model {
-            background-color: #f0f0f0;
-   
-            tr:last-child td:last-child {
-               border-bottom: 2px solid black;
-            }
-         }
-         
       }
+   
+      
    }
 
+   .table-panel {
+      background-color: white;
+      z-index: 1000;
+   }
   
 }
