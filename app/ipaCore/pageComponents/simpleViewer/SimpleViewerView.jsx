@@ -8,7 +8,8 @@ import ResizeHandle from './panels/ResizeHandle'
 import { IafViewerDBM } from '@dtplatform/iaf-viewer'
 import { IafProj, IafItemSvc } from '@dtplatform/platform-api'
 import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
-import { SimpleTextThrobber } from '@invicara/ipa-core/modules/IpaControls'
+
+import { SimpleTextThrobber, StackableDrawer } from '@invicara/ipa-core/modules/IpaControls'
 
 import SearchPane from './search/SearchPane'
 import TablePanel from './panels/TablePanel'
@@ -164,6 +165,37 @@ const SimpleViewerView = (props) => {
          <PanelGroup autoSaveId="elemtable" direction="vertical">
             <Panel id="viewer-panel" collapsible={false} order={1}>
                <div className="panel-row">
+                  <StackableDrawer iconKey='fa-search'>
+                     <div className='viewer-sidebar'>
+                        <div className='model-select'>
+                           <label>Select a Model
+                              {!!availableModelComposites?.length && <select onChange={(e) => handleModelSelect(e.target.value)}>
+                                 <option value={0} disabled selected>Select a Model to View</option>
+                                 {availableModelComposites.sort((a,b) => a._name.localeCompare(b._name)).map(amc => <option key={amc._id} value={amc._id}>{amc._name}</option>)}
+                              </select>}
+                           </label>
+                        </div>
+                        {selectedModelComposite && <table className='element-info-table element-info-table-model'>
+                           <tbody>
+                              {selectedModelComposite._versions[0]._userAttributes.model?.source && <tr>
+                                 <td className='prop-name small'>Source</td>
+                              </tr>}
+                              {selectedModelComposite._versions[0]._userAttributes.model?.source &&  <tr>
+                                 <td className='small'>{selectedModelComposite._versions[0]._userAttributes.model?.source}</td>
+                              </tr>}
+                              {selectedModelComposite._versions[0]._userAttributes.model?.originalSource && <tr>
+                                 <td className='prop-name small'>Original Source</td>
+                              </tr>}
+                              {selectedModelComposite._versions[0]._userAttributes.model?.originalSource && <tr>
+                                 <td className='small'>{selectedModelComposite._versions[0]._userAttributes.model?.originalSource}</td>
+                              </tr>}
+                           </tbody>
+                        </table>}
+
+                        {selectedModelComposite && modelRelatedCollections && <SearchPane onPropertyChange={setSelectedPropRefs} />}
+                  
+                     </div>
+                  </StackableDrawer>
                   <div className='viewer'>
                      {selectedModelComposite && <IafViewerDBM
                         ref={viewerRef} model={selectedModelComposite}
@@ -174,35 +206,7 @@ const SimpleViewerView = (props) => {
                         OnSelectedElementChangeCallback={getSelectedElements}
                      />}
                   </div>
-                  <div className='viewer-sidebar'>
-                     <div>
-                        <label>Select a Model
-                           {!!availableModelComposites?.length && <select onChange={(e) => handleModelSelect(e.target.value)}>
-                              <option value={0} disabled selected>Select a Model to View</option>
-                              {availableModelComposites.sort((a,b) => a._name.localeCompare(b._name)).map(amc => <option key={amc._id} value={amc._id}>{amc._name}</option>)}
-                           </select>}
-                        </label>
-                     </div>
-                     {selectedModelComposite && <table className='element-info-table element-info-table-model'>
-                        <tbody>
-                           {selectedModelComposite._versions[0]._userAttributes.model?.source && <tr>
-                              <td className='prop-name small'>Source</td>
-                           </tr>}
-                           {selectedModelComposite._versions[0]._userAttributes.model?.source &&  <tr>
-                              <td className='small'>{selectedModelComposite._versions[0]._userAttributes.model?.source}</td>
-                           </tr>}
-                           {selectedModelComposite._versions[0]._userAttributes.model?.originalSource && <tr>
-                              <td className='prop-name small'>Original Source</td>
-                           </tr>}
-                           {selectedModelComposite._versions[0]._userAttributes.model?.originalSource && <tr>
-                              <td className='small'>{selectedModelComposite._versions[0]._userAttributes.model?.originalSource}</td>
-                           </tr>}
-                        </tbody>
-                     </table>}
-
-                     {selectedModelComposite && modelRelatedCollections && <SearchPane onPropertyChange={setSelectedPropRefs} />}
-               
-                  </div>
+                  
                </div>
             </Panel>
             <ResizeHandle />
