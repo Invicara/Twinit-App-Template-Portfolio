@@ -61,6 +61,14 @@
          height: 100%;
          -webkit-user-select: text;
          user-select: text;
+
+         tr {
+
+            &:has(.highlight-cell) {
+               background-color: var(--element-table-selected-row-color);
+            }
+
+         }
       }
    }
 

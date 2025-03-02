@@ -6,6 +6,7 @@ import * as page from "@table-library/react-table-library/pagination";
 
 import ExcelDownloader from './TablePanelComponents/ExcelDownloader'
 import TablePager from './TablePanelComponents/TablePager'
+import SelectableCell from './TablePanelComponents/SelectableCell';
 
 import { ModelContext } from '../SimpleViewerView'
 
@@ -108,7 +109,7 @@ const TablePanel = () => {
       setColumns([])
 
       let columns = [{
-         label: '_id', renderCell: (item) => item._id
+         label: '_id', renderCell: (item) => <SelectableCell _id={item._id}>{item._id}</SelectableCell>
       }]
 
       columns.push(...selectedPropRefs.map(spr => {
