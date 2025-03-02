@@ -255,8 +255,8 @@ const ModelQuery = () => {
             placeholder='Select Property for Filter'
             onChange={addFilter}
          />
-         {filters.map((f,i) => <div>
-            <PropertyFilter key={f.label} filter={f} onFilterUpdate={onFilterUpdate} onFilterSave={onFilterSave} onFilterDelete={onFilterDelete}/>
+         {filters.map((f,i) => <div key={f.label}>
+            <PropertyFilter filter={f} onFilterUpdate={onFilterUpdate} onFilterSave={onFilterSave} onFilterDelete={onFilterDelete}/>
             {i < filters.length-1 && <div className='sep'><div className='filter-add-div'><span>and</span></div></div>}
          </div>)}
       </div>}
