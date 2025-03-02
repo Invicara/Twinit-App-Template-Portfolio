@@ -137,7 +137,7 @@ const TablePanel = () => {
       {!sliceElements.length && <div className='no-table-data'>
          Perform a Search to Display Element Data
       </div>}
-      {!!columns.length && <div className='table-wrapper'>
+      {!!columns.length && !!sliceElements.length && <div className='table-wrapper'>
          <div className='table-actions'>
             <div className='ctrls action-ctrls'>
                <span className='actions-header'>Actions:</span>
