@@ -76,7 +76,7 @@
       "--fancytree-three-color": "#00a693",
       "--fancytree-three-channel-color": "#cdebe8",
 
-      "--element-table-selected-row-color": "lightcyan"
+      "--element-table-selected-row-color": "#64eaea"
     }
   }
 }
