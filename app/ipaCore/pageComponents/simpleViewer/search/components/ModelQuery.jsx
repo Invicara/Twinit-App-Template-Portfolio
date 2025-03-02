@@ -43,6 +43,7 @@ const ModelQuery = () => {
       })
 
       setFilters(updatedFilters)
+      getFilteredElementCount(updatedFilters)      
       
    }, [selectedPropRefs])
 
@@ -98,7 +99,7 @@ const ModelQuery = () => {
 
    const onFilterSave = () => {
 
-      if (filters.length) getFilteredElementCount()
+      if (filters.length) getFilteredElementCount(filters)
       else {
          setFilteredElementsCount(totalElementsCount)
          setSliceElements([])
@@ -110,6 +111,11 @@ const ModelQuery = () => {
 
       let updatedFilters = filters.filter(f => f.label !== deletedFilter.label)
       setFilters(updatedFilters)
+      getFilteredElementCount(updatedFilters)
+
+      if (!updatedFilters?.length) {
+         setSliceElements([])
+      }
 
    }
 
@@ -161,9 +167,9 @@ const ModelQuery = () => {
 
    }
 
-   const getFilteredElementCount = () => {
+   const getFilteredElementCount = (currentFilters) => {
 
-      if (filters.some(f => f.queryPartial)) {
+      if (currentFilters.some(f => f.queryPartial)) {
 
          setGettingFilteredCount(true)
 
