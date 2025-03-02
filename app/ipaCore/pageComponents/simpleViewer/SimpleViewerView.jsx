@@ -11,6 +11,7 @@ import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
 
 import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls'
 
+import ModelSelect from './ModelSelect/ModelSelect'
 import SearchPane from './search/SearchPane'
 import TablePanel from './panels/TablePanel'
 
@@ -167,31 +168,8 @@ const SimpleViewerView = (props) => {
                <div className="panel-row">
                   <StackableDrawer iconKey='fa-search'>
                      <div className='viewer-sidebar'>
-                        <div className='model-select'>
-                           <label>Select a Model
-                              {!!availableModelComposites?.length && <select onChange={(e) => handleModelSelect(e.target.value)}>
-                                 <option value={0} disabled selected>Select a Model to View</option>
-                                 {availableModelComposites.sort((a,b) => a._name.localeCompare(b._name)).map(amc => <option key={amc._id} value={amc._id}>{amc._name}</option>)}
-                              </select>}
-                           </label>
-                        </div>
-                        {selectedModelComposite && <table className='element-info-table element-info-table-model'>
-                           <tbody>
-                              {selectedModelComposite._versions[0]._userAttributes.model?.source && <tr>
-                                 <td className='prop-name small'>Source</td>
-                              </tr>}
-                              {selectedModelComposite._versions[0]._userAttributes.model?.source &&  <tr>
-                                 <td className='small'>{selectedModelComposite._versions[0]._userAttributes.model?.source}</td>
-                              </tr>}
-                              {selectedModelComposite._versions[0]._userAttributes.model?.originalSource && <tr>
-                                 <td className='prop-name small'>Original Source</td>
-                              </tr>}
-                              {selectedModelComposite._versions[0]._userAttributes.model?.originalSource && <tr>
-                                 <td className='small'>{selectedModelComposite._versions[0]._userAttributes.model?.originalSource}</td>
-                              </tr>}
-                           </tbody>
-                        </table>}
-
+                        
+                        <ModelSelect availableModels={availableModelComposites} onModelSelect={handleModelSelect} />
                         {selectedModelComposite && modelRelatedCollections && <SearchPane onPropertyChange={setSelectedPropRefs} />}
                   
                      </div>
