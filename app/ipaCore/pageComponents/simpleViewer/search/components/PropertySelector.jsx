@@ -136,7 +136,7 @@ const PropertySelector = () => {
    }
 
    // manages a single list of instance and type prop refs as the user interacts with the tree
-   // reads from and updates the Model Contex with the current list
+   // reads from and updates the Model Context with the current list
    // type: instance or type
    // selectedPropertyNames: a string array of selected property values
    const onTreeChange = (type, selectedPropertyNames) => {

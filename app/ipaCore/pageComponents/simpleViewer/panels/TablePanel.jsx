@@ -86,7 +86,7 @@ const TablePanel = () => {
 
    useEffect(() => {
 
-      if (selectedPropRefs.length && sliceElements.length) getTableConfig()
+      getTableConfig()
 
    }, [selectedPropRefs, sliceElements])
 
@@ -123,7 +123,7 @@ const TablePanel = () => {
          BASELINE_THEME,
          {
            Table: `
-             --data-table-library_grid-template-columns: 20% repeat(${columns.length-1}, min-content);
+             --data-table-library_grid-template-columns: 20% repeat(${selectedPropRefs.length}, min-content) !important;
            `,
          },
       ])
