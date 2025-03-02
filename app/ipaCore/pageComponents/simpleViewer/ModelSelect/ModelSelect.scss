@@ -1,0 +1,47 @@
+.model-select {
+   width: 85%;
+
+   label {
+      font-weight: bold;
+
+      select {
+         all: revert;
+         height: 30px;
+         border-radius: 10px;
+         width: 100%;
+      }
+   }
+}
+
+.model-info-table {
+   width: 100%;
+   background-color: #f0f0f0;
+
+   tr:last-child td:last-child {
+      border-bottom: 2px solid black;
+   }
+
+   td {
+      padding: 3px;
+      border-bottom: lightgray solid 1px;
+      -webkit-user-select: text;
+      user-select: text;
+   }
+
+   .prop-name {
+      font-weight: bold;
+   }
+
+   .small {
+      font-size: smaller;
+   }
+
+   .prop-type {
+      padding-top: 20px;
+      padding-bottom: 5px;
+      font-weight: bold;
+      text-align: center;
+      font-size: large;
+      color: var(--app-accent-color);
+   }
+}
