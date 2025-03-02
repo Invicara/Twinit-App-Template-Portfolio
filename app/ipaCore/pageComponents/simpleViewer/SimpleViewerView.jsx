@@ -9,7 +9,7 @@ import { IafViewerDBM } from '@dtplatform/iaf-viewer'
 import { IafProj, IafItemSvc } from '@dtplatform/platform-api'
 import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
 
-import { SimpleTextThrobber, StackableDrawer } from '@invicara/ipa-core/modules/IpaControls'
+import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls'
 
 import SearchPane from './search/SearchPane'
 import TablePanel from './panels/TablePanel'
