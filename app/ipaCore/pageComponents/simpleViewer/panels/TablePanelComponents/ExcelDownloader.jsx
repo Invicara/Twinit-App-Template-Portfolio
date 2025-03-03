@@ -6,14 +6,20 @@ import { IafDataPlugin } from '@invicara/ui-utils'
 
 import { ModelContext } from "../../SimpleViewerView"
 
+// a component tha displays a xcel download icon and allows for downloading
+// the table data to an excel xlsx file
 const ExcelDownloader = () => {
 
+   // Model Context
    const { selectedModelComposite, selectedPropRefs, sliceElements } = useContext(ModelContext)
+
 
    const onDownload = async () => {
       
       let rowArray = []
 
+      // for each of the elements in the table create a new row object
+      // each objkect will have a key and value for _id and each selected property reference
       sliceElements.forEach(elem => {
 
          let row = {}
@@ -28,8 +34,10 @@ const ExcelDownloader = () => {
 
       })
 
+      // sort the prop refs by display name and then created the sorted headers
       let sortedPropRefs = [...selectedPropRefs].sort((a,b) => a.property.dName.localeCompare(b.property.dName))
       let header = sortedPropRefs.map(spr => spr.property.dName)
+      // _id is always he first column
       header.unshift('_id')
 
       let sheetArray = [
