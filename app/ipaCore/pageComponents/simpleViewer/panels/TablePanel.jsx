@@ -71,9 +71,14 @@ const TablePanel = () => {
       // element _id column is always he first column in the table
       // _id uses a Selectable Cell component that reacts to the selectedElement in mode context
       // and will highlight the selected elements row in the table
-      let columns = [{
-         label: '_id', renderCell: (item) => <SelectableCell _id={item._id}>{item._id}</SelectableCell>
-      }]
+      let columns = [
+         {
+            label: '', renderCell: (item) => <SelectableCell _id={item._id}></SelectableCell>
+         },
+         {
+            label: '_id', renderCell: (item) => item._id
+         }
+      ]
 
       // for each selected property reference add a column with the function to render it's property value
       columns.push(...selectedPropRefs.map(spr => {
@@ -90,7 +95,7 @@ const TablePanel = () => {
          BASELINE_THEME,
          {
            Table: `
-             --data-table-library_grid-template-columns: 20% repeat(${selectedPropRefs.length}, min-content) !important;
+             --data-table-library_grid-template-columns: 30px 20% repeat(${selectedPropRefs.length}, min-content) !important;
            `,
          },
       ])
