@@ -3,7 +3,8 @@ import React, { useEffect, useState, useContext } from 'react'
 // https://github.com/table-library/react-table-library
 import { CompactTable } from '@table-library/react-table-library/compact'
 import { useTheme } from "@table-library/react-table-library/theme"
-import * as page from "@table-library/react-table-library/pagination";
+import * as page from "@table-library/react-table-library/pagination"
+import * as sort from "@table-library/react-table-library/sort"
 
 import ExcelDownloader from './TablePanelComponents/ExcelDownloader'
 import TablePager from './TablePanelComponents/TablePager'
@@ -11,6 +12,7 @@ import SelectableCell from './TablePanelComponents/SelectableCell';
 import { BASELINE_THEME } from './TreePanelTheme';
 
 import { ModelContext } from '../SimpleViewerView'
+import { stringValueTypes } from '../consts'
 
 import './TablePanel.scss'
 
@@ -22,7 +24,7 @@ const TABLE_PAGE_SIZE = 100
 const TablePanel = () => {
 
    // Model Context
-   const { selectedPropRefs, sliceElements } = useContext(ModelContext)
+   const { selectedElement, selectedPropRefs, sliceElements } = useContext(ModelContext)
 
    const paginationSetting = page.usePagination(sliceElements, {
       state: {
@@ -30,6 +32,41 @@ const TablePanel = () => {
         size: TABLE_PAGE_SIZE,
       }
    })
+
+   const sortSettings = sort.useSort(sliceElements,
+      {},
+      {
+         // functions for sorting columns
+         // these are built using the selected property references
+         // each column will have a sort key that equals the property reference _id the column represents
+         sortFns: (() => {
+            let baseSortFns = {
+               SEL: (array) => array.sort((a,b) => {
+                  if (selectedElement?._id && a._id === selectedElement._id) return -1
+                  else return 0
+               }),
+               ID: (array) => array.sort((a,b) => a._id.localeCompare(b._id))
+            }
+      
+            selectedPropRefs.forEach(spr => {
+               baseSortFns[spr._id] = (array) => array.sort((a,b) => {
+      
+                  let aValue = getPropertyValueIfExists(spr, a)
+                  let bValue = getPropertyValueIfExists(spr, b)
+      
+                  if (stringValueTypes.includes(spr.property.srcType)) {
+                     return aValue.localeCompare(bValue)
+                  } else {
+                     return aValue-bValue
+                  }
+               })
+      
+            })
+      
+            return baseSortFns
+         })()
+      }
+   )
 
    // columns in the table
    const [ columns, setColumns ] = useState([])
@@ -73,10 +110,10 @@ const TablePanel = () => {
       // and will highlight the selected elements row in the table
       let columns = [
          {
-            label: '', renderCell: (item) => <SelectableCell _id={item._id}></SelectableCell>
+            label: '', renderCell: (item) => <SelectableCell _id={item._id}></SelectableCell>, sort: {sortKey: 'SEL'}
          },
          {
-            label: '_id', renderCell: (item) => item._id
+            label: '_id', renderCell: (item) => item._id, sort: {sortKey: 'ID'}
          }
       ]
 
@@ -84,7 +121,8 @@ const TablePanel = () => {
       columns.push(...selectedPropRefs.map(spr => {
          return {
             label: spr.property.dName,
-            renderCell: (item) => getPropertyValueIfExists(spr, item)
+            renderCell: (item) => getPropertyValueIfExists(spr, item),
+            sort: {sortKey: spr._id}
          }
       }))
 
@@ -95,7 +133,7 @@ const TablePanel = () => {
          BASELINE_THEME,
          {
            Table: `
-             --data-table-library_grid-template-columns: 30px 20% repeat(${selectedPropRefs.length}, min-content) !important;
+             --data-table-library_grid-template-columns: 60px 20% repeat(${selectedPropRefs.length}, min-content) !important;
            `,
          },
       ])
@@ -129,6 +167,7 @@ const TablePanel = () => {
             data={{nodes: sliceElements}}
             layout={{ custom: true, horizontalScroll: true }}
             pagination={paginationSetting}
+            sort={sortSettings}
          /></div>}
    </div>
 

@@ -6,11 +6,10 @@ import { TreeSelect, InputNumber } from 'antd'
 import { IafItemSvc } from '@dtplatform/platform-api'
 
 import { ModelContext } from '../../SimpleViewerView'
+import { numValueTypes, stringValueTypes } from '../../consts'
 
 import './PropertyFilter.scss'
 
-// model element property srcTypes considered to be numbers for filters
-const numValueTypes = [ 'DOUBLE', 'FLOAT', 'INTEGER', 'LONG' ]
 // types of numerical comparisons for numerical filters
 const numValueComparisons = {
    EQ: 'equals',
@@ -19,9 +18,6 @@ const numValueComparisons = {
    BT: 'between',
    OT: 'outside'
 }
-
-// model element property srcTypes considered to be strings for filters
-const stringValueTypes = [ 'STRING' ]
 
 const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) => {
 
