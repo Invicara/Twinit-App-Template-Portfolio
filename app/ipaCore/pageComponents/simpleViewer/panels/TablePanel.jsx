@@ -8,89 +8,47 @@ import * as page from "@table-library/react-table-library/pagination";
 import ExcelDownloader from './TablePanelComponents/ExcelDownloader'
 import TablePager from './TablePanelComponents/TablePager'
 import SelectableCell from './TablePanelComponents/SelectableCell';
+import { BASELINE_THEME } from './TreePanelTheme';
 
 import { ModelContext } from '../SimpleViewerView'
 
 import './TablePanel.scss'
 
-
-const COLORS = {
-   FONT_PRIMARY: '#141414',
-   FONT_SECONDARY: '#757575',
-   FONT_DISABLED: '#9e9e9e',
-   BORDER: '#e0e0e0'
-}
-
-const BASELINE_THEME = {
-   Table: '',
-   Header: '',
-   Body: '',
-   BaseRow: `
-     font-size: 16px;
-   `,
-   HeaderRow: `
-     color: ${COLORS.FONT_PRIMARY};
-   `,
-   Row: `
-     color: ${COLORS.FONT_SECONDARY};
- 
-     &.disabled {
-       color: ${COLORS.FONT_DISABLED};
-     }
- 
-     &:hover {
-       color: ${COLORS.FONT_PRIMARY};
-     }
- 
-     &:not(:last-of-type) > .td {
-       border-bottom: 1px solid ${COLORS.BORDER};
-     }
-   `,
-   BaseCell: `
-     padding: 6px 12px;
-   `,
-   HeaderCell: `
-     font-weight: bold;
-     border-bottom: 1px solid ${COLORS.BORDER};
- 
-     .resizer-handle {
-       background-color: ${COLORS.BORDER};
-     }
- 
-     svg,
-     path {
-       fill: currentColor;
-     }
-   `,
-   Cell: `
-     &:focus {
-       outline: dotted;
-       outline-width: 1px;
-       outline-offset: -1px;
-     }
-   `,
- }
+// hard coded page size for element table
+// retricting to 100 a most as the table appears in the bottom panel
+// and mroe than 100 isn't usable in the bottom panel
+const TABLE_PAGE_SIZE = 100
 
 const TablePanel = () => {
 
+   // Model Context
    const { selectedPropRefs, sliceElements } = useContext(ModelContext)
 
    const paginationSetting = page.usePagination(sliceElements, {
       state: {
         page: 0,
-        size: 100,
+        size: TABLE_PAGE_SIZE,
       }
-    })
+   })
 
+   // columns in the table
    const [ columns, setColumns ] = useState([])
+
+   // table theme
+   // this is based on BASELINE_THEME imported above
+   // and tied to the user config
    const [ theme, setTheme ] = useState()
 
+   // whenever the number of elements or the properties change
+   // recalculate the columns
    useEffect(() => {
 
       getTableConfig()
 
    }, [selectedPropRefs, sliceElements])
 
+
+   // get the value to display in the table cell
    const getPropertyValueIfExists = (spr, item) => {
 
       let propertyList = spr.property.propertyType === 'type' ? item.typeProps : item.instanceProps
@@ -105,14 +63,19 @@ const TablePanel = () => {
 
    }
 
+   // confgure the table display and data
    const getTableConfig = () => {
 
       setColumns([])
 
+      // element _id column is always he first column in the table
+      // _id uses a Selectable Cell component that reacts to the selectedElement in mode context
+      // and will highlight the selected elements row in the table
       let columns = [{
          label: '_id', renderCell: (item) => <SelectableCell _id={item._id}>{item._id}</SelectableCell>
       }]
 
+      // for each selected property reference add a column with the function to render it's property value
       columns.push(...selectedPropRefs.map(spr => {
          return {
             label: spr.property.dName,
@@ -120,6 +83,9 @@ const TablePanel = () => {
          }
       }))
 
+      // we need to recalculate --data-table-library_grid-template-columns on evey change and set the var to !important
+      // this addresses an issue with the column count not being correctly recalculated by the table when columns are
+      // added or removed (when selected property refs are added or removed)
       let theme = useTheme([
          BASELINE_THEME,
          {

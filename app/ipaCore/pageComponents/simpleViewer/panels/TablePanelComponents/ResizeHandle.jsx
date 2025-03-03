@@ -4,6 +4,7 @@ import { PanelResizeHandle } from "react-resizable-panels";
 
 import './ResizeHandle.scss'
 
+// the draggable resize handle for the bottom table panel
 const ResizeHandle = ({className = "", id}) => {
   return (
     <PanelResizeHandle

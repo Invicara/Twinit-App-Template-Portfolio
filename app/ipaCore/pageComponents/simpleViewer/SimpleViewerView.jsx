@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, createContext } from 'react'
 
 // https://github.com/bvaughn/react-resizable-panels
 import { Panel, PanelGroup } from "react-resizable-panels"
-import ResizeHandle from './panels/ResizeHandle'
+import ResizeHandle from './panels/TablePanelComponents/ResizeHandle'
 
 import { IafViewerDBM } from '@dtplatform/iaf-viewer'
 import { IafProj, IafItemSvc } from '@dtplatform/platform-api'

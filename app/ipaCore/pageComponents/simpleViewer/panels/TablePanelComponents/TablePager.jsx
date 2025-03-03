@@ -2,7 +2,11 @@ import React from 'react'
 
 import { Tooltip } from "@material-ui/core"
 
-const TablePager = ({setPage, currentPage, totalPages}) => {
+// able pager component
+const TablePager = ({ setPage,   // function to set the curret page
+      currentPage,               // the current page displaying
+      totalPages                 // total number of pages
+   }) => {
 
    return <>
       {currentPage === 0 && <span><i className="action action-disabled fas fa-angle-double-left"></i></span>}
