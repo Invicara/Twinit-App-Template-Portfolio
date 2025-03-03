@@ -15,7 +15,7 @@
 
 > **Note**: The Navisworks plugin is not supported with the Quick Model View Application.
 
-For instructions on installing and using the plugins visit [twinit.dev](https://twinit.dev/docs/concepts/plug-ins/ipa-plugins)
+**For instructions on installing and using the plugins to upload a model to your project please visit the documentation on [twinit.dev](https://twinit.dev/docs/concepts/plug-ins/ipa-plugins)**
 
 ---
-[Quick Model View User Guide](./README.md) < Back | Next > [How to Import a Model](./importmodel.md)
+[Quick Model View User Guide](./README.md) < Back | Next > [How to Upload a Model](./upload.md)

@@ -1,4 +1,4 @@
-# Learn how to use the Quick Model View Application
+# Learn How to Use the Quick Model View Application
 
 ![qmv image](../../img/model-view.jpg)
 
@@ -33,6 +33,11 @@ The features available to each user group are listed below:
 ## Tutorials
 
 * [How to download Twinit CAD plugins](./downloadplugins.md)
+* [How to upload a model](./upload.md)
 * [How to import a model](./importmodel.md)
 * [How to view a model and model element properties](./viewmodel.md)
 * [How to invite users to a Quick Model View project](./inviteusers.md)
+
+---
+
+[User Guide](../README.md) < Back
