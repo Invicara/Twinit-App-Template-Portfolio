@@ -28,6 +28,7 @@ import './SimpleViewerView.scss'
 // modelRelatedCollections.instanceProps: <NamedUserCollection> the NamdUserCollection containing element instance properties
 // modelRelatedCollections.dataCache: <NamedUserCollection> the NamdUserCollection containing model data cached during import
 // selectedElement: <Object> the currently selected element in the model with all property info
+// selectElement: <function> set the current selected element in the viewer to an element
 // selectedPropRefs: Array[<Object>] the currently selected set of properties to include in model queries and the table
 // setSelectedPropRefs: <function> the function to set the selectedPropRefs
 // sliceElements: Array[<Object>] the array of elements to isolate in th viewer
@@ -55,13 +56,6 @@ const SimpleViewerView = (props) => {
    // this example enforces single element selection by only ever assigning
    // one id to this array
    const [ selection, setSelection ] = useState([])
-
-   // if we are fetching individual element item data from Twinit
-   const [ loadingElement, setLoadingElement ] = useState(false)
-   
-
-   // these are not used in this example, but must be provided to the viewer
-   const [ colorGroups, setColorGroups ] = useState([])
 
 
    useEffect(() => {
@@ -106,9 +100,16 @@ const SimpleViewerView = (props) => {
 
    }
 
+   const selectElement = (element) => {
+
+      setSelectedElement([])
+      setSelection([parseInt(element.package_id), element.source_id])
+      setSelectedElement(element)
+
+   }
+
    const getSelectedElements = async (pkgids) => {
 
-      setLoadingElement(true)
       setSelectedElement(null)
 
       try {
@@ -162,8 +163,6 @@ const SimpleViewerView = (props) => {
          console.error(err)
       }
 
-      setLoadingElement(false)
-
    }
 
    return <div className='simple-viewer-view'>
@@ -171,6 +170,7 @@ const SimpleViewerView = (props) => {
          selectedModelComposite,
          modelRelatedCollections,
          selectedElement,
+         selectElement,
          selectedPropRefs,
          setSelectedPropRefs,
          sliceElements,
@@ -192,7 +192,6 @@ const SimpleViewerView = (props) => {
                         ref={viewerRef} model={selectedModelComposite}
                         serverUri={endPointConfig.graphicsServiceOrigin}
                         sliceElementIds={sliceElements.map(se => [se.package_id, se.source_id]).flat()}
-                        colorGroups={colorGroups}
                         selection={selection}
                         OnSelectedElementChangeCallback={getSelectedElements}
                      />}

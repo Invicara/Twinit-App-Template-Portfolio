@@ -28,6 +28,10 @@
          flex-direction: row;
          justify-content: space-between;
          
+         .row-click-notice {
+            font-style: italic;
+            color: var(--element-table-font-disabled);
+         }
 
          .ctrls {
             display: flex;
@@ -64,11 +68,23 @@
 
          tr {
 
+            td:has(.not-highlight-cell) {
+               text-align: center;
+            }
+
+            td:has(.highlight-cell) {
+               text-align: center;
+            }
+
             &:has(.highlight-cell) {
                background-color: var(--element-table-selected-row-color);
             }
 
             cursor: pointer;
+
+            .not-highlight-cell {
+               color: lightgray;
+            }
 
          }
 
