@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useContext} from 'react'
 
+// https://github.com/ant-design/ant-design
 import { TreeSelect } from 'antd';
 
 import { IafItemSvc } from "@dtplatform/platform-api";
@@ -35,7 +36,7 @@ const PropertySelector = () => {
             loadAllProperties()
          }
    
-      }, [selectedModelComposite])
+   }, [selectedModelComposite])
 
    // loads all the property references from the model's data_cache collection
    // seperates into type and instance lists
@@ -52,8 +53,8 @@ const PropertySelector = () => {
       do {
 
          let page = await IafItemSvc.getRelatedItems(modelRelatedCollections.dataCache._userItemId, {
-            // the data_cache collection contains los of different cache data
-            // w ar elooking for items with the dataType property below
+            // the data_cache collection contains lots of different types of cache data
+            // we are looking for items with the dataType property of 'propertyReference'
             query : {dataType: 'propertyReference'},
          }, null, { page: { _pageSize: _pageSize, _offset: _offset } })
 

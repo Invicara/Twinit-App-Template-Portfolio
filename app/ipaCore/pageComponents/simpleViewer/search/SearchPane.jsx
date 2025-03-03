@@ -34,7 +34,7 @@ const SearchPane = ({}) => {
    }, [selectedModelComposite])
 
    // check if model data_cache items exist with the Property References information
-   // this data is required to enabe the search pane and produced during model import
+   // this data is required to enable the search pane and produced during model import
    const checkSearchable = async () => {
 
       try {
