@@ -9,6 +9,7 @@ import * as sort from "@table-library/react-table-library/sort"
 import ExcelDownloader from './TablePanelComponents/ExcelDownloader'
 import TablePager from './TablePanelComponents/TablePager'
 import SelectableCell from './TablePanelComponents/SelectableCell';
+import ElementDetails from './TablePanelComponents/ElementDetails'
 import { BASELINE_THEME } from './TreePanelTheme';
 
 import { ModelContext } from '../SimpleViewerView'
@@ -18,7 +19,7 @@ import './TablePanel.scss'
 
 // hard coded page size for element table
 // retricting to 100 a most as the table appears in the bottom panel
-// and mroe than 100 isn't usable in the bottom panel
+// and more than 100 isn't usable in the bottom panel
 const TABLE_PAGE_SIZE = 100
 
 const TablePanel = () => {
@@ -71,6 +72,9 @@ const TablePanel = () => {
    // columns in the table
    const [ columns, setColumns ] = useState([])
 
+   // the element _ids in expanded rows
+   const [ expandedRowIds, setExpandedRowIds ] = useState([])
+
    // table theme
    // this is based on BASELINE_THEME imported above
    // and tied to the user config
@@ -81,6 +85,7 @@ const TablePanel = () => {
    useEffect(() => {
 
       getTableConfig()
+      setExpandedRowIds([])
 
    }, [selectedPropRefs, sliceElements])
 
@@ -143,6 +148,17 @@ const TablePanel = () => {
 
    }
 
+   // keep track of the currently expanded rows in the table
+   const expandRow = (item) => {
+
+      if (expandedRowIds.includes(item._id)) {
+         setExpandedRowIds(expandedRowIds.filter(id => id !== item._id))
+      } else {
+         setExpandedRowIds([...expandedRowIds, item._id])
+      }
+
+   }
+
    return <div className='element-table-container'>
       {!sliceElements.length && <div className='no-table-data'>
          Perform a Search to Display Element Data
@@ -168,6 +184,14 @@ const TablePanel = () => {
             layout={{ custom: true, horizontalScroll: true }}
             pagination={paginationSetting}
             sort={sortSettings}
+            rowProps={{
+               onClick: expandRow
+            }}
+            rowOptions={{
+               renderAfterRow: (item) => ( <>
+                  {expandedRowIds.includes(item._id) && <ElementDetails element={item}/>}
+               </>)
+            }}
          /></div>}
    </div>
 
