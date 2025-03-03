@@ -169,6 +169,7 @@ const TablePanel = () => {
                <span className='actions-header'>Actions:</span>
                   <ExcelDownloader />
             </div>
+            <div className='row-click-notice'>click rows to view all element properties</div>
             <div className='ctrls page-ctrls'>
                <TablePager
                   setPage={paginationSetting.fns.onSetPage}
