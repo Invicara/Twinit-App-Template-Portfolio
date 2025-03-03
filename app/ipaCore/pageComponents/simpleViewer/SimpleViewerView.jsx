@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, createContext } from 'react'
 
+// https://github.com/bvaughn/react-resizable-panels
 import { Panel, PanelGroup } from "react-resizable-panels"
 import ResizeHandle from './panels/ResizeHandle'
 
@@ -9,6 +10,7 @@ import { IafViewerDBM } from '@dtplatform/iaf-viewer'
 import { IafProj, IafItemSvc } from '@dtplatform/platform-api'
 import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
 
+// collapasable drawer component provided by ipa-core
 import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls'
 
 import ModelSelect from './ModelSelect/ModelSelect'
@@ -18,6 +20,18 @@ import TablePanel from './panels/TablePanel'
 import "@dtplatform/iaf-viewer/dist/iaf-viewer.css";
 import './SimpleViewerView.scss'
 
+// a context to manage the model information for the page and subcomponents
+// selectedModelComposite: <NamedComposieItem> the currently selected model to show in the viewer and to query
+// modelRelatedCollections: <Object> the related model collections for the selectedModelComposite Item
+// modelRelatedCollections.elements: <NamedUserCollection> the NamdUserCollection containing model elements
+// modelRelatedCollections.typeProps: <NamedUserCollection> the NamdUserCollection containing element type properties
+// modelRelatedCollections.instanceProps: <NamedUserCollection> the NamdUserCollection containing element instance properties
+// modelRelatedCollections.dataCache: <NamedUserCollection> the NamdUserCollection containing model data cached during import
+// selectedElement: <Object> the currently selected element in the model with all property info
+// selectedPropRefs: Array[<Object>] the currently selected set of properties to include in model queries and the table
+// setSelectedPropRefs: <function> the function to set the selectedPropRefs
+// sliceElements: Array[<Object>] the array of elements to isolate in th viewer
+// setSliceElements: <function> the function to set the sliceElements
 export const ModelContext = createContext()
 
 const SimpleViewerView = (props) => {
@@ -42,14 +56,13 @@ const SimpleViewerView = (props) => {
    // one id to this array
    const [ selection, setSelection ] = useState([])
 
-   // if we are fetching individual element item data fom Twinit
+   // if we are fetching individual element item data from Twinit
    const [ loadingElement, setLoadingElement ] = useState(false)
    
 
    // these are not used in this example, but must be provided to the viewer
    const [ colorGroups, setColorGroups ] = useState([])
 
-   
 
    useEffect(() => {
       loadModels()

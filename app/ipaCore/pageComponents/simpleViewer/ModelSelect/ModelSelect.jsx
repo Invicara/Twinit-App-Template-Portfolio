@@ -4,10 +4,16 @@ import { ModelContext } from "../SimpleViewerView"
 
 import './ModelSelect.scss'
 
-const ModelSelect = ({availableModels, onModelSelect}) => {
+// model select component that allows the user to select an imported model
+// and displays the sources of the currenly selected model
+const ModelSelect = ({
+      availableModels,  // the list of available models to select from
+      onModelSelect     // callback when the user selects a model
+   }) => {
 
    const { selectedModelComposite } = useContext(ModelContext)
 
+   // if only one model is in the available list, select it by default
    useEffect(() => {
       if (availableModels?.length === 1) {
          onModelSelect(availableModels[0]._id)

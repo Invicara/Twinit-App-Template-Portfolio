@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useContext } from 'react'
 
+// https://github.com/ant-design/ant-design
 import { TreeSelect, InputNumber } from 'antd'
 
 import { IafItemSvc } from '@dtplatform/platform-api'
@@ -8,8 +9,9 @@ import { ModelContext } from '../../SimpleViewerView'
 
 import './PropertyFilter.scss'
 
-
+// model element property srcTypes considered to be numbers for filters
 const numValueTypes = [ 'DOUBLE', 'FLOAT', 'INTEGER', 'LONG' ]
+// types of numerical comparisons for numerical filters
 const numValueComparisons = {
    EQ: 'equals',
    LT: 'less than',
@@ -18,6 +20,7 @@ const numValueComparisons = {
    OT: 'outside'
 }
 
+// model element property srcTypes considered to be strings for filters
 const stringValueTypes = [ 'STRING' ]
 
 const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) => {
@@ -25,26 +28,32 @@ const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) 
    // Model Context
    const { modelRelatedCollections } = useContext(ModelContext)
 
+   // the values to select from for a string filter
    const [ propertyValues, setPropertyValues ] = useState()
 
-   const [ selectedComp, setSelectedComp ] = useState(numValueComparisons.EQ)
-
+   // whether the filter has changed and requires a save
    const [ hasChanged, setHasChanged ] = useState(true)
 
+   // on mount if a string filter fetch the unique values for that property
+   // for the property from the model data
    useEffect(() => {
       if (filter && stringValueTypes.includes(filter.propRef.property.srcType)) {
          getStringPropValues()
       }
    }, [])
 
+   // fetchs the unique values in the model data for a string property
    const getStringPropValues = () => {
 
+      // get the NamedUserCollection for the proeprties based on the type or instance properties
       let propertyCollection = filter.propRef.property.propertyType === 'type' ? modelRelatedCollections.typeProps : modelRelatedCollections.instanceProps
 
+      // query the elements based on property set name and property display name
       let propQuery = {}
       propQuery[`properties.${filter.propRef.property.key}.psDispName`] = filter.propRef.property.propSet
       propQuery[`properties.${filter.propRef.property.key}.dName`] = filter.propRef.property.dName
 
+      // use a $distinctRelatedItemField query to get the unique (distinct) values of the property
       let query = {
          $distinctRelatedItemField: {
             collectionDesc: { _userItemId: propertyCollection._userItemId, _userType: propertyCollection._userType},
@@ -55,6 +64,7 @@ const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) 
 
       IafItemSvc.searchRelatedItems(query).then((res) => {
 
+         // convert the unique values into tree nodes for the filter TreeSelect
          let treeNodes = res._list[0]._versions[0]._relatedItems[`properties.${filter.propRef.property.key}.val`].map(v => {
             return {
                title: v,
@@ -67,10 +77,13 @@ const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) 
       })
    }
 
+   // when a filter is changed or configured updat the filter with the queryPartial
+   // that can be used to run a search with the filter
    const onFilterChange = (type, value) => {
 
       let updatedFilter = JSON.parse(JSON.stringify(filter))
 
+      // the Item Service queryPartial we will construct for the filter
       let query = {}
 
       if (type === 'string') {
@@ -95,15 +108,21 @@ const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) 
       setHasChanged(true)
    }
 
+   // creates a numerc queryPartial based on the comparison type and number values
    const makeNumberQueryPartial = (updatedFilter) => {
 
+      // the Item Service queryPartial we will construct for the filter
       let query = {}
+
       let numberOne = updatedFilter.numberOneValue
       let numberTwo = updatedFilter.numberTwoValue
 
-
+      // if a comparison that requries two number inputs
       if (['between', 'outside'].includes(updatedFilter.comparisonValue)) {
          
+         // figure out the low and high values
+         // so UI doesn't hav to require which is entered first
+         // ui just take two values
          let low, high
 
          if (numberOne < numberTwo) {
