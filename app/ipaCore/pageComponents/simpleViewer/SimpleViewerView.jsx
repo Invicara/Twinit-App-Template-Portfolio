@@ -191,6 +191,7 @@ const SimpleViewerView = (props) => {
                   <StackableDrawer level={2} iconKey='fa-info' tooltip='Element' isDrawerOpen={false}>
                      <div className='viewer-sidebar'>
                         
+                        {!selectedElement && <div className='no-element-selected'>No Element Selected</div>}
                         {selectedElement && <ElementDetails element={selectedElement} horizontal={false} />}
                         
                      </div>
