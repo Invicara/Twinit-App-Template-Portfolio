@@ -9,7 +9,7 @@ import * as sort from "@table-library/react-table-library/sort"
 import ExcelDownloader from './TablePanelComponents/ExcelDownloader'
 import TablePager from './TablePanelComponents/TablePager'
 import SelectableCell from './TablePanelComponents/SelectableCell';
-import ElementDetails from './TablePanelComponents/ElementDetails'
+import ElementDetails from '../ElementDetails/ElementDetails'
 import { BASELINE_THEME } from './TreePanelTheme';
 
 import { ModelContext } from '../SimpleViewerView'
