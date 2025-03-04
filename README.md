@@ -1,39 +1,40 @@
-# Quick Model View
+# Quick Model View Twinit Application Template
 
-## Run Local Development
+![Quick Model Viewer User Interface](./docs/img/model-view.jpg)
 
-Before you can run the client you first need to be able to install dependecies from the @invicara and @dtplatform private npm repos.
-TO help with this, an .npmrc file was created by create-twinit-app that will allow you to connect to these private repositories.
-In order for the .npmrc file to work, you must set three environments on your system with your credentials.
-Instruction on how to do this are available on [twnit.dev](https://twinit.dev/docs/apis/javascript/npm-install).
-Be sure to follow those steps before going any further.
+The Quick Model View Twinit Application Template provides an easy to learn,  easy to deploy, easy to use, and easy to extend model viewing application utilizing the capabilities Twinit provides for importing and viewing models imported using supported CAD authoring or file types. This template is also a good place to start if you are looking for a first step toward using and deploying other more complex templates or if you plan to develop your own templates.
 
-If you have created your environment variables and provided correct information when running create-twinit-app then to run the client all you need to do is:
+> **Note**: The Quick Model View Twinit Application Template requires that you have a valid Twinit account and that you are capable of running a React web client locally and/or deploying a React web client for your users. **As such it is mandatory that you have completed the Self-Led Developer training courses, including the React UI courses, on [Twinit Academy](https://academy.twinit.io/) prior to attempting to implement the Quick Model View Twinit Application**
 
-1. npm install
-2. npm run watch
+## Features currently included in this application template include:
 
-## Build Deployable Client
+| | |
+| --------------- | -------------------|
+| Create new and update existing Quick Model View projects with the click of a button | ![](./docs/img/project-maker.jpg) |
+| ![](./docs/img/import-view.jpg) |  Import multiple CAD models to your Quick Model View projects |
+| View your imported models and review the properties on model elements you select in the viewer | ![](./docs/img/model-view.jpg) |
+| ![](./docs/img/invite-users.jpg) | Collaborate with other users by inviting them to your Quick Model View projects |
 
-The following command will build the client and write it to the build folder.
+Be sure to check back often as new features and capabilities will be added to the template over time.
 
-1. npm run build
+## Materials included in the template are:
 
-## Setting up the Application
+* A React web client that you can build and deploy to provide a user interface for the Quick Model View Application
+* A Quick Model View Application Manager to allow you create new Quick Model View projects for users and to update existing Quick Model View projects to the latest released version
+* All the script and user config templates needed to setup and extend both the Quick Model View Manager and the Quick Model View applications and user interface.
 
-Quick Model View supports automated project creation via the projectMaker setup.
+Two sets of documentation have also been provided:
 
-To setup the projectMaker:
+* A [Developer Guide](./docs/developer%20guide/README.md) providing instructions on how to deploy the Quick Model View application to Twinit and to build and deploy the template web client. The Developer Guide also includes explanations of how the Quick Model View Twinit Application works, the Twinit services it makes use of, the data model it puts in place, and where to start if you wish to make some common extensions to the code.
+* A [User Guide](./docs/user%20guide/README.md) providing instructions on the usage of the Quick Model View Twinit Application.
 
-1. Create a new Project for the Quick Model View application
-2. Add the ```setup/[release number]/projectMaker/Project Maker.mjs``` script to the project with the _userType ```project-maker```. This script contains the logic for creating a new Quick Model View project.
-3. Add the ```setup/[release number]/projectMaker/ProjectMakerConfig.json``` user config to the project with the _userType ```quick-view```. This is the user config for the project maker user interface and connects the user interface to the ```Project Maker``` script.
-4. Add the ```setup/[release number]/projectMaker/configTemplates``` user config templates as user configs to your project. Be sure to name them ```QuickViewAdminConfig``` and ```QuickViewViewerConfig``` and give both of them the _userType ```quick-temp```. These are the user configs that will be used in the new projects that Project Maker creates.
-5. Add the ```setup/[release number]/projectMaker/scriptTemplates``` script to your project. Be sure to name it ```importHelperTemplate``` and give it the _userType ```quick-temp```. This is the import script that will be added to the new project and used by the import orchestrator.
-6. Create an Admin user group in the project using the vs code command.
-7. Relate the ```ProjectMakerConfig (quick-view)``` user config to the Admin user group using the vs code command.
+![Quick Model View Project Maker](./docs/img/project-maker.jpg)
 
-## Enabling a User to Create Projects
+## Getting Started
 
-1. Add the user to the Quick Model Viewer App Developer User Group through the Twinit Console. This gives them permissions to create projects and user groups for the application.
-2. Invite them via the Project Maker UI to the Project Maker project.
+* **If you are developer** looking to deploy the template for your users or to learn how a Twinit Application template works, start with the [Developer Guide](./docs/developer%20guide/README.md) to get started with deploying the template and learning about the implementation behind it.
+* **If you are a user** looking for training and guidance on using the template that a developer has deployed for you, start with the [User Guide](./docs/user%20guide/README.md) where you can learn how to upload and view models and how to invite other users to participate in your Quick Model View projects.
+
+## Release Notes
+
+Detailed release notes for each release of the Quick Model View Application Template are available on the [Release Notes page](./docs/release-notes.md)
