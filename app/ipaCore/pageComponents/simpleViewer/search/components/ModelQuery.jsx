@@ -70,15 +70,23 @@ const ModelQuery = () => {
    const getTotalElementCount = () => {
       setGettingFilteredCount(true)
 
-      // providing a _pageSize = 0 and _offset = 0 will just return the page info
-      // with no items, so we can get the _total from the response
-      IafItemSvc.getRelatedItems(modelRelatedCollections.elements._userItemId, {
-         query : {},
-      }, null, { page: { _pageSize: 0, _offset: 0 } }).then((result => {
-         setTotalElementsCount(result._total)
-         setFilteredElementsCount(result._total)
+      try {
+         // providing a _pageSize = 0 and _offset = 0 will just return the page info
+         // with no items, so we can get the _total from the response
+         IafItemSvc.getRelatedItems(modelRelatedCollections.elements._userItemId, {
+            query : {},
+         }, null, { page: { _pageSize: 0, _offset: 0 } }).then((result => {
+            setTotalElementsCount(result._total)
+            setFilteredElementsCount(result._total)
+            setGettingFilteredCount(false)
+         }))
+      } catch (error) {
+         console.error('ERROR: Getting Total Element Count')
+         console.error(error)
+         setTotalElementsCount(0)
+         setFilteredElementsCount(0)
          setGettingFilteredCount(false)
-      }))
+      }
 
    }
 
@@ -268,6 +276,11 @@ const ModelQuery = () => {
             // number of elements found with the filters
             setFilteredElementsCount(filteredCounts.reduce((acc, curr) => acc + curr), 0)
             setGettingFilteredCount(false)
+         }).catch((error) => {
+            console.error('ERROR: Getting Filtered Element Count')
+            console.error(error)
+            setFilteredElementsCount(0)
+            setGettingFilteredCount(false)
          })
       } else {
          // if there are no configured filters then the filtered count if the coun of total elements
@@ -322,6 +335,11 @@ const ModelQuery = () => {
 
          // isolate the elements in the model viewer
          setSliceElements(allElements)
+         setGettingFilteredElements(false)
+      }).catch((error) => {
+         console.error('ERROR: Getting Model Elements n Search')
+         console.error(error)
+         setSliceElements([])
          setGettingFilteredElements(false)
       })
 

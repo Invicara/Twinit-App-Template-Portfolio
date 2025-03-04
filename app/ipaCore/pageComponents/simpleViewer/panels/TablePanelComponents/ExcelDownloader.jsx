@@ -16,44 +16,49 @@ const ExcelDownloader = () => {
 
    const onDownload = async () => {
       
-      let rowArray = []
+      try {
+         let rowArray = []
 
-      // for each of the elements in the table create a new row object
-      // each objkect will have a key and value for _id and each selected property reference
-      sliceElements.forEach(elem => {
+         // for each of the elements in the table create a new row object
+         // each objkect will have a key and value for _id and each selected property reference
+         sliceElements.forEach(elem => {
 
-         let row = {}
+            let row = {}
 
-         row._id = elem._id
+            row._id = elem._id
 
-         selectedPropRefs.forEach(spr => {
-            row[spr.property.dName] = spr.property.propertyType === 'type' ? elem.typeProps[spr.property.key]?.val || '' :  elem.instanceProps[spr.property.key]?.val || ''
+            selectedPropRefs.forEach(spr => {
+               row[spr.property.dName] = spr.property.propertyType === 'type' ? elem.typeProps[spr.property.key]?.val || '' :  elem.instanceProps[spr.property.key]?.val || ''
+            })
+
+            rowArray.push(row)
+
          })
 
-         rowArray.push(row)
+         // sort the prop refs by display name and then created the sorted headers
+         let sortedPropRefs = [...selectedPropRefs].sort((a,b) => a.property.dName.localeCompare(b.property.dName))
+         let header = sortedPropRefs.map(spr => spr.property.dName)
+         // _id is always he first column
+         header.unshift('_id')
 
-      })
-
-      // sort the prop refs by display name and then created the sorted headers
-      let sortedPropRefs = [...selectedPropRefs].sort((a,b) => a.property.dName.localeCompare(b.property.dName))
-      let header = sortedPropRefs.map(spr => spr.property.dName)
-      // _id is always he first column
-      header.unshift('_id')
-
-      let sheetArray = [
-         {
-            sheetName: `Model Report`,
-            objects: rowArray,
-            header
-         }
-      ]
+         let sheetArray = [
+            {
+               sheetName: `Model Report`,
+               objects: rowArray,
+               header
+            }
+         ]
 
 
-      let workbook = await IafDataPlugin.createWorkbookFromAoO(sheetArray);
-      await IafDataPlugin.saveWorkbook(
-            workbook,
-            `${selectedModelComposite._name} Element Report.xlsx`
-      )
+         let workbook = await IafDataPlugin.createWorkbookFromAoO(sheetArray);
+         await IafDataPlugin.saveWorkbook(
+               workbook,
+               `${selectedModelComposite._name} Element Report.xlsx`
+         )
+      } catch (error) {
+         console.error('ERROR: Dowloading Excel File')
+         console.error(error)
+      }
    }
 
    return <Tooltip title='Download Table to Excel'>

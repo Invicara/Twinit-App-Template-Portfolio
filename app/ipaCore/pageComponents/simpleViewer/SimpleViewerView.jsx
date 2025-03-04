@@ -86,15 +86,20 @@ const SimpleViewerView = (props) => {
          let selectedModel = availableModelComposites.find(amc => amc._id === modelCompositeId)
          setSelectedModelComposite(selectedModel)
 
-         // get collections contained in the NamedCompositeItem representing the model
-         let collectionsModelCompositeItem = (await IafItemSvc.getRelatedInItem(selectedModel._userItemId, {}))._list
+         try {
+            // get collections contained in the NamedCompositeItem representing the model
+            let collectionsModelCompositeItem = (await IafItemSvc.getRelatedInItem(selectedModel._userItemId, {}))._list
 
-         setModelRelatedCollections({
-            elements: collectionsModelCompositeItem.find(c => c._userType === 'rvt_elements'),
-            instanceProps: collectionsModelCompositeItem.find(c => c._userType === 'rvt_element_props'),
-            typeProps: collectionsModelCompositeItem.find(c => c._userType === 'rvt_type_elements'),
-            dataCache: collectionsModelCompositeItem.find(c => c._userType === 'data_cache')
-         })
+            setModelRelatedCollections({
+               elements: collectionsModelCompositeItem.find(c => c._userType === 'rvt_elements'),
+               instanceProps: collectionsModelCompositeItem.find(c => c._userType === 'rvt_element_props'),
+               typeProps: collectionsModelCompositeItem.find(c => c._userType === 'rvt_type_elements'),
+               dataCache: collectionsModelCompositeItem.find(c => c._userType === 'data_cache')
+            })
+         } catch (error) {
+            console.error('ERROR: Gettng Model NamedCompositeItem Related NamedUserItems')
+            console.error(error)
+         }
 
       }, 1000)
       

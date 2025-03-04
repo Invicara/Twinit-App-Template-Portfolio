@@ -58,19 +58,24 @@ const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) 
          }
       }
 
-      IafItemSvc.searchRelatedItems(query).then((res) => {
+      try {
+         IafItemSvc.searchRelatedItems(query).then((res) => {
 
-         // convert the unique values into tree nodes for the filter TreeSelect
-         let treeNodes = res._list[0]._versions[0]._relatedItems[`properties.${filter.propRef.property.key}.val`].map(v => {
-            return {
-               title: v,
-               value: v
-            }
+            // convert the unique values into tree nodes for the filter TreeSelect
+            let treeNodes = res._list[0]._versions[0]._relatedItems[`properties.${filter.propRef.property.key}.val`].map(v => {
+               return {
+                  title: v,
+                  value: v
+               }
+            })
+
+            setPropertyValues(treeNodes)
+
          })
-
-         setPropertyValues(treeNodes)
-
-      })
+      } catch (error) {
+         console.error('ERROR: Fetching property values')
+         console.error(error)
+      }
    }
 
    // when a filter is changed or configured updat the filter with the queryPartial
