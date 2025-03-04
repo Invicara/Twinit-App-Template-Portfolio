@@ -1,0 +1,64 @@
+.property-filter {
+   width: 90%;
+   margin: 10px;
+   padding: 5px;
+   border: 2px solid lightgray;
+   border-radius: 10px;
+
+   .filter-label {
+      display: flex;
+      justify-content: space-around;
+      font-weight: bold;
+   }
+
+   .filter-tree-select {
+      width: 100%;
+   }
+
+   .num-input-section {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-evenly;
+      align-items: center;
+      .filter-num-input {
+
+         margin: 10px;
+      }
+   }
+
+   .filter-btns {
+      width: 100%;
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+
+      .filter-btn {
+         margin: 10px;
+         padding: 5px;
+         border: 2px solid var(--app-accent-color);
+         border-radius: 10px;
+         color: var(--app-accent-color);
+         font-weight: bold;
+         cursor: pointer;
+
+         &:hover {
+            background-color: var(--app-accent-color);
+            color: whitesmoke;
+         }
+      }
+
+      .save-disabled {
+         border: 2px solid lightgray;
+         border-radius: 10px;
+         color: lightgray;
+         font-weight: bold;
+         cursor: not-allowed;
+
+         &:hover {
+            background-color: unset;
+            color: lightgray;
+         }
+      }
+   }
+
+}

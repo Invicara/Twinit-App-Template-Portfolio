@@ -44,7 +44,13 @@
       "--fancytree-two-color": "#f26827",
       "--fancytree-two-channel-color": "#fde0d7",
       "--fancytree-three-color": "#00a693",
-      "--fancytree-three-channel-color": "#cdebe8"
+      "--fancytree-three-channel-color": "#cdebe8",
+
+      "--element-table-font-primary": "#141414",
+      "--element-table-font-secondary": "#757575",
+      "--element-table-font-disabled": "#9e9e9e",
+      "--element-table-border": "#9e9e9e",
+      "--element-table-selected-row-color": "lightcyan"
     }
   }
 }
