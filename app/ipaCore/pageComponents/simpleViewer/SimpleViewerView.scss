@@ -32,6 +32,16 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
+
+            .no-element-selected {
+               width: 80%;
+               border: 2px solid lightgray;
+               border-radius: 20px;
+               padding: 20px;
+               color: lightgray;
+               font-weight: bold;
+         
+            }
       
          }
       }
