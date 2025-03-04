@@ -50,36 +50,41 @@ const PropertySelector = () => {
       let typeProps = []
       let instanceProps = []
 
-      do {
+      try {
+         do {
 
-         let page = await IafItemSvc.getRelatedItems(modelRelatedCollections.dataCache._userItemId, {
-            // the data_cache collection contains lots of different types of cache data
-            // we are looking for items with the dataType property of 'propertyReference'
-            query : {dataType: 'propertyReference'},
-         }, null, { page: { _pageSize: _pageSize, _offset: _offset } })
+            let page = await IafItemSvc.getRelatedItems(modelRelatedCollections.dataCache._userItemId, {
+               // the data_cache collection contains lots of different types of cache data
+               // we are looking for items with the dataType property of 'propertyReference'
+               query : {dataType: 'propertyReference'},
+            }, null, { page: { _pageSize: _pageSize, _offset: _offset } })
 
-         total = page._total
-         _offset += _pageSize
+            total = page._total
+            _offset += _pageSize
 
-         page._list.forEach((pr) => {
+            page._list.forEach((pr) => {
 
-            if (pr.property.propertyType === 'type') {
-               typeProps.push(pr)
-            } else {
-               instanceProps.push(pr)
-            }
+               if (pr.property.propertyType === 'type') {
+                  typeProps.push(pr)
+               } else {
+                  instanceProps.push(pr)
+               }
 
-         })
+            })
 
-      } while ((typeProps.length + instanceProps.length) < total)
+         } while ((typeProps.length + instanceProps.length) < total)
 
-      // save prop refs to state
-      setInstPropRefs(instanceProps)
-      setTypePropRefs(typeProps)
+         // save prop refs to state
+         setInstPropRefs(instanceProps)
+         setTypePropRefs(typeProps)
 
-      // create tree nodes for TreeSelect
-      getPropRefsAsTreeNodes(instanceProps, setInstPropTreeNodes)
-      getPropRefsAsTreeNodes(typeProps, setTypePropTreeNodes)
+         // create tree nodes for TreeSelect
+         getPropRefsAsTreeNodes(instanceProps, setInstPropTreeNodes)
+         getPropRefsAsTreeNodes(typeProps, setTypePropTreeNodes)
+      } catch (error) {
+         console.error('ERROR: Fetchign Proprty References')
+         console.error(error)
+      }
 
    }
 
