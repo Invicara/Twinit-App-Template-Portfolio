@@ -1,0 +1,20 @@
+[
+   {
+      "_name": "QuickViewManagerConfig",
+      "_shortName": "QuickViewManagerConfig",
+      "_description": "QuickViewManagerConfig",
+      "_userType": "quick-view"
+   },
+   {
+      "_name": "QuickViewAdminConfigTemplate",
+      "_shortName": "AdminConfigTemplate",
+      "_description": "QuickViewAdminConfigTemplate",
+      "_userType": "quick-temp"
+   },
+   {
+      "_name": "QuickViewViewerConfigTemplate",
+      "_shortName": "ViewerConfigTemplate",
+      "_description": "QuickViewViewerConfigTemplate",
+      "_userType": "quick-temp"
+   }
+]
