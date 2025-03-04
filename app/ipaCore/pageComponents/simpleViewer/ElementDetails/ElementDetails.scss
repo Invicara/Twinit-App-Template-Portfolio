@@ -1,0 +1,35 @@
+.element-details-row {
+   grid-column: 1 / -1;
+   width: 100%;
+   display: flex;
+   flex-direction: row;
+   background-color: #f0f0f0;
+   padding: 10px 20px 10px 20px;
+
+   .element-details-cell{
+      width: 100%;
+      display: flex;
+      flex-direction: row;
+      border: unset;
+      flex-wrap: wrap;
+
+      hr {
+         width: 100%;
+      }
+
+      .element-details-table {
+         width: 600px;
+         margin-left: 30px;
+         background-color: white;
+
+         th {
+            text-align: center;
+         }
+
+         .element-table-prop-name {
+            font-weight: bold;
+         }
+      }
+   }
+
+}

@@ -19,6 +19,14 @@
          background-color: white;
          z-index: 98;
 
+         .drawer-content-open {
+            direction: rtl;
+         }
+
+         .drawer-content-open > div {
+            direction: ltr;
+         }
+
          .viewer-sidebar {
             width: 100%;
             padding: 20px;

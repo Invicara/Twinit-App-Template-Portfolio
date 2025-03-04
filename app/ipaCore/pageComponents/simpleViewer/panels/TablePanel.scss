@@ -88,38 +88,6 @@
 
          }
 
-         .element-details-row {
-            grid-column: 1 / -1;
-            width: 100%;
-            display: flex;
-            flex-direction: row;
-            background-color: #f0f0f0;
-            padding: 10px 20px 10px 20px;
-
-            .element-details-cell{
-               width: 100%;
-               display: flex;
-               flex-direction: row;
-               border: unset;
-
-               .element-details-table {
-                  max-width: 1000px;
-                  min-width: 500px;
-                  margin-left: 30px;
-                  background-color: white;
-
-                  th {
-                     text-align: center;
-                  }
-
-                  .element-table-prop-name {
-                     font-weight: bold;
-                  }
-               }
-            }
-
-         }
-
       }
    }
 

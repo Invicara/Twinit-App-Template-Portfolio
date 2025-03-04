@@ -1,8 +1,10 @@
 import React from "react"
 
+import './ElementDetails.scss'
+
 // displays a list of element type and instance properties in a row of the table
 // when a row is expanded
-const ElementDetails = ({element}) => {
+const ElementDetails = ({element, horizontal=true}) => {
 
    return <tr className='element-details-row'>
       <td className='element-details-cell'>
@@ -19,6 +21,7 @@ const ElementDetails = ({element}) => {
                </tr>)}
             </tbody>
          </table>
+         {!horizontal && <hr/>}
          <table className='element-details-table'>
             <thead>
                <tr>

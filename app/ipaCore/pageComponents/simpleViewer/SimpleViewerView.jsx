@@ -16,6 +16,7 @@ import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls'
 import ModelSelect from './ModelSelect/ModelSelect'
 import SearchPane from './search/SearchPane'
 import TablePanel from './panels/TablePanel'
+import ElementDetails from './ElementDetails/ElementDetails'
 
 import "@dtplatform/iaf-viewer/dist/iaf-viewer.css";
 import './SimpleViewerView.scss'
@@ -142,19 +143,19 @@ const SimpleViewerView = (props) => {
             related: [
                {
                   relatedDesc: { _relatedUserType: modelRelatedCollections.instanceProps._userType},
-                  as: 'instanceProperties'
+                  as: 'instanceProps'
                },
                {
                   relatedDesc: { _relatedUserType: modelRelatedCollections.typeProps._userType},
-                  as: 'typeProperties'
+                  as: 'typeProps'
                }
             ]
          })
 
          let userSelectedElement = selectedModelElements._list[0]
          if (userSelectedElement) {
-            userSelectedElement.typeProperties = userSelectedElement.typeProperties._list.length ? userSelectedElement.typeProperties._list[0]?.properties : {}
-            userSelectedElement.instanceProperties =  userSelectedElement.instanceProperties._list.length ? userSelectedElement.instanceProperties._list[0].properties : {}
+            userSelectedElement.typeProps = userSelectedElement.typeProps._list.length ? userSelectedElement.typeProps._list[0]?.properties : {}
+            userSelectedElement.instanceProps = userSelectedElement.instanceProps._list.length ? userSelectedElement.instanceProps._list[0].properties : {}
 
             setSelectedElement(userSelectedElement)
          }
@@ -179,12 +180,19 @@ const SimpleViewerView = (props) => {
          <PanelGroup autoSaveId="elemtable" direction="vertical">
             <Panel id="viewer-panel" collapsible={false} order={1}>
                <div className="panel-row">
-                  <StackableDrawer iconKey='fa-search'>
+                  <StackableDrawer level={1} iconKey='fa-search' tooltip='Search'>
                      <div className='viewer-sidebar'>
                         
                         <ModelSelect availableModels={availableModelComposites} onModelSelect={handleModelSelect} />
                         {selectedModelComposite && modelRelatedCollections && <SearchPane onPropertyChange={setSelectedPropRefs} />}
                   
+                     </div>
+                  </StackableDrawer>
+                  <StackableDrawer level={2} iconKey='fa-info' tooltip='Element' isDrawerOpen={false}>
+                     <div className='viewer-sidebar'>
+                        
+                        {selectedElement && <ElementDetails element={selectedElement} horizontal={false} />}
+                        
                      </div>
                   </StackableDrawer>
                   <div className='viewer'>
