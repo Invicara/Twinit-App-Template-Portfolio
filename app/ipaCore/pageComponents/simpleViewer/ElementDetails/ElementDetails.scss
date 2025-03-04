@@ -21,9 +21,16 @@
          width: 600px;
          margin-left: 30px;
          background-color: white;
+         -webkit-user-select: text;
+         user-select: text;
 
          th {
             text-align: center;
+            border-bottom: 1px solid lightgray;
+         }
+
+         td { 
+            padding: 2px;
          }
 
          .element-table-prop-name {
