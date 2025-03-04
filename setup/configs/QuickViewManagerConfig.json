@@ -1,0 +1,71 @@
+{
+  "handlers": {
+    "projectMaker": {
+      "title": "QMV Manager",
+      "icon": "fas fa-folder-plus fa-2x",
+      "shortName": "projmk",
+      "description": "Create New Quick Model View Projects",
+      "pageComponent": "projectMaker/projectMakerView",
+      "path": "/projectmaker",
+      "scriptTypes": [
+        "project-maker"
+      ],
+      "config": {
+        "currentVersionScript": "getCurrentMakerVersion",
+        "projectCreateScript": "createNewQuickModelViewProject",
+        "projectUpdateScript": "updateQuickModelViewProject"
+      }
+    },
+    "userGroups": {
+      "title": "User Group",
+      "actionTitle": "User Group Actions",
+      "icon": "fas fa-users fa-2x",
+      "pageComponent": "users/UserGroupView",
+      "path": "/UserGroupView",
+      "config": {
+        "appUrl": "/",
+        "allowUserGroupEdit": true,
+        "allowUserGroupInvite": true,
+        "allowManageInvites": true,
+        "allowManageUsers": true
+      }
+    }
+  },
+  "homepage": {
+    "handler": "projectMaker"
+  },
+  "groupedPages": {
+    "projects": {
+      "icon": "fas fa-folder-plus fa-2x",
+      "position": 1,
+      "pages": [
+        {
+          "page": "QMV Project Maker",
+          "handler": "projectMaker"
+        }
+      ]
+    }
+  },
+  "settings": {
+    "appTitle": "Quick Model View",
+    "appImage": {},
+    "headerComponent": "components/HeaderBar/HeaderBar",
+    "styles": {
+      "--app-accent-color": "#C71784",
+      "--head-bkg-color": "black",
+      "--head-appname-color": "whitesmoke",
+      "--head-menu-bkg-color": "#FFFFFF",
+      "--head-menu-hover-color": "#F3F3F3",
+      "--nav-bkg-color": "#1D1D1D",
+      "--nav-icon-color": "#F3F3F3",
+      "--nav-hover-color": "#3E3E3E",
+      "--nav-activegrp-bkg-color": "#3E3E3E",
+      "--fancytree-one-color": "#C71784",
+      "--fancytree-one-channel-color": "#f3d5e4",
+      "--fancytree-two-color": "#f26827",
+      "--fancytree-two-channel-color": "#fde0d7",
+      "--fancytree-three-color": "#00a693",
+      "--fancytree-three-channel-color": "#cdebe8"
+    }
+  }
+}
