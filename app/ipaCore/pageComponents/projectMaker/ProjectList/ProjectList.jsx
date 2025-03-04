@@ -2,27 +2,43 @@ import React, { useState, useEffect } from 'react'
 
 import * as semver from 'semver'
 
+// a component tha handles updating projects
 import ProjectUpdater from './ProjectUpdater'
 
 import './ProjectList.scss'
 
-const DEFAULT_VERSION = '1.2.0'
+const ProjectList = ({
+      currentVer, // the current Project Maker version assigned to new projects when created
+      projects,   // the list projects to which the user has access
+      onUpdate    // a callback for when a project update completes
+   }) => {
 
-const ProjectList = ({currentVer, projects, onUpdate}) => {
-
+   // the project currently being updated
    const [ updatingProject, setUpdatingProject ] = useState()
+
+   // an array of updates returned from the update script
+   // via the ProjectUpdater component
    const [ updateLog, setUpdateLog ] = useState([])
+
+   // whether to show the close icon on an update log
    const [ showClose, setShowClose ] = useState(false)
 
+   // the current version of a project
    const getProjectVer = (p) => {
-      return p._userAttributes?.projectMaker?.currentVersion ? p._userAttributes.projectMaker.currentVersion : DEFAULT_VERSION
+      return p._userAttributes?.quickModelView?.currentVersion || 
+         p._userAttributes?.projectMaker?.currentVersion // backwards compatible for previous release projects
    }
 
+   // the orginal version that created the project
    const getProjectOriginalVer = (p) => {
-      return p._userAttributes?.projectMaker?.originalVersion ? p._userAttributes.projectMaker.originalVersion : DEFAULT_VERSION
+      return p._userAttributes?.quickModelView?.originalVersion || 
+         p._userAttributes?.projectMaker?.originalVersion // backwards compatible for previous release projects
    }
 
+   // whether a project is out of date with the current Project Maker version
+   // USES SEMANTIC VERSIONING
    const isOutOfDate = (project) => {
+
       let projVersion = getProjectVer(project)
       
       try {
@@ -33,6 +49,7 @@ const ProjectList = ({currentVer, projects, onUpdate}) => {
       }
    }
 
+   // add notices from the update script to the update log
    const updateTheLog = (update) => {
       setUpdateLog(prevLogs => [...prevLogs, update])
    }

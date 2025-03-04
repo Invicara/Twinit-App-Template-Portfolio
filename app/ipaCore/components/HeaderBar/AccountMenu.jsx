@@ -131,7 +131,7 @@ const AccountMenu = ({ user, ...props }) => {
             { label: 'User Groups', onClick: () => window.location = `#${handlers[USERGROUP_HANDLER_NAME]?.path}`},
             { label: 'Switch Project', onClick: switchProj  },
             { label: 'Downloads', onClick: () => window.open(DOWNLOAD_PLUGNS_URL, '_blank')},
-            /*{ label: 'Theme & Brand', onClick: () => window.location = `#${handlers[THEME_HANDLER_NAME]?.path}`  },*/
+            /* FUTURE: { label: 'Theme & Brand', onClick: () => window.location = `#${handlers[THEME_HANDLER_NAME]?.path}`  },*/
             { label: <span className={classes.logoutOption}><img src={ExitIcon} /> Log out</span>, onClick: userLogout },
         ].filter((item) => {
             if (
