@@ -437,6 +437,7 @@ class SimpleModelImportView extends React.Component {
 
       if (versionCount > 1) {
         IafItemSvc.deleteNamedUserItemVersion(importedModelCompositeItem._id, importedModelVersion._id).then(() => {
+          this.setState({isDeletingModel: false})
           this._loadAsyncData()
         }).catch((error) => {
           console.error('ERROR: Deleting Imported Model Version')
