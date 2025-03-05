@@ -36,6 +36,7 @@ class SimpleModelImportView extends React.Component {
     this.state = {
       isPageLoading: false, //is the page doing an initial loading
       isPageWorking: false, //is the page doing an operation like import
+      isDeletingModel: false, // is the page deleting the latest imported model
       project: null,
       handler: null,
       bimpks: [], //list of bimpk files in the project with their versions
@@ -135,7 +136,7 @@ class SimpleModelImportView extends React.Component {
      const selectedBimpkVersions = getSelectedBimpkVersions(modelFiles, defaultSelection?.value);
 
     //update the UI while we load the script after
-    await this.setState({ handler, project, bimpks: modelFiles, bimpkOptions, selectedBimpk: defaultSelection, selectedBimpkVersions, allImportedModelVersions: importedModelVersions });
+    await this.setState({ handler, project, isPageWorking: false, bimpks: modelFiles, bimpkOptions, selectedBimpk: defaultSelection, selectedBimpkVersions, allImportedModelVersions: importedModelVersions });
   };
 
   _getOrchs = async () => {
@@ -189,12 +190,12 @@ class SimpleModelImportView extends React.Component {
   onImport = async () => {
     const { selectedBimpk, selectedVersionToImport, bimpkOrch, sgpkOrch, bimpks } = this.state;
     /*
-             1. Get the model file extension to know what type of import to run
-             2. Get the correct orchestrator to run from the state
-             3. From the orchestrator get the task sequence type id
-             4. call IafDataSource.runOrchestrator with the orchectrator id, sequence type id, fileid, and fileversionid and get a runid back
-             5. poll IafDataSource.getOrchRunStatus(runid) and IafDataSource.getOrchRunStepStatus(runid) to find out when the orchestrator has completed
-         */
+      1. Get the model file extension to know what type of import to run
+      2. Get the correct orchestrator to run from the state
+      3. From the orchestrator get the task sequence type id
+      4. call IafDataSource.runOrchestrator with the orchectrator id, sequence type id, fileid, and fileversionid and get a runid back
+      5. poll IafDataSource.getOrchRunStatus(runid) and IafDataSource.getOrchRunStepStatus(runid) to find out when the orchestrator has completed
+    */
 
     this.setState({ isPageWorking: true, orchRunStatus: null, orchStepRunStatus: [], throbberMessage: 'Importing Model' });
 
@@ -403,6 +404,63 @@ class SimpleModelImportView extends React.Component {
 
   };
 
+  // deletes the latest version of an imported model, unless there is only one version and
+  // then it deletes the one version
+  deleteImportedVersion = async (ver, allImportedModelVersions) => {
+
+    this.setState({isPageWorking: true, isDeletingModel: true})
+
+    let project = await IafProj.getCurrent();
+    let importedModels = await IafProj.getModels(project);
+    let fileNameInfo = getCurrentFileNameFromSelect(this.state.selectedBimpk)
+
+    let importedModelCompositeItem = importedModels.find(m => m._name === fileNameInfo.currFileName)
+    let modelBimpkInfo = allImportedModelVersions.find(itv => itv.fileId === ver._fileId && itv.fileVersionId === ver._id)
+
+    let importedModelVersions = await IafItemSvc.getNamedUserItemVersions(importedModelCompositeItem._userItemId)
+    let importedModelVersion = importedModelVersions._list.find(imv => imv._userAttributes.bimpk.fileVersionId === modelBimpkInfo.fileVersionId)
+    let versionCount = importedModelVersions._total
+
+    let collectedInVersion = (await IafItemSvc.getRelatedInItem(importedModelCompositeItem._userItemId, {}, null, {userItemVersionId: importedModelVersion._id}))._list
+
+    let allDeletePromises = []
+
+    collectedInVersion.forEach(coll => {
+      if (versionCount > 1) {
+        allDeletePromises.push(IafItemSvc.deleteNamedUserItemVersion(coll._userItemId, coll._userItemVersionId))
+      } else {
+        allDeletePromises.push(IafItemSvc.deleteNamedUserItem(coll._userItemId))
+      }
+    })
+
+    Promise.all(allDeletePromises).then(() => {
+
+      if (versionCount > 1) {
+        IafItemSvc.deleteNamedUserItemVersion(importedModelCompositeItem._id, importedModelVersion._id).then(() => {
+          this.setState({isDeletingModel: false})
+          this._loadAsyncData()
+        }).catch((error) => {
+          console.error('ERROR: Deleting Imported Model Version')
+          console.error(error)
+          this.setState({isPageWorking: false, isDeletingModel: false})
+        })
+      } else {
+        IafItemSvc.deleteNamedUserItem(importedModelCompositeItem._userItemId).then(() => {
+          this.setState({isDeletingModel: false})
+          this._loadAsyncData()
+        })
+      }
+
+    }).catch((error) => {
+      console.error('ERROR: Deleting Imported Model Collections')
+      console.error(error)
+      this.setState({isPageWorking: false, isDeletingModel: false})
+    })
+
+
+
+  };
+
   render() {
     const {
       isPageLoading,
@@ -458,6 +516,7 @@ class SimpleModelImportView extends React.Component {
                 <thead>
                   <tr>
                     <th></th>
+                    <th></th>
                     <th>Version</th>
                     <th>Created On</th>
                   </tr>
@@ -478,11 +537,21 @@ class SimpleModelImportView extends React.Component {
                       {isImported(bv, allImportedModelVersions) && <i className="fas fa-check-circle"></i>}
                       {!isTipVersion(bv, bimpks, selectedBimpk) && !isImported(bv, allImportedModelVersions) && <span>--</span>}
                     </td>
+                    <td>{isImported(bv, allImportedModelVersions) && isTipVersion(bv, bimpks, selectedBimpk) && <div 
+                        className='delete-ver' 
+                        onClick={() => this.deleteImportedVersion(bv, allImportedModelVersions)}
+                      >
+                        <i className='fas fa-trash'></i>
+                      </div>}
+                    </td>
                     <td>{bv._version}</td>
                     <td>{bv.displayCreateDate}</td>
                   </tr>)}
                   <tr>
-                    <td colSpan='3'>Only tip versions may be imported. Imported versions will display with a check mark. Currently the model viewer only supports viewing the tip imported version of a model.</td>
+                    <td colSpan='4'>Only tip versions may be imported. Imported versions will display with a check mark. Currently the model viewer only supports viewing the tip imported version of a model.</td>
+                  </tr>
+                  <tr>
+                    {this.state.isDeletingModel && <td colSpan='4' className='delete-msg'><i className='fas fa-spinner fa-spin'></i> Deleting latest imported model version</td>}
                   </tr>
                 </tbody>
               </table>

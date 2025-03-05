@@ -1,0 +1,83 @@
+.model-query {
+
+   .model-query-no-props-msg {
+
+      padding: 5px;
+      border: 2px solid lightgray;
+      border-radius: 10px;
+      color: lightgray;
+      display: flex;
+      justify-content: center;
+      width: 90%;
+      margin: 10px;
+   }
+
+   .add-prop-filter-tree-select {
+      margin: 10px;
+      width: 90%;
+   }
+
+   .sep {
+      width: 50%;
+      margin: auto;
+
+      .filter-add-div {
+         padding-top: 15px;
+         width: 100%; 
+         text-align: center; 
+         border-bottom: 1px solid #000; 
+         line-height: 0.1em;
+         margin: 10px 0 20px;
+   
+         span {
+            background:#fff; 
+            padding:0 10px;
+         }
+   
+      }
+   }
+   
+   .sticky-control {
+      position: sticky;
+      bottom: 0;
+      padding-top: 10px;
+      margin-bottom: 10px;
+      background-color: white;
+      border-top: 2px solid lightgray;
+
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+
+      .model-query-search-btn {
+         margin: 10px;
+         padding: 5px;
+         border: 2px solid var(--app-accent-color);
+         border-radius: 10px;
+         color: var(--app-accent-color);
+         font-weight: bold;
+         cursor: pointer;
+
+         &:hover {
+            background-color: var(--app-accent-color);
+            color: whitesmoke;
+         }
+      }
+
+      .model-query-search-btn-disabled {
+         margin: 10px;
+         padding: 5px;
+         border: 2px solid lightgray;
+         border-radius: 10px;
+         color: black;
+         font-weight: bold;
+         cursor: not-allowed;
+
+         &:hover {
+            background-color: lightgray;
+         }
+      }
+   }
+
+}

@@ -78,8 +78,8 @@ const ProjectList = ({
             </tr>
          </thead>
          <tbody>
-            {projects.map(p => <>
-               <tr key={p._id}>
+            {projects.map(p => <React.Fragment key={p._id}>
+               <tr>
                   <td className='first-col center'>
                      <ProjectUpdater 
                         project={p}
@@ -99,12 +99,12 @@ const ProjectList = ({
                   <td className='center'>{getProjectOriginalVer(p)}</td>
                </tr>
                {updatingProject?._id === p._id && <tr className='project-update-row'>
-                  <td >{showClose && <i class="fas fa-times-circle" onClick={handleListClose}></i>}</td>
-                  <td colspan='4'><ul className='update-log'>
-                     {updateLog.map(u => <li>{u}</li>)}
+                  <td >{showClose && <i className="fas fa-times-circle" onClick={handleListClose}></i>}</td>
+                  <td colSpan='4'><ul className='update-log'>
+                     {updateLog.map((u,i) => <li key={i}>{u}</li>)}
                   </ul></td>
                </tr>}
-            </>)}
+            </React.Fragment>)}
          </tbody>
       </table>
    </div>
