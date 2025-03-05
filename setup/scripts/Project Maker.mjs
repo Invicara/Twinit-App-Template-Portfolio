@@ -244,7 +244,12 @@ let scriptModule = {
 			console.log('STEP 3:', viewerConfigVersion, viewerUpdateResult)
 			callback('STEP 3: Updated Viewer User Config')
 			
-			updateProject._userAttributes.quickModelView.currentVersion = '2.0.0'
+			if (updateProject._userAttributes?.quickModelView) {
+				updateProject._userAttributes.quickModelView.currentVersion = '2.0.0'
+			} else if (updateProject._userAttributes?.projectMaker) {
+				updateProject._userAttributes.quickModelView = Object.assign({}, updateProject._userAttributes.projectMaker)
+				updateProject._userAttributes.quickModelView.currentVersion = '2.0.0'
+			}
 			let projUpdateResult = await IafProj.update(updateProject)
 			console.log('STEP 4:', updateProject, projUpdateResult)
 			callback('STEP 4: Updated Project Current Version -> 2.0.0')
