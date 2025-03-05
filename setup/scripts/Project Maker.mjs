@@ -1,4 +1,4 @@
-const CURRENT_MAKER_VERSION = '1.3.0'
+const CURRENT_MAKER_VERSION = '2.0.0'
 
 let scriptModule = {
 	async getCurrentMakerVersion() {
@@ -198,7 +198,7 @@ let scriptModule = {
 	// input { project, version }
 	async updateQuickModelViewProject(input, libraries, ctx, callback) {
 
-		const { IafProj } = libraries.PlatformApi
+		const { IafProj, IafScripts, IafUserConfig } = libraries.PlatformApi
 		const { 	project,	// REQUIRED: the project to migrate
 					version 	// REQUIRED: the current version of the project to migrate
 		} = input
@@ -207,21 +207,55 @@ let scriptModule = {
 			throw("Project and Version are required!")
 		}
 
-		const migrate_X_Y = async () => {
-			
-			callback(`Updating project ${project._name} version`)
-			await IafProj.switchProject(currentProject._id)
-			
-			// TO DO: perform migration of project
+		const migrate_1_3_0_to_2_0_0 = async (userConfigTemplates, scriptTemplates) => {
 
-			callback(`Updated project ${project._name} version`)
+			callback(`Updating project ${project._name} version`)
+			await IafProj.switchProject(project._id)
+			let updateProject = await IafProj.getCurrent()
+
+			let scripts = await IafProj.getScripts(updateProject)
+			let importScript = scripts.find(s => s._userType === 'importHelper')
+			let importScriptTemplate = scriptTemplates.find(s => s._name === "importHelperTemplate")
+			
+			let newVersion = importScript._versions[0]
+			newVersion._userData = importScriptTemplate._versions[0]._userData
+
+			let verResult = await IafScripts.createVersion(importScript._id, newVersion)
+			console.log('STEP 1:', importScript, importScriptTemplate, verResult)
+			callback('STEP 1: Updated bimpk Import Script')
+
+			let userConfigs = await IafProj.getUserConfigs(updateProject)
+
+			let adminConfig = userConfigs.find(uc => uc._name === 'QuickViewAdminConfig')
+			let adminConfigVersion = adminConfig._versions[0]
+			let adminTemplate = userConfigTemplates.find(uc => uc._name === 'QuickViewAdminConfigTemplate')._versions[0]
+			adminConfigVersion._userData = adminTemplate._userData
+
+			let adminUpdateResult = await IafUserConfig.createVersion(adminConfig._id, adminConfigVersion)
+			console.log('STEP 2:', adminConfigVersion, adminUpdateResult)
+			callback('STEP 2: Updated Admin User Config')
+
+			let viewerConfig = userConfigs.find(uc => uc._name === 'QuickViewViewerConfig')
+			let viewerConfigVersion = viewerConfig._versions[0]
+			let viewerTemplate = userConfigTemplates.find(uc => uc._name === 'QuickViewViewerConfigTemplate')._versions[0]
+			viewerConfigVersion._userData = viewerTemplate._userData
+
+			let viewerUpdateResult = await IafUserConfig.createVersion(viewerConfig._id, viewerConfigVersion)
+			console.log('STEP 3:', viewerConfigVersion, viewerUpdateResult)
+			callback('STEP 3: Updated Viewer User Config')
+			
+			updateProject._userAttributes.quickModelView.currentVersion = '2.0.0'
+			let projUpdateResult = await IafProj.update(updateProject)
+			console.log('STEP 4:', updateProject, projUpdateResult)
+			callback('STEP 4: Updated Project Current Version -> 2.0.0')
+
 		}
 
 		const migrations = [
-			{ from: '1.2.0', to: '1.3.0', migrateFunction: migrate_X_Y }
+			{ from: '1.3.0', to: '2.0.0', migrateFunction: migrate_1_3_0_to_2_0_0 }
 		]
 
-		const currentProject = await IafProj.getCurrent()
+		const managerProject = await IafProj.getCurrent()
 
 		let currentVer = version
 		let nextMigration = migrations.find(m => m.from === currentVer)
@@ -229,23 +263,29 @@ let scriptModule = {
 		while (nextMigration) {
 			callback(`Beginning ${nextMigration.from} -> ${nextMigration.to} migration`)
 			try {
+				// retrieve user config templates from this project (the project maker project)
+				let userConfigTemplates = await IafProj.getUserConfigs(managerProject, {_userType: 'quick-temp'})
+				let scriptTemplates = await IafProj.getScripts(managerProject, {query: {_userType: 'quick-temp'}})
+				console.log('userConfigTemplates', userConfigTemplates)
+				console.log('scriptTemplates', scriptTemplates)
+				if (callback) callback(`Retrieved Project Templates`)
 
-				await nextMigration.migrateFunction()
+				await nextMigration.migrateFunction(userConfigTemplates, scriptTemplates)
 				callback(`Completed ${nextMigration.from} -> ${nextMigration.to} migration`)
 				currentVer = nextMigration.to
 				nextMigration = migrations.find(m => m.from === currentVer)
 
 			} catch (error) {
 
-				console.log(error)
+				console.error(error)
 				callback(`ERROR during ${nextMigration.from} -> ${nextMigration.to} migration; check bowser console for more info!`)
-				await IafProj.switchProject(currentProject._id)
+				await IafProj.switchProject(managerProject._id)
 				return 'ERROR during migration!'
 
 			}
 		}
 
-		await IafProj.switchProject(currentProject._id)
+		await IafProj.switchProject(managerProject._id)
 		return 'All migrations complete'
 	}
 }
