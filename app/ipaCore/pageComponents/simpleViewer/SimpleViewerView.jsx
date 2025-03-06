@@ -7,8 +7,7 @@ import { Panel, PanelGroup } from "react-resizable-panels"
 import ResizeHandle from './panels/TablePanelComponents/ResizeHandle'
 
 import { IafViewerDBM } from '@dtplatform/iaf-viewer'
-import { IafProj, IafItemSvc } from '@dtplatform/platform-api'
-import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
+import { IafProj } from '@dtplatform/platform-api'
 
 // collapasable drawer component provided by ipa-core
 import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls'
@@ -34,8 +33,8 @@ const SimpleViewerPage = (props) => {
    // used to access viewer commands, not used in this example
    const viewerRef = useRef()
 
-   const { 
-      setSelectedModelComposite,
+   const {
+      availableModelComposites,
       selectedModelComposite,
       modelRelatedCollections,
       selectedElement,
@@ -43,54 +42,6 @@ const SimpleViewerPage = (props) => {
       setSelectedPropRefs,
       sliceElements
    } = useContext(ModelContext)
-
-   // the list of NamedCompositeItemns in the Item Service which represent imported models
-   const [ availableModelComposites, setAvailableModelComposites ] = useState([])
-
-   // the ids of the selected elements in the 3D/2D view
-   // this example enforces single element selection by only ever assigning
-   // one id to this array (or one element's worth of ids, package_id and source_id)
-   // to account for differences between Revit and IFC bimpks
-   const [ selection, setSelection ] = useState([])
-
-   useEffect(() => {
-      loadModels()
-   }, [])
-
-   const loadModels = async () => {
-
-      try {
-         let currentProject = await IafProj.getCurrent()
-         let importedModelComposites = await IafProj.getModels(currentProject)
-         setAvailableModelComposites(importedModelComposites)
-      } catch (err) {
-         console.error("ERROR: Retrieving Imported Models")
-         console.error(err)
-         setAvailableModelComposites([{ _id: 0, _name:"Error Retrieving Imported Models"}])
-      }
-   }
-
-   const handleModelSelect = (modelCompositeId) => {
-
-      setSelection([])
-      setSelectedModelComposite(undefined)
-
-      // we need this timeout to give the IafViewer time to reset its own internal state
-      // if we switch between models too quickly we get errors
-      setTimeout(async () => {
-         let selectedModel = availableModelComposites.find(amc => amc._id === modelCompositeId)
-         setSelectedModelComposite(selectedModel)
-      }, 1000)
-      
-   }
-
-   const selectElement = (element) => {
-
-      setSelectedElement([])
-      setSelection([parseInt(element.package_id), element.source_id])
-      setSelectedElement(element)
-
-   }
 
    const setSelectedElement = async (pkgids) => {
 
@@ -106,7 +57,7 @@ const SimpleViewerPage = (props) => {
                   <StackableDrawer level={1} iconKey='fa-search' tooltip='Search'>
                      <div className='viewer-sidebar'>
                         
-                        <ModelSelect availableModels={availableModelComposites} onModelSelect={handleModelSelect} />
+                        <ModelSelect />
                         {selectedModelComposite && modelRelatedCollections && <SearchPane onPropertyChange={setSelectedPropRefs} />}
                   
                      </div>
@@ -124,7 +75,7 @@ const SimpleViewerPage = (props) => {
                         ref={viewerRef} model={selectedModelComposite}
                         serverUri={endPointConfig.graphicsServiceOrigin}
                         sliceElementIds={sliceElements.map(se => [se.package_id, se.source_id]).flat()}
-                        selection={selection}
+                        selection={selectedElement? [selectedElement.package_id, selectedElement.source_id] : []}
                         OnSelectedElementChangeCallback={setSelectedElement}
                      />}
                   </div>
