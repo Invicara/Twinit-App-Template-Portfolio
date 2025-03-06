@@ -4,7 +4,7 @@ import { Tooltip } from "@material-ui/core"
 
 import { IafDataPlugin } from '@invicara/ui-utils'
 
-import { ModelContext } from "../../SimpleViewerView"
+import { ModelContext } from "../../ModelContext"
 
 // a component tha displays a xcel download icon and allows for downloading
 // the table data to an excel xlsx file
