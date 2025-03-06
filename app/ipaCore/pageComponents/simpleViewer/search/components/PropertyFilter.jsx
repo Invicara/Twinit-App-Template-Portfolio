@@ -5,7 +5,7 @@ import { TreeSelect, InputNumber } from 'antd'
 
 import { IafItemSvc } from '@dtplatform/platform-api'
 
-import { ModelContext } from '../../SimpleViewerView'
+import { ModelContext } from '../../ModelContext'
 import { numValueTypes, stringValueTypes } from '../../consts'
 
 import './PropertyFilter.scss'

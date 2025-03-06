@@ -5,7 +5,7 @@ import { TreeSelect } from 'antd';
 
 import { IafItemSvc } from '@dtplatform/platform-api';
 
-import { ModelContext } from '../../SimpleViewerView'
+import { ModelContext } from '../../ModelContext'
 
 import PropertyFilter from './PropertyFilter'
 

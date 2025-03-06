@@ -1,6 +1,6 @@
 // version dtf-1.0
 
-import React, { useState, useEffect, useRef, createContext } from 'react'
+import React, { useState, useEffect, useRef, useContext } from 'react'
 
 // https://github.com/bvaughn/react-resizable-panels
 import { Panel, PanelGroup } from "react-resizable-panels"
@@ -18,47 +18,40 @@ import SearchPane from './search/SearchPane'
 import TablePanel from './panels/TablePanel'
 import ElementDetails from './ElementDetails/ElementDetails'
 
+import { ModelContext, ModelContextProvider } from './ModelContext'
+
 import "@dtplatform/iaf-viewer/dist/iaf-viewer.css";
 import './SimpleViewerView.scss'
 
-// a context to manage the model information for the page and subcomponents
-// selectedModelComposite: <NamedComposieItem> the currently selected model to show in the viewer and to query
-// modelRelatedCollections: <Object> the related model collections for the selectedModelComposite Item
-// modelRelatedCollections.elements: <NamedUserCollection> the NamdUserCollection containing model elements
-// modelRelatedCollections.typeProps: <NamedUserCollection> the NamdUserCollection containing element type properties
-// modelRelatedCollections.instanceProps: <NamedUserCollection> the NamdUserCollection containing element instance properties
-// modelRelatedCollections.dataCache: <NamedUserCollection> the NamdUserCollection containing model data cached during import
-// selectedElement: <Object> the currently selected element in the model with all property info
-// selectElement: <function> set the current selected element in the viewer to an element
-// selectedPropRefs: Array[<Object>] the currently selected set of properties to include in model queries and the table
-// setSelectedPropRefs: <function> the function to set the selectedPropRefs
-// sliceElements: Array[<Object>] the array of elements to isolate in th viewer
-// setSliceElements: <function> the function to set the sliceElements
-export const ModelContext = createContext()
-
 const SimpleViewerView = (props) => {
+   return <ModelContextProvider>
+      <SimpleViewerPage />
+   </ModelContextProvider>
+}
+
+const SimpleViewerPage = (props) => {
 
    // used to access viewer commands, not used in this example
    const viewerRef = useRef()
 
+   const { 
+      setSelectedModelComposite,
+      selectedModelComposite,
+      modelRelatedCollections,
+      selectedElement,
+      getSelectedElement,
+      setSelectedPropRefs,
+      sliceElements
+   } = useContext(ModelContext)
+
    // the list of NamedCompositeItemns in the Item Service which represent imported models
    const [ availableModelComposites, setAvailableModelComposites ] = useState([])
-
-   // MODEL CONTEXT
-   // the currently selected NamedCompositeItem (model) to display in the viewer
-   const [ selectedModelComposite, setSelectedModelComposite ] = useState()
-   const [ modelRelatedCollections, setModelRelatedCollections ] = useState()
-   const [ selectedPropRefs, setSelectedPropRefs ] = useState([])
-   // the currently selected element in the model with element and property data
-   const [ selectedElement, setSelectedElement ] = useState()
-   const [ sliceElements, setSliceElements ] = useState([])
 
    // the ids of the selected elements in the 3D/2D view
    // this example enforces single element selection by only ever assigning
    // one id to this array (or one element's worth of ids, package_id and source_id)
    // to account for differences between Revit and IFC bimpks
    const [ selection, setSelection ] = useState([])
-
 
    useEffect(() => {
       loadModels()
@@ -80,7 +73,6 @@ const SimpleViewerView = (props) => {
    const handleModelSelect = (modelCompositeId) => {
 
       setSelection([])
-      setSelectedElement(null)
       setSelectedModelComposite(undefined)
 
       // we need this timeout to give the IafViewer time to reset its own internal state
@@ -88,25 +80,8 @@ const SimpleViewerView = (props) => {
       setTimeout(async () => {
          let selectedModel = availableModelComposites.find(amc => amc._id === modelCompositeId)
          setSelectedModelComposite(selectedModel)
-
-         try {
-            // get collections contained in the NamedCompositeItem representing the model
-            let collectionsModelCompositeItem = (await IafItemSvc.getRelatedInItem(selectedModel._userItemId, {}))._list
-
-            setModelRelatedCollections({
-               elements: collectionsModelCompositeItem.find(c => c._userType === 'rvt_elements'),
-               instanceProps: collectionsModelCompositeItem.find(c => c._userType === 'rvt_element_props'),
-               typeProps: collectionsModelCompositeItem.find(c => c._userType === 'rvt_type_elements'),
-               dataCache: collectionsModelCompositeItem.find(c => c._userType === 'data_cache')
-            })
-         } catch (error) {
-            console.error('ERROR: Gettng Model NamedCompositeItem Related NamedUserItems')
-            console.error(error)
-         }
-
       }, 1000)
       
-
    }
 
    const selectElement = (element) => {
@@ -117,74 +92,14 @@ const SimpleViewerView = (props) => {
 
    }
 
-   const getSelectedElements = async (pkgids) => {
+   const setSelectedElement = async (pkgids) => {
 
-      setSelectedElement(null)
-
-      try {
-
-         // Different models return different element properties when clicked in the viewer
-         // IFC models return a string that matches an elements source_id
-         // Revit models return an integer that maches an elements package_id
-         // We try to guess what we get from the viewer and make the appropriate query
-         let pkgidIsString = typeof pkgids[0] === 'string' || pkgids[0] instanceof String
-         let pkgidIsNotANumber = isNaN(pkgids[0])
-
-         let query
-         if (pkgidIsString && pkgidIsNotANumber) {
-            // IFC Specific Query
-            query = { source_id: pkgids[0] }
-            setSelection([pkgids[0]])
-         } else {
-            // all other bimpk format model query
-            query = { package_id: parseInt(pkgids[0]) }
-            setSelection([parseInt(pkgids[0])])
-         }
-
-         // query the element collection as the parent
-         // and follow relationships to the child instance and type properties
-         let selectedModelElements = await IafScriptEngine.findWithRelated({
-            parent: { 
-               query: query,
-               collectionDesc: {_userItemId: modelRelatedCollections.elements._userItemId, _userType: modelRelatedCollections.elements._userType},
-            },
-            related: [
-               {
-                  relatedDesc: { _relatedUserType: modelRelatedCollections.instanceProps._userType},
-                  as: 'instanceProps'
-               },
-               {
-                  relatedDesc: { _relatedUserType: modelRelatedCollections.typeProps._userType},
-                  as: 'typeProps'
-               }
-            ]
-         })
-
-         let userSelectedElement = selectedModelElements._list[0]
-         if (userSelectedElement) {
-            userSelectedElement.typeProps = userSelectedElement.typeProps._list.length ? userSelectedElement.typeProps._list[0]?.properties : {}
-            userSelectedElement.instanceProps = userSelectedElement.instanceProps._list.length ? userSelectedElement.instanceProps._list[0].properties : {}
-
-            setSelectedElement(userSelectedElement)
-         }
-      } catch (err) {
-         console.error("ERROR: Retrieving Selected Model Element")
-         console.error(err)
-      }
+      getSelectedElement(pkgids)
 
    }
 
    return <div className='simple-viewer-view'>
-      <ModelContext.Provider value={{
-         selectedModelComposite,
-         modelRelatedCollections,
-         selectedElement,
-         selectElement,
-         selectedPropRefs,
-         setSelectedPropRefs,
-         sliceElements,
-         setSliceElements}}
-      >
+      
          <PanelGroup autoSaveId="elemtable" direction="vertical">
             <Panel id="viewer-panel" collapsible={false} order={1}>
                <div className="panel-row">
@@ -210,7 +125,7 @@ const SimpleViewerView = (props) => {
                         serverUri={endPointConfig.graphicsServiceOrigin}
                         sliceElementIds={sliceElements.map(se => [se.package_id, se.source_id]).flat()}
                         selection={selection}
-                        OnSelectedElementChangeCallback={getSelectedElements}
+                        OnSelectedElementChangeCallback={setSelectedElement}
                      />}
                   </div>
                   
@@ -221,7 +136,7 @@ const SimpleViewerView = (props) => {
                <TablePanel />
             </Panel>
          </PanelGroup>
-      </ModelContext.Provider>
+
    </div>
 
 }
