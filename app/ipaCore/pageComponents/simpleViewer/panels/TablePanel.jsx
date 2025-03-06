@@ -12,7 +12,7 @@ import SelectableCell from './TablePanelComponents/SelectableCell';
 import ElementDetails from '../ElementDetails/ElementDetails'
 import { BASELINE_THEME } from './TreePanelTheme';
 
-import { ModelContext } from '../SimpleViewerView'
+import { ModelContext } from '../ModelContext'
 import { stringValueTypes } from '../consts'
 
 import './TablePanel.scss'
