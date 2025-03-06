@@ -55,7 +55,8 @@ const SimpleViewerView = (props) => {
 
    // the ids of the selected elements in the 3D/2D view
    // this example enforces single element selection by only ever assigning
-   // one id to this array
+   // one id to this array (or one element's worth of ids, package_id and source_id)
+   // to account for differences between Revit and IFC bimpks
    const [ selection, setSelection ] = useState([])
 
 
@@ -82,6 +83,8 @@ const SimpleViewerView = (props) => {
       setSelectedElement(null)
       setSelectedModelComposite(undefined)
 
+      // we need this timeout to give the IafViewer time to reset its own internal state
+      // if we switch between models too quickly we get errors
       setTimeout(async () => {
          let selectedModel = availableModelComposites.find(amc => amc._id === modelCompositeId)
          setSelectedModelComposite(selectedModel)
