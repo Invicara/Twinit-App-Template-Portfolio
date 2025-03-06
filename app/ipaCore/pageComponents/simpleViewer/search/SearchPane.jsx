@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext } from "react";
 
 import { IafItemSvc } from "@dtplatform/platform-api";
 
-import { ModelContext } from "../SimpleViewerView";
+import { ModelContext } from "../ModelContext";
 
 import PropertySelector from "./components/PropertySelector";
 import ModelQuery from "./components/ModelQuery";

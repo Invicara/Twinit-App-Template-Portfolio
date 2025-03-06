@@ -1,6 +1,6 @@
 import React, { useEffect, useContext } from "react"
 
-import { ModelContext } from "../SimpleViewerView"
+import { ModelContext } from "../ModelContext"
 
 import './ModelSelect.scss'
 

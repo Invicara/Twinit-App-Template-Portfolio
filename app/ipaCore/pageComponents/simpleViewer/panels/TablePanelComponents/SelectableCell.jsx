@@ -1,6 +1,6 @@
 import React, {useContext } from "react"
 
-import { ModelContext } from "../../SimpleViewerView"
+import { ModelContext } from "../../ModelContext"
 
 // a table cell component that provides a class when the currently selected element
 // matches the table row to allow row highlighting
