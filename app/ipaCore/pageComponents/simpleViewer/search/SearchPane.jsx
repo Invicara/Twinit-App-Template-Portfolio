@@ -31,27 +31,29 @@ const SearchPane = ({}) => {
          checkSearchable()
       }
 
-   }, [selectedModelComposite])
+   }, [selectedModelComposite, modelRelatedCollections])
 
    // check if model data_cache items exist with the Property References information
    // this data is required to enable the search pane and produced during model import
    const checkSearchable = async () => {
 
-      try {
+      if (modelRelatedCollections.dataCache) {
+         try {
 
-         let result = await IafItemSvc.getRelatedItems(modelRelatedCollections.dataCache._userItemId, {
-               query : {dataType: 'propertyReference'},
-            }, null, { page: { _pageSize: 0, _offset: 0 } }
-         )
+            let result = await IafItemSvc.getRelatedItems(modelRelatedCollections.dataCache._userItemId, {
+                  query : {dataType: 'propertyReference'},
+               }, null, { page: { _pageSize: 0, _offset: 0 } }
+            )
 
-         if (result._total === 0) {
+            if (result._total === 0) {
+               setSearchEnabled(SEARCH_DISABLED_STATE)
+            } else {
+               setSearchEnabled(SEARCH_ENABLED_STATE)
+            }
+         } catch (err) {
+            console.error(err)
             setSearchEnabled(SEARCH_DISABLED_STATE)
-         } else {
-            setSearchEnabled(SEARCH_ENABLED_STATE)
          }
-      } catch (err) {
-         console.error(err)
-         setSearchEnabled(SEARCH_DISABLED_STATE)
       }
 
    }

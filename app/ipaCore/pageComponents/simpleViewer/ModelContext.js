@@ -1,32 +1,64 @@
 import React, {createContext, useEffect, useState } from 'react'
 
-// a context to manage the model information for the page and subcomponents
-// selectedModelComposite: <NamedComposieItem> the currently selected model to show in the viewer and to query
-// modelRelatedCollections: <Object> the related model collections for the selectedModelComposite Item
-// modelRelatedCollections.elements: <NamedUserCollection> the NamdUserCollection containing model elements
-// modelRelatedCollections.typeProps: <NamedUserCollection> the NamdUserCollection containing element type properties
-// modelRelatedCollections.instanceProps: <NamedUserCollection> the NamdUserCollection containing element instance properties
-// modelRelatedCollections.dataCache: <NamedUserCollection> the NamdUserCollection containing model data cached during import
-// selectedElement: <Object> the currently selected element in the model with all property info
-// selectElement: <function> set the current selected element in the viewer to an element
-// selectedPropRefs: Array[<Object>] the currently selected set of properties to include in model queries and the table
-// setSelectedPropRefs: <function> the function to set the selectedPropRefs
-// sliceElements: Array[<Object>] the array of elements to isolate in th viewer
-// setSliceElements: <function> the function to set the sliceElements
+import { IafProj, IafItemSvc } from '@dtplatform/platform-api'
+import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
+
 const ModelContext = createContext()
 
 const ModelContextProvider = ({ children }) => {
 
+   // availableModelComposites: Array[<Object>] the array of imported models in the project
+   const [ availableModelComposites, setAvailableModelComposites ] = useState([])
+
+   // selectedModelComposite: <NamedComposieItem> the currently selected model to show in the viewer and to query
    const [ selectedModelComposite, setSelectedModelComposite ] = useState()
+
+   // modelRelatedCollections: <Object> the related model collections for the selectedModelComposite Item
+   // modelRelatedCollections.elements: <NamedUserCollection> the NamdUserCollection containing model elements
+   // modelRelatedCollections.typeProps: <NamedUserCollection> the NamdUserCollection containing element type properties
+   // modelRelatedCollections.instanceProps: <NamedUserCollection> the NamdUserCollection containing element instance properties
+   // modelRelatedCollections.dataCache: <NamedUserCollection> the NamdUserCollection containing model data cached during import
    const [ modelRelatedCollections, setModelRelatedCollections ] = useState()
+
+   // total number of elements in the model
+   const [ totalElementsCount, setTotalElementsCount ] = useState()
+
+   // selectedPropRefs: Array[<Object>] the currently selected set of properties to include in model queries and the table
+   // setSelectedPropRefs: <function> the function to set the selectedPropRefs
    const [ selectedPropRefs, setSelectedPropRefs ] = useState([])
+
+   // selectedElement: <Object> the currently selected element in the model with all property info
    const [ selectedElement, setSelectedElement ] = useState()
+
+   // sliceElements: Array[<Object>] the array of elements to isolate in th viewer
+   // setSliceElements: <function> the function to set the sliceElements
    const [ sliceElements, setSliceElements ] = useState([])
+
+   useEffect(() => {
+      loadAllModels()
+   }, [])
 
    useEffect(() => {
       loadModelCollections()
    }, [selectedModelComposite])
 
+   useEffect(() => {
+      getTotalElementCount()
+   }, [modelRelatedCollections])
+
+   const loadAllModels = async () => {
+      try {
+         let currentProject = await IafProj.getCurrent()
+         let importedModelComposites = await IafProj.getModels(currentProject)
+         setAvailableModelComposites(importedModelComposites)
+      } catch (err) {
+         console.error("ERROR: Retrieving Imported Models")
+         console.error(err)
+         setAvailableModelComposites([{ _id: 0, _name:"Error Retrieving Imported Models"}])
+      }
+   }
+
+   // loads the related collections rlated to model NamedCompositeItem
    const loadModelCollections = async () => {
 
       setSelectedElement(null)
@@ -34,7 +66,7 @@ const ModelContextProvider = ({ children }) => {
       if (selectedModelComposite) {
          try {
             // get collections contained in the NamedCompositeItem representing the model
-            let collectionsModelCompositeItem = (await IafItemSvc.getRelatedInItem(selectedModel._userItemId, {}))._list
+            let collectionsModelCompositeItem = (await IafItemSvc.getRelatedInItem(selectedModelComposite._userItemId, {}))._list
 
             setModelRelatedCollections({
                elements: collectionsModelCompositeItem.find(c => c._userType === 'rvt_elements'),
@@ -42,6 +74,7 @@ const ModelContextProvider = ({ children }) => {
                typeProps: collectionsModelCompositeItem.find(c => c._userType === 'rvt_type_elements'),
                dataCache: collectionsModelCompositeItem.find(c => c._userType === 'data_cache')
             })
+
          } catch (error) {
             console.error('ERROR: Gettng Model NamedCompositeItem Related NamedUserItems')
             console.error(error)
@@ -56,6 +89,27 @@ const ModelContextProvider = ({ children }) => {
       }
    }
 
+   // get the total element count for the currently selected model
+   const getTotalElementCount = () => {
+
+      try {
+         // providing a _pageSize = 0 and _offset = 0 will just return the page info
+         // with no items, so we can get the _total from the response
+         IafItemSvc.getRelatedItems(modelRelatedCollections.elements._userItemId, {
+            query : {},
+         }, null, { page: { _pageSize: 0, _offset: 0 } }).then((result => {
+            setTotalElementsCount(result._total)
+         }))
+      } catch (error) {
+         console.error('ERROR: Getting Total Element Count')
+         console.error(error)
+         setTotalElementsCount(0)
+
+      }
+
+   }
+
+   // get the element data from the model for the currently selected element
    const getSelectedElement = async (pkgids) => {
       setSelectedElement(null)
 
@@ -111,16 +165,118 @@ const ModelContextProvider = ({ children }) => {
       }
    }
 
+   // set the currently selected element directly, such as from the table panel
+   const selectElement = (element) => {
+
+      setSelectedElement([])
+      setSelectedElement(element)
+
+   }
+
+   // given a query return the number of elements the query would return if executed
+   const getElementCount = async (baseQuery) => {
+
+      let allCountPromises = []
+      let filteredCounts = []
+
+      let _pageSize = 1000
+      let totalPages = Math.floor(totalElementsCount/_pageSize)+1
+      let pages = []
+
+      // calculate pages
+      for (let i = 0 ; i < totalPages; i++) {
+         pages.push({_offset: i*_pageSize, _pageSize})
+      }
+
+      // for each page of elements call the Item Service
+      for (let i = 0; i < pages.length; i++) {
+
+         let baseQueryCopy = JSON.parse(JSON.stringify(baseQuery))
+
+         baseQueryCopy.$findWithRelated.parent.options.page = pages[i]
+         // by projecting just the element _id, we keep the responses small
+         // instead of getting the entire element item
+         baseQueryCopy.$findWithRelated.parent.options.project = { _id: 1}
+
+         allCountPromises.push(IafItemSvc.searchRelatedItems(baseQueryCopy). then((res) => {
+            filteredCounts.push(res._list[0]._versions[0]._relatedItems._filteredSize)
+         }))
+      }
+
+      return Promise.all(allCountPromises).then(() => {
+         // once all Item Service calls resolve, add all the _filteredSizes to get the total
+         // number of elements found with the filters
+         return filteredCounts.reduce((acc, curr) => acc + curr, 0)
+      }).catch((error) => {
+         console.error('ERROR: Getting Filtered Element Count')
+         console.error(error)
+         return 0
+      })
+
+   }
+
+   // given a query, fetch the model elements and set them as the sliceElements in the viewer
+   const setSliceElementsByQuery = (baseQuery) => {
+      let allCountPromises = []
+
+      // list of all returned element items with type and instance properties
+      let allElements = []
+
+      let _pageSize = 1000
+      let totalPages = Math.floor(totalElementsCount/_pageSize)+1
+      let pages = []
+
+      // calculate total pages to request
+      for (let i = 0 ; i < totalPages; i++) {
+         pages.push({_offset: i*_pageSize, _pageSize})
+      }
+
+      for (let i = 0; i < pages.length; i++) {
+
+         let baseQueryCopy = JSON.parse(JSON.stringify(baseQuery))
+
+         baseQueryCopy.$findWithRelated.parent.options.page = pages[i]
+
+         allCountPromises.push(IafItemSvc.searchRelatedItems(baseQueryCopy). then((res) => {
+            // add page of elements to the list of all returned elements
+            allElements.push(...res._list[0]._versions[0]._relatedItems._list)
+         }))
+      }
+
+      // when all Item Service requests resolve
+      return Promise.all(allCountPromises).then(() => {
+
+         // simplfy element structure by bringing the type and instance
+         // properties further up the object path
+         allElements.forEach(elem => {
+            elem.instanceProps = elem.instanceProps._list[0].properties
+            elem.typeProps = elem.typeProps._list[0].properties
+         })
+
+         // isolate the elements in the model viewer
+         setSliceElements(allElements)
+         
+      }).catch((error) => {
+         console.error('ERROR: Getting Model Elements by Search')
+         console.error(error)
+         setSliceElements([])
+      })
+   } 
+
    return <ModelContext.Provider value={{
+      availableModelComposites,
       selectedModelComposite,
       setSelectedModelComposite,
       modelRelatedCollections,
+      totalElementsCount,
       selectedElement,
+      selectElement,
       getSelectedElement,
       selectedPropRefs,
       setSelectedPropRefs,
+      getElementCount,
       sliceElements,
-      setSliceElements}}
+      setSliceElementsByQuery}}
    >
       { children }
    </ModelContext.Provider>

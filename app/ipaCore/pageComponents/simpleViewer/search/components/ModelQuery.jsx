@@ -15,7 +15,13 @@ import './ModelQuery.scss'
 const ModelQuery = () => {
 
    // Model Context
-   const { selectedModelComposite, modelRelatedCollections, selectedPropRefs, setSliceElements } = useContext(ModelContext)
+   const { selectedModelComposite,
+      modelRelatedCollections,
+      totalElementsCount,
+      selectedPropRefs,
+      getElementCount,
+      setSliceElementsByQuery 
+   } = useContext(ModelContext)
 
    // the list of search filters to use when querying the model data
    // propRef: <Object> the property reference for which the filter was created
@@ -26,8 +32,6 @@ const ModelQuery = () => {
    // numberTwoValue: <Number> the second numeric value in a numeric filter (if required by comparison)
    const [ filters, setFilters ] = useState([])
 
-   // total number of elements in the model
-   const [ totalElementsCount, setTotalElementsCount ] = useState()
    // the number of elements to be returned if the user searchs with th currently configured filters
    const [ filteredElementsCount, setFilteredElementsCount ] = useState()
    // if the component is currently fetching the number of elements that would be returned
@@ -37,10 +41,10 @@ const ModelQuery = () => {
    // using the currently configured filters
    const [ gettingFilteredElements, setGettingFilteredElements ] = useState(false)
 
-   // whenever the selected model change get the total element count for the model
+   // whenever the selected model changes set the filtered count to the total count
    useEffect(() => {
-      if (selectedModelComposite) getTotalElementCount()
-   }, [selectedModelComposite])
+      if (selectedModelComposite) setFilteredElementsCount(totalElementsCount)
+   }, [selectedModelComposite, totalElementsCount])
 
    // if the selected property references change
    // remove any filters for selectedPropRefs that were removed
@@ -66,29 +70,6 @@ const ModelQuery = () => {
       
    }, [selectedPropRefs])
 
-   // get the total element count for the currently selected model
-   const getTotalElementCount = () => {
-      setGettingFilteredCount(true)
-
-      try {
-         // providing a _pageSize = 0 and _offset = 0 will just return the page info
-         // with no items, so we can get the _total from the response
-         IafItemSvc.getRelatedItems(modelRelatedCollections.elements._userItemId, {
-            query : {},
-         }, null, { page: { _pageSize: 0, _offset: 0 } }).then((result => {
-            setTotalElementsCount(result._total)
-            setFilteredElementsCount(result._total)
-            setGettingFilteredCount(false)
-         }))
-      } catch (error) {
-         console.error('ERROR: Getting Total Element Count')
-         console.error(error)
-         setTotalElementsCount(0)
-         setFilteredElementsCount(0)
-         setGettingFilteredCount(false)
-      }
-
-   }
 
    // get the treenodes needed to display the TreeSelect of selected property references
    const getTreeNodes = () => {
@@ -234,7 +215,7 @@ const ModelQuery = () => {
    // for that page of result.
    // So if there are 1000 model elements and the _pagSize is 200, to get all the filtered element counts
    // we need to make 5 Item Service calls (on for each page of parent elements).
-   const getFilteredElementCount = (currentFilters) => {
+   const getFilteredElementCount = async (currentFilters) => {
 
       // if at least one filter has been configured
       if (currentFilters.some(f => f.queryPartial)) {
@@ -243,47 +224,17 @@ const ModelQuery = () => {
 
          // get the base $findWithRelated Item Service query
          let baseQuery = makeRelatedFilterQuery()
-
-         let allCountPromises = []
-         let filteredCounts = []
-
-         let _pageSize = 1000
-         let totalPages = Math.floor(totalElementsCount/_pageSize)+1
-         let pages = []
-
-         // calculate pages
-         for (let i = 0 ; i < totalPages; i++) {
-            pages.push({_offset: i*_pageSize, _pageSize})
-         }
-
-         // for each page of elements call the Item Service
-         for (let i = 0; i < pages.length; i++) {
-
-            let baseQueryCopy = JSON.parse(JSON.stringify(baseQuery))
-
-            baseQueryCopy.$findWithRelated.parent.options.page = pages[i]
-            // by projecting just the element _id, we keep the responses small
-            // instead of getting the entire element item
-            baseQueryCopy.$findWithRelated.parent.options.project = { _id: 1}
-
-            allCountPromises.push(IafItemSvc.searchRelatedItems(baseQueryCopy). then((res) => {
-               filteredCounts.push(res._list[0]._versions[0]._relatedItems._filteredSize)
-            }))
-         }
-
-         Promise.all(allCountPromises).then(() => {
-            // once all Item Service calls resolve, add all the _filteredSizes to get the total
-            // number of elements found with the filters
-            setFilteredElementsCount(filteredCounts.reduce((acc, curr) => acc + curr), 0)
-            setGettingFilteredCount(false)
-         }).catch((error) => {
-            console.error('ERROR: Getting Filtered Element Count')
-            console.error(error)
+         getElementCount(baseQuery).then((elemCount) => {
+            setFilteredElementsCount(elemCount)
+         }).catch(() => {
             setFilteredElementsCount(0)
+         }).finally(() => {
             setGettingFilteredCount(false)
          })
+         
+         
       } else {
-         // if there are no configured filters then the filtered count if the coun of total elements
+         // if there are no configured filters then the filtered count if the count of total elements
          setFilteredElementsCount(totalElementsCount)
       }
    }
@@ -297,49 +248,9 @@ const ModelQuery = () => {
       // relatd to each element item
       baseQuery.$findWithRelated.relatedFilter.includeResult = true
 
-      let allCountPromises = []
-
-      // list of all returned element items with type and instance properties
-      let allElements = []
-
-      let _pageSize = 1000
-      let totalPages = Math.floor(totalElementsCount/_pageSize)+1
-      let pages = []
-
-      // calculate total pages to request
-      for (let i = 0 ; i < totalPages; i++) {
-         pages.push({_offset: i*_pageSize, _pageSize})
-      }
-
-      for (let i = 0; i < pages.length; i++) {
-
-         let baseQueryCopy = JSON.parse(JSON.stringify(baseQuery))
-
-         baseQueryCopy.$findWithRelated.parent.options.page = pages[i]
-
-         allCountPromises.push(IafItemSvc.searchRelatedItems(baseQueryCopy). then((res) => {
-            // add page of elements to the list of all returned elements
-            allElements.push(...res._list[0]._versions[0]._relatedItems._list)
-         }))
-      }
-
-      // when all Item Service requests resolve
-      Promise.all(allCountPromises).then(() => {
-
-         // simplfy element structure by bringing the type and instance
-         // properties further up the object path
-         allElements.forEach(elem => {
-            elem.instanceProps = elem.instanceProps._list[0].properties
-            elem.typeProps = elem.typeProps._list[0].properties
-         })
-
-         // isolate the elements in the model viewer
-         setSliceElements(allElements)
-         setGettingFilteredElements(false)
-      }).catch((error) => {
-         console.error('ERROR: Getting Model Elements n Search')
-         console.error(error)
-         setSliceElements([])
+      setSliceElementsByQuery(baseQuery).catch(() => {
+         
+      }).finally(() => {
          setGettingFilteredElements(false)
       })
 
