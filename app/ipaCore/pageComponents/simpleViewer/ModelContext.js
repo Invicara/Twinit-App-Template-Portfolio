@@ -109,6 +109,21 @@ const ModelContextProvider = ({ children }) => {
 
    }
 
+   const simplifyElementItems = (elementArray) => {
+
+      let newElementArray = JSON.parse(JSON.stringify(elementArray))
+
+      // simplify element structure by bringing the type and instance
+      // properties further up the object path
+      newElementArray.forEach(e => {
+         e.typeProps = e.typeProps._list.length ? e.typeProps._list[0]?.properties : {}
+         e.instanceProps = e.instanceProps._list.length ? e.instanceProps._list[0].properties : {}
+      })
+
+      return newElementArray
+
+   }
+
    // get the element data from the model for the currently selected element
    const getSelectedElement = async (pkgids) => {
       setSelectedElement(null)
@@ -154,10 +169,8 @@ const ModelContextProvider = ({ children }) => {
 
          let userSelectedElement = selectedModelElements._list[0]
          if (userSelectedElement) {
-            userSelectedElement.typeProps = userSelectedElement.typeProps._list.length ? userSelectedElement.typeProps._list[0]?.properties : {}
-            userSelectedElement.instanceProps = userSelectedElement.instanceProps._list.length ? userSelectedElement.instanceProps._list[0].properties : {}
-
-            setSelectedElement(userSelectedElement)
+            
+            setSelectedElement(simplifyElementItems([userSelectedElement])[0])
          }
       } catch (err) {
          console.error("ERROR: Retrieving Selected Model Element")
@@ -216,7 +229,7 @@ const ModelContextProvider = ({ children }) => {
    }
 
    // given a query, fetch the model elements and set them as the sliceElements in the viewer
-   const setSliceElementsByQuery = (baseQuery) => {
+   const setSliceElementsByQuery = async (baseQuery) => {
       let allCountPromises = []
 
       // list of all returned element items with type and instance properties
@@ -246,15 +259,8 @@ const ModelContextProvider = ({ children }) => {
       // when all Item Service requests resolve
       return Promise.all(allCountPromises).then(() => {
 
-         // simplfy element structure by bringing the type and instance
-         // properties further up the object path
-         allElements.forEach(elem => {
-            elem.instanceProps = elem.instanceProps._list[0].properties
-            elem.typeProps = elem.typeProps._list[0].properties
-         })
-
          // isolate the elements in the model viewer
-         setSliceElements(allElements)
+         setSliceElements(simplifyElementItems(allElements))
          
       }).catch((error) => {
          console.error('ERROR: Getting Model Elements by Search')
