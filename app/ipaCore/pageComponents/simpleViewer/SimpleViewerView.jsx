@@ -7,7 +7,6 @@ import { Panel, PanelGroup } from "react-resizable-panels"
 import ResizeHandle from './panels/TablePanelComponents/ResizeHandle'
 
 import { IafViewerDBM } from '@dtplatform/iaf-viewer'
-import { IafProj } from '@dtplatform/platform-api'
 
 // collapasable drawer component provided by ipa-core
 import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls'
@@ -22,19 +21,19 @@ import { ModelContext, ModelContextProvider } from './ModelContext'
 import "@dtplatform/iaf-viewer/dist/iaf-viewer.css";
 import './SimpleViewerView.scss'
 
-const SimpleViewerView = (props) => {
+
+const SimpleViewerView = () => {
    return <ModelContextProvider>
       <SimpleViewerPage />
    </ModelContextProvider>
 }
 
-const SimpleViewerPage = (props) => {
+const SimpleViewerPage = () => {
 
    // used to access viewer commands, not used in this example
    const viewerRef = useRef()
 
    const {
-      availableModelComposites,
       selectedModelComposite,
       modelRelatedCollections,
       selectedElement,
