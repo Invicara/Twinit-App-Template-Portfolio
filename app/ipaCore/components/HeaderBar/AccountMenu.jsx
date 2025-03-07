@@ -120,8 +120,11 @@ const AccountMenu = ({ user, ...props }) => {
     const getProjectVersion = async () => {
         let project = await IafProj.getCurrent()
 
-        let projVersion = project._userAttrbiutes?.projectMaker?.currentVersion ? project._userAttrbiutes?.projectMaker?.currentVersion : '1.2.0'
-        projVersion = props?.userConfig?.homepage.handler === 'projectMaker' ? 'Project Maker' : projVersion
+        let projVersion
+        projVersion = project._userAttributes?.quickModelView?.currentVersion
+        if (!projVersion) projVersion = project._userAttributes?.projectMaker?.currentVersion // old version location
+
+        projVersion = props?.userConfig?.homepage.handler === 'projectMaker' ? 'QMV Manager' : projVersion
         setProjectVersion(projVersion)
     }
 

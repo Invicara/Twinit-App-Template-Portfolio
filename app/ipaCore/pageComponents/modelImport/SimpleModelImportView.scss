@@ -16,3 +16,30 @@
       margin-bottom: 5px;
    }
 }
+
+.import-version-table {
+
+   tr {
+      border-bottom: 1px solid lightgray;
+
+      td:nth-of-type(1) {
+         width: 10%;
+      }
+
+      td:nth-of-type(2) {
+         width: 10%;
+      }
+
+      td:nth-of-type(3) {
+         width: 20%;
+      }
+
+      .delete-msg {
+         color: var(--app-accent-color)
+      }
+   }
+
+   .delete-ver {
+      cursor: pointer;
+   }
+}
