@@ -1,4 +1,4 @@
-// version dtf-1.0
+// version qmv 2.0.0
 
 class InputValidation {
 	constructor(params, libraries, ctx) {
@@ -1645,12 +1645,90 @@ const cacheSourceFileGraphicsIds = async (params, libraries, ctx)=> {
 	})
 }
 
+const getAllPropsInCollection = async (collection, twinitCtx) => {
+
+	let _pageSize = 1000
+	let _offset = 0
+	let _total = 1
+
+	let properties = []
+	let propMap = {}
+
+	while (_offset < _total) {
+
+		let page = await IafItemSvc.getRelatedItems(collection._userItemId, {}, twinitCtx, {
+			project: {
+				properties: 1
+			},
+			page: {_pageSize, _offset}
+		})
+		_total = page._total
+		_offset += _pageSize
+		
+		page._list.forEach((type) => {
+			Object.entries(type.properties).forEach(([key, value]) => {
+
+				let propSetName = value.psDispName || 'No Property Set'
+				let propMapName = `${propSetName} | ${value.dName}`
+
+				if (!propMap[propMapName]) {
+					propMap[propMapName]= true
+
+					properties.push({
+						key,
+						dName: value.dName, 
+						propSetName,
+						srcType: value.srcType,
+						uom: value.uom
+					})
+				}
+			})
+		})
+
+	}
+
+	return properties
+
+}
+
+async function cachePropertyReferences(params, libraries, ctx) {
+
+	const { IafScriptEngine} = libraries;
+	const { model_els_props_coll, model_type_el_coll, data_cache_coll } = params.inparams.myCollections
+
+	let allInstanceProps = await getAllPropsInCollection(model_els_props_coll, ctx)
+	let allInstanceCacheItems = allInstanceProps.map((ip) => {
+		return {
+			dataType: 'propertyReference',
+			property: { propertyType: 'instance', ...ip}
+		}
+	})
+	console.log(`---> Instance Property Cache Item Count: ${allInstanceCacheItems.length}`)
+
+	let allTypeProps = await getAllPropsInCollection(model_type_el_coll, ctx)
+	let allTypeCacheItems = allTypeProps.map((tp) => {
+		return {
+			dataType: 'propertyReference',
+			property: { propertyType: 'type', ...tp}
+		}
+	})
+	console.log(`---> Type Property Cache Item Count: ${allTypeCacheItems.length}`)
+
+	const inst_cache = await IafScriptEngine.createItemsBulk({
+		"_userItemId": data_cache_coll._userItemId,
+		"_namespaces": ctx._namespaces,
+		"items": [...allInstanceCacheItems, ...allTypeCacheItems]
+	}, ctx);
+
+}
+
 async function createModelDataCache(params, libraries, ctx) {
 return new Promise(async (resolve, reject) => {
 	try {
 		const { IafScriptEngine } = libraries;
 		
 		await cacheSourceFileGraphicsIds(params, libraries, ctx)
+		await cachePropertyReferences(params, libraries, ctx)
 		const outParams = await IafScriptEngine.getVar("outparams");
 
 		resolve(outParams)

@@ -56,5 +56,29 @@ Read through [the pageComponent code](../../../app/ipaCore/pageComponents/simple
 
 To learn more about how the Simple Viewer pageComponent works read [In-Depth: Quick Model View Projects](./imp-qmvprojects.md)
 
+## Other Node Packages Used by the Web Client
+
+In addition to the libraries provided by @dtplatform and ipa-core, these node packages are also used.
+
+* antd
+
+[https://github.com/ant-design/ant-design](https://github.com/ant-design/ant-design)
+
+The TreeSelect component is used in multiple places to provide a dropdown containing a selectable tree structure.
+
+The InputNumber component is used to provide numerical input fields for property filters.
+
+* react-resizable-panels
+
+[https://github.com/bvaughn/react-resizable-panels](https://github.com/bvaughn/react-resizable-panels)
+
+The PanelGroup, Panel, and ResizeHandle components are used to provide the resizable bottom panel containing the element search table.
+
+* @table-library/react-table-library
+
+[https://github.com/table-library/react-table-library](https://github.com/table-library/react-table-library)
+
+The CompactTable component and other utilities are used to display the element table in the resizable bottom panel.
+
 ---
 [Developer Guide](../README.md) < Back | Next > [In-Depth: Quick Model View Manager](./imp-projmake.md)
