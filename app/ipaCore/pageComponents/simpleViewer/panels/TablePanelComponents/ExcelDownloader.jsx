@@ -6,7 +6,7 @@ import { IafDataPlugin } from '@invicara/ui-utils'
 
 import { ModelContext } from "../../ModelContext"
 
-// a component tha displays a xcel download icon and allows for downloading
+// a component tha displays an Excel download icon and allows for downloading
 // the table data to an excel xlsx file
 const ExcelDownloader = () => {
 
