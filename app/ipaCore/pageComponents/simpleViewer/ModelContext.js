@@ -23,6 +23,8 @@ const ModelContextProvider = ({ children }) => {
    // total number of elements in the model
    const [ totalElementsCount, setTotalElementsCount ] = useState()
 
+   // all property references cached durng model import
+   const [ allPropRefs, setAllPropRefs ] = useState([])
    // selectedPropRefs: Array[<Object>] the currently selected set of properties to include in model queries and the table
    // setSelectedPropRefs: <function> the function to set the selectedPropRefs
    const [ selectedPropRefs, setSelectedPropRefs ] = useState([])
@@ -30,7 +32,7 @@ const ModelContextProvider = ({ children }) => {
    // selectedElement: <Object> the currently selected element in the model with all property info
    const [ selectedElement, setSelectedElement ] = useState()
 
-   // sliceElements: Array[<Object>] the array of elements to isolate in th viewer
+   // sliceElements: Array[<Object>] the array of elements to isolate in the viewer
    // setSliceElements: <function> the function to set the sliceElements
    const [ sliceElements, setSliceElements ] = useState([])
 
@@ -44,6 +46,7 @@ const ModelContextProvider = ({ children }) => {
 
    useEffect(() => {
       getTotalElementCount()
+      getPropertyReferences()
    }, [modelRelatedCollections])
 
    const loadAllModels = async () => {
@@ -92,18 +95,57 @@ const ModelContextProvider = ({ children }) => {
    // get the total element count for the currently selected model
    const getTotalElementCount = () => {
 
-      try {
-         // providing a _pageSize = 0 and _offset = 0 will just return the page info
-         // with no items, so we can get the _total from the response
-         IafItemSvc.getRelatedItems(modelRelatedCollections.elements._userItemId, {
-            query : {},
-         }, null, { page: { _pageSize: 0, _offset: 0 } }).then((result => {
-            setTotalElementsCount(result._total)
-         }))
-      } catch (error) {
-         console.error('ERROR: Getting Total Element Count')
-         console.error(error)
-         setTotalElementsCount(0)
+      if (modelRelatedCollections?.elements) {
+         try {
+            // providing a _pageSize = 0 and _offset = 0 will just return the page info
+            // with no items, so we can get the _total from the response
+            IafItemSvc.getRelatedItems(modelRelatedCollections.elements._userItemId, {
+               query : {},
+            }, null, { page: { _pageSize: 0, _offset: 0 } }).then((result => {
+               setTotalElementsCount(result._total)
+            }))
+         } catch (error) {
+            console.error('ERROR: Getting Total Element Count')
+            console.error(error)
+            setTotalElementsCount(0)
+         }
+      }
+
+   }
+
+   const getPropertyReferences = async () => {
+
+      if (modelRelatedCollections?.dataCache) {
+
+         let _pageSize = 200
+         let _offset = 0
+         let total = 0
+   
+         let propRefs = []
+   
+         try {
+            do {
+   
+               let page = await IafItemSvc.getRelatedItems(modelRelatedCollections.dataCache._userItemId, {
+                  // the data_cache collection contains lots of different types of cache data
+                  // we are looking for items with the dataType property of 'propertyReference'
+                  query : {dataType: 'propertyReference'},
+               }, null, { page: { _pageSize: _pageSize, _offset: _offset } })
+   
+               total = page._total
+               _offset += _pageSize
+
+               propRefs.push(...page._list)
+   
+            } while (propRefs.length < total)
+   
+            // save prop refs to state
+            setAllPropRefs(propRefs)
+
+         } catch (error) {
+            console.error('ERROR: Fetchign Proprty References')
+            console.error(error)
+         }
 
       }
 
@@ -278,6 +320,7 @@ const ModelContextProvider = ({ children }) => {
       selectedElement,
       selectElement,
       getSelectedElement,
+      allPropRefs,
       selectedPropRefs,
       setSelectedPropRefs,
       getElementCount,

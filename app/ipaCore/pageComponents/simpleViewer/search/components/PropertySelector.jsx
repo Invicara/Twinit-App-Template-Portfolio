@@ -1,20 +1,18 @@
 import React, { useEffect, useState, useContext} from 'react'
 
 // https://github.com/ant-design/ant-design
-import { TreeSelect } from 'antd';
+import { TreeSelect } from 'antd'
 
-import { IafItemSvc } from "@dtplatform/platform-api";
-
-import { ModelContext } from "../../ModelContext";
+import { ModelContext } from "../../ModelContext"
 
 import './PropertySelector.scss'
 
-const { SHOW_PARENT } = TreeSelect;
+const { SHOW_PARENT } = TreeSelect
 
 const PropertySelector = () => {
 
    // Model Context
-   const { selectedModelComposite, modelRelatedCollections, selectedPropRefs, setSelectedPropRefs } = useContext(ModelContext)
+   const { selectedModelComposite, allPropRefs, selectedPropRefs, setSelectedPropRefs } = useContext(ModelContext)
 
    // the list of instance property references (unique) in the model - produced during import
    const [ instPropRefs, setInstPropRefs ] = useState()
@@ -36,55 +34,31 @@ const PropertySelector = () => {
             loadAllProperties()
          }
    
-   }, [selectedModelComposite])
+   }, [allPropRefs])
 
    // loads all the property references from the model's data_cache collection
    // seperates into type and instance lists
    // then creates tree nodes for each
    const loadAllProperties = async () => {
-   
-      let _pageSize = 200
-      let _offset = 0
-      let total = 0
 
       let typeProps = []
       let instanceProps = []
 
-      try {
-         do {
+      allPropRefs.forEach(pr => {
+         if (pr.property.propertyType === 'type') {
+            typeProps.push(pr)
+         } else {
+            instanceProps.push(pr)
+         }
+      })
+      
+      // save prop refs to state
+      setInstPropRefs(instanceProps)
+      setTypePropRefs(typeProps)
 
-            let page = await IafItemSvc.getRelatedItems(modelRelatedCollections.dataCache._userItemId, {
-               // the data_cache collection contains lots of different types of cache data
-               // we are looking for items with the dataType property of 'propertyReference'
-               query : {dataType: 'propertyReference'},
-            }, null, { page: { _pageSize: _pageSize, _offset: _offset } })
-
-            total = page._total
-            _offset += _pageSize
-
-            page._list.forEach((pr) => {
-
-               if (pr.property.propertyType === 'type') {
-                  typeProps.push(pr)
-               } else {
-                  instanceProps.push(pr)
-               }
-
-            })
-
-         } while ((typeProps.length + instanceProps.length) < total)
-
-         // save prop refs to state
-         setInstPropRefs(instanceProps)
-         setTypePropRefs(typeProps)
-
-         // create tree nodes for TreeSelect
-         getPropRefsAsTreeNodes(instanceProps, setInstPropTreeNodes)
-         getPropRefsAsTreeNodes(typeProps, setTypePropTreeNodes)
-      } catch (error) {
-         console.error('ERROR: Fetchign Proprty References')
-         console.error(error)
-      }
+      // create tree nodes for TreeSelect
+      getPropRefsAsTreeNodes(instanceProps, setInstPropTreeNodes)
+      getPropRefsAsTreeNodes(typeProps, setTypePropTreeNodes)
 
    }
 
