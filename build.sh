@@ -1,8 +1,8 @@
 # !/bin/bash
 
-PRODUCTION_CONFIG='const endPointConfig={graphicsServiceOrigin:"https://api.invicara.com",itemServiceOrigin:"https://api.invicara.com",passportServiceOrigin:"https://api.invicara.com",fileServiceOrigin:"https://api.invicara.com",datasourceServiceOrigin:"https://api.invicara.com",baseRoot:`${window.location.protocol}//${window.location.host}${window.location.pathname}`,applicationId:"859f8b75-0114-4f70-9edf-8fa8b8e640e5"};'
-SANDBOX_CONFIG='const endPointConfig={graphicsServiceOrigin:"https://sandbox-api.invicara.com",itemServiceOrigin:"https://sandbox-api.invicara.com",passportServiceOrigin:"https://sandbox-api.invicara.com",fileServiceOrigin:"https://sandbox-api.invicara.com",datasourceServiceOrigin:"https://sandbox-api.invicara.com",baseRoot:`${window.location.protocol}//${window.location.host}${window.location.pathname}`,applicationId:"859f8b75-0114-4f70-9edf-8fa8b8e640e5"};'
-LOCAL_CONFIG='const endPointConfig={graphicsServiceOrigin:"https://sandbox-api.invicara.com",itemServiceOrigin:"https://sandbox-api.invicara.com",passportServiceOrigin:"https://sandbox-api.invicara.com",fileServiceOrigin:"https://sandbox-api.invicara.com",datasourceServiceOrigin:"https://sandbox-api.invicara.com",baseRoot: "http://lcoalhost:8084/",applicationId:"859f8b75-0114-4f70-9edf-8fa8b8e640e5"};'
+PRODUCTION_CONFIG='const endPointConfig={,applicationId:"859f8b75-0114-4f70-9edf-8fa8b8e640e5", graphicsServiceOrigin:"https://api.invicara.com",itemServiceOrigin:"https://api.invicara.com",passportServiceOrigin:"https://api.invicara.com",fileServiceOrigin:"https://api.invicara.com",datasourceServiceOrigin:"https://api.invicara.com",baseRoot:`${window.location.protocol}//${window.location.host}${window.location.pathname}`};'
+SANDBOX_CONFIG='const endPointConfig={,applicationId:"859f8b75-0114-4f70-9edf-8fa8b8e640e5", graphicsServiceOrigin:"https://sandbox-api.invicara.com",itemServiceOrigin:"https://sandbox-api.invicara.com",passportServiceOrigin:"https://sandbox-api.invicara.com",fileServiceOrigin:"https://sandbox-api.invicara.com",datasourceServiceOrigin:"https://sandbox-api.invicara.com",baseRoot:`${window.location.protocol}//${window.location.host}${window.location.pathname}`;'
+LOCAL_CONFIG='const endPointConfig={,applicationId:"859f8b75-0114-4f70-9edf-8fa8b8e640e5", graphicsServiceOrigin:"https://sandbox-api.invicara.com",itemServiceOrigin:"https://sandbox-api.invicara.com",passportServiceOrigin:"https://sandbox-api.invicara.com",fileServiceOrigin:"https://sandbox-api.invicara.com",datasourceServiceOrigin:"https://sandbox-api.invicara.com",baseRoot: "http://lcoalhost:8084/"};'
 
 npm run build
 rm ./build/config.js
@@ -18,6 +18,11 @@ echo "Writing config.js for $CF_PAGES_BRANCH"
 
 if [ "$CF_PAGES_BRANCH" == "PRODUCTION" ]; then
   # Write production config file
+   echo $PRODUCTION_CONFIG
+   echo -e $PRODUCTION_CONFIG > ./build/config.js
+
+elif [ "$CF_PAGES_BRANCH" == "SANDBOX" ]; then
+  # Write next release config file
    echo $SANDBOX_CONFIG
    echo -e $SANDBOX_CONFIG > ./build/config.js
 
