@@ -32,7 +32,7 @@ let scriptModule = {
 		// create new project
 		let newProject = (await IafProj.createProject({
 			_name: projName,
-			_description: !!projDesc && projDesc.length ? projDesc : '',
+			_description: !!projDesc && projDesc.length ? projDesc : projName,
 			_shortName: projName.slice(0,6),
 			_userAttributes: {
 				nextScriptEngine: true,
@@ -243,6 +243,11 @@ let scriptModule = {
 			let viewerUpdateResult = await IafUserConfig.createVersion(viewerConfig._id, viewerConfigVersion)
 			console.log('STEP 3:', viewerConfigVersion, viewerUpdateResult)
 			callback('STEP 3: Updated Viewer User Config')
+
+			// project updates onyl allowed if _description is present
+			if (!updateProject._description) {
+				updateProject._description = updateProject._name
+			}
 			
 			if (updateProject._userAttributes?.quickModelView) {
 				updateProject._userAttributes.quickModelView.currentVersion = '2.0.0'
