@@ -3,8 +3,6 @@ import React, { useEffect, useState, useContext } from 'react'
 // https://github.com/ant-design/ant-design
 import { TreeSelect } from 'antd';
 
-import { IafItemSvc } from '@dtplatform/platform-api';
-
 import { ModelContext } from '../../ModelContext'
 
 import PropertyFilter from './PropertyFilter'
