@@ -52,7 +52,7 @@ A new project should now be visible in the extension panel.
 
 ![bulk upload result](../../img/vscode-bulk-upload.jpg)
 
-## Create an Admin User Group
+## Create an QMV Managers User Group
 
 1. Right click on your "QMV Manager" project in the extension panel and select "Create a Project Admin Group"
 2. When prompted replace the name "Admin" with "QMV Managers" 

@@ -2,7 +2,7 @@
 
 ![qmv](../img/model-view.jpg)
 
-The **Quick Model View Application** gives you the ability to upload and import your models to Twinit and then view and explore your models in 2D and 3D. Clicking on elements in the model viewer will display their properties.
+The **Quick Model View Application** gives you the ability to upload and import your models to Twinit and then view and interactively explore your models in 2D and 3D.
 
 [Learn how to use the Quick Model View Application](./quickmodelview/README.md)
 
