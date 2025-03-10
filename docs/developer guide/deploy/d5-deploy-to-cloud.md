@@ -29,7 +29,7 @@ Twinit does not host or serve web clients, so you will need to host the web clie
 
 Whichever option you choose, you'll deploy the contents of the ```./build``` to the service.
 
-** Don't forget**, once you deploy the web client, you'll need to update your application's Allowed Redirects and Authorized Origins with the URL at which you are serving the web client. Failing to do so will result in your users seeing a redirect error after signing in to Twinit.
+**Don't forget**, once you deploy the web client, you'll need to update your application's Allowed Redirects and Authorized Origins with the URL at which you are serving the web client. Failing to do so will result in your users seeing a redirect error after signing in to Twinit.
 
 ![redirects orgins](../../img/redirects-origins.jpg)
 
