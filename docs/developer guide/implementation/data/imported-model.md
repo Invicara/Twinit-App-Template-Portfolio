@@ -86,6 +86,7 @@ Each model NamedCompositeItem is related to a number of NamedUserCollections. Th
 * Element Collection
 * Element Properties Collection
 * Element Type Properties Collection
+* Model Data Cache
 
 You can query for the NamedUserCollections related to a NamedCompositeItem like so:
 
@@ -275,6 +276,42 @@ Here is an example model element type properties item:
       }
    }
 }
+```
+
+### Model Data Cache
+
+The model data cache contains items with data bout the model created during import. Currently the cache contains property references for each unique property found in the model. The property references allow the web client to quickly display the list of unique properties in the search controls.
+
+The data cache can contain many different types of data, so each item has a dataType property on it, allowing for easily finding cache data of a specific type.
+
+Cached property references have a dataType of 'propertyReference'.
+
+Here is an example property reference item:
+```json
+{
+  "dataType": "propertyReference",
+  "property": {
+    "propSetName": "No Property Set",
+    "propertyType": "instance",
+    "dName": "System.elementId",
+    "key": "SystemelementId",
+    "srcType": "INTEGER"
+  },
+  "_id": "67c77bxxxxxc0ea0c",
+  "_metadata": {
+    "_updatedById": "da630aa1-xxxxx-04dea7ec70",
+    "_createdAt": 1741126610225,
+    "_createdById": "da630aa1-xxxxx-04dea7ec70",
+    "_updatedAt": 1741126610225
+  }
+}
+```
+
+You can query property reference cache data like so:
+```js
+let page = await IafItemSvc.getRelatedItems(modelRelatedCollections.dataCache._userItemId, {
+  query : {dataType: 'propertyReference'},
+}, null, { page: { _pageSize: _pageSize, _offset: _offset } })
 ```
 
 ## Retrieving Complete Element Data

@@ -16,6 +16,10 @@ One purpose the template serves is to be an out-of-the-box usable application su
 
 The template also serves as an educational tool about how templates work on Twinit, how to build web clients for Twinit applications, and even how to build your own templates. As such, the code delivered as part of the template is thoroughly (some may say excessively) commented and the template is accompanied by both a developer guide (describing the technical details of the template's implementation) and a user guide. The code is also written to be readable, which means in some cases some coding best practices may have been ignored in favor of delivering easier to read code. As you take the template code and modify for your needs, feel free to improve areas of the code where more efficient and cleaner choices could have been made.
 
+### A Starting Point
+
+The template can also be a starting point for building your own Twinit applications. You are free to take the template code and modify in any way you see fit. Use it, modify it, extend it, and build on it to meet your own use cases.
+
 ## How the Template Works
 
 The Quick Model View Application Template provides one web client that displays a different user interface depending on which type of Quick Model View project you are using.
