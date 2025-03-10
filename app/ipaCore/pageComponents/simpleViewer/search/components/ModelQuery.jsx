@@ -141,68 +141,6 @@ const ModelQuery = () => {
 
    }
 
-   // creates a base $findWithRelated Item Service query that can be used to:
-   // 1. get the total element count that would be returned if a search is done
-   // 2. get the elements as a result of a search
-   // it relies on queryPartials added to the filters when a user configures a filter
-   // see the PropertyFilter component
-   const makeRelatedFilterQuery = () => {
-
-      // get all the instance and type query partials from filters which have them
-      let instanceQueryPartials = filters.filter(f => f.propRef.property.propertyType === 'instance' && f.queryPartial)
-      let typeQueryPartials = filters.filter(f => f.propRef.property.propertyType === 'type' && f.queryPartial)
-
-      let relatedFilter = { $and: [] }
-
-      // create the relatedFilter for instance property filters
-      if (instanceQueryPartials && instanceQueryPartials.length) {
-         relatedFilter.$and.push({
-            // query is an AND for all instance property filters
-            query: {$and: instanceQueryPartials.map(qp => qp.queryPartial)},
-				relatedDesc: { _relatedUserType: modelRelatedCollections.instanceProps._userType},
-				as: 'instanceProps'
-         })
-      } else {
-         // if no instance query partials include an empty query so that if elements are being
-         // returned by the query we still receive all the instance properties
-         relatedFilter.$and.push({
-            query: {},
-				relatedDesc: { _relatedUserType: modelRelatedCollections.instanceProps._userType},
-				as: 'instanceProps'
-         })
-      }
-
-      // create the relatedFilter for type property filters
-      if (typeQueryPartials && typeQueryPartials.length) {
-         relatedFilter.$and.push({
-            // query is an AND for all type property filters
-            query: {$and: typeQueryPartials.map(qp => qp.queryPartial)},
-				relatedDesc: { _relatedUserType: modelRelatedCollections.typeProps._userType},
-				as: 'typeProps'
-         })
-      } else {
-         // if no type query partials include an empty query so that if elements are being
-         // returned by the query we still receive all the type properties
-         relatedFilter.$and.push({
-            query: {},
-				relatedDesc: { _relatedUserType: modelRelatedCollections.typeProps._userType},
-				as: 'typeProps'
-         })
-      }
-
-      return {
-         $findWithRelated: {
-            parent: {
-               query: {}, // no element query as the relatdFilter provides the filters for elements
-               collectionDesc: {_userItemId: modelRelatedCollections.elements._userItemId, _userType: modelRelatedCollections.elements._userType},
-               options: {}
-            },
-            relatedFilter
-         }
-      } 
-
-   }
-
    // get the count of elements that would be retrieved if the user searched with the current filters
    // A NOTE ABOUT USING relatedFilter in Item Service queries
    // In the $findWithRelated query, the parent query is empty, this means all elements in the model
@@ -220,9 +158,7 @@ const ModelQuery = () => {
 
          setGettingFilteredCount(true)
 
-         // get the base $findWithRelated Item Service query
-         let baseQuery = makeRelatedFilterQuery()
-         getElementCount(baseQuery).then((elemCount) => {
+         getElementCount(currentFilters).then((elemCount) => {
             setFilteredElementsCount(elemCount)
          }).catch(() => {
             setFilteredElementsCount(0)
@@ -239,14 +175,10 @@ const ModelQuery = () => {
 
    // get all the elements based on current filters and updat the Model Context with the elements
    const doSearch = () => {
+
       setGettingFilteredElements(true)
 
-      let baseQuery = makeRelatedFilterQuery()
-      // by setting includeResult to true we ge back to type and instance property items
-      // relatd to each element item
-      baseQuery.$findWithRelated.relatedFilter.includeResult = true
-
-      setSliceElementsByQuery(baseQuery).catch(() => {
+      setSliceElementsByQuery(filters).catch(() => {
          
       }).finally(() => {
          setGettingFilteredElements(false)

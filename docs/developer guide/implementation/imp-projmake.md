@@ -120,13 +120,13 @@ The script takes two inputs:
 * project: REQUIRED: the project to update
 * version: REQUIRED: the current version of the project
 
-Currently, as of version 1.3.0, there are no migrations to perform, so the script contains only the basic framework for applying updates once any are available.
-
-When one or more updates are available, the script will do the following:
+The script then does the following:
 
 1. Find the migration from the list of migrations where the "from" version matches the current version of the project
 2. Execute the migrations migrateFunction and update the project to the "to" version on the migration
 3. Continue 1 & 2 until no further migrations are found
+
+The contents of each migration will vary release to release. See the project maker script for the release to understand more information on any one migration.
 
 While the script is running it uses the callback function provided by the web client to provide success or error updates to the user interface like so:
 
