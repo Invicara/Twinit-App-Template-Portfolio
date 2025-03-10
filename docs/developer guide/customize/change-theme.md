@@ -39,7 +39,14 @@ The "styles" setting supports adjusting the following theme colors:
    "--fancytree-two-color": "#f26827",
    "--fancytree-two-channel-color": "#fde0d7",
    "--fancytree-three-color": "#00a693",
-   "--fancytree-three-channel-color": "#cdebe8"
+   "--fancytree-three-channel-color": "#cdebe8",
+
+   // styles for the element table in the bottom panel
+   "--element-table-font-primary": "#141414",
+   "--element-table-font-secondary": "#757575",
+   "--element-table-font-disabled": "#9e9e9e",
+   "--element-table-border": "#9e9e9e",
+   "--element-table-selected-row-color": "lightcyan"
 }
 ```
 **Note**: the comments in the json above must be removed before adding the styles to the user config as comments are not supported in json.
