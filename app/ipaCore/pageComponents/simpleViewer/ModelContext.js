@@ -228,8 +228,72 @@ const ModelContextProvider = ({ children }) => {
 
    }
 
+   // creates a base $findWithRelated Item Service query that can be used to:
+   // 1. get the total element count that would be returned if a search is done
+   // 2. get the elements as a result of a search
+   // it relies on queryPartials added to the filters when a user configures a filter
+   // see the PropertyFilter and ModelQuery components
+   const makeRelatedFilterQuery = (filters) => {
+
+       // get all the instance and type query partials from filters which have them
+       let instanceQueryPartials = filters.filter(f => f.propRef.property.propertyType === 'instance' && f.queryPartial)
+       let typeQueryPartials = filters.filter(f => f.propRef.property.propertyType === 'type' && f.queryPartial)
+
+      let relatedFilter = { $and: [] }
+
+      // create the relatedFilter for instance property filters
+      if (instanceQueryPartials && instanceQueryPartials.length) {
+         relatedFilter.$and.push({
+            // query is an AND for all instance property filters
+            query: {$and: instanceQueryPartials.map(qp => qp.queryPartial)},
+				relatedDesc: { _relatedUserType: modelRelatedCollections.instanceProps._userType},
+				as: 'instanceProps'
+         })
+      } else {
+         // if no instance query partials include an empty query so that if elements are being
+         // returned by the query we still receive all the instance properties
+         relatedFilter.$and.push({
+            query: {},
+				relatedDesc: { _relatedUserType: modelRelatedCollections.instanceProps._userType},
+				as: 'instanceProps'
+         })
+      }
+
+      // create the relatedFilter for type property filters
+      if (typeQueryPartials && typeQueryPartials.length) {
+         relatedFilter.$and.push({
+            // query is an AND for all type property filters
+            query: {$and: typeQueryPartials.map(qp => qp.queryPartial)},
+				relatedDesc: { _relatedUserType: modelRelatedCollections.typeProps._userType},
+				as: 'typeProps'
+         })
+      } else {
+         // if no type query partials include an empty query so that if elements are being
+         // returned by the query we still receive all the type properties
+         relatedFilter.$and.push({
+            query: {},
+				relatedDesc: { _relatedUserType: modelRelatedCollections.typeProps._userType},
+				as: 'typeProps'
+         })
+      }
+
+      return {
+         $findWithRelated: {
+            parent: {
+               query: {}, // no element query as the relatdFilter provides the filters for elements
+               collectionDesc: {_userItemId: modelRelatedCollections.elements._userItemId, _userType: modelRelatedCollections.elements._userType},
+               options: {}
+            },
+            relatedFilter
+         }
+      } 
+
+   }
+
    // given a query return the number of elements the query would return if executed
-   const getElementCount = async (baseQuery) => {
+   const getElementCount = async (filters) => {
+
+      let baseQuery = makeRelatedFilterQuery(filters)
 
       let allCountPromises = []
       let filteredCounts = []
@@ -271,8 +335,13 @@ const ModelContextProvider = ({ children }) => {
    }
 
    // given a query, fetch the model elements and set them as the sliceElements in the viewer
-   const setSliceElementsByQuery = async (baseQuery) => {
-      let allCountPromises = []
+   const setSliceElementsByQuery = async (filters) => {
+      
+      let baseQuery = makeRelatedFilterQuery(filters)
+      // includs the properties in the result
+      baseQuery.$findWithRelated.relatedFilter.includeResult = true
+      
+      let allPagePromises = []
 
       // list of all returned element items with type and instance properties
       let allElements = []
@@ -292,14 +361,14 @@ const ModelContextProvider = ({ children }) => {
 
          baseQueryCopy.$findWithRelated.parent.options.page = pages[i]
 
-         allCountPromises.push(IafItemSvc.searchRelatedItems(baseQueryCopy). then((res) => {
+         allPagePromises.push(IafItemSvc.searchRelatedItems(baseQueryCopy). then((res) => {
             // add page of elements to the list of all returned elements
             allElements.push(...res._list[0]._versions[0]._relatedItems._list)
          }))
       }
 
       // when all Item Service requests resolve
-      return Promise.all(allCountPromises).then(() => {
+      return Promise.all(allPagePromises).then(() => {
 
          // isolate the elements in the model viewer
          setSliceElements(simplifyElementItems(allElements))
