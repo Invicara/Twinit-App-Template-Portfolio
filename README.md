@@ -1,5 +1,7 @@
 # Quick Model View Twinit Application Template
 
+Release: 2.0.0
+
 ![Quick Model Viewer User Interface](./docs/img/model-view.jpg)
 
 The Quick Model View Twinit Application Template provides an easy to learn,  easy to deploy, easy to use, and easy to extend model viewing application utilizing the capabilities Twinit provides for importing and viewing models imported using supported CAD authoring or file types. This template is also a good place to start if you are looking for a first step toward using and deploying other more complex templates or if you plan to develop your own templates.
@@ -12,7 +14,7 @@ The Quick Model View Twinit Application Template provides an easy to learn,  eas
 | --------------- | -------------------|
 | Create new and update existing Quick Model View projects with the click of a button | ![](./docs/img/project-maker.jpg) |
 | ![](./docs/img/import-view.jpg) |  Import multiple CAD models to your Quick Model View projects |
-| View your imported models and review the properties on model elements you select in the viewer | ![](./docs/img/model-view.jpg) |
+| View your imported models and review the properties on model elements you select in the viewer. Download element reports to Excel. | ![](./docs/img/model-view.jpg) |
 | ![](./docs/img/invite-users.jpg) | Collaborate with other users by inviting them to your Quick Model View projects |
 
 Be sure to check back often as new features and capabilities will be added to the template over time.
