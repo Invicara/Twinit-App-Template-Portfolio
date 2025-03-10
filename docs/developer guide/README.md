@@ -31,7 +31,7 @@ To deploy the Quick Model View Twinit Application Template to Twinit and to depl
 4. [Test the Template](./deploy/d4-test.md)
 5. [Deploy the Web Client for Users](./deploy/d5-deploy-to-cloud.md)
 
-## Updating Existing Quick Model View Templates
+## Updating Existing Quick Model View Templates to 2.0.0
 
 If you have already deployed an earlier version of the Quick Model View and wish to update your deployment to the the current version, you will need to follow these steps in order:
 
@@ -39,9 +39,18 @@ If you have already deployed an earlier version of the Quick Model View and wish
 
 > **Warning**: If you have made any custom updates to the template, you will need to first merge the new version of the template with your custom updates.
 
-The Quick Model View Twinit Application Template will be updated with new features and capabilities in the future. The template has a built in mechanism for consuming those updates and rolling them out to all of your projects.
+### Updating to this 2.0.0
 
-> **Note**: These steps will update the Quick Model View template and web client. To take advantage of all new updates, additional steps may be required by users. Be sure to consult the [User Guide](../user%20guide/README.md) for more information.
+1. [Deploy template updates to Twinit](./update/updateTwinit.md)
+2. [Deploy the updated web client](./update/updateWebclient.md)
+
+> **Note**: These steps will update the Quick Model View template and web client. To take advantage of all new updates, additional steps are required by users. Be sure to consult the [User Guide](../user%20guide/README.md) for more information.
+
+### Changes in 2.0.0
+
+1. [Model Import Script Changes](./update/import.md)
+2. [User Config Theme Additions](./update/theme.md)
+3. [Web client changes](./update/webclient.md)
 
 ## In-Depth Knowledge of the Application Template
 
