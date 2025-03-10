@@ -54,6 +54,8 @@ The Simple Viewer pageComponent can be found at ```app/ipaCore/pageComponents/si
 
 Read through [the pageComponent code](../../../app/ipaCore/pageComponents/simpleViewer/SimpleViewerView.jsx) to get a better understanding of how it works.
 
+Also read through the [ModelContext](../../../app/ipaCore/pageComponents/simpleViewer/ModelContext.js) as much of the logic to interact with the model data has been moved into the Model Context, making it usable for a wide range of components that rely it and avoiding prop drilling.
+
 To learn more about how the Simple Viewer pageComponent works read [In-Depth: Quick Model View Projects](./imp-qmvprojects.md)
 
 ## Other Node Packages Used by the Web Client
