@@ -40,4 +40,7 @@ A diff document, like the one pictured below, will open highlighting the changes
 
 ![updated diff](../../img/update_diff_example.jpg)
 
-You can also learn mor about the specific changes in the **Changes in 2.0.0** of the [Developer Update Guide](./README.md)
+You can also learn more about the specific changes in the **Changes in 2.0.0** section of the [Developer Update Guide](./README.md)
+
+---
+[Developer Update Guide](./README.md) < Back | Next > [Deploy the Updated Web Client](./update/updateWebclient.md)
