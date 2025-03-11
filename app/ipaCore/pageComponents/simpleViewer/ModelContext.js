@@ -61,7 +61,7 @@ const ModelContextProvider = ({ children }) => {
       }
    }
 
-   // loads the related collections rlated to model NamedCompositeItem
+   // loads the related collections related to a model NamedCompositeItem
    const loadModelCollections = async () => {
 
       setSelectedElement(null)
@@ -113,6 +113,7 @@ const ModelContextProvider = ({ children }) => {
 
    }
 
+   // gets the property references from the model data cache collection
    const getPropertyReferences = async () => {
 
       if (modelRelatedCollections?.dataCache) {
@@ -151,6 +152,8 @@ const ModelContextProvider = ({ children }) => {
 
    }
 
+   // simplifies the element items returnd from Twinit to eliminate
+   // unnecessary levels object keys
    const simplifyElementItems = (elementArray) => {
 
       let newElementArray = JSON.parse(JSON.stringify(elementArray))
