@@ -1,5 +1,20 @@
 # Release Notes
 
+## Version 2.0.0
+_February 2025_
+
+### New Features
+
+* Selected model element properties have been moved into a collapsible and resizable drawer on the left side of the model view.
+* When only one imported model is present, it will now automatically load in the viewer.
+* New search controls allow for searching for and isolating model elements in the viewer.
+* New model element table displays isolated element data and supports downloading to Excel.
+* Delete the latest imported model version (to allow you to re-import it)
+
+### Update Support
+
+* Supports updating from 1.3.0
+
 ## Version 1.3.0
 _February 2025_
 
