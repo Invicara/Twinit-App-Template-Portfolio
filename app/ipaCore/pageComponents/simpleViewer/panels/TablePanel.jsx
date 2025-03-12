@@ -6,6 +6,8 @@ import { useTheme } from "@table-library/react-table-library/theme"
 import * as page from "@table-library/react-table-library/pagination"
 import * as sort from "@table-library/react-table-library/sort"
 
+import { Tooltip } from "@material-ui/core"
+
 import ExcelDownloader from './TablePanelComponents/ExcelDownloader'
 import TablePager from './TablePanelComponents/TablePager'
 import SelectableCell from './TablePanelComponents/SelectableCell';
@@ -97,7 +99,7 @@ const TablePanel = () => {
 
       if (propertyList) {
          if (propertyList[spr.property.key] && propertyList[spr.property.key].hasOwnProperty('val')) {
-            return propertyList[spr.property.key].val
+            return propertyList[spr.property.key].val.toString()
          } 
       }
 
@@ -126,7 +128,9 @@ const TablePanel = () => {
       columns.push(...selectedPropRefs.map(spr => {
          return {
             label: spr.property.dName,
-            renderCell: (item) => getPropertyValueIfExists(spr, item),
+            renderCell: (item) => <Tooltip title={`${spr.property.propertyType} | ${spr.property.propSetName} | ${spr.property.dName}`}>
+               <span>{getPropertyValueIfExists(spr, item)}</span>
+            </Tooltip>,
             sort: {sortKey: spr._id}
          }
       }))
