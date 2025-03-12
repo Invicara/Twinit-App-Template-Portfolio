@@ -42,12 +42,6 @@ const SimpleViewerPage = () => {
       sliceElements
    } = useContext(ModelContext)
 
-   const setSelectedElement = async (pkgids) => {
-
-      getSelectedElement(pkgids)
-
-   }
-
    return <div className='simple-viewer-view'>
       
          <PanelGroup autoSaveId="elemtable" direction="vertical">
@@ -75,7 +69,7 @@ const SimpleViewerPage = () => {
                         serverUri={endPointConfig.graphicsServiceOrigin}
                         sliceElementIds={sliceElements.map(se => [se.package_id, se.source_id]).flat()}
                         selection={selectedElement? [selectedElement.package_id, selectedElement.source_id] : []}
-                        OnSelectedElementChangeCallback={setSelectedElement}
+                        OnSelectedElementChangeCallback={getSelectedElement}
                      />}
                   </div>
                   
