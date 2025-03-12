@@ -425,6 +425,7 @@ class SimpleModelImportView extends React.Component {
 
     let allDeletePromises = []
 
+    // delete each of the collections in the model NamedCompositeItem
     collectedInVersion.forEach(coll => {
       if (versionCount > 1) {
         allDeletePromises.push(IafItemSvc.deleteNamedUserItemVersion(coll._userItemId, coll._userItemVersionId))
@@ -435,6 +436,7 @@ class SimpleModelImportView extends React.Component {
 
     Promise.all(allDeletePromises).then(() => {
 
+      // delete the model NamedCompositeItem
       if (versionCount > 1) {
         IafItemSvc.deleteNamedUserItemVersion(importedModelCompositeItem._id, importedModelVersion._id).then(() => {
           this.setState({isDeletingModel: false})
