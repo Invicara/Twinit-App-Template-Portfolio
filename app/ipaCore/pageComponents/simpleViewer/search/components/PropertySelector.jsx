@@ -166,6 +166,7 @@ const PropertySelector = () => {
          showCheckedStrategy ={SHOW_PARENT}
          onChange={(newVal) => onTreeChange('type', newVal)}
          placeholder='Select Type Properties'
+         autoClearSearchValue={false}
       />
       <TreeSelect
          className='prop-tree-select'
@@ -174,6 +175,7 @@ const PropertySelector = () => {
          showCheckedStrategy ={SHOW_PARENT}
          onChange={(newVal) => onTreeChange('instance', newVal)}
          placeholder='Select Instance Properties'
+         autoClearSearchValue={false}
       />
    </>
 
