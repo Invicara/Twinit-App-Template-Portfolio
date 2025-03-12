@@ -5,6 +5,8 @@ import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
 
 const ModelContext = createContext()
 
+const API_CHUNK_SIZE = 15
+
 const ModelContextProvider = ({ children }) => {
 
    // availableModelComposites: Array[<Object>] the array of imported models in the project
@@ -293,12 +295,29 @@ const ModelContextProvider = ({ children }) => {
 
    }
 
+   // breaks an array of pages down into smaller arrays of chunkSize
+   const chunkPages = (pages, chunkSize) => {
+
+      let chunks = []
+
+      for (let i = 0; i < pages.length; i += chunkSize) {
+         chunks.push(pages.slice(i, i + chunkSize))
+      }
+
+      return chunks
+
+   }
+
    // given a query return the number of elements the query would return if executed
+   // this method uses a relatedFilter query
+   // this can be slower for larger models as it requires we page through the entire
+   // list of model elements to get results (which can include empty pages since none
+   // of the elements in that page may match the filter)
+   // TO DO: investigate using a graph query to more quickly return counts
    const getElementCount = async (filters) => {
 
       let baseQuery = makeRelatedFilterQuery(filters)
 
-      let allCountPromises = []
       let filteredCounts = []
 
       let _pageSize = 1000
@@ -310,41 +329,53 @@ const ModelContextProvider = ({ children }) => {
          pages.push({_offset: i*_pageSize, _pageSize})
       }
 
-      // for each page of elements call the Item Service
-      for (let i = 0; i < pages.length; i++) {
+      // chunk the pages into small groups so as not to
+      // send too many API calls to Twinit all at once
+      let pageChunks = chunkPages(pages, API_CHUNK_SIZE)
 
-         let baseQueryCopy = JSON.parse(JSON.stringify(baseQuery))
+      for (let i = 0; i < pageChunks.length; i++) {
 
-         baseQueryCopy.$findWithRelated.parent.options.page = pages[i]
-         // by projecting just the element _id, we keep the responses small
-         // instead of getting the entire element item
-         baseQueryCopy.$findWithRelated.parent.options.project = { _id: 1}
+         let pageChunk = pageChunks[i]
+         let pageChunkPromises = []
 
-         allCountPromises.push(IafItemSvc.searchRelatedItems(baseQueryCopy). then((res) => {
-            filteredCounts.push(res._list[0]._versions[0]._relatedItems._filteredSize)
-         }))
+         // for each page of elements call the Item Service
+         for (let i = 0; i < pageChunk.length; i++) {
+
+            let baseQueryCopy = JSON.parse(JSON.stringify(baseQuery))
+
+            baseQueryCopy.$findWithRelated.parent.options.page = pageChunk[i]
+            // by projecting just the element _id, we keep the responses small
+            // instead of getting the entire element item
+            baseQueryCopy.$findWithRelated.parent.options.project = { _id: 1}
+
+            pageChunkPromises.push(IafItemSvc.searchRelatedItems(baseQueryCopy).then((res) => {
+               filteredCounts.push(res._list[0]._versions[0]._relatedItems._filteredSize)
+            }))
+         }
+
+         await Promise.all(pageChunkPromises).catch((error) => {
+            console.error('ERROR: Getting Filtered Element Count')
+            console.error(error)
+            return -1
+         })
+
       }
 
-      return Promise.all(allCountPromises).then(() => {
-         // once all Item Service calls resolve, add all the _filteredSizes to get the total
-         // number of elements found with the filters
-         return filteredCounts.reduce((acc, curr) => acc + curr, 0)
-      }).catch((error) => {
-         console.error('ERROR: Getting Filtered Element Count')
-         console.error(error)
-         return 0
-      })
+      return filteredCounts.reduce((acc, curr) => acc + curr, 0)
 
    }
 
    // given a query, fetch the model elements and set them as the sliceElements in the viewer
+   // this method uses a relatedFilter query
+   // this can be slower for larger models as it requires we page through the entire
+   // list of model elements to get results (which can include empty pages since none
+   // of the elements in that page may match the filter)
+   // TO DO: investigate using a graph query to more quickly return elements
    const setSliceElementsByQuery = async (filters) => {
       
       let baseQuery = makeRelatedFilterQuery(filters)
       // includs the properties in the result
       baseQuery.$findWithRelated.relatedFilter.includeResult = true
-      
-      let allPagePromises = []
 
       // list of all returned element items with type and instance properties
       let allElements = []
@@ -358,29 +389,39 @@ const ModelContextProvider = ({ children }) => {
          pages.push({_offset: i*_pageSize, _pageSize})
       }
 
-      for (let i = 0; i < pages.length; i++) {
+      // chunk the pages into small groups so as not to
+      // send too many API calls to Twinit all at once
+      let pageChunks = chunkPages(pages, API_CHUNK_SIZE)
 
-         let baseQueryCopy = JSON.parse(JSON.stringify(baseQuery))
+      for (let i = 0; i < pageChunks.length; i++) {
 
-         baseQueryCopy.$findWithRelated.parent.options.page = pages[i]
+         let pageChunk = pageChunks[i]
+         let pageChunkPromises = []
 
-         allPagePromises.push(IafItemSvc.searchRelatedItems(baseQueryCopy). then((res) => {
-            // add page of elements to the list of all returned elements
-            allElements.push(...res._list[0]._versions[0]._relatedItems._list)
-         }))
+         // for each page of elements call the Item Service
+         for (let i = 0; i < pageChunk.length; i++) {
+
+            let baseQueryCopy = JSON.parse(JSON.stringify(baseQuery))
+
+            baseQueryCopy.$findWithRelated.parent.options.page = pageChunk[i]
+
+            pageChunkPromises.push(IafItemSvc.searchRelatedItems(baseQueryCopy).then((res) => {
+               // add page of elements to the list of all returned elements
+               allElements.push(...res._list[0]._versions[0]._relatedItems._list)
+            }))
+         }
+
+         await Promise.all(pageChunkPromises).catch((error) => {
+            console.error('ERROR: Getting Model Elements by Search')
+            console.error(error)
+            allElements = []
+         })
+
       }
 
-      // when all Item Service requests resolve
-      return Promise.all(allPagePromises).then(() => {
+      // isolate the elements in the model viewer
+      setSliceElements(simplifyElementItems(allElements))
 
-         // isolate the elements in the model viewer
-         setSliceElements(simplifyElementItems(allElements))
-         
-      }).catch((error) => {
-         console.error('ERROR: Getting Model Elements by Search')
-         console.error(error)
-         setSliceElements([])
-      })
    } 
 
    return <ModelContext.Provider value={{
