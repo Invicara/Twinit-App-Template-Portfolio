@@ -188,11 +188,9 @@ const ModelContextProvider = ({ children }) => {
          if (pkgidIsString && pkgidIsNotANumber) {
             // IFC Specific Query
             query = { source_id: pkgids[0] }
-            // TODOsetSelection([pkgids[0]])
          } else {
             // all other bimpk format model query
             query = { package_id: parseInt(pkgids[0]) }
-            //TODO setSelection([parseInt(pkgids[0])])
          }
 
          // query the element collection as the parent
@@ -308,60 +306,84 @@ const ModelContextProvider = ({ children }) => {
 
    }
 
-   // given a query return the number of elements the query would return if executed
-   // this method uses a relatedFilter query
-   // this can be slower for larger models as it requires we page through the entire
-   // list of model elements to get results (which can include empty pages since none
-   // of the elements in that page may match the filter)
-   // TO DO: investigate using a graph query to more quickly return counts
+   // creates a findWithRelated query between a property collection and the element collection
+   // you can have it optionally return the element ids by passing true for withElemIds
+   const getElementQuery = (propertyColl, queryPartials, withElemIds) => {
+
+      let query =  {
+         parent: {
+            query: {$and: queryPartials.map(qp => qp.queryPartial)},
+            collectionDesc: {_userItemId: propertyColl._userItemId, _userType: propertyColl._userType},
+            options: {
+               page: { getAllItems: true },
+               project: { _id: 1 }
+            }
+         },
+         related: [
+            {
+               relatedDesc: {
+                  _isInverse: true,
+                  _relatedUserType: modelRelatedCollections.elements._userType
+               },
+               options: {
+                  page: { _pageSize: 0 }
+               },
+               as: "elements"
+            }
+         ]
+      }
+
+      if (withElemIds) {
+         query.related[0].options.project = { _id: 1 },
+         query.related[0].options.page = { getAllItems: true }
+      }
+
+      return query
+   }
+
+   // gets the count of elements that would be returned by a model query
+   // does it the most efficient way depending on if there are instance, type, or both queries
    const getElementCount = async (filters) => {
 
-      let baseQuery = makeRelatedFilterQuery(filters)
+      // get all the instance and type query partials from filters which have them
+      let instanceQueryPartials = filters.filter(f => f.propRef.property.propertyType === 'instance' && f.queryPartial)
+      let typeQueryPartials = filters.filter(f => f.propRef.property.propertyType === 'type' && f.queryPartial)
 
-      let filteredCounts = []
+      let instanceQuery = instanceQueryPartials.length > 0
+      let typeQuery = typeQueryPartials.length > 0
 
-      let _pageSize = 1000
-      let totalPages = Math.floor(totalElementsCount/_pageSize)+1
-      let pages = []
+      if (instanceQuery && !typeQuery) {
+         // just do instance query
 
-      // calculate pages
-      for (let i = 0 ; i < totalPages; i++) {
-         pages.push({_offset: i*_pageSize, _pageSize})
+         let result = await IafScriptEngine.findWithRelated(getElementQuery(modelRelatedCollections.instanceProps, instanceQueryPartials))
+
+         return result._list.reduce((acc, value) => acc += value.elements._total, 0)
+
+      } else if (!instanceQuery && typeQuery) {
+         //just do type query
+
+         let result = await IafScriptEngine.findWithRelated(getElementQuery(modelRelatedCollections.typeProps, typeQueryPartials))
+
+         return result._list.reduce((acc, value) => acc += value.elements._total, 0)
+
+      } else if (instanceQuery && typeQuery) {
+
+         //do both and reconcile _ids
+         let instResult = await IafScriptEngine.findWithRelated(getElementQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true))
+         let typeResult = await IafScriptEngine.findWithRelated(getElementQuery(modelRelatedCollections.typeProps, typeQueryPartials, true))
+
+         let instElemIds = []
+         instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
+         let typeElemIds = []
+         typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
+
+         let inBoth = instElemIds.filter(i => typeElemIds.includes(i))
+
+         return inBoth.length
+
+      } else {
+         return totalElementsCount
       }
-
-      // chunk the pages into small groups so as not to
-      // send too many API calls to Twinit all at once
-      let pageChunks = chunkPages(pages, API_CHUNK_SIZE)
-
-      for (let i = 0; i < pageChunks.length; i++) {
-
-         let pageChunk = pageChunks[i]
-         let pageChunkPromises = []
-
-         // for each page of elements call the Item Service
-         for (let i = 0; i < pageChunk.length; i++) {
-
-            let baseQueryCopy = JSON.parse(JSON.stringify(baseQuery))
-
-            baseQueryCopy.$findWithRelated.parent.options.page = pageChunk[i]
-            // by projecting just the element _id, we keep the responses small
-            // instead of getting the entire element item
-            baseQueryCopy.$findWithRelated.parent.options.project = { _id: 1}
-
-            pageChunkPromises.push(IafItemSvc.searchRelatedItems(baseQueryCopy).then((res) => {
-               filteredCounts.push(res._list[0]._versions[0]._relatedItems._filteredSize)
-            }))
-         }
-
-         await Promise.all(pageChunkPromises).catch((error) => {
-            console.error('ERROR: Getting Filtered Element Count')
-            console.error(error)
-            return -1
-         })
-
-      }
-
-      return filteredCounts.reduce((acc, curr) => acc + curr, 0)
 
    }
 
@@ -438,6 +460,7 @@ const ModelContextProvider = ({ children }) => {
       setSelectedPropRefs,
       getElementCount,
       sliceElements,
+      setSliceElements,
       setSliceElementsByQuery}}
    >
       { children }
