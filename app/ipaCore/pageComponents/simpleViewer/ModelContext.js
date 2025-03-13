@@ -308,7 +308,7 @@ const ModelContextProvider = ({ children }) => {
 
    // creates a findWithRelated query between a property collection and the element collection
    // you can have it optionally return the element ids by passing true for withElemIds
-   const getElementQuery = (propertyColl, queryPartials, withElemIds) => {
+   const getElementByPropQuery = (propertyColl, queryPartials, withElemIds) => {
 
       let query =  {
          parent: {
@@ -355,22 +355,22 @@ const ModelContextProvider = ({ children }) => {
       if (instanceQuery && !typeQuery) {
          // just do instance query
 
-         let result = await IafScriptEngine.findWithRelated(getElementQuery(modelRelatedCollections.instanceProps, instanceQueryPartials))
+         let result = await IafScriptEngine.findWithRelated(getElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials))
 
          return result._list.reduce((acc, value) => acc += value.elements._total, 0)
 
       } else if (!instanceQuery && typeQuery) {
          //just do type query
 
-         let result = await IafScriptEngine.findWithRelated(getElementQuery(modelRelatedCollections.typeProps, typeQueryPartials))
+         let result = await IafScriptEngine.findWithRelated(getElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials))
 
          return result._list.reduce((acc, value) => acc += value.elements._total, 0)
 
       } else if (instanceQuery && typeQuery) {
 
          //do both and reconcile _ids
-         let instResult = await IafScriptEngine.findWithRelated(getElementQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true))
-         let typeResult = await IafScriptEngine.findWithRelated(getElementQuery(modelRelatedCollections.typeProps, typeQueryPartials, true))
+         let instResult = await IafScriptEngine.findWithRelated(getElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true))
+         let typeResult = await IafScriptEngine.findWithRelated(getElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true))
 
          let instElemIds = []
          instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
