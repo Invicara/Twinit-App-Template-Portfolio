@@ -18,6 +18,7 @@ const ModelQuery = () => {
       totalElementsCount,
       selectedPropRefs,
       getElementCount,
+      setSliceElements,
       setSliceElementsByQuery 
    } = useContext(ModelContext)
 
