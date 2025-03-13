@@ -6,7 +6,7 @@ import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
 const ModelContext = createContext()
 
 const API_CHUNK_SIZE = 15
-
+const ELEMENT_CHUNK_SIZE = 200
 const ModelContextProvider = ({ children }) => {
 
    // availableModelComposites: Array[<Object>] the array of imported models in the project
@@ -195,22 +195,7 @@ const ModelContextProvider = ({ children }) => {
 
          // query the element collection as the parent
          // and follow relationships to the child instance and type properties
-         let selectedModelElements = await IafScriptEngine.findWithRelated({
-            parent: { 
-               query: query,
-               collectionDesc: {_userItemId: modelRelatedCollections.elements._userItemId, _userType: modelRelatedCollections.elements._userType},
-            },
-            related: [
-               {
-                  relatedDesc: { _relatedUserType: modelRelatedCollections.instanceProps._userType},
-                  as: 'instanceProps'
-               },
-               {
-                  relatedDesc: { _relatedUserType: modelRelatedCollections.typeProps._userType},
-                  as: 'typeProps'
-               }
-            ]
-         })
+         let selectedModelElements = await IafScriptEngine.findWithRelated(makeElementQuery(query))
 
          let userSelectedElement = selectedModelElements._list[0]
          if (userSelectedElement) {
@@ -231,91 +216,56 @@ const ModelContextProvider = ({ children }) => {
 
    }
 
-   // creates a base $findWithRelated Item Service query that can be used to:
-   // 1. get the total element count that would be returned if a search is done
-   // 2. get the elements as a result of a search
-   // it relies on queryPartials added to the filters when a user configures a filter
-   // see the PropertyFilter and ModelQuery components
-   const makeRelatedFilterQuery = (filters) => {
-
-       // get all the instance and type query partials from filters which have them
-       let instanceQueryPartials = filters.filter(f => f.propRef.property.propertyType === 'instance' && f.queryPartial)
-       let typeQueryPartials = filters.filter(f => f.propRef.property.propertyType === 'type' && f.queryPartial)
-
-      let relatedFilter = { $and: [] }
-
-      // create the relatedFilter for instance property filters
-      if (instanceQueryPartials && instanceQueryPartials.length) {
-         relatedFilter.$and.push({
-            // query is an AND for all instance property filters
-            query: {$and: instanceQueryPartials.map(qp => qp.queryPartial)},
-				relatedDesc: { _relatedUserType: modelRelatedCollections.instanceProps._userType},
-				as: 'instanceProps'
-         })
-      } else {
-         // if no instance query partials include an empty query so that if elements are being
-         // returned by the query we still receive all the instance properties
-         relatedFilter.$and.push({
-            query: {},
-				relatedDesc: { _relatedUserType: modelRelatedCollections.instanceProps._userType},
-				as: 'instanceProps'
-         })
-      }
-
-      // create the relatedFilter for type property filters
-      if (typeQueryPartials && typeQueryPartials.length) {
-         relatedFilter.$and.push({
-            // query is an AND for all type property filters
-            query: {$and: typeQueryPartials.map(qp => qp.queryPartial)},
-				relatedDesc: { _relatedUserType: modelRelatedCollections.typeProps._userType},
-				as: 'typeProps'
-         })
-      } else {
-         // if no type query partials include an empty query so that if elements are being
-         // returned by the query we still receive all the type properties
-         relatedFilter.$and.push({
-            query: {},
-				relatedDesc: { _relatedUserType: modelRelatedCollections.typeProps._userType},
-				as: 'typeProps'
-         })
-      }
-
-      return {
-         $findWithRelated: {
-            parent: {
-               query: {}, // no element query as the relatdFilter provides the filters for elements
-               collectionDesc: {_userItemId: modelRelatedCollections.elements._userItemId, _userType: modelRelatedCollections.elements._userType},
-               options: {}
-            },
-            relatedFilter
-         }
-      } 
-
-   }
-
    // breaks an array of pages down into smaller arrays of chunkSize
-   const chunkPages = (pages, chunkSize) => {
+   const chunkIds = (ids, chunkSize) => {
 
       let chunks = []
 
-      for (let i = 0; i < pages.length; i += chunkSize) {
-         chunks.push(pages.slice(i, i + chunkSize))
+      for (let i = 0; i < ids.length; i += chunkSize) {
+         chunks.push(ids.slice(i, i + chunkSize))
       }
 
       return chunks
 
    }
 
+   // creates a findWithRelated query that returns elements with all propereties
+   // uses either a provided query or an empty query which will return all elemenets
+   const makeElementQuery = (elementQuery) => {
+
+      let query = {
+         parent: { 
+            query: elementQuery || {},
+            collectionDesc: {_userItemId: modelRelatedCollections.elements._userItemId, _userType: modelRelatedCollections.elements._userType},
+            options: {
+               page: { getAllItems: true }
+            }
+         },
+         related: [
+            {
+               relatedDesc: { _relatedUserType: modelRelatedCollections.instanceProps._userType},
+               as: 'instanceProps'
+            },
+            {
+               relatedDesc: { _relatedUserType: modelRelatedCollections.typeProps._userType},
+               as: 'typeProps'
+            }
+         ]
+      }
+
+      return query
+   }
+
    // creates a findWithRelated query between a property collection and the element collection
    // you can have it optionally return the element ids by passing true for withElemIds
-   const getElementByPropQuery = (propertyColl, queryPartials, withElemIds) => {
+   const makeElementByPropQuery = (propertyColl, queryPartials, withElemIds) => {
 
       let query =  {
          parent: {
             query: {$and: queryPartials.map(qp => qp.queryPartial)},
             collectionDesc: {_userItemId: propertyColl._userItemId, _userType: propertyColl._userType},
             options: {
-               page: { getAllItems: true },
+               page: { getAllItems: true, _pageSize: 1000 },
                project: { _id: 1 }
             }
          },
@@ -352,99 +302,143 @@ const ModelContextProvider = ({ children }) => {
       let instanceQuery = instanceQueryPartials.length > 0
       let typeQuery = typeQueryPartials.length > 0
 
-      if (instanceQuery && !typeQuery) {
-         // just do instance query
+      try {
+         if (instanceQuery && !typeQuery) {
+            // just do instance query
 
-         let result = await IafScriptEngine.findWithRelated(getElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials))
+            let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials))
 
-         return result._list.reduce((acc, value) => acc += value.elements._total, 0)
+            return result._list.reduce((acc, value) => acc += value.elements._total, 0)
 
-      } else if (!instanceQuery && typeQuery) {
-         //just do type query
+         } else if (!instanceQuery && typeQuery) {
+            //just do type query
 
-         let result = await IafScriptEngine.findWithRelated(getElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials))
+            let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials))
 
-         return result._list.reduce((acc, value) => acc += value.elements._total, 0)
+            return result._list.reduce((acc, value) => acc += value.elements._total, 0)
 
-      } else if (instanceQuery && typeQuery) {
+         } else if (instanceQuery && typeQuery) {
 
-         //do both and reconcile _ids
-         let instResult = await IafScriptEngine.findWithRelated(getElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true))
-         let typeResult = await IafScriptEngine.findWithRelated(getElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true))
+            //do both and reconcile _ids
+            let instResult = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true))
+            let typeResult = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true))
 
-         let instElemIds = []
-         instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
-         let typeElemIds = []
-         typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
+            let instElemIds = []
+            instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
+            let typeElemIds = []
+            typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
 
-         let inBoth = instElemIds.filter(i => typeElemIds.includes(i))
+            let inBoth = instElemIds.filter(i => typeElemIds.includes(i))
 
-         return inBoth.length
+            return inBoth.length
 
-      } else {
-         return totalElementsCount
+         } else {
+            return totalElementsCount
+         }
+      } catch (error) {
+         console.error('ERROR: Getting Model Element Count')
+         console.error(error)
       }
 
    }
 
    // given a query, fetch the model elements and set them as the sliceElements in the viewer
-   // this method uses a relatedFilter query
-   // this can be slower for larger models as it requires we page through the entire
-   // list of model elements to get results (which can include empty pages since none
-   // of the elements in that page may match the filter)
-   // TO DO: investigate using a graph query to more quickly return elements
    const setSliceElementsByQuery = async (filters) => {
-      
-      let baseQuery = makeRelatedFilterQuery(filters)
-      // includs the properties in the result
-      baseQuery.$findWithRelated.relatedFilter.includeResult = true
 
-      // list of all returned element items with type and instance properties
-      let allElements = []
+      // get all the instance and type query partials from filters which have them
+      let instanceQueryPartials = filters.filter(f => f.propRef.property.propertyType === 'instance' && f.queryPartial)
+      let typeQueryPartials = filters.filter(f => f.propRef.property.propertyType === 'type' && f.queryPartial)
 
-      let _pageSize = 1000
-      let totalPages = Math.floor(totalElementsCount/_pageSize)+1
-      let pages = []
+      let instanceQuery = instanceQueryPartials.length > 0
+      let typeQuery = typeQueryPartials.length > 0
 
-      // calculate total pages to request
-      for (let i = 0 ; i < totalPages; i++) {
-         pages.push({_offset: i*_pageSize, _pageSize})
+      // first we get the list of element _ids the query will return
+
+      let idChunks
+ 
+      try {
+         if (instanceQuery && !typeQuery) {
+            // just do instance query
+   
+            let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true))
+
+            let instElemIds = []
+            result._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
+
+            idChunks = chunkIds(instElemIds, ELEMENT_CHUNK_SIZE)
+
+         } else if (!instanceQuery && typeQuery) {
+            //just do type query
+   
+            let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true))
+
+            let typeElemIds = []
+            result._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
+
+            idChunks = chunkIds(typeElemIds, ELEMENT_CHUNK_SIZE)
+   
+         } else if (instanceQuery && typeQuery) {
+   
+            //do both and reconcile _ids
+            let instResult = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true))
+            let typeResult = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true))
+
+            let instElemIds = []
+            instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
+            let typeElemIds = []
+            typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
+
+            let inBoth = instElemIds.filter(i => typeElemIds.includes(i))
+
+            idChunks = chunkIds(inBoth, ELEMENT_CHUNK_SIZE)
+   
+         }
+      } catch (error) {
+         console.error('ERROR: Getting Model Element ids by Search')
+         console.error(error)
+         return
       }
 
-      // chunk the pages into small groups so as not to
-      // send too many API calls to Twinit all at once
-      let pageChunks = chunkPages(pages, API_CHUNK_SIZE)
+      // then we query the item service for all the elements with the _ids and get their properties
+      let allElements = []
 
-      for (let i = 0; i < pageChunks.length; i++) {
+      try {
+         // throttle the number of API calls to the API_CHUNK_SIZE in case may need to be made
+         let chunkChunks = chunkIds(idChunks, API_CHUNK_SIZE)
+         for (let i = 0; i < chunkChunks.length; i++) {
 
-         let pageChunk = pageChunks[i]
-         let pageChunkPromises = []
+            let idChunk = chunkChunks[i]
+            let idChunkPromises = []
 
-         // for each page of elements call the Item Service
-         for (let i = 0; i < pageChunk.length; i++) {
+            // for each d chunk of elements call the Item Service
+            for (let i = 0; i < idChunk.length; i++) {
 
-            let baseQueryCopy = JSON.parse(JSON.stringify(baseQuery))
+               let query = {_id: {$in: idChunk[i]}}
 
-            baseQueryCopy.$findWithRelated.parent.options.page = pageChunk[i]
+               idChunkPromises.push(IafScriptEngine.findWithRelated(makeElementQuery(query)).then((res) => {
+                  // add page of elements to the list of all returned elements
+                  allElements.push(...res._list)
+                  console.log(res)
+               }))
+            }
 
-            pageChunkPromises.push(IafItemSvc.searchRelatedItems(baseQueryCopy).then((res) => {
-               // add page of elements to the list of all returned elements
-               allElements.push(...res._list[0]._versions[0]._relatedItems._list)
-            }))
+            await Promise.all(idChunkPromises).catch((error) => {
+               console.error('ERROR: Getting Model Elements by Search')
+               console.error(error)
+               allElements = []
+            })
          }
 
-         await Promise.all(pageChunkPromises).catch((error) => {
-            console.error('ERROR: Getting Model Elements by Search')
-            console.error(error)
-            allElements = []
-         })
-
+      } catch (error) {
+         console.error('ERROR: Getting Model Elements by id Search')
+         console.error(error)
+         allElements = []
       }
 
       // isolate the elements in the model viewer
       setSliceElements(simplifyElementItems(allElements))
 
-   } 
+   }
 
    return <ModelContext.Provider value={{
       availableModelComposites,
