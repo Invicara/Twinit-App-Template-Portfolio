@@ -177,6 +177,7 @@ const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) 
             treeCheckable= {true}
             placeholder='Select Property Values'
             onChange={(values) => onFilterChange('string', values)}
+            autoClearSearchValue={false}
          />
       </div>}
       {numValueTypes.includes(filter.propRef.property.srcType) && <div className='number-filter-values'>
