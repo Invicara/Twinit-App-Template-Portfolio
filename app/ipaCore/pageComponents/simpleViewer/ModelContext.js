@@ -438,6 +438,7 @@ const ModelContextProvider = ({ children }) => {
       setSelectedPropRefs,
       getElementCount,
       sliceElements,
+      setSliceElements,
       setSliceElementsByQuery}}
    >
       { children }
