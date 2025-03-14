@@ -20,4 +20,5 @@ Once complete the new project will appear on the list to the right side of the p
 ![project complete](../../img/proj-make-complete.jpg)
 
 ---
+
 [Project Maker User Guide](./README.md) < Back
