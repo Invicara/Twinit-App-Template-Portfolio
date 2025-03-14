@@ -8,7 +8,7 @@ See these steps in the deployment guide:
 2. [Test the Template](./deploy/d4-test.md)
 3. [Deploy the Web Client for Users](./deploy/d5-deploy-to-cloud.md)
 
-Be sure that your build proces includes running
+Be sure that your build process includes running
 
 ```
 npm install
