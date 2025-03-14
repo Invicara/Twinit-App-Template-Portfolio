@@ -319,7 +319,20 @@ const ModelContextProvider = ({ children }) => {
 
          } else if (instanceQuery && typeQuery) {
 
-            //do both and reconcile _ids
+            // if both instance and type queries are present we do each search individually
+            // and then generate the list of element _ids returned in both queries
+
+            // this is much faster for queries thanusing an alternative like the relatedFilter would 
+            // cause us to have to page through every page of elements looking for the ones that match the relatedFilter
+            // -- in a large file that could be 100,000 or more elements
+            
+            // with this implmentation we generate a smaller list of elements that match the
+            // instance query and a smaller list of elements that match the type query and
+            // then find the elements in both
+            // in almost all cases, excluding those that will return nearly all model elements,
+            // this is much faster than paging through all model elements
+
+            // and when retrieving only a few elements it is hundreds of times faster
 
             let bothPromises = []
 
@@ -385,6 +398,21 @@ const ModelContextProvider = ({ children }) => {
             idChunks = chunkIds(typeElemIds, ELEMENT_CHUNK_SIZE)
    
          } else if (instanceQuery && typeQuery) {
+
+            // if both instance and type queries are present we do each search individually
+            // and then generate the list of element _ids returned in both queries
+
+            // this is much faster for queries thanusing an alternative like the relatedFilter would 
+            // cause us to have to page through every page of elements looking for the ones that match the relatedFilter
+            // -- in a large file that could be 100,000 or more elements
+            
+            // with this implmentation we generate a smaller list of elements that match the
+            // instance query and a smaller list of elements that match the type query and
+            // then find the elements in both
+            // in almost all cases, excluding those that will return nearly all model elements,
+            // this is much faster than paging through all model elements
+
+            // and when retrieving only a few elements it is hundreds of times faster
    
             let bothPromises = []
 
