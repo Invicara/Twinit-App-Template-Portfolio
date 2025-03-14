@@ -6,7 +6,7 @@ import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
 const ModelContext = createContext()
 
 const API_CHUNK_SIZE = 15
-const ELEMENT_CHUNK_SIZE = 200
+const ELEMENT_CHUNK_SIZE = 500
 const ModelContextProvider = ({ children }) => {
 
    // availableModelComposites: Array[<Object>] the array of imported models in the project
@@ -265,7 +265,7 @@ const ModelContextProvider = ({ children }) => {
             query: {$and: queryPartials.map(qp => qp.queryPartial)},
             collectionDesc: {_userItemId: propertyColl._userItemId, _userType: propertyColl._userType},
             options: {
-               page: { getAllItems: true, _pageSize: 1000 },
+               page: { getAllItems: true, _pageSize: 2000 },
                project: { _id: 1 }
             }
          },
@@ -320,14 +320,21 @@ const ModelContextProvider = ({ children }) => {
          } else if (instanceQuery && typeQuery) {
 
             //do both and reconcile _ids
-            let instResult = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true))
-            let typeResult = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true))
+
+            let bothPromises = []
 
             let instElemIds = []
-            instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
-            let typeElemIds = []
-            typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
+            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true)).then((instResult) => {
+               instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
+            }))
 
+            let typeElemIds = []
+            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true)).then((typeResult) => {
+               typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
+            }))
+
+            await Promise.all(bothPromises)
+          
             let inBoth = instElemIds.filter(i => typeElemIds.includes(i))
 
             return inBoth.length
@@ -379,15 +386,20 @@ const ModelContextProvider = ({ children }) => {
    
          } else if (instanceQuery && typeQuery) {
    
-            //do both and reconcile _ids
-            let instResult = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true))
-            let typeResult = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true))
+            let bothPromises = []
 
             let instElemIds = []
-            instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
-            let typeElemIds = []
-            typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
+            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true)).then((instResult) => {
+               instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
+            }))
 
+            let typeElemIds = []
+            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true)).then((typeResult) => {
+               typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
+            }))
+
+            await Promise.all(bothPromises)
+          
             let inBoth = instElemIds.filter(i => typeElemIds.includes(i))
 
             idChunks = chunkIds(inBoth, ELEMENT_CHUNK_SIZE)
