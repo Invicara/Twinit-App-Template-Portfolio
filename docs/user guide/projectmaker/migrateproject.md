@@ -12,7 +12,7 @@ The list will expand to display the steps of the migration as they complete. Onc
 
 ![migrate complete](../../img/migrate-complete.jpg)
 
-3. Click the x icon to close the migration log
+3. Click the (x) icon to close the migration log
 
 > **IMPORTANT**: Do not refresh or leave the page while a migration is running, as it will cancel the migration and result in an incomplete migration of the project. In most cases the migration can be run again on the project if the migration was interrupted.
 
