@@ -6,7 +6,7 @@ import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
 const ModelContext = createContext()
 
 const API_CHUNK_SIZE = 15
-const ELEMENT_CHUNK_SIZE = 200
+const ELEMENT_CHUNK_SIZE = 500
 const ModelContextProvider = ({ children }) => {
 
    // availableModelComposites: Array[<Object>] the array of imported models in the project
@@ -265,7 +265,7 @@ const ModelContextProvider = ({ children }) => {
             query: {$and: queryPartials.map(qp => qp.queryPartial)},
             collectionDesc: {_userItemId: propertyColl._userItemId, _userType: propertyColl._userType},
             options: {
-               page: { getAllItems: true, _pageSize: 1000 },
+               page: { getAllItems: true, _pageSize: 2000 },
                project: { _id: 1 }
             }
          },
@@ -319,15 +319,35 @@ const ModelContextProvider = ({ children }) => {
 
          } else if (instanceQuery && typeQuery) {
 
-            //do both and reconcile _ids
-            let instResult = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true))
-            let typeResult = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true))
+            // if both instance and type queries are present we do each search individually
+            // and then generate the list of element _ids returned in both queries
+
+            // this is much faster for queries thanusing an alternative like the relatedFilter would 
+            // cause us to have to page through every page of elements looking for the ones that match the relatedFilter
+            // -- in a large file that could be 100,000 or more elements
+            
+            // with this implmentation we generate a smaller list of elements that match the
+            // instance query and a smaller list of elements that match the type query and
+            // then find the elements in both
+            // in almost all cases, excluding those that will return nearly all model elements,
+            // this is much faster than paging through all model elements
+
+            // and when retrieving only a few elements it is hundreds of times faster
+
+            let bothPromises = []
 
             let instElemIds = []
-            instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
-            let typeElemIds = []
-            typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
+            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true)).then((instResult) => {
+               instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
+            }))
 
+            let typeElemIds = []
+            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true)).then((typeResult) => {
+               typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
+            }))
+
+            await Promise.all(bothPromises)
+          
             let inBoth = instElemIds.filter(i => typeElemIds.includes(i))
 
             return inBoth.length
@@ -378,16 +398,36 @@ const ModelContextProvider = ({ children }) => {
             idChunks = chunkIds(typeElemIds, ELEMENT_CHUNK_SIZE)
    
          } else if (instanceQuery && typeQuery) {
+
+            // if both instance and type queries are present we do each search individually
+            // and then generate the list of element _ids returned in both queries
+
+            // this is much faster for queries thanusing an alternative like the relatedFilter would 
+            // cause us to have to page through every page of elements looking for the ones that match the relatedFilter
+            // -- in a large file that could be 100,000 or more elements
+            
+            // with this implmentation we generate a smaller list of elements that match the
+            // instance query and a smaller list of elements that match the type query and
+            // then find the elements in both
+            // in almost all cases, excluding those that will return nearly all model elements,
+            // this is much faster than paging through all model elements
+
+            // and when retrieving only a few elements it is hundreds of times faster
    
-            //do both and reconcile _ids
-            let instResult = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true))
-            let typeResult = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true))
+            let bothPromises = []
 
             let instElemIds = []
-            instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
-            let typeElemIds = []
-            typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
+            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true)).then((instResult) => {
+               instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
+            }))
 
+            let typeElemIds = []
+            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true)).then((typeResult) => {
+               typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
+            }))
+
+            await Promise.all(bothPromises)
+          
             let inBoth = instElemIds.filter(i => typeElemIds.includes(i))
 
             idChunks = chunkIds(inBoth, ELEMENT_CHUNK_SIZE)
