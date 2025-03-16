@@ -138,11 +138,12 @@ const TablePanel = () => {
       // we need to recalculate --data-table-library_grid-template-columns on evey change and set the var to !important
       // this addresses an issue with the column count not being correctly recalculated by the table when columns are
       // added or removed (when selected property refs are added or removed)
+      let repeat = selectedPropRefs.length > 0 ? `repeat(${selectedPropRefs.length}, max-content)` : ''
       let theme = useTheme([
          BASELINE_THEME,
          {
            Table: `
-             --data-table-library_grid-template-columns: 60px 20% repeat(${selectedPropRefs.length}, min-content) !important;
+             --data-table-library_grid-template-columns: 60px 20% ${repeat} !important;
            `,
          },
       ])
