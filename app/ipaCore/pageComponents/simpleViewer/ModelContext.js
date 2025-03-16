@@ -1,4 +1,4 @@
-import React, {createContext, useEffect, useState } from 'react'
+import React, {createContext, useEffect, useState, useMemo } from 'react'
 
 import { IafProj, IafItemSvc } from '@dtplatform/platform-api'
 import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
@@ -480,22 +480,35 @@ const ModelContextProvider = ({ children }) => {
 
    }
 
-   return <ModelContext.Provider value={{
-      availableModelComposites,
-      selectedModelComposite,
-      setSelectedModelComposite,
-      modelRelatedCollections,
-      totalElementsCount,
-      selectedElement,
-      selectElement,
-      getSelectedElement,
-      allPropRefs,
-      selectedPropRefs,
-      setSelectedPropRefs,
-      getElementCount,
-      sliceElements,
-      setSliceElements,
-      setSliceElementsByQuery}}
+   const memoizedContextValue = useMemo(() => {
+      return {
+         availableModelComposites,
+         selectedModelComposite,
+         setSelectedModelComposite,
+         modelRelatedCollections,
+         totalElementsCount,
+         selectedElement,
+         selectElement,
+         getSelectedElement,
+         allPropRefs,
+         selectedPropRefs,
+         setSelectedPropRefs,
+         getElementCount,
+         sliceElements,
+         setSliceElements,
+         setSliceElementsByQuery}
+   }, [ availableModelComposites,
+         selectedModelComposite,
+         modelRelatedCollections,
+         totalElementsCount,
+         selectedElement,
+         allPropRefs,
+         selectedPropRefs,
+         sliceElements
+      ]
+   )
+
+   return <ModelContext.Provider value={memoizedContextValue}
    >
       { children }
    </ModelContext.Provider>
