@@ -53,6 +53,14 @@ Since the template provides all the Twinit scripts and user configs, and web cli
 * [Change the Theme Colors in the Web Client](./customize/change-theme.md)
 * [Customize Your Email Invitations](./customize/customize-email.md)
 
+## Future Updates
+
+Future updates to the Quick Model View could include:
+
+* Moving the Twinit logic in ModelContext into Twinit Object Model API endpoints that the web client will use instead of directly using the Twinit APIs
+* Allow other custom components to be loaded in the bottom panel of the SimpleViewerView pageComponent
+* Additional element table capabilities like hiding columns or removing selected properties from the table
+
 ## Finding Support
 
 As you work through the deployment of the template or the template's web client, you may encounter issues or have questions about what you are doing.
