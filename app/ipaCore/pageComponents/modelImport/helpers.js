@@ -102,8 +102,8 @@ export const getCurrentFileNameFromSelect = (selectedFile) => {
 
 export const getFileNameAndExtension = (file) => {
   const fileNameAndExtension = file.name.split('.');
-  const fileName = fileNameAndExtension[0];
-  const fileExtension = fileNameAndExtension[1];
+  const fileExtension = fileNameAndExtension.pop();
+  const fileName = fileNameAndExtension.join('.');
 
   return {
     fileName,
