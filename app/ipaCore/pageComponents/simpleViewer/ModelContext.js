@@ -7,6 +7,7 @@ const ModelContext = createContext()
 
 const API_CHUNK_SIZE = 15
 const ELEMENT_CHUNK_SIZE = 500
+
 const ModelContextProvider = ({ children }) => {
 
    // availableModelComposites: Array[<Object>] the array of imported models in the project
@@ -155,7 +156,7 @@ const ModelContextProvider = ({ children }) => {
    }
 
    // simplifies the element items returnd from Twinit to eliminate
-   // unnecessary levels object keys
+   // unnecessary levels of object keys
    const simplifyElementItems = (elementArray) => {
 
       let newElementArray = JSON.parse(JSON.stringify(elementArray))
@@ -216,7 +217,7 @@ const ModelContextProvider = ({ children }) => {
 
    }
 
-   // breaks an array of pages down into smaller arrays of chunkSize
+   // breaks an array of ids or id arrays down into smaller arrays of chunkSize
    const chunkIds = (ids, chunkSize) => {
 
       let chunks = []
@@ -304,14 +305,16 @@ const ModelContextProvider = ({ children }) => {
 
       try {
          if (instanceQuery && !typeQuery) {
-            // just do instance query
+            // since there is only an instance query we can simply query the elements related to the instance property
+            // instancePropery ---_isInverse:true---> element
 
             let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials))
 
             return result._list.reduce((acc, value) => acc += value.elements._total, 0)
 
          } else if (!instanceQuery && typeQuery) {
-            //just do type query
+            // since there is only a type query we can simply query the elements related to the type property
+            // typePropery ---_isInverse:true---> element
 
             let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials))
 
@@ -321,16 +324,18 @@ const ModelContextProvider = ({ children }) => {
 
             // if both instance and type queries are present we do each search individually
             // and then generate the list of element _ids returned in both queries
+            // instancePropery ---_isInverse:true---> element (_id)
+            // typePropery ---_isInverse:true---> element (_id)
 
-            // this is much faster for queries thanusing an alternative like the relatedFilter would 
+            // this is much faster for queries than using an alternative like the relatedFilter which would 
             // cause us to have to page through every page of elements looking for the ones that match the relatedFilter
             // -- in a large file that could be 100,000 or more elements
             
-            // with this implmentation we generate a smaller list of elements that match the
-            // instance query and a smaller list of elements that match the type query and
-            // then find the elements in both
+            // with this implmentation we generate a smaller list of element _ids that match the
+            // instance query and a smaller list of element _ids that match the type query and
+            // then find the element _ids in both, then fetch the elements by _id
             // in almost all cases, excluding those that will return nearly all model elements,
-            // this is much faster than paging through all model elements
+            // this is much faster than paging through all model elements using relatedFilter
 
             // and when retrieving only a few elements it is hundreds of times faster
 
@@ -378,7 +383,8 @@ const ModelContextProvider = ({ children }) => {
  
       try {
          if (instanceQuery && !typeQuery) {
-            // just do instance query
+            // since there is only an instance query we can simply query the elements related to the instance property
+            // instancePropery ---_isInverse:true---> element
    
             let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true))
 
@@ -388,7 +394,8 @@ const ModelContextProvider = ({ children }) => {
             idChunks = chunkIds(instElemIds, ELEMENT_CHUNK_SIZE)
 
          } else if (!instanceQuery && typeQuery) {
-            //just do type query
+            // since there is only a type query we can simply query the elements related to the type property
+            // typePropery ---_isInverse:true---> element
    
             let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true))
 
@@ -401,16 +408,18 @@ const ModelContextProvider = ({ children }) => {
 
             // if both instance and type queries are present we do each search individually
             // and then generate the list of element _ids returned in both queries
+            // instancePropery ---_isInverse:true---> element (_id)
+            // typePropery ---_isInverse:true---> element (_id)
 
-            // this is much faster for queries thanusing an alternative like the relatedFilter would 
+            // this is much faster for queries than using an alternative like the relatedFilter which would 
             // cause us to have to page through every page of elements looking for the ones that match the relatedFilter
             // -- in a large file that could be 100,000 or more elements
             
-            // with this implmentation we generate a smaller list of elements that match the
-            // instance query and a smaller list of elements that match the type query and
-            // then find the elements in both
+            // with this implmentation we generate a smaller list of element _ids that match the
+            // instance query and a smaller list of element _ids that match the type query and
+            // then find the element _ids in both, then fetch the elements by _id
             // in almost all cases, excluding those that will return nearly all model elements,
-            // this is much faster than paging through all model elements
+            // this is much faster than paging through all model elements using relatedFilter
 
             // and when retrieving only a few elements it is hundreds of times faster
    
@@ -497,7 +506,8 @@ const ModelContextProvider = ({ children }) => {
          sliceElements,
          setSliceElements,
          setSliceElementsByQuery}
-   }, [ availableModelComposites,
+   }, [ 
+         availableModelComposites,
          selectedModelComposite,
          modelRelatedCollections,
          totalElementsCount,
@@ -508,8 +518,7 @@ const ModelContextProvider = ({ children }) => {
       ]
    )
 
-   return <ModelContext.Provider value={memoizedContextValue}
-   >
+   return <ModelContext.Provider value={memoizedContextValue}>
       { children }
    </ModelContext.Provider>
 }

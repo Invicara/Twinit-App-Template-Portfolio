@@ -1,6 +1,5 @@
-// version dtf-1.0
 
-import React, { useState, useEffect, useRef, useContext } from 'react'
+import React, { useRef, useContext } from 'react'
 
 // https://github.com/bvaughn/react-resizable-panels
 import { Panel, PanelGroup } from "react-resizable-panels"
