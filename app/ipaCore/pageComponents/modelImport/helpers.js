@@ -74,7 +74,7 @@ export const constructModelFileVersions = async (modelFiles) => {
 
     return {
       ...modelFile,
-      nameNoExt: modelFile._name.split('.').slice(0, -1).join() + ' (' + modelFile._name.split('.').pop() + ')',
+      nameNoExt: modelFile._name.split('.').slice(0, -1).join() + ' [' + modelFile._name.split('.').pop() + ']',
       versions: sortedExpandedVersions,
     }
   });
@@ -89,7 +89,7 @@ export const getCurrentFileNameFromSelect = (selectedFile) => {
 
   if (selectedFile) {
     // let xelem = document.getElementsByClassName('select__single-value')[0].firstChild.textContent;
-    let xelemArr = selectedFile.label.split(' (');
+    let xelemArr = selectedFile.label.split(' [');
     let currFileName = xelemArr[0];
     let currFileType = xelemArr[1].substring(0, xelemArr[1].length - 1);
 
@@ -102,8 +102,8 @@ export const getCurrentFileNameFromSelect = (selectedFile) => {
 
 export const getFileNameAndExtension = (file) => {
   const fileNameAndExtension = file.name.split('.');
-  const fileName = fileNameAndExtension[0];
-  const fileExtension = fileNameAndExtension[1];
+  const fileExtension = fileNameAndExtension.pop();
+  const fileName = fileNameAndExtension.join('.');
 
   return {
     fileName,
