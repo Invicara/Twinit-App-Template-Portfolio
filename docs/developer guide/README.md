@@ -67,7 +67,7 @@ As you work through the deployment of the template or the template's web client,
 
 Be sure to visit the [digitaltwin-factory community](https://community.digitaltwin-factory.com/) to find help.
 
-You'll find easy reference links to [Twinit Academy](https://community.digitaltwin-factory.com/cohorts-npcs64ni) if you ned to quickly refresh your memory on topics covered in the training.
+You'll find easy reference links to [Twinit Academy](https://community.digitaltwin-factory.com/cohorts-npcs64ni) if you need to quickly refresh your memory on topics covered in the training.
 
 The [Knowledgebase](https://community.digitaltwin-factory.com/knowledgebase-5wzpkylt) is a growing library of common issues and their solutions to help keep you working.
 
