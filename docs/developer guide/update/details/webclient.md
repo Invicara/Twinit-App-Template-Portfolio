@@ -44,7 +44,7 @@ The web client now uses a [ModelContext](../../../../app/ipaCore/pageComponents/
 
 ## Delete Latest Imported Model
 
-The [SimpleModelImportView](../../../../app/ipaCore/pageComponents/modelImport/SimpleModelImportView.jsx) has ben updated to allow [deleting the latest imported model version](../../../../app/ipaCore/pageComponents/modelImport/SimpleModelImportView.jsx#L409) from Twinit.
+The [SimpleModelImportView](../../../../app/ipaCore/pageComponents/modelImport/SimpleModelImportView.jsx) has been updated to allow [deleting the latest imported model version](../../../../app/ipaCore/pageComponents/modelImport/SimpleModelImportView.jsx#L409) from Twinit.
 
 ---
 [Developer Update Guide](../README.md) < Back
