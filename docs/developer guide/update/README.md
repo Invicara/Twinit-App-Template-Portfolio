@@ -43,8 +43,8 @@ Updating to 2.0.0 is seamless to users of Quick Model View. User will not be imp
 
 To update your existing deployed template follow these steps:
 
-1. [Deploy template updates to Twinit](./update/updateTwinit.md)
-2. [Deploy the updated web client](./update/updateWebclient.md)
+1. [Deploy template updates to Twinit](./updateTwinit.md)
+2. [Deploy the updated web client](./updateWebclient.md)
 
 > **IMPORTANT**: These steps will update the Quick Model View template and web client. To take advantage of all new updates, additional steps are required by Admin users in each Quick Model View project. Be sure to consult the [User Guide](../user%20guide/README.md) for more information.
 
