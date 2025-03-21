@@ -13,7 +13,7 @@ Currently two types of properties are supporting in search filters:
 * Text properties
 * Number properties
 
-You can select properties of other types to appear as columns in the element table, but thy will not appear in the list of properties for which you can create filters.
+You can select properties of other types to appear as columns in the element table, but they will not appear in the list of properties for which you can create filters.
 
 ### Filtering Using Text Properties
 

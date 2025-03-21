@@ -11,7 +11,7 @@ The Quick Model View Manager project has only one User Group:
 
 * QMV Managers
 
-Adding uses to the QMV Managers user group will give them access to the QMV Manager project, but it will not permit them to also create new projects.
+Adding users to the QMV Managers user group will give them access to the QMV Manager project, but it will not permit them to also create new projects.
 
 In order to use the QMV Manager, users must also be added to your application's Application Developer user group. This access is necessary to allow the user to create new projects and user groups. Refer to the "Getting Access as an Application Owner or Application Developer" step in the [Deployment Guide](../deploy/d1-gather.md) for more information.
 
@@ -57,7 +57,7 @@ The Project Maker pageComponent relies on a script or scripts to create and upda
 
 Those scripts are specified in the handler in two places.
 
-1. **scriptTypes**: the _userType of the script in Twinit must be specified in the handlers scriptTypes array so that the necessary script item can be loaded when the page loads, making the scripts the page needs available o be run
+1. **scriptTypes**: the _userType of the script in Twinit must be specified in the handlers scriptTypes array so that the necessary script item can be loaded when the page loads, making the scripts the page needs available to be run
 2. **config**: three scripts must be configured in the handlers config to support creating and updating projects:
    * **currentVersionScript**: returns the current version assigned to newly created Quick Model View projects. This is also used to determine if existing projects are out of date
    * **projectCreateScript**: the script used to create new Quick Model View projects

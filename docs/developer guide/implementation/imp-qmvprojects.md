@@ -68,7 +68,7 @@ The Model Import handler takes two config settings:
 
 ### Model View Page
 
-The Model View Page allows users to view imported models and see model element properties. It leverages the Twinit IafViewer component to display the 2D/2D mdoels.
+The Model View Page allows users to view imported models and see model element properties. It leverages the Twinit IafViewer component to display the 2D/3D models.
 
 ### Page Handler
 
