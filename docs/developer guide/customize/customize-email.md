@@ -21,7 +21,7 @@ The Quick Model View Application Template includes a set of sample email invites
 2. Select your application
 3. Select the Passport Service page
 4. Click the Notification Templates tab
-5. CLick the menu for the USER_GROUP_INVITE template and click Edit
+5. Click the menu for the USER_GROUP_INVITE template and click Edit
 
 ![notification edit](../../img/noification-edit.jpg)
 

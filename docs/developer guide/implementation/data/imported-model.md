@@ -280,7 +280,7 @@ Here is an example model element type properties item:
 
 ### Model Data Cache
 
-The model data cache contains items with data bout the model created during import. Currently the cache contains property references for each unique property found in the model. The property references allow the web client to quickly display the list of unique properties in the search controls.
+The model data cache contains items with data about the model created during import. Currently the cache contains property references for each unique property found in the model. The property references allow the web client to quickly display the list of unique properties in the search controls.
 
 The data cache can contain many different types of data, so each item has a dataType property on it, allowing for easily finding cache data of a specific type.
 
