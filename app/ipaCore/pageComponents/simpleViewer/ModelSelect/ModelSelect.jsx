@@ -8,7 +8,7 @@ import './ModelSelect.scss'
 // and displays the sources of the currenly selected model
 const ModelSelect = () => {
 
-   const { selectedModelComposite, setSelectedModelComposite, availableModelComposites } = useContext(ModelContext)
+   const { selectedModelComposite, setSelectedModelComposite, selectedModelCompositeVersions, selectedModelCompositeVersion, setSelectedModelCompositeVersion, availableModelComposites } = useContext(ModelContext)
 
    // if only one model is in the available list, select it by default
    useEffect(() => {
@@ -29,6 +29,20 @@ const ModelSelect = () => {
       }, 1000)
    }
 
+   const onVersionSelect = (newVersion) => {
+
+      setSelectedModelCompositeVersion(null)
+
+      setTimeout(async() => {
+         console.log(selectedModelCompositeVersions)
+         let version = selectedModelCompositeVersions.find(ver => ver._version === parseInt(newVersion))
+         console.log(selectedModelCompositeVersions, newVersion, version)
+         setSelectedModelCompositeVersion(version)
+      })
+      
+
+   }
+
    return <>
       <div className='model-select'>
          <label>Select a Model
@@ -37,6 +51,13 @@ const ModelSelect = () => {
                {availableModelComposites.sort((a,b) => a._name.localeCompare(b._name)).map(amc => <option key={amc._id} value={amc._id}>{amc._name}</option>)}
             </select>}
          </label>
+      </div>
+      <div className='model-select'>
+         {!!selectedModelCompositeVersions?.length && selectedModelCompositeVersion?._version && <label>Version
+           <select value={selectedModelCompositeVersion._version} onChange={(e) => onVersionSelect(e.target.value)}>
+               {selectedModelCompositeVersions.map(v => v._version).sort().reverse().map(ver => <option key={ver} value={ver}>{ver}</option>)}
+            </select>
+         </label>}
       </div>
       {selectedModelComposite && <table className='model-info-table'>
          <tbody>
