@@ -15,6 +15,10 @@ const ModelContextProvider = ({ children }) => {
 
    // selectedModelComposite: <NamedComposieItem> the currently selected model to show in the viewer and to query
    const [ selectedModelComposite, setSelectedModelComposite ] = useState()
+   const [ selectedModelCompositeVersion, setSelectedModelCompositeVersion ] = useState()
+
+   // selectedModelCOmposite versions
+   const [ selectedModelCompositeVersions, setSelectedModelCompositeVersions ] = useState()
 
    // modelRelatedCollections: <Object> the related model collections for the selectedModelComposite Item
    // modelRelatedCollections.elements: <NamedUserCollection> the NamdUserCollection containing model elements
@@ -44,7 +48,13 @@ const ModelContextProvider = ({ children }) => {
    }, [])
 
    useEffect(() => {
+
+      if (selectedModelComposite) {
+         setSelectedModelCompositeVersion(selectedModelComposite._versions[0])
+      }
+
       loadModelCollections()
+      loadModelVersions()
    }, [selectedModelComposite])
 
    useEffect(() => {
@@ -93,6 +103,19 @@ const ModelContextProvider = ({ children }) => {
             dataCache: null
          })
       }
+   }
+
+   const loadModelVersions = () => {
+
+      if (selectedModelComposite) {
+         setSelectedModelCompositeVersions(null)
+
+         IafItemSvc.getNamedUserItemVersions(selectedModelComposite._userItemId).then((versions) => {
+            setSelectedModelCompositeVersions(versions._list)
+            console.log('versions ------>', versions)
+         })
+      }
+
    }
 
    // get the total element count for the currently selected model
@@ -494,6 +517,9 @@ const ModelContextProvider = ({ children }) => {
          availableModelComposites,
          selectedModelComposite,
          setSelectedModelComposite,
+         selectedModelCompositeVersions,
+         selectedModelCompositeVersion,
+         setSelectedModelCompositeVersion,
          modelRelatedCollections,
          totalElementsCount,
          selectedElement,
@@ -509,6 +535,8 @@ const ModelContextProvider = ({ children }) => {
    }, [ 
          availableModelComposites,
          selectedModelComposite,
+         selectedModelCompositeVersions,
+         selectedModelCompositeVersion,
          modelRelatedCollections,
          totalElementsCount,
          selectedElement,

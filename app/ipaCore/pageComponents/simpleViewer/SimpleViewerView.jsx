@@ -34,6 +34,7 @@ const SimpleViewerPage = () => {
 
    const {
       selectedModelComposite,
+      selectedModelCompositeVersion,
       modelRelatedCollections,
       selectedElement,
       getSelectedElement,
@@ -63,8 +64,10 @@ const SimpleViewerPage = () => {
                      </div>
                   </StackableDrawer>
                   <div className='viewer'>
-                     {selectedModelComposite && <IafViewerDBM
-                        ref={viewerRef} model={selectedModelComposite}
+                     {selectedModelComposite && selectedModelCompositeVersion && <IafViewerDBM
+                        ref={viewerRef}
+                        model={selectedModelComposite}
+                        modelVersionId={selectedModelCompositeVersion._id}
                         serverUri={endPointConfig.graphicsServiceOrigin}
                         sliceElementIds={sliceElements.map(se => [se.package_id, se.source_id]).flat()}
                         selection={selectedElement? [selectedElement.package_id, selectedElement.source_id] : []}
