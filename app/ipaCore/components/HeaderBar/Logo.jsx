@@ -17,7 +17,7 @@ const Logo = ({ userGroupId, appImageSettings }) => {
                 setImgSrc(url)
             } else {
                 // TODO: Set fallback logo
-                throw new Error('Could not find logo file container')
+                //throw new Error('Could not find logo file container')
             }
         } else {
             setImgSrc(TwinitLogo)
