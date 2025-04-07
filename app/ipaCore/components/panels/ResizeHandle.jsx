@@ -8,7 +8,7 @@ import './ResizeHandle.scss'
 const ResizeHandle = ({className = "", id}) => {
   return (
     <PanelResizeHandle
-      className="ResizeHandleOuter"
+      className={`ResizeHandleOuter ${className}`}
       id={id}
     >
       <div className="ResizeHandleInner">
