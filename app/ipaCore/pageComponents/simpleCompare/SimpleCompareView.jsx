@@ -70,38 +70,48 @@ const SimpleCompPage = () => {
    }
 
    return <div className='simple-compare-view'>
-      
+      <div className="panel-row">
+         <StackableDrawer level={1} iconKey='fa-search' tooltip='Search'>
+            <div className='viewer-sidebar'>
+               
+               <ModelSelect />
+               <div>
+                  <div>
+                  {selectedModelCompositeVersions?.length && selectedModelCompositeVersion && <label>Version to Compare
+                     <select onChange={(e) => onCompareSelect(e.target.value)} value={selectedModelCompositeVersionLeft?._version || undefined}>
+                        <option value={0} disabled selected>Select a Model Version</option>
+                        {selectedModelCompositeVersions.map(v => v._version).sort().reverse().filter(ver => ver !== selectedModelCompositeVersion._version).map(ver => <option key={ver} value={ver}>{ver}</option>)}
+                     </select>
+                     </label>}
+                  </div>
+               </div>
+               {selectedModelComposite && modelRelatedCollections && <SearchPane onPropertyChange={setSelectedPropRefs} />}
+         
+            </div>
+         </StackableDrawer>
+         <StackableDrawer level={2} iconKey='fa-arrow-left' tooltip='Element' isDrawerOpen={false}>
+            <div className='viewer-sidebar'>
+               
+               {!selectedElementLeft && <div className='no-element-selected'>No Element Selected</div>}
+               {selectedElementLeft && <ElementDetails element={selectedElementLeft} horizontal={false} />}
+               
+            </div>
+         </StackableDrawer>
+         <StackableDrawer level={3} iconKey='fa-arrow-right' tooltip='Element' isDrawerOpen={false}>
+            <div className='viewer-sidebar'>
+               
+               {!selectedElement && <div className='no-element-selected'>No Element Selected</div>}
+               {selectedElement && <ElementDetails element={selectedElement} horizontal={false} />}
+               
+            </div>
+         </StackableDrawer>
+      </div>
       
          <PanelGroup autoSaveId="viewer-comp" direction="horizontal">
             <Panel id="viewer-panel-old" collapsible={true} order={1}>
 
-               <div className="panel-row">
-                  <StackableDrawer level={1} iconKey='fa-search' tooltip='Search'>
-                     <div className='viewer-sidebar'>
-                        
-                        <ModelSelect />
-                        <div>
-                           <div>
-                           {selectedModelCompositeVersions?.length && selectedModelCompositeVersion && <label>Version to Compare
-                              <select onChange={(e) => onCompareSelect(e.target.value)} value={selectedModelCompositeVersionLeft?._version || undefined}>
-                                 <option value={0} disabled selected>Select a Model Version</option>
-                                 {selectedModelCompositeVersions.map(v => v._version).sort().reverse().filter(ver => ver !== selectedModelCompositeVersion._version).map(ver => <option key={ver} value={ver}>{ver}</option>)}
-                              </select>
-                              </label>}
-                           </div>
-                        </div>
-                        {selectedModelComposite && modelRelatedCollections && <SearchPane onPropertyChange={setSelectedPropRefs} />}
+               
                   
-                     </div>
-                  </StackableDrawer>
-                  <StackableDrawer level={2} iconKey='fa-info' tooltip='Element' isDrawerOpen={false}>
-                     <div className='viewer-sidebar'>
-                        
-                        {!selectedElement && <div className='no-element-selected'>No Element Selected</div>}
-                        {selectedElement && <ElementDetails element={selectedElement} horizontal={false} />}
-                        
-                     </div>
-                  </StackableDrawer>
                   
                   <div className='viewer'>
                      {selectedModelComposite && selectedModelCompositeVersionLeft && <IafViewerDBM
@@ -113,7 +123,7 @@ const SimpleCompPage = () => {
                         OnSelectedElementChangeCallback={getSelectedElementLeft}
                      />}
                   </div>
-               </div>
+               
 
             </Panel>
             <ResizeHandle className='horizontal' />
