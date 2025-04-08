@@ -1,5 +1,5 @@
 
-import React, { useRef, useState,useContext } from 'react'
+import React, { useRef, useState, useEffect, useContext } from 'react'
 
 // https://github.com/bvaughn/react-resizable-panels
 import { Panel, PanelGroup } from "react-resizable-panels"
@@ -32,10 +32,13 @@ const SimpleCompPage = () => {
    const viewerRef = useRef()
    const viewerRefLeft = useRef()
 
-   const [ selectedModelCompositeVersionOld, setSelectedModelCompositeVersionOld ] = useState()
+   const [ selectedModelCompositeVersionLeft, setselectedModelCompositeVersionLeft ] = useState()
+
+   const [ selectedElementLeft, setSelectedElementLeft ] = useState()
 
    const {
       selectedModelComposite,
+      loadModelCollections,
       selectedModelCompositeVersions,
       selectedModelCompositeVersion,
       modelRelatedCollections,
@@ -45,16 +48,28 @@ const SimpleCompPage = () => {
       sliceElements
    } = useContext(ModelContext)
 
+   useEffect(() => {
+
+      //getSelectedElementLeft()
+
+   }, [selectedElement])
+
    const onCompareSelect = (version) => {
 
-      console.log()
-      let leftVer = selectedModelCompositeVersions.find(ver => ver._version === parseInt(version)) 
-      console.log(selectedModelCompositeVersions, version, leftVer)
-      setSelectedModelCompositeVersionOld(leftVer)
+      setselectedModelCompositeVersionLeft(selectedModelCompositeVersions.find(ver => ver._version === parseInt(version)) )
 
    }
 
-   return <div className='simple-viewer-view'>
+   const getSelectedElementLeft = async (pkgIds) => {
+
+      let leftVerModelCollections = await loadModelCollections(selectedModelCompositeVersionLeft._id)
+      console.log('leftVerModelCollections', leftVerModelCollections)
+      let leftSelectedElement = await getSelectedElement(pkgIds, leftVerModelCollections)
+      console.log('leftSelectedElement', leftSelectedElement)
+      setSelectedElementLeft(leftSelectedElement)
+   }
+
+   return <div className='simple-compare-view'>
       
       
          <PanelGroup autoSaveId="viewer-comp" direction="horizontal">
@@ -68,7 +83,7 @@ const SimpleCompPage = () => {
                         <div>
                            <div>
                            {selectedModelCompositeVersions?.length && selectedModelCompositeVersion && <label>Version to Compare
-                              <select onChange={(e) => onCompareSelect(e.target.value)} value={selectedModelCompositeVersionOld?._version || undefined}>
+                              <select onChange={(e) => onCompareSelect(e.target.value)} value={selectedModelCompositeVersionLeft?._version || undefined}>
                                  <option value={0} disabled selected>Select a Model Version</option>
                                  {selectedModelCompositeVersions.map(v => v._version).sort().reverse().filter(ver => ver !== selectedModelCompositeVersion._version).map(ver => <option key={ver} value={ver}>{ver}</option>)}
                               </select>
@@ -89,13 +104,13 @@ const SimpleCompPage = () => {
                   </StackableDrawer>
                   
                   <div className='viewer'>
-                     {selectedModelComposite && selectedModelCompositeVersionOld && <IafViewerDBM
+                     {selectedModelComposite && selectedModelCompositeVersionLeft && <IafViewerDBM
                         ref={viewerRef}
-                        model={{...selectedModelComposite, _versions: [selectedModelCompositeVersionOld]}}
+                        model={{...selectedModelComposite, _versions: [selectedModelCompositeVersionLeft]}}
                         serverUri={endPointConfig.graphicsServiceOrigin}
                         sliceElementIds={sliceElements.map(se => [se.package_id, se.source_id]).flat()}
-                        selection={selectedElement? [selectedElement.package_id, selectedElement.source_id] : []}
-                        OnSelectedElementChangeCallback={getSelectedElement}
+                        selection={selectedElementLeft ? [selectedElementLeft.package_id, selectedElementLeft.source_id] : []}
+                        OnSelectedElementChangeCallback={getSelectedElementLeft}
                      />}
                   </div>
                </div>
@@ -110,7 +125,7 @@ const SimpleCompPage = () => {
                         model={{...selectedModelComposite, _versions: [selectedModelCompositeVersion]}}
                         serverUri={endPointConfig.graphicsServiceOrigin}
                         sliceElementIds={sliceElements.map(se => [se.package_id, se.source_id]).flat()}
-                        selection={selectedElement? [selectedElement.package_id, selectedElement.source_id] : []}
+                        selection={selectedElement ? [selectedElement.package_id, selectedElement.source_id] : []}
                         OnSelectedElementChangeCallback={getSelectedElement}
                      />}
                   </div>
