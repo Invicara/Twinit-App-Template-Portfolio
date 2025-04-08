@@ -59,6 +59,7 @@ const ModelContextProvider = ({ children }) => {
    useEffect(() => {
 
       if (selectedModelCompositeVersion) {
+         resetContext()
          loadModelCollections()
       }
 
@@ -68,6 +69,14 @@ const ModelContextProvider = ({ children }) => {
       getTotalElementCount()
       getPropertyReferences()
    }, [modelRelatedCollections])
+
+   const resetContext = () => {
+      setSliceElements([])
+      setSelectedElement(null)
+      setSelectedPropRefs([])
+      setAllPropRefs([])
+      setTotalElementsCount()
+   }
 
    const loadAllModels = async () => {
       try {
