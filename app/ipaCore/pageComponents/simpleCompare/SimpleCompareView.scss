@@ -1,4 +1,4 @@
-.simple-viewer-view {
+.simple-compare-view {
    display: flex;
    flex-direction: column;
    flex-wrap: nowrap;
@@ -53,11 +53,6 @@
          }
       }
    
-   }
-
-   .table-panel {
-      background-color: white;
-      z-index: 1000;
    }
   
 }
