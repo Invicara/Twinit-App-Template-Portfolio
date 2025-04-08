@@ -28,6 +28,9 @@ const CONFIG = {
   },
   devServer: {
     hot: true,
+    client: {
+      overlay: false
+    }
   },
   mode: 'development',
   optimization: {
