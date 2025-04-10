@@ -91,6 +91,8 @@ const ModelContextProvider = ({ children }) => {
    }
 
    // loads the related collections related to a model NamedCompositeItem
+   // if versionId is provided then the context state is not set and the result is returned instead
+   // this makes the model context logic useable by other without need of duplication
    const loadModelCollections = async (versionId) => {
 
       let compositeVersionId = versionId ? versionId : selectedModelCompositeVersion._id
@@ -226,6 +228,8 @@ const ModelContextProvider = ({ children }) => {
    }
 
    // get the element data from the model for the currently selected element
+   // if altCollections is provided then the context state is not set and the result is returned instead
+   // this makes the model context logic useable by other without need of duplication
    const getSelectedElement = async (pkgids, altCollections) => {
 
       if (!altCollections) {
@@ -292,6 +296,8 @@ const ModelContextProvider = ({ children }) => {
 
    // creates a findWithRelated query that returns elements with all propereties
    // uses either a provided query or an empty query which will return all elemenets
+   // if altCollections is provided then the context state is not used and the altCollections are used instead
+   // this makes the model context logic useable by other without need of duplication
    const makeElementQuery = (elementQuery, altCollections) => {
 
       let collections = altCollections ? altCollections : modelRelatedCollections
