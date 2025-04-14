@@ -56,7 +56,12 @@ const SimpleCompPage = () => {
 
    const onCompareSelect = (version) => {
 
-      setselectedModelCompositeVersionLeft(selectedModelCompositeVersions.find(ver => ver._version === parseInt(version)) )
+      setselectedModelCompositeVersionLeft(null)
+
+      setTimeout(() => {
+         setselectedModelCompositeVersionLeft(selectedModelCompositeVersions.find(ver => ver._version === parseInt(version)) )
+      }, 1000)
+      
 
    }
 
