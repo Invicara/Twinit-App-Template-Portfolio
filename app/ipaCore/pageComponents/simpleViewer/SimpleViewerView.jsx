@@ -3,19 +3,20 @@ import React, { useRef, useContext } from 'react'
 
 // https://github.com/bvaughn/react-resizable-panels
 import { Panel, PanelGroup } from "react-resizable-panels"
-import ResizeHandle from './panels/TablePanelComponents/ResizeHandle'
+import ResizeHandle from '../../components/panels/ResizeHandle'
 
 import { IafViewerDBM } from '@dtplatform/iaf-viewer'
 
 // collapasable drawer component provided by ipa-core
 import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls'
 
-import ModelSelect from './ModelSelect/ModelSelect'
-import SearchPane from './search/SearchPane'
-import TablePanel from './panels/TablePanel'
-import ElementDetails from './ElementDetails/ElementDetails'
+import ModelSelect from '../../components/ModelSelect/ModelSelect'
+import SearchPane from '../../components/search/SearchPane'
+import ElementDetails from '../../components/ElementDetails/ElementDetails'
 
-import { ModelContext, ModelContextProvider } from './ModelContext'
+import { ModelContext, ModelContextProvider } from '../../contexts/ModelContext'
+
+import TablePanel from './panels/TablePanel'
 
 import "@dtplatform/iaf-viewer/dist/iaf-viewer.css";
 import './SimpleViewerView.scss'
@@ -34,6 +35,7 @@ const SimpleViewerPage = () => {
 
    const {
       selectedModelComposite,
+      selectedModelCompositeVersion,
       modelRelatedCollections,
       selectedElement,
       getSelectedElement,
@@ -63,8 +65,9 @@ const SimpleViewerPage = () => {
                      </div>
                   </StackableDrawer>
                   <div className='viewer'>
-                     {selectedModelComposite && <IafViewerDBM
-                        ref={viewerRef} model={selectedModelComposite}
+                     {selectedModelComposite && selectedModelCompositeVersion && <IafViewerDBM
+                        ref={viewerRef}
+                        model={{...selectedModelComposite, _versions: [selectedModelCompositeVersion]}}
                         serverUri={endPointConfig.graphicsServiceOrigin}
                         sliceElementIds={sliceElements.map(se => [se.package_id, se.source_id]).flat()}
                         selection={selectedElement? [selectedElement.package_id, selectedElement.source_id] : []}
