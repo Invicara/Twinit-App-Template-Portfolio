@@ -6,8 +6,12 @@ import TwinitLogo from "../../../assets/images/invicara-logo_white.svg"
 
 const Logo = ({ userGroupId, appImageSettings }) => {
     const [imgSrc, setImgSrc] = useState()
-    useEffect(async () => {
+    useEffect(() => {
         const { url, filename } = appImageSettings
+        getLogo(url, filename)
+    }, [userGroupId, appImageSettings])
+
+    const getLogo = async (url, filename) => {
         if (url) {
             setImgSrc(url)
         } else if (filename) {
@@ -17,12 +21,12 @@ const Logo = ({ userGroupId, appImageSettings }) => {
                 setImgSrc(url)
             } else {
                 // TODO: Set fallback logo
-                //throw new Error('Could not find logo file container')
+                throw new Error('Could not find logo file container')
             }
         } else {
             setImgSrc(TwinitLogo)
         }
-    }, [userGroupId, appImageSettings])
+    }
 
     return (
         <div id="logo" className="logo-wrapper">
