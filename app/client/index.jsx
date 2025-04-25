@@ -7,8 +7,6 @@ import {IpaMainLayout} from '@invicara/ipa-core/modules/IpaLayouts';
 import ipaConfig from '../ipaCore/ipaConfig'
 import './styles/app.scss'
 
-import { ModelContextProvider } from '../ipaCore/contexts/ModelContext';
-
 const onConfigLoad = async (store, userConfig, AppContext) => {
   console.log('onConfigLoad ->', AppContext, store, userConfig)
   
