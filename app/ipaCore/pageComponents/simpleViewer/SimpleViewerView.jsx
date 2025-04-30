@@ -13,6 +13,7 @@ import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls'
 import ModelSelect from '../../components/ModelSelect/ModelSelect'
 import SearchPane from '../../components/search/SearchPane'
 import ElementDetails from '../../components/ElementDetails/ElementDetails'
+import ModelDocs from '../../components/ModelDocs/ModelDocs'
 
 import { ModelContext, ModelContextProvider } from '../../contexts/ModelContext'
 
@@ -61,6 +62,14 @@ const SimpleViewerPage = () => {
                         
                         {!selectedElement && <div className='no-element-selected'>No Element Selected</div>}
                         {selectedElement && <ElementDetails element={selectedElement} horizontal={false} />}
+                        
+                     </div>
+                  </StackableDrawer>
+                  <StackableDrawer level={3} iconKey='fa-file-alt' tooltip='Files' isDrawerOpen={false}>
+                     <div className='viewer-sidebar'>
+                        
+                        {!selectedModelComposite && <div className='no-element-selected'>No Model Selected</div>}
+                        {selectedModelComposite && <ModelDocs />}
                         
                      </div>
                   </StackableDrawer>
