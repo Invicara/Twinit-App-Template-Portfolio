@@ -1,0 +1,51 @@
+.model-docs-component {
+
+   .file-table {
+      width: 100%;
+
+      tr {
+
+         &:nth-child(1) {
+            border-bottom: 2px solid black;
+         }
+
+         th:nth-child(1) {
+            width: 20px;
+         }
+
+         th:nth-child(2) {
+            width: 30px;
+         }
+
+         th:nth-child(3) {
+            width: 100px;
+            text-align: center;
+         }
+
+         td {
+
+            padding: 5px 0px;
+
+            &:nth-child(2) {
+               font-size: 1.5em;
+            }
+
+            &:nth-child(3) {
+               text-align: center;
+            }
+            
+            .fa-chevron-right {
+               cursor: pointer;
+            } 
+
+            .fa-chevron-down {
+               cursor: pointer;
+            }
+
+            .fa-file-download {
+               cursor: pointer;
+            }
+         }
+      }
+   }
+}
