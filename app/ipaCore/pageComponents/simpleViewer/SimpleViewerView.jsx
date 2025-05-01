@@ -1,5 +1,5 @@
 
-import React, { useRef, useContext } from 'react'
+import React, { useRef, useContext, useState } from 'react'
 
 // https://github.com/bvaughn/react-resizable-panels
 import { Panel, PanelGroup } from "react-resizable-panels"
@@ -14,6 +14,8 @@ import ModelSelect from '../../components/ModelSelect/ModelSelect'
 import SearchPane from '../../components/search/SearchPane'
 import ElementDetails from '../../components/ElementDetails/ElementDetails'
 import ModelDocs from '../../components/ModelDocs/ModelDocs'
+
+import FloatingModelDocViewer from '../../components/FloatingDocViewer/FloatingModelDocViewer'
 
 import { ModelContext, ModelContextProvider } from '../../contexts/ModelContext'
 
@@ -44,8 +46,13 @@ const SimpleViewerPage = () => {
       sliceElements
    } = useContext(ModelContext)
 
+   const [ docView, setDocView ] = useState()
+
    return <div className='simple-viewer-view'>
-      
+         {docView && <FloatingModelDocViewer
+            docIds={[docView]}
+            onClose={() => setDocView(null)}
+         />}
          <PanelGroup autoSaveId="elemtable" direction="vertical">
             <Panel id="viewer-panel" collapsible={false} order={1}>
                <div className="panel-row">
@@ -69,7 +76,7 @@ const SimpleViewerPage = () => {
                      <div className='viewer-sidebar'>
                         
                         {!selectedModelComposite && <div className='no-element-selected'>No Model Selected</div>}
-                        {selectedModelComposite && <ModelDocs />}
+                        {selectedModelComposite && <ModelDocs onView={(docInfo) => setDocView(docInfo)}/>}
                         
                      </div>
                   </StackableDrawer>
