@@ -16,7 +16,6 @@ const ModelDocUpload = ({ onFilesUploaded }) => {
    const [ currentFileCount, setCurrentFileCount ] = useState()
    const [ currentProgress, setCurrentProgress ] = useState()
 
-
    const uploadFilesToModelFolder = async (project, folder, files) => {
 
       let fileUploadResults = []

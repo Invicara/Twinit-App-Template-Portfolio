@@ -13,7 +13,7 @@ export const ChooseFiles = ({ onAddFiles, busy, busyMsg='Uploading Files' }) => 
    }
 
    const handleFileSelect = () => {
-      if(fileInput.current.files.length) onAddFiles(Array.from(fileInput.current.files));
+      if(fileInput.current.files.length) onAddFiles(Array.from(fileInput.current.files))
       fileInput.current.value = null
    }
 

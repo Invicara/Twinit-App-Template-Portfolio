@@ -56,7 +56,7 @@ const FileRow = ({ file, onChange }) => {
          </td>
          <td className='row-ver'>latest</td>
          <td className='row-delete'>
-            {!file._name.includes('.bimpk') && <i className='fas fa-trash' onClick={() => setConfirmDelete(true)}></i>}
+            {file.deletable && <i className='fas fa-trash' onClick={() => setConfirmDelete(true)}></i>}
          </td>
          <td className='row-filename'>{file._name}</td>
       </tr>

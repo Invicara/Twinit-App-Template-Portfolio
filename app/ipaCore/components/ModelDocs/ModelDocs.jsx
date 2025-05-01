@@ -34,6 +34,7 @@ const ModelDocs = () => {
 
       //get the current models bimpk
       const fetchedBimpk = await IafFileSvc.getFiles(bimpkCriteria, null, { _pageSize: 100 }, true)
+      fetchedBimpk._list.forEach(f => f.deletable = false)
 
       let modelFolder = await getModelFolder(project, selectedModelComposite)
 
@@ -51,6 +52,8 @@ const ModelDocs = () => {
 
 
       } while (allFiles.length < total)
+      
+         allFiles.forEach(f => f.deletable = true)
 
       setFiles([...fetchedBimpk._list, ...allFiles])
    }
