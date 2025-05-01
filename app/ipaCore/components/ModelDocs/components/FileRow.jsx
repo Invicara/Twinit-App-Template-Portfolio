@@ -6,7 +6,7 @@ import { makeDateString } from '../../../pageComponents/utils/common-utils'
 
 import './FileRow.scss'
 
-const FileRow = ({ file, onChange }) => {
+const FileRow = ({ file, onChange, onView }) => {
 
    const [ versions, setVersions ] = useState()
    const [ showVersions, setShowVersions ] = useState(false)
@@ -53,6 +53,9 @@ const FileRow = ({ file, onChange }) => {
          </td>
          <td className='row-download'>
             <i className='fas fa-file-download' onClick={() => downloadFileVersion(file)}></i>
+         </td>
+         <td className='row-view'>
+            {file.viewable && onView && <i className='fas fa-eye' onClick={() => onView({_fileId: file._id})}></i>}
          </td>
          <td className='row-ver'>latest</td>
          <td className='row-delete'>
