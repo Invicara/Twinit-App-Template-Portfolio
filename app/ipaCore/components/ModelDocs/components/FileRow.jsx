@@ -64,7 +64,7 @@ const FileRow = ({ file, onChange, onView }) => {
          <td className='row-filename'>{file._name}</td>
       </tr>
       {confirmDelete && <tr className='confirm-delete'>
-         <td colspan='3' className='delete-cell choice-btn'>
+         <td colspan='4' className='delete-cell choice-btn'>
             <div className='delete' onClick={deleteFile}>Delete File</div>
          </td>
          <td colspan='2' className='cancel-cell choice-btn'>
