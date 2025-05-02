@@ -1,4 +1,4 @@
-const CURRENT_MAKER_VERSION = '2.0.0'
+const CURRENT_MAKER_VERSION = '2.1.0'
 
 let scriptModule = {
 	async getCurrentMakerVersion() {
