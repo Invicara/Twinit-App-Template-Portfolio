@@ -19,7 +19,9 @@
       "description": "Model View",
       "pageComponent": "simpleViewer/SimpleViewerView",
       "path": "/modelview",
-      "config": {}
+      "config": {
+        "manageFiles": true
+      }
     },
     "userGroups": {
       "title": "User Group",

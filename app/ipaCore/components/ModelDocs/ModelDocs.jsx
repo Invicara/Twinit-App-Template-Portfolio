@@ -12,7 +12,7 @@ import './ModelDocs.scss'
 
 const VIEWABLES = ['pdf', 'xls', 'xlsx', 'doc', 'docx', 'ppt', 'pptx', 'jpg', 'jpeg', 'bmp', 'tiff', 'png', 'txt']
 
-const ModelDocs = ({ onView }) => {
+const ModelDocs = ({ onView, readOnly }) => {
 
    const { selectedModelComposite } = useContext(ModelContext)
 
@@ -69,7 +69,7 @@ const ModelDocs = ({ onView }) => {
    }
 
    return <div className='model-docs-component'>
-      <ModelDocUpload onFilesUploaded={fetchFiles}/>
+      {!readOnly && <ModelDocUpload onFilesUploaded={fetchFiles}/>}
       <table className='file-table'>
          <tr>
             <th className='row-expander-head'></th>
@@ -79,7 +79,7 @@ const ModelDocs = ({ onView }) => {
             <th className='row-delete-head'></th>
             <th className='row-filename-head'>Filename</th>
          </tr>
-         {files?.map(f => <FileRow key={f._id} file={f} onChange={fetchFiles} onView={onView}/>)}
+         {files?.map(f => <FileRow key={f._id} file={f} onChange={fetchFiles} onView={onView} readOnly={readOnly}/>)}
       </table>
    </div>
 

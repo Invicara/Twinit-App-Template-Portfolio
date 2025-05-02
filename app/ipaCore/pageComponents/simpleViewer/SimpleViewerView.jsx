@@ -25,13 +25,13 @@ import "@dtplatform/iaf-viewer/dist/iaf-viewer.css";
 import './SimpleViewerView.scss'
 
 
-const SimpleViewerView = () => {
+const SimpleViewerView = (props) => {
    return <ModelContextProvider>
-      <SimpleViewerPage />
+      <SimpleViewerPage {...props} />
    </ModelContextProvider>
 }
 
-const SimpleViewerPage = () => {
+const SimpleViewerPage = ({ handler }) => {
 
    // used to access viewer commands, not used in this example
    const viewerRef = useRef()
@@ -76,7 +76,7 @@ const SimpleViewerPage = () => {
                      <div className='viewer-sidebar'>
                         
                         {!selectedModelComposite && <div className='no-element-selected'>No Model Selected</div>}
-                        {selectedModelComposite && <ModelDocs onView={(docInfo) => setDocView(docInfo)}/>}
+                        {selectedModelComposite && <ModelDocs onView={(docInfo) => setDocView(docInfo)} readOnly={!handler?.config?.manageFiles}/>}
                         
                      </div>
                   </StackableDrawer>
