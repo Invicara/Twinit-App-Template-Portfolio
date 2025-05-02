@@ -74,6 +74,7 @@ const FileRow = ({ file, onChange, onView }) => {
       {showVersions && versions.map(v => <tr key={v._id} className='file-row file-ver-row'>
          <td></td>
          <td className='row-dowload'><i className='fas fa-file-download' onClick={() => downloadFileVersion(v)}></i></td>
+         <td></td>
          <td className='row-ver'>{v._version}</td>
          <td></td>
          <td className='row-filename'>{makeDateString(v._metadata._createdAt)}</td>
