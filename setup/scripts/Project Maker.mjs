@@ -213,19 +213,6 @@ let scriptModule = {
 			// await IafProj.switchProject(project._id)
 			// let updateProject = await IafProj.getCurrent()
 
-			// let scripts = await IafProj.getScripts(updateProject)
-			// let importScript = scripts.find(s => s._userType === 'importHelper')
-			// let importScriptTemplate = scriptTemplates.find(s => s._name === "importHelperTemplate")
-			
-			// let newVersion = importScript._versions[0]
-			// newVersion._userData = importScriptTemplate._versions[0]._userData
-
-			// let verResult = await IafScripts.createVersion(importScript._id, newVersion)
-			// console.log('STEP 1:', importScript, importScriptTemplate, verResult)
-			// callback('STEP 1: Updated bimpk Import Script')
-
-			// let userConfigs = await IafProj.getUserConfigs(updateProject)
-
 			// let adminConfig = userConfigs.find(uc => uc._name === 'QuickViewAdminConfig')
 			// let adminConfigVersion = adminConfig._versions[0]
 			// let adminTemplate = userConfigTemplates.find(uc => uc._name === 'QuickViewAdminConfigTemplate')._versions[0]
@@ -233,16 +220,7 @@ let scriptModule = {
 
 			// let adminUpdateResult = await IafUserConfig.createVersion(adminConfig._id, adminConfigVersion)
 			// console.log('STEP 2:', adminConfigVersion, adminUpdateResult)
-			// callback('STEP 2: Updated Admin User Config')
-
-			// let viewerConfig = userConfigs.find(uc => uc._name === 'QuickViewViewerConfig')
-			// let viewerConfigVersion = viewerConfig._versions[0]
-			// let viewerTemplate = userConfigTemplates.find(uc => uc._name === 'QuickViewViewerConfigTemplate')._versions[0]
-			// viewerConfigVersion._userData = viewerTemplate._userData
-
-			// let viewerUpdateResult = await IafUserConfig.createVersion(viewerConfig._id, viewerConfigVersion)
-			// console.log('STEP 3:', viewerConfigVersion, viewerUpdateResult)
-			// callback('STEP 3: Updated Viewer User Config')
+			// callback('STEP 1: Updated Admin User Config')
 
 			// // project updates onyl allowed if _description is present
 			// if (!updateProject._description) {
@@ -250,14 +228,14 @@ let scriptModule = {
 			// }
 			
 			// if (updateProject._userAttributes?.quickModelView) {
-			// 	updateProject._userAttributes.quickModelView.currentVersion = '2.0.0'
+			// 	updateProject._userAttributes.quickModelView.currentVersion = '2.1.0'
 			// } else if (updateProject._userAttributes?.projectMaker) {
 			// 	updateProject._userAttributes.quickModelView = Object.assign({}, updateProject._userAttributes.projectMaker)
-			// 	updateProject._userAttributes.quickModelView.currentVersion = '2.0.0'
+			// 	updateProject._userAttributes.quickModelView.currentVersion = '2.1.0'
 			// }
 			// let projUpdateResult = await IafProj.update(updateProject)
-			// console.log('STEP 4:', updateProject, projUpdateResult)
-			// callback('STEP 4: Updated Project Current Version -> 2.0.0')
+			// console.log('STEP 2:', updateProject, projUpdateResult)
+			// callback('STEP 2 Updated Project Current Version -> 2.1.0')
 
 		}
 
