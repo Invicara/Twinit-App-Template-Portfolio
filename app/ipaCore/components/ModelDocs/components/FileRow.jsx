@@ -6,7 +6,7 @@ import { makeDateString } from '../../../pageComponents/utils/common-utils'
 
 import './FileRow.scss'
 
-const FileRow = ({ file, onChange, onView }) => {
+const FileRow = ({ file, onChange, onView, readOnly }) => {
 
    const [ versions, setVersions ] = useState()
    const [ showVersions, setShowVersions ] = useState(false)
@@ -59,7 +59,7 @@ const FileRow = ({ file, onChange, onView }) => {
          </td>
          <td className='row-ver'>latest</td>
          <td className='row-delete'>
-            {file.deletable && <i className='fas fa-trash' onClick={() => setConfirmDelete(true)}></i>}
+            {!readOnly && file.deletable && <i className='fas fa-trash' onClick={() => setConfirmDelete(true)}></i>}
          </td>
          <td className='row-filename'>{file._name}</td>
       </tr>
