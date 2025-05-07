@@ -88,6 +88,9 @@ const SimpleViewerPage = ({ handler }) => {
                         sliceElementIds={sliceElements.map(se => [se.package_id, se.source_id]).flat()}
                         selection={selectedElement? [selectedElement.package_id, selectedElement.source_id] : []}
                         OnSelectedElementChangeCallback={getSelectedElement}
+                        gis={{
+                           enabled: false
+                        }}
                      />}
                   </div>
                   
