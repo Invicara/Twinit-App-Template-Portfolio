@@ -13,9 +13,9 @@
    "keywords": [],
    "author": "Scott Mollon",
    "dependencies": {
-      "@dtplatform/iaf-script-engine": "4.3.49",
-      "@dtplatform/iaf-viewer": "4.3.61",
-      "@dtplatform/platform-api": "4.3.37",
+      "@dtplatform/iaf-script-engine": "~4.6.0",
+      "@dtplatform/iaf-viewer": "~4.6.0",
+      "@dtplatform/platform-api": "~4.6.0",
       "@invicara/ipa-core": "3.0.32",
       "@material-ui/core": "^4.8.0",
       "@material-ui/icons": "^4.9.1",
@@ -116,7 +116,15 @@
    "overrides": {
       "react": "^18.0.0",
       "react-dom": "^18.0.0",
-      "react-router-dom": "^5.3.4"
+      "react-router-dom": "^5.3.4",
+      "ipa-core": {
+         "@dtplatform/core-utils": "~4.6.0",
+         "@dtplatform/iaf-script-engine": "~4.6.0",
+         "@dtplatform/iaf-viewer": "~4.6.0",
+         "@dtplatform/platform-api": "~4.6.0",
+         "@dtplatform/ui-utils": "~4.6.0",
+         "@dtplatform/iaf-doc-viewer": "~4.6.0"
+      }
    },
    "type": "module",
    "dev_twinit": {
