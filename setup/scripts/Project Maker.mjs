@@ -210,32 +210,34 @@ let scriptModule = {
 		const migrate_2_0_0_to_2_1_0 = async (userConfigTemplates, scriptTemplates) => {
 
 			callback(`Updating project ${project._name} version`)
-			// await IafProj.switchProject(project._id)
-			// let updateProject = await IafProj.getCurrent()
+			await IafProj.switchProject(project._id)
+			let updateProject = await IafProj.getCurrent()
 
-			// let adminConfig = userConfigs.find(uc => uc._name === 'QuickViewAdminConfig')
-			// let adminConfigVersion = adminConfig._versions[0]
-			// let adminTemplate = userConfigTemplates.find(uc => uc._name === 'QuickViewAdminConfigTemplate')._versions[0]
-			// adminConfigVersion._userData = adminTemplate._userData
+			let userConfigs = await IafProj.getUserConfigs(updateProject)
 
-			// let adminUpdateResult = await IafUserConfig.createVersion(adminConfig._id, adminConfigVersion)
-			// console.log('STEP 2:', adminConfigVersion, adminUpdateResult)
-			// callback('STEP 1: Updated Admin User Config')
+			let adminConfig = userConfigs.find(uc => uc._name === 'QuickViewAdminConfig')
+			let adminConfigVersion = adminConfig._versions[0]
+			let adminTemplate = userConfigTemplates.find(uc => uc._name === 'QuickViewAdminConfigTemplate')._versions[0]
+			adminConfigVersion._userData = adminTemplate._userData
 
-			// // project updates onyl allowed if _description is present
-			// if (!updateProject._description) {
-			// 	updateProject._description = updateProject._name
-			// }
+			let adminUpdateResult = await IafUserConfig.createVersion(adminConfig._id, adminConfigVersion)
+			console.log('STEP 2:', adminConfigVersion, adminUpdateResult)
+			callback('STEP 1: Updated Admin User Config')
+
+			// project updates onyl allowed if _description is present
+			if (!updateProject._description) {
+				updateProject._description = updateProject._name
+			}
 			
-			// if (updateProject._userAttributes?.quickModelView) {
-			// 	updateProject._userAttributes.quickModelView.currentVersion = '2.1.0'
-			// } else if (updateProject._userAttributes?.projectMaker) {
-			// 	updateProject._userAttributes.quickModelView = Object.assign({}, updateProject._userAttributes.projectMaker)
-			// 	updateProject._userAttributes.quickModelView.currentVersion = '2.1.0'
-			// }
-			// let projUpdateResult = await IafProj.update(updateProject)
-			// console.log('STEP 2:', updateProject, projUpdateResult)
-			// callback('STEP 2 Updated Project Current Version -> 2.1.0')
+			if (updateProject._userAttributes?.quickModelView) {
+				updateProject._userAttributes.quickModelView.currentVersion = '2.1.0'
+			} else if (updateProject._userAttributes?.projectMaker) {
+				updateProject._userAttributes.quickModelView = Object.assign({}, updateProject._userAttributes.projectMaker)
+				updateProject._userAttributes.quickModelView.currentVersion = '2.1.0'
+			}
+			let projUpdateResult = await IafProj.update(updateProject)
+			console.log('STEP 2:', updateProject, projUpdateResult)
+			callback('STEP 2 Updated Project Current Version -> 2.1.0')
 
 		}
 
