@@ -1,5 +1,5 @@
 
-import React, { useRef, useContext, useState } from 'react'
+import React, { useRef, useContext, useState, useEffect } from 'react'
 
 // https://github.com/bvaughn/react-resizable-panels
 import { Panel, PanelGroup } from "react-resizable-panels"
@@ -16,6 +16,9 @@ import ElementDetails from '../../components/ElementDetails/ElementDetails'
 import ModelDocs from '../../components/ModelDocs/ModelDocs'
 
 import FloatingModelDocViewer from '../../components/FloatingDocViewer/FloatingModelDocViewer'
+
+// Mapbox utilities to support Mapbox in the viewer
+import { getTemporaryMapBoxToken } from '../utils/mapboxUtils'
 
 import { ModelContext, ModelContextProvider } from '../../contexts/ModelContext'
 
@@ -46,7 +49,16 @@ const SimpleViewerPage = ({ handler }) => {
       sliceElements
    } = useContext(ModelContext)
 
+   // the file _id and version _id of the file to display in the document viewer
+   // the doc viewer renders if this has a value
    const [ docView, setDocView ] = useState()
+
+   // the Mapbox token to nable GIS features in the IafViewer
+   const [ mapboxToken, setMapboxToken ] = useState()
+
+   useEffect(() => {
+      getTemporaryMapBoxToken()
+   }, [])
 
    return <div className='simple-viewer-view'>
          {docView && <FloatingModelDocViewer
@@ -89,7 +101,8 @@ const SimpleViewerPage = ({ handler }) => {
                         selection={selectedElement? [selectedElement.package_id, selectedElement.source_id] : []}
                         OnSelectedElementChangeCallback={getSelectedElement}
                         gis={{
-                           enabled: false
+                           enabled: !!mapboxToken,
+                           token: mapboxToken
                         }}
                      />}
                   </div>
