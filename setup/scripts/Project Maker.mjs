@@ -56,7 +56,14 @@ const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback
 						_actions: ["READ"],
 						_namespace: project._namespaces[0],
 						_resourceDesc: {
-							_irn: `itemsvc:nameduseritem:${secretsCollection._id}`,
+							_irn: secretsCollection._irn,
+						}
+					},
+					{
+						_actions: ["READ"],
+						_namespace: project._namespaces[0],
+						_resourceDesc: {
+							_irn: newMapboxScript._irn,
 						}
 					}
 				]
@@ -68,7 +75,7 @@ const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback
 	let tryCount = 0
 
 	do {
-
+		console.log(`get perm profile try #${tryCount}`)
 		tryCount++
 
 		let permissionProfiles = await IafPassSvc.getPermissionProfiles(
@@ -79,7 +86,7 @@ const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback
 
 		permProfile = permissionProfiles._list.find(pp => pp._userType === 'secrets_perm')
 
-	} while(!permProfile && tryCount < 10)
+	} while(!permProfile && tryCount < 30)
 
 	console.log(`STEP ${stepNum}: secrets perm profile`, permProfile)
 	if (callback) callback(`STEP ${stepNum++}: Created Secrets Perm Profile`)
@@ -328,6 +335,7 @@ let scriptModule = {
 		const migrate_2_0_0_to_2_1_0 = async (userConfigTemplates, scriptTemplates) => {
 
 			callback(`Updating project ${project._name}`)
+			console.log(`STEP 0: Updating project`, project)
 			await IafProj.switchProject(project._id)
 			let updateProject = await IafProj.getCurrent()
 
