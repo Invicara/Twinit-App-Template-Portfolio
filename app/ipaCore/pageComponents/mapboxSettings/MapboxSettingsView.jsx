@@ -54,7 +54,7 @@ const MapBoxSettingsView = () => {
 
             setSecretsColl(secretColl)
 
-            IafItemSvc.getRelatedItems(secretColl._userItemId, { type: 'mapbox-secret'}, null, {page: { _pageSize: 0 }}).then((res) => {
+            IafItemSvc.getRelatedItems(secretColl._userItemId, { type: 'mapbox-secret' }, null, {page: { _pageSize: 0 }}).then((res) => {
                
                console.log(res)
                if (res._total > 0) {
@@ -108,7 +108,7 @@ const MapBoxSettingsView = () => {
                
                // update username and secret
                let existingSecret = res._list[0]
-               existingSecret.userame = username
+               existingSecret.username = username
                existingSecret['.secret'] = secret // the dot in the key name means the value will be encrypted
 
                // update in secrets collection
