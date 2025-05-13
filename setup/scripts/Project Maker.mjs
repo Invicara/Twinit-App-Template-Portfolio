@@ -329,6 +329,8 @@ let scriptModule = {
 			console.log('STEP 11: importOrch', importOrch)
 			if (callback) callback(`STEP 11: Created Import Orchestrator`)
 
+			await _enableGis(12, newProject, scriptTemplates, libraries, callback)
+
 		} catch (error) {
 
 			await IafProj.switchProject(projectMakerProject._id)	
