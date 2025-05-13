@@ -47,7 +47,7 @@ async function fetchMapboxToken(input, libraries, ctx) {
 	if (result.success) {
 
 		// create an ISO date tring for the token expiration = 1 hour
-		let expires = new Date(new Date().getTime() + TOKEN_EXPIRY).toISOString()
+		let expires = new Date(new Date().getTime() + TOKEN_EXPIRY * 1000).toISOString()
 
 		// add the user name to the Mapbox token url
 		// and encode the url
@@ -74,6 +74,7 @@ async function fetchMapboxToken(input, libraries, ctx) {
 			if (tempRequestJson.token) {
 
 				result.token = tempRequestJson.token
+				result.expires = expires
 			} else {
 
 				result.success = false

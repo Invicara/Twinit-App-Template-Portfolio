@@ -2,31 +2,85 @@
 
 import { IafDataSource } from '@dtplatform/platform-api'
 
-// fetches a new temporary access token for the IafViewer
+const SESSION_TOKEN_KEY = 'mapboxToken'
+
 export async function getTemporaryMapBoxToken() {
+
+   let tokenInfo = _getTokenFromSession()
+
+   if (tokenInfo && _checkTokenIsValid(tokenInfo)) {
+      return tokenInfo.token
+   } else {
+      _removeSessionToken()
+      return _fetchTemporaryMapBoxToken()
+   }
+
+}
+
+// fetches a new temporary access token for the IafViewer
+async function _fetchTemporaryMapBoxToken() {
 
    let token = null
 
    // get the orchstrator for creating temporary mapbox tokens
-   IafDataSource.getOrchestrators({_userType: 'mapbox_temp_token'}).then((res) => {
-      let tokenOrch = res._list.find(orch => orch._userType === 'mapbox_temp_token')
+   let res = await IafDataSource.getOrchestrators({_userType: 'mapbox_temp_token'})
+   let tokenOrch = res._list.find(orch => orch._userType === 'mapbox_temp_token')
 
-      if (tokenOrch) {
+   if (tokenOrch) {
 
-         IafDataSource.runOrchestrator(tokenOrch.id, {
+         let orchResult = await IafDataSource.runOrchestrator(tokenOrch.id, {
             orchestratorId: tokenOrch.id
-         }).then((result) => {
-            console.log('mapbox----->', result)
-         }).catch((error) => {
-            console.error("ERROR: runnign mapbox orchestrator")
-            console.error(error)
          })
          
-      } else {
+         if (orchResult._result.success) {
+            token =  orchResult._result.token
 
-         return token
+            _saveTokenToSession(orchResult._result)
+         } else {
+            console.error("ERROR: running mapbox orchestrator")
+            console.error(error)
+         }
+      
+   }
 
-      }
-   })
+   return token
+}
+
+export function clearMapboxTokenFromSession() {
+
+   _removeSessionToken()
+}
+
+function _saveTokenToSession(tokenInfo) {
+
+   const { token, expires, ...rest} = tokenInfo
+
+   sessionStorage.setItem(SESSION_TOKEN_KEY, JSON.stringify({token, expires}))
+
+}
+
+function _getTokenFromSession() {
+
+   if (sessionStorage.getItem(SESSION_TOKEN_KEY)) {
+      return JSON.parse(sessionStorage.getItem(SESSION_TOKEN_KEY))
+   } else {
+      return null
+   }
+
+}
+
+function _removeSessionToken() {
+
+   sessionStorage.removeItem(SESSION_TOKEN_KEY)
+
+}
+
+function _checkTokenIsValid(tokenInfo) {
+
+   const now = new Date()
+   const expiresAt = new Date(tokenInfo.expires)
+
+   console.log(tokenInfo, now.getTime() < expiresAt.getTime(), now.toISOString(), expiresAt.toISOString())
+   return now.getTime() < expiresAt.getTime()
 
 }
