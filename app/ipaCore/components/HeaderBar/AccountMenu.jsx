@@ -11,6 +11,8 @@ import Menu from "@mui/material/Menu"
 import MenuItem from "@mui/material/MenuItem"
 import Avatar from "@mui/material/Avatar"
 
+import { clearMapboxTokenFromSession } from "../../pageComponents/utils/mapboxUtils"
+
 const THEME_HANDLER_NAME = 'theme'
 const USERGROUP_HANDLER_NAME = 'userGroups'
 const DOWNLOAD_PLUGNS_URL = 'https://apps.invicara.com/ipaplugins/'
@@ -128,6 +130,11 @@ const AccountMenu = ({ user, ...props }) => {
         setProjectVersion(projVersion)
     }
 
+    const logout = () => {
+        clearMapboxTokenFromSession()
+        props.userLogout()
+    }
+
     const menuItems = useMemo(() => {
         const items = [
             { label: 'My Profile', onClick: goToUserAccount  },
@@ -135,7 +142,7 @@ const AccountMenu = ({ user, ...props }) => {
             { label: 'Switch Project', onClick: switchProj  },
             { label: 'Downloads', onClick: () => window.open(DOWNLOAD_PLUGNS_URL, '_blank')},
             /* FUTURE: { label: 'Theme & Brand', onClick: () => window.location = `#${handlers[THEME_HANDLER_NAME]?.path}`  },*/
-            { label: <span className={classes.logoutOption}><img src={ExitIcon} /> Log out</span>, onClick: userLogout },
+            { label: <span className={classes.logoutOption}><img src={ExitIcon} /> Log out</span>, onClick: logout },
         ].filter((item) => {
             if (
                 (item.label == 'User Groups' && !props.userConfig?.handlers?.userGroups)

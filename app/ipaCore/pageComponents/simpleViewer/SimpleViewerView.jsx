@@ -57,8 +57,20 @@ const SimpleViewerPage = ({ handler }) => {
    const [ mapboxToken, setMapboxToken ] = useState()
 
    useEffect(() => {
-      getTemporaryMapBoxToken()
+
+      // to enable mapbox in the IafViewer
+      getMapboxToken()
+      
    }, [])
+
+   const getMapboxToken = async () => {
+      let token = await getTemporaryMapBoxToken()
+
+      if (token) {
+         setMapboxToken(token)
+      }
+
+   }
 
    return <div className='simple-viewer-view'>
          {docView && <FloatingModelDocViewer
