@@ -2,7 +2,7 @@ const CURRENT_MAKER_VERSION = '2.1.0'
 
 const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback) => {
 
-	const { IafProj, IafPassSvc, IafDataSource } = libraries.PlatformApi
+	const { IafProj, IafPassSvc, IafDataSource, IafPermission } = libraries.PlatformApi
 	const { IafScriptEngine } = libraries
 
 	// create or recrate a secrets encrypted collection to store sensitive data
@@ -74,6 +74,9 @@ const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback
 	let permProfile
 	let tryCount = 0
 
+	// we loop here (a max of 30 times) to get the permission profile once it is created
+	// this is a workaround to a bug in the IafPassSvc.createPermissionProfiles which is
+	// supposed to poll until permission profile has been created (or errored) but does not
 	do {
 		console.log(`get perm profile try #${tryCount}`)
 		tryCount++
@@ -118,7 +121,27 @@ const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback
 	console.log(`STEP ${stepNum}: mapbox token orchestrator`, mapboxOrchResp)
 	if (callback) callback(`STEP ${stepNum++}: Created Mapbox token orchestrator`)
 
-	// Do we need to add the RUN permissions for viewers for the Datasource Service?
+	// Admins already have full permission to the project and can run the orchestrator
+	// but Viewers do not (they only have read only to everything), so we need to add
+	// a permission to the Viewers user group to allow them to run the mapbox orchestrator
+	// to generate tokens for the viewer
+	let userGroups = await IafProj.getUserGroups(project)
+	let viewersGroup = userGroups.find(ug => ug._name === 'Viewers')
+
+	const viewerPermResp = await IafPermission.createDatasourcePermissions([{
+		_actions: [ IafPermission.PermConst.Action.Run ],
+		_namespace: project._namespaces[0],
+		_resourceDesc: {
+			_irn: `${IafPermission.Resources.Orchestrator.Irn}${mapboxOrchResp.id}`
+		},
+		_user: {
+			_id: viewersGroup._id,
+			_type: IafPermission.PermConst.UserType.UserGroup
+		}
+	}])
+
+	console.log(`STEP ${stepNum}: Viewers permission added for mapbox orchestrator`, viewerPermResp)
+	if (callback) callback(`STEP ${stepNum++}: Viewers permission added for mapbox orchestrator`)
 
 	return stepNum
 
@@ -366,8 +389,6 @@ let scriptModule = {
 			let projUpdateResult = await IafProj.update(updateProject)
 			console.log(`STEP ${step}:`, updateProject, projUpdateResult)
 			callback(`STEP ${step++}: Updated Project Current Version -> 2.1.0`)
-
-			
 
 		}
 
