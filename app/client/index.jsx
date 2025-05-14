@@ -1,4 +1,5 @@
-import { render } from 'react-dom';
+//import { render } from 'react-dom';
+import { createRoot } from 'react-dom/client'
 import React from 'react';
 import _ from 'lodash'
 import {IafProj, IafSession} from '@dtplatform/platform-api';
@@ -14,14 +15,14 @@ const onConfigLoad = async (store, userConfig, AppContext) => {
   
 }
 
-render(<AliveScope>
-      <IpaMainLayout
-          ipaConfig={ipaConfig}
-          onConfigLoad={onConfigLoad}
-      />
-  </AliveScope>,
-    document.getElementById('app')
-);
+const container = document.getElementById('app')
+const root = createRoot(container)
+root.render(<AliveScope>
+       <IpaMainLayout
+            ipaConfig={ipaConfig}
+            onConfigLoad={onConfigLoad}
+        />
+    </AliveScope>)
 
 if (module.hot) {
   module.hot.accept();
