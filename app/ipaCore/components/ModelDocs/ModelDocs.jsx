@@ -12,36 +12,46 @@ import './ModelDocs.scss'
 
 const VIEWABLES = ['pdf', 'xls', 'xlsx', 'doc', 'docx', 'ppt', 'pptx', 'jpg', 'jpeg', 'bmp', 'tiff', 'png', 'txt']
 
+// diplays an upload files dag and drop component
+// and a list of files associated to the currently selected model
+// all files are fetched from the File Service directly
+// bimpks are stored in the root container for the project
+// all other files are stored in a folder with the model's name in the root container
+// each file is extended in the componnt's state with a deletable and viewable flag
 const ModelDocs = ({ onView, readOnly }) => {
 
+   // currently selected model
    const { selectedModelComposite } = useContext(ModelContext)
 
+   // th elis tof fils to display
    const [ files, setFiles ] = useState()
 
    useEffect(() => {
       fetchFiles()
    }, [])
 
+   // fetches files associated to the model
    const fetchFiles = async () => {
 
       setFiles([])
 
       const project = await IafProj.getCurrent()
 
+      //get the current models bimpk
       const bimpkCriteria = {
          _namespaces: project._namespaces,
          _parents: 'root',
          _ids: `${selectedModelComposite._versions[0]._userAttributes.bimpk.fileId}`
       };
 
-      //get the current models bimpk
       const fetchedBimpk = await IafFileSvc.getFiles(bimpkCriteria, null, { _pageSize: 100 }, true)
       
       fetchedBimpk._list.forEach(f => {
-         f.deletable = false
-         f.viewable = false
+         f.deletable = false  // bimpks are not deletable by the user
+         f.viewable = false   // bimpks are not viewable in the doc viewer component
       })
 
+      // get the File Service folder containing the model's associated files
       let modelFolder = await getModelFolder(project, selectedModelComposite)
 
       let allFiles = []
@@ -61,8 +71,8 @@ const ModelDocs = ({ onView, readOnly }) => {
       allFiles.sort((a,b) => a._name.localeCompare(b._name))
       
       allFiles.forEach(f => {
-         f.deletable = true
-         f.viewable = VIEWABLES.includes(f._name.split('.').pop())
+         f.deletable = true // users can delete these files
+         f.viewable = VIEWABLES.includes(f._name.split('.').pop()) // files are viewable if in the supported list of file types
       })
 
       setFiles([...fetchedBimpk._list, ...allFiles])

@@ -133,10 +133,6 @@ const ModelDocUpload = ({ onFilesUploaded }) => {
 
       }
       
-
-
-
-
    }
 
    return <ChooseFiles onAddFiles={uploadFiles} busy={busy} busyMsg={`Uploading ${currentFileCount} of ${totalFileCount} (${currentProgress}%)`}/>
