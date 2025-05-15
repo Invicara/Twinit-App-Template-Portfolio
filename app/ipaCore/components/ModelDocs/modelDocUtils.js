@@ -1,5 +1,7 @@
 import { IafFileSvc } from "@dtplatform/platform-api"
 
+// gets or creates a File Service folder in the root container
+// with the provided model's name
 export const getModelFolder = async(project, modelComposite) => {
 
    let modelFolder

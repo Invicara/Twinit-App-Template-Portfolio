@@ -6,16 +6,27 @@ import { makeDateString } from '../../../pageComponents/utils/common-utils'
 
 import './FileRow.scss'
 
-const FileRow = ({ file, onChange, onView, readOnly }) => {
+// a file row in the ModelDocs file table representing one file
+const FileRow = ({   file,       // the file in the row
+                     onChange,   // callback for when there is a file change
+                     onView,     // callback for when the user clicks to view the file
+                     readOnly    // whether the row is read-only or not
+               }) => {
 
+   // versions of the file
    const [ versions, setVersions ] = useState()
+
+   // whether to show the version in the table or collapse to latest version
    const [ showVersions, setShowVersions ] = useState(false)
+
+   // confirm file delete
    const [ confirmDelete, setConfirmDelete ] = useState(false)
 
    useEffect(() => {
       getVersions()
    }, [])
 
+   // gets the version of the file in the row
    const getVersions = async () => {
 
       let versions = await IafFileSvc.getFileVersions(file._id)
@@ -23,6 +34,7 @@ const FileRow = ({ file, onChange, onView, readOnly }) => {
 
    }
 
+   // downloads a version of the file locally
    const downloadFileVersion = async (fileVersion) => {
 
       let downloadUrl = fileVersion._url
@@ -37,6 +49,7 @@ const FileRow = ({ file, onChange, onView, readOnly }) => {
 
    }
 
+   // deletes a file
    const deleteFile = () => {
 
       IafFileSvc.deleteFile(file._id).then(() => {
