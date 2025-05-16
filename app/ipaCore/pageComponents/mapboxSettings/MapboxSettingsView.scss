@@ -1,0 +1,95 @@
+.mapbox-settings-page {
+
+   display: flex;
+   align-items: stretch;
+
+   .mapbox-checklist {
+
+      display: flex;
+      flex-direction: column;
+
+      width: 30%;
+      padding: 30px;
+
+      .check-list {
+
+         margin: auto;
+
+         .check-list-label {
+            margin: 10px;
+            font-weight: bold;
+            text-decoration: underline;
+         }
+
+         .fa-circle {
+            color: var(--app-accent-color)
+         }
+
+         .fa-check-circle {
+            color: green;
+         }
+
+         td {
+            padding: 5px;
+         }
+      }
+
+   }
+
+   .mapbox-form {
+
+      width: 50%;
+      padding: 20px;
+
+      .form-container {
+
+         margin-right: 50px;
+         padding: 50px;
+         border: 2px solid lightgray;
+         border-radius: 20px;
+
+         .not-ready-warning {
+            padding: 10px;
+            border: 2px solid darkorange;
+            border-radius: 20px;
+            background-color: lightyellow;
+            margin: 10px;
+
+            .highlight {
+               color:darkorange;
+               font-weight: bold;
+            }
+         }
+
+         .form-ctrls {
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+
+            .form-header {
+               font-weight: bold;
+               margin-bottom: 10px;
+            }
+
+            .input-label {
+               margin-top: 10px;
+               margin-bottom: 5px;
+               font-weight: bold;
+
+            }
+
+            input {
+               border: 1px solid lightgray;
+               border-radius: 10px;
+               padding: 10px;
+            }
+
+           .token-button {
+               text-align: end;
+           }
+
+         }
+
+      }
+   }
+}

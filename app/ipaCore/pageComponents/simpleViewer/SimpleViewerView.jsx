@@ -1,39 +1,47 @@
 
-import React, { useRef, useContext } from 'react'
+import React, { useRef, useContext, useState, useEffect } from 'react'
 
 // https://github.com/bvaughn/react-resizable-panels
 import { Panel, PanelGroup } from "react-resizable-panels"
-import ResizeHandle from './panels/TablePanelComponents/ResizeHandle'
+import ResizeHandle from '../../components/panels/ResizeHandle'
 
 import { IafViewerDBM } from '@dtplatform/iaf-viewer'
 
 // collapasable drawer component provided by ipa-core
 import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls'
 
-import ModelSelect from './ModelSelect/ModelSelect'
-import SearchPane from './search/SearchPane'
-import TablePanel from './panels/TablePanel'
-import ElementDetails from './ElementDetails/ElementDetails'
+import ModelSelect from '../../components/ModelSelect/ModelSelect'
+import SearchPane from '../../components/search/SearchPane'
+import ElementDetails from '../../components/ElementDetails/ElementDetails'
+import ModelDocs from '../../components/ModelDocs/ModelDocs'
 
-import { ModelContext, ModelContextProvider } from './ModelContext'
+import FloatingModelDocViewer from '../../components/FloatingDocViewer/FloatingModelDocViewer'
+
+// Mapbox utilities to support Mapbox in the viewer
+import { getTemporaryMapBoxToken } from '../utils/mapboxUtils'
+
+import { ModelContext, ModelContextProvider } from '../../contexts/ModelContext'
+
+import TablePanel from './panels/TablePanel'
 
 import "@dtplatform/iaf-viewer/dist/iaf-viewer.css";
 import './SimpleViewerView.scss'
 
 
-const SimpleViewerView = () => {
+const SimpleViewerView = (props) => {
    return <ModelContextProvider>
-      <SimpleViewerPage />
+      <SimpleViewerPage {...props} />
    </ModelContextProvider>
 }
 
-const SimpleViewerPage = () => {
+const SimpleViewerPage = ({ handler }) => {
 
    // used to access viewer commands, not used in this example
    const viewerRef = useRef()
 
    const {
       selectedModelComposite,
+      selectedModelCompositeVersion,
       modelRelatedCollections,
       selectedElement,
       getSelectedElement,
@@ -41,8 +49,34 @@ const SimpleViewerPage = () => {
       sliceElements
    } = useContext(ModelContext)
 
-   return <div className='simple-viewer-view'>
+   // the file _id and version _id of the file to display in the document viewer
+   // the doc viewer renders if this has a value
+   const [ docView, setDocView ] = useState()
+
+   // the Mapbox token to nable GIS features in the IafViewer
+   const [ mapboxToken, setMapboxToken ] = useState()
+
+   useEffect(() => {
+
+      // to enable mapbox in the IafViewer
+      getMapboxToken()
       
+   }, [])
+
+   const getMapboxToken = async () => {
+      let token = await getTemporaryMapBoxToken()
+
+      if (token) {
+         setMapboxToken(token)
+      }
+
+   }
+
+   return <div className='simple-viewer-view'>
+         {docView && <FloatingModelDocViewer
+            docIds={[docView]}
+            onClose={() => setDocView(null)}
+         />}
          <PanelGroup autoSaveId="elemtable" direction="vertical">
             <Panel id="viewer-panel" collapsible={false} order={1}>
                <div className="panel-row">
@@ -62,13 +96,26 @@ const SimpleViewerPage = () => {
                         
                      </div>
                   </StackableDrawer>
+                  <StackableDrawer level={3} iconKey='fa-file-alt' tooltip='Files' isDrawerOpen={false}>
+                     <div className='viewer-sidebar'>
+                        
+                        {!selectedModelComposite && <div className='no-element-selected'>No Model Selected</div>}
+                        {selectedModelComposite && <ModelDocs onView={(docInfo) => setDocView(docInfo)} readOnly={!handler?.config?.manageFiles}/>}
+                        
+                     </div>
+                  </StackableDrawer>
                   <div className='viewer'>
-                     {selectedModelComposite && <IafViewerDBM
-                        ref={viewerRef} model={selectedModelComposite}
+                     {selectedModelComposite && selectedModelCompositeVersion && <IafViewerDBM
+                        ref={viewerRef}
+                        model={{...selectedModelComposite, _versions: [selectedModelCompositeVersion]}}
                         serverUri={endPointConfig.graphicsServiceOrigin}
                         sliceElementIds={sliceElements.map(se => [se.package_id, se.source_id]).flat()}
                         selection={selectedElement? [selectedElement.package_id, selectedElement.source_id] : []}
                         OnSelectedElementChangeCallback={getSelectedElement}
+                        gis={{
+                           enabled: !!mapboxToken,
+                           token: mapboxToken
+                        }}
                      />}
                   </div>
                   

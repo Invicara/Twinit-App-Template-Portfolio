@@ -4,7 +4,7 @@ import { Tooltip } from "@material-ui/core"
 
 import { IafDataPlugin } from '@invicara/ui-utils'
 
-import { ModelContext } from "../../ModelContext"
+import { ModelContext } from "../../../../contexts/ModelContext"
 
 // a component tha displays an Excel download icon and allows for downloading
 // the table data to an excel xlsx file
@@ -15,7 +15,15 @@ const ExcelDownloader = () => {
 
 
    const onDownload = async () => {
-      
+
+      // newer versions of the IafViewer places it's own saveAs function on the global context
+      // that saveAs function breaks the SheetJS capability to download spreadsheets
+      // so onDownload will look to see if a global saveAs is defined and if so keep a
+      // reference to it. Then before saving the spreadsheet, we set the global.saveAs
+      // to undefined to allow the SheetJS saveAs workflwo to work. Afterward we set global.saveAs
+      // back to its previous function
+      let tempGlobalSaveAs = global.saveAs || null
+
       try {
          let rowArray = []
 
@@ -49,15 +57,27 @@ const ExcelDownloader = () => {
             }
          ]
 
+         // clear the global.saveAs to allow SheetJS download to work
+         global.saveAs = undefined
 
          let workbook = await IafDataPlugin.createWorkbookFromAoO(sheetArray);
          await IafDataPlugin.saveWorkbook(
                workbook,
                `${selectedModelComposite._name} Element Report.xlsx`
          )
+
+         // set global.saveAs back if had been defined
+         if (tempGlobalSaveAs) {
+            global.saveAs = tempGlobalSaveAs
+         }
+
       } catch (error) {
          console.error('ERROR: Dowloading Excel File')
          console.error(error)
+
+         if (tempGlobalSaveAs) {
+            global.saveAs = tempGlobalSaveAs
+         }
       }
    }
 

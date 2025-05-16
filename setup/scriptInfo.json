@@ -10,5 +10,11 @@
       "_shortName": "importHelperTemplate",
       "_description": "importHelperTemplate",
       "_userType": "quick-temp"
+   },
+   {
+      "_name": "mapboxTemplate",
+      "_shortName": "mapboxTemplate",
+      "_description": "mapboxTemplate",
+      "_userType": "quick-temp"
    }
 ]
