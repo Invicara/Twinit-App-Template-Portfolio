@@ -1,4 +1,152 @@
-const CURRENT_MAKER_VERSION = '2.0.0'
+const CURRENT_MAKER_VERSION = '2.1.0'
+
+const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback) => {
+
+	const { IafProj, IafPassSvc, IafDataSource, IafPermission } = libraries.PlatformApi
+	const { IafScriptEngine } = libraries
+
+	// create or recrate a secrets encrypted collection to store sensitive data
+	let secretsCollection = await IafScriptEngine.createOrRecreateCollection({
+			_name: `Secrets Collection`,
+			_shortName: "secrets_coll",
+			_description: "Named User Collection to store secrets data",
+			_namespaces: project._namespaces,
+			_userType: "secrets",
+			_encryptionEnabled: true
+		}
+	)
+
+	console.log(`STEP ${stepNum}: Created Secrets Collection`, secretsCollection)
+	if (callback) callback(`STEP ${stepNum++}: Created Secrets Collection`)
+
+	// add the Mapbox authorization key script that will be run by the
+	// Mapbox authorization instant orchestrator. It will use the encrypted
+	// mapbox key stored in the above collection to fetch a temporary
+	// mapbox access key for the viewer in the user interface.
+	let mapboxTemplateScript = scriptTemplates.find(st => st._name === "mapboxTemplate")
+	console.log(mapboxTemplateScript)
+	let newMapboxScript = await IafProj.addScript(project, {
+		_name: 'mapbox',
+		_shortName: 'mapbox',
+		_userType: 'mapbox',
+		_version: {
+			_userData: mapboxTemplateScript._versions[0]._userData
+		}
+	})
+	console.log(`STEP ${stepNum}: mapbox script`, newMapboxScript)
+	if (callback) callback(`STEP ${stepNum++}: Created Mapbox Script`)
+
+	// create the permission profile for the Mapbox authorization instant orchestrator
+	// so that it can access the secrets collection
+	await IafPassSvc.createPermissionProfiles(
+		[
+			{
+				_name: "Secrets orchestrator perms",
+				_userType: "secrets_perm",
+				_namespaces: [project._namespaces[0]],
+				_permissions: [
+					{
+						_actions: ["READ", "SHARE"],
+						_namespace: project._namespaces[0],
+						_resourceDesc: {
+							_irn: `passportsvc:workspace:${project._id}`,
+						},
+					},
+					{
+						_actions: ["READ"],
+						_namespace: project._namespaces[0],
+						_resourceDesc: {
+							_irn: secretsCollection._irn,
+						}
+					},
+					{
+						_actions: ["READ"],
+						_namespace: project._namespaces[0],
+						_resourceDesc: {
+							_irn: newMapboxScript._irn,
+						}
+					}
+				]
+			}
+		]
+	)
+
+	let permProfile
+	let tryCount = 0
+
+	// we loop here (a max of 30 times) to get the permission profile once it is created
+	// this is a workaround to a bug in the IafPassSvc.createPermissionProfiles which is
+	// supposed to poll until permission profile has been created (or errored) but does not
+	do {
+		console.log(`get perm profile try #${tryCount}`)
+		tryCount++
+
+		let permissionProfiles = await IafPassSvc.getPermissionProfiles(
+			{ },
+			null,
+			{ _pageSize: 25, _offset: 0 }
+		)
+
+		permProfile = permissionProfiles._list.find(pp => pp._userType === 'secrets_perm')
+
+	} while(!permProfile && tryCount < 30)
+
+	console.log(`STEP ${stepNum}: secrets perm profile`, permProfile)
+	if (callback) callback(`STEP ${stepNum++}: Created Secrets Perm Profile`)
+
+	// create the Mapbox authorization instant orchestrator
+	// assigning the permission profile from above to it
+	const mapboxOrchResp = await IafDataSource.createOrchestrator({
+		_name: "Request MapBox Token",
+		_description: "Requests a MapBox token for a user",
+		_namespaces: project._namespaces,
+		_userType: "mapbox_temp_token",
+		_schemaversion: "2.0",
+		_instant: true,
+		_permissionprofileid: permProfile._id,
+		_params: {
+			tasks: [
+			{
+				name: "default_script_target",
+				_actualparams: {
+					userType: "mapbox",
+					_scriptName: "fetchMapboxToken"
+				},
+				_sequenceno: 1,
+			},
+			],
+		},
+   })
+
+	console.log(`STEP ${stepNum}: mapbox token orchestrator`, mapboxOrchResp)
+	if (callback) callback(`STEP ${stepNum++}: Created Mapbox token orchestrator`)
+
+	// Admins already have full permission to the project and can run the orchestrator
+	// but Viewers do not (they only have read only to everything), so we need to add
+	// a permission to the Viewers user group to allow them to run the mapbox orchestrator
+	// to generate tokens for the viewer
+	let userGroups = await IafProj.getUserGroups(project)
+	let viewersGroup = userGroups.find(ug => ug._name === 'Viewers')
+
+	const viewerPermResp = await IafPermission.createDatasourcePermissions([{
+		_actions: [ IafPermission.PermConst.Action.Run ],
+		_namespace: project._namespaces[0],
+		_resourceDesc: {
+			_irn: `${IafPermission.Resources.Orchestrator.Irn}${mapboxOrchResp.id}`
+		},
+		_user: {
+			_id: viewersGroup._id,
+			_type: IafPermission.PermConst.UserType.UserGroup
+		}
+	}])
+
+	console.log(`STEP ${stepNum}: Viewers permission added for mapbox orchestrator`, viewerPermResp)
+	if (callback) callback(`STEP ${stepNum++}: Viewers permission added for mapbox orchestrator`)
+
+	return stepNum
+
+}
+
 
 let scriptModule = {
 	async getCurrentMakerVersion() {
@@ -25,9 +173,9 @@ let scriptModule = {
 		// retrieve user config templates from this project (the project maker project)
 		let userConfigTemplates = await IafProj.getUserConfigs(projectMakerProject, {_userType: 'quick-temp'})
 		let scriptTemplates = await IafProj.getScripts(projectMakerProject, {query: {_userType: 'quick-temp'}})
-		console.log('Step 1: userConfigTemplates', userConfigTemplates)
-		console.log('Step 1: scriptTemplates', scriptTemplates)
-		if (callback) callback(`Step 1: Retrieved New Project Templates`)
+		console.log('STEP 1: userConfigTemplates', userConfigTemplates)
+		console.log('STEP 1: scriptTemplates', scriptTemplates)
+		if (callback) callback(`STEP 1: Retrieved New Project Templates`)
 
 		// create new project
 		let newProject = (await IafProj.createProject({
@@ -42,12 +190,12 @@ let scriptModule = {
 				}
 			}
 		}))._list[0]
-		console.log('Step 2: newProject', newProject)
-		if (callback) callback(`Step 2: Created New Project: ${newProject._name} ${newProject._id}`)
+		console.log('STEP 2: newProject', newProject)
+		if (callback) callback(`STEP 2: Created New Project: ${newProject._name} ${newProject._id}`)
 
 		try {
 			await IafProj.switchProject(newProject._id)
-			if (callback) callback(`Step 3: Now working in ${newProject._name}`)
+			if (callback) callback(`STEP 3: Now working in ${newProject._name}`)
 
 			// create admin user group
 			let adminGroup = (await IafProj.addUserGroups(newProject, [{
@@ -58,8 +206,8 @@ let scriptModule = {
 					accessAll: true
 				}
 			}]))[0]
-			console.log('Step 4: adminGroup', adminGroup)
-			if (callback) callback(`Step 4: Created Admin User Group ${adminGroup._id}`)
+			console.log('STEP 4: adminGroup', adminGroup)
+			if (callback) callback(`STEP 4: Created Admin User Group ${adminGroup._id}`)
 
 			// create admin user config
 			let adminUCTemplate = userConfigTemplates.find(uct => uct._name === 'QuickViewAdminConfigTemplate')
@@ -71,8 +219,8 @@ let scriptModule = {
 					_userData: adminUCTemplate._versions[0]._userData
 				}
 			})
-			console.log('Step 5: adminUserConfig', adminUserConfig)
-			if (callback) callback(`Step 5: Created Admin User Config ${adminUserConfig._id}`)
+			console.log('STEP 5: adminUserConfig', adminUserConfig)
+			if (callback) callback(`STEP 5: Created Admin User Config ${adminUserConfig._id}`)
 
 			// relate admin config to admin user group
 			// this cannot be done during user group create
@@ -86,8 +234,8 @@ let scriptModule = {
 				adminGroup._userAttributes.userConfigs.push(adminConfigInfo)
 			}
 			let relateAdminConfigResult = await IafUserGroup.update(adminGroup)
-			console.log('Step 6: relateAdminConfigResult', relateAdminConfigResult)
-			if (callback) callback(`Step 6: Related Admin User Config to Admin User Group`)
+			console.log('STEP 6: relateAdminConfigResult', relateAdminConfigResult)
+			if (callback) callback(`STEP 6: Related Admin User Config to Admin User Group`)
 
 			// create viewers user group
 			let viewerGroup = (await IafProj.addUserGroups(newProject, [{
@@ -99,9 +247,9 @@ let scriptModule = {
 			// create read only permissions for the viewer user group on across all of Twinit
 			let readViewerPermCreate = await IafWorkspace.addAllAccess(newProject, viewerGroup, [ IafPermission.PermConst.Action.Read ])
 
-			console.log('Step 7: viewerGroup', viewerGroup, readViewerPermCreate)
-			console.log('Step 7: viewerGroup read permissons create', readViewerPermCreate)
-			if (callback) callback(`Step 7: Created Viewers User Group ${viewerGroup._id}`)
+			console.log('STEP 7: viewerGroup', viewerGroup, readViewerPermCreate)
+			console.log('STEP 7: viewerGroup read permissons create', readViewerPermCreate)
+			if (callback) callback(`STEP 7: Created Viewers User Group ${viewerGroup._id}`)
 
 			// create viewers user config
 			let viewerUCTemplate = userConfigTemplates.find(uct => uct._name === 'QuickViewViewerConfigTemplate')
@@ -113,8 +261,8 @@ let scriptModule = {
 					_userData: viewerUCTemplate._versions[0]._userData
 				}
 			})
-			console.log('Step 8: vewerUserConfig', viewerUserConfig)
-			if (callback) callback(`Step 8: Created Viewer User Config ${viewerUserConfig._id}`)
+			console.log('STEP 8: vewerUserConfig', viewerUserConfig)
+			if (callback) callback(`STEP 8: Created Viewer User Config ${viewerUserConfig._id}`)
 			
 			// relate viewer config to viewer user group
 			// this cannot be done during user group create
@@ -128,8 +276,8 @@ let scriptModule = {
 				viewerGroup._userAttributes.userConfigs.push(viewerConfigInfo)
 			}
 			let relateViewerConfigResult = await IafUserGroup.update(viewerGroup)
-			console.log('Step 9: relateViewerConfigResult', relateViewerConfigResult)
-			if (callback) callback(`Step 9: Related Viewer User Config to Viewer User Group`)
+			console.log('STEP 9: relateViewerConfigResult', relateViewerConfigResult)
+			if (callback) callback(`STEP 9: Related Viewer User Config to Viewer User Group`)
 
 			// create import helper script
 			let importHelperTemplateScript = scriptTemplates.find(st => st._name === "importHelperTemplate")
@@ -142,8 +290,8 @@ let scriptModule = {
 					_userData: importHelperTemplateScript._versions[0]._userData
 				}
 			})
-			console.log('Step 10: newImportScript', newImportScript)
-			if (callback) callback(`Step 10: Created bimpk Import Script`)
+			console.log('STEP 10: newImportScript', newImportScript)
+			if (callback) callback(`STEP 10: Created bimpk Import Script`)
 
 			// create import orchestrator
 			let importOrch =  await IafDataSource.createOrchestrator({
@@ -178,8 +326,10 @@ let scriptModule = {
 					]
 				}
 			})
-			console.log('Step 11: importOrch', importOrch)
-			if (callback) callback(`Step 11: Created Import Orchestrator`)
+			console.log('STEP 11: importOrch', importOrch)
+			if (callback) callback(`STEP 11: Created Import Orchestrator`)
+
+			await _enableGis(12, newProject, scriptTemplates, libraries, callback)
 
 		} catch (error) {
 
@@ -207,22 +357,12 @@ let scriptModule = {
 			throw("Project and Version are required!")
 		}
 
-		const migrate_1_3_0_to_2_0_0 = async (userConfigTemplates, scriptTemplates) => {
+		const migrate_2_0_0_to_2_1_0 = async (userConfigTemplates, scriptTemplates) => {
 
-			callback(`Updating project ${project._name} version`)
+			callback(`Updating project ${project._name}`)
+			console.log(`STEP 0: Updating project`, project)
 			await IafProj.switchProject(project._id)
 			let updateProject = await IafProj.getCurrent()
-
-			let scripts = await IafProj.getScripts(updateProject)
-			let importScript = scripts.find(s => s._userType === 'importHelper')
-			let importScriptTemplate = scriptTemplates.find(s => s._name === "importHelperTemplate")
-			
-			let newVersion = importScript._versions[0]
-			newVersion._userData = importScriptTemplate._versions[0]._userData
-
-			let verResult = await IafScripts.createVersion(importScript._id, newVersion)
-			console.log('STEP 1:', importScript, importScriptTemplate, verResult)
-			callback('STEP 1: Updated bimpk Import Script')
 
 			let userConfigs = await IafProj.getUserConfigs(updateProject)
 
@@ -232,17 +372,10 @@ let scriptModule = {
 			adminConfigVersion._userData = adminTemplate._userData
 
 			let adminUpdateResult = await IafUserConfig.createVersion(adminConfig._id, adminConfigVersion)
-			console.log('STEP 2:', adminConfigVersion, adminUpdateResult)
-			callback('STEP 2: Updated Admin User Config')
+			console.log('STEP 1:', adminConfigVersion, adminUpdateResult)
+			callback('STEP 1: Updated Admin User Config')
 
-			let viewerConfig = userConfigs.find(uc => uc._name === 'QuickViewViewerConfig')
-			let viewerConfigVersion = viewerConfig._versions[0]
-			let viewerTemplate = userConfigTemplates.find(uc => uc._name === 'QuickViewViewerConfigTemplate')._versions[0]
-			viewerConfigVersion._userData = viewerTemplate._userData
-
-			let viewerUpdateResult = await IafUserConfig.createVersion(viewerConfig._id, viewerConfigVersion)
-			console.log('STEP 3:', viewerConfigVersion, viewerUpdateResult)
-			callback('STEP 3: Updated Viewer User Config')
+			let step = await _enableGis(2, updateProject, scriptTemplates, libraries, callback)
 
 			// project updates onyl allowed if _description is present
 			if (!updateProject._description) {
@@ -250,19 +383,19 @@ let scriptModule = {
 			}
 			
 			if (updateProject._userAttributes?.quickModelView) {
-				updateProject._userAttributes.quickModelView.currentVersion = '2.0.0'
+				updateProject._userAttributes.quickModelView.currentVersion = '2.1.0'
 			} else if (updateProject._userAttributes?.projectMaker) {
 				updateProject._userAttributes.quickModelView = Object.assign({}, updateProject._userAttributes.projectMaker)
-				updateProject._userAttributes.quickModelView.currentVersion = '2.0.0'
+				updateProject._userAttributes.quickModelView.currentVersion = '2.1.0'
 			}
 			let projUpdateResult = await IafProj.update(updateProject)
-			console.log('STEP 4:', updateProject, projUpdateResult)
-			callback('STEP 4: Updated Project Current Version -> 2.0.0')
+			console.log(`STEP ${step}:`, updateProject, projUpdateResult)
+			callback(`STEP ${step++}: Updated Project Current Version -> 2.1.0`)
 
 		}
 
 		const migrations = [
-			{ from: '1.3.0', to: '2.0.0', migrateFunction: migrate_1_3_0_to_2_0_0 }
+			{ from: '2.0.0', to: '2.1.0', migrateFunction: migrate_2_0_0_to_2_1_0 }
 		]
 
 		const managerProject = await IafProj.getCurrent()
@@ -297,7 +430,8 @@ let scriptModule = {
 
 		await IafProj.switchProject(managerProject._id)
 		return 'All migrations complete'
-	}
+	},
+
 }
 
 export default scriptModule

@@ -1,6 +1,6 @@
 # Quick Model View Twinit Application Template
 
-Release: 2.0.0
+Release: 2.1.0
 
 ![Quick Model Viewer User Interface](./docs/img/model-view.jpg)
 

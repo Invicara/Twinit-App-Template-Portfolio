@@ -1,0 +1,35 @@
+.model-docs-component {
+
+   .file-table {
+      width: 100%;
+      margin-top: 20px;
+
+      tr {
+
+         &:nth-child(1) {
+            border-bottom: 2px solid black;
+         }
+
+         .row-expander-head {
+            width: 20px;
+         } 
+
+         .row-download-head {
+            width: 20px;
+         }
+
+         .row-view-head {
+            width: 20px;
+         }
+
+         .row-delete-head {
+            width: 30px;
+         }
+
+         .row-ver-head {
+            width: 100px;
+            text-align: center;
+         }
+      }
+   }
+}

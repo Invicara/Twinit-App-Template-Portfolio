@@ -11,11 +11,11 @@ import { Tooltip } from "@material-ui/core"
 import ExcelDownloader from './TablePanelComponents/ExcelDownloader'
 import TablePager from './TablePanelComponents/TablePager'
 import SelectableCell from './TablePanelComponents/SelectableCell';
-import ElementDetails from '../ElementDetails/ElementDetails'
+import ElementDetails from '../../../components/ElementDetails/ElementDetails'
 import { BASELINE_THEME } from './TreePanelTheme';
 
-import { ModelContext } from '../ModelContext'
-import { stringValueTypes } from '../consts'
+import { ModelContext } from '../../../contexts/ModelContext'
+import { stringValueTypes } from '../../../components/search/consts'
 
 import './TablePanel.scss'
 
