@@ -2,7 +2,7 @@
 
 Release: 2.1.0
 
-![Quick Model Viewer User Interface](./docs/img/model-view.jpg)
+![Quick Model Viewer User Interface](./docs/img/model-view-w-gis.jpg)
 
 The Quick Model View Twinit Application Template provides an easy to learn,  easy to deploy, easy to use, and easy to extend model viewing application utilizing the capabilities Twinit provides for importing and viewing models imported using supported CAD authoring or file types. This template is also a good place to start if you are looking for a first step toward using and deploying other more complex templates or if you plan to develop your own templates.
 
