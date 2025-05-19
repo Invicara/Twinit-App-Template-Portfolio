@@ -1,6 +1,6 @@
 # Quick Model View Developer Update Guide
 
-The Quick Model View Developer Update Guide will want you through updating a 1.3.0 version of the template to 2.0.0.
+The Quick Model View Developer Update Guide will want you through updating a 2.0.0 version of the template to 2.1.0.
 
 ## Update Support
 
@@ -33,7 +33,9 @@ Migrating from 1.1.2 to 1.3.0  would require these updates in this order:
 
 Each template release has its corresponding tag in the GitHub repository allowing you to easily find a previous release and its update documentation.
 
-## Updating to 2.0.0
+## Updating to 2.1.0
+
+> **BEFORE UPDATING QUICK MODEL VIEW**: You must first make sure your Twinit VS Code extension is version 6.2.2 or newer. If you do not then the update process will not correctly deploy the emplate scripts to the Quick View Manager project.
 
 Updating to 2.0.0 is seamless to users of Quick Model View. User will not be impacted during the update. The previous version of the web client will continue to function during the update. Once the new web client is deployed they will see the updated user interface.
 
