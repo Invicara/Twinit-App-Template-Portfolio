@@ -36,6 +36,9 @@ const ProjectMakerView = (props) => {
    // this is retrieved from the ProjectMaker script
    const [ currentMakerVersion, setCurrentMakerVersion ] = useState()
 
+   // the versions supported for migration to currentMakerVersion
+   const [ migratFromVersions, setMigrateFromVersions ] = useState()
+
    // the list of projects to which my user has access
    const [ myProjects, setMyProjects ] = useState([])
 
@@ -82,7 +85,8 @@ const ProjectMakerView = (props) => {
       if (props.handler.config.currentVersionScript) {
          try {
             let ver = await ScriptHelper.executeScript(props.handler.config.currentVersionScript)
-            setCurrentMakerVersion(ver)
+            setCurrentMakerVersion(ver.CURRENT_MAKER_VERSION)
+            setMigrateFromVersions(ver.MIGRATE_PROJECT_VERSIONS)
          } catch (error) {
             setCurrentMakerVersion('ERROR')
          }
@@ -142,7 +146,7 @@ const ProjectMakerView = (props) => {
             {!checkingAdmin && isAdmin && <ProjectCreate onCreate={getMyProjects} />}
          </div>
          <div className='projectmake-right'>
-            {!checkingAdmin && isAdmin && <ProjectList projects={myProjects} currentVer={currentMakerVersion} onUpdate={getMyProjects}/>}
+            {!checkingAdmin && isAdmin && <ProjectList projects={myProjects} currentVer={currentMakerVersion} migrateVersions={migratFromVersions} onUpdate={getMyProjects}/>}
          </div>
       </ConfigContext.Provider>
    </div>
