@@ -9,6 +9,7 @@ import './ProjectList.scss'
 
 const ProjectList = ({
       currentVer, // the current Project Maker version assigned to new projects when created
+      migrateVersions, // the supported versions to migrate to currentVer
       projects,   // the list projects to which the user has access
       onUpdate    // a callback for when a project update completes
    }) => {
@@ -84,6 +85,7 @@ const ProjectList = ({
                      <ProjectUpdater 
                         project={p}
                         version={getProjectVer(p)}
+                        migratable={migrateVersions.includes(getProjectVer(p))}
                         isOutOfDate={isOutOfDate(p)}
                         disabled={!!updatingProject && updatingProject._id !== p._id} 
                         onUpdateStart={setUpdatingProject}

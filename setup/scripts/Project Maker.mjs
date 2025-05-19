@@ -1,4 +1,5 @@
 const CURRENT_MAKER_VERSION = '2.1.0'
+const MIGRATE_PROJECT_VERSIONS = ['2.0.0']
 
 const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback) => {
 
@@ -150,7 +151,7 @@ const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback
 
 let scriptModule = {
 	async getCurrentMakerVersion() {
-		return CURRENT_MAKER_VERSION
+		return  { CURRENT_MAKER_VERSION, MIGRATE_PROJECT_VERSIONS }
 	},
 	// input { projName: <REQUIRED>, projDesc: <OPTIONAL> }
 	async createNewQuickModelViewProject(input, libraries, ctx, callback) {
