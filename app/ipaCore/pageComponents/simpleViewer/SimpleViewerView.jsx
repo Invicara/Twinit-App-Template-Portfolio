@@ -56,6 +56,21 @@ const SimpleViewerPage = ({ handler }) => {
    // the Mapbox token to nable GIS features in the IafViewer
    const [ mapboxToken, setMapboxToken ] = useState()
 
+   // model composition settings to load all trades when model loads
+   // otherwise the viewer will try to guess on its own
+   // making state with the intent of adding configuraton UI in the future
+   const [ modelComposition, setModelComposition ] = useState({
+      initial: {
+         Structural: true,
+         Architectural: true,
+         Mechanical: true,
+         Electrical: true, 
+         Plumbing: true,
+         FireProtection: true,
+         Infrastructural: true
+      }
+   })
+
    useEffect(() => {
 
       // to enable mapbox in the IafViewer
@@ -112,6 +127,7 @@ const SimpleViewerPage = ({ handler }) => {
                         sliceElementIds={sliceElements.map(se => [se.package_id, se.source_id]).flat()}
                         selection={selectedElement? [selectedElement.package_id, selectedElement.source_id] : []}
                         OnSelectedElementChangeCallback={getSelectedElement}
+                        modelComposition={modelComposition}
                         gis={{
                            enabled: !!mapboxToken,
                            token: mapboxToken
