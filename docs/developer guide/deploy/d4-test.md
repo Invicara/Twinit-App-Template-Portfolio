@@ -34,6 +34,8 @@ You be automatically routed to the Project Maker pageComponent.
 
 As the project is being created, you'll see updates in the creation log for each step that successfully completes. If an error is encountered at ay time, the log will display the error and print more information about the error to the browser console.
 
+> **Note**: The steps you see may differ from the one's pictured below, and will be specific to the Quick Model View release you are testing. 
+
 Once the log displays "New project creation complete!" you'll see the list of projects on the right side of the update to display your new project.
 
 ![project creation complete](../../img/project-maker-test.jpg)
