@@ -91,7 +91,7 @@ Instructions on how to do so, if you need a refresher, are available on [twinit.
 
 ![vscode signed in](../../img/vscode-signed-in.jpg)
 
-## Clone of Fork the Template Code Local
+## Clone or Fork the Template Code Local
 
 1. Using the tool of your choice, clone or fork this GitHub repo locally to your system.
 
