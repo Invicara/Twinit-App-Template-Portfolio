@@ -66,7 +66,7 @@ TWINIT
 │  │  ├─ Scripts
 │  │  │  ├─ [v1] importHelperTemplate (quick-temp) <b>
 │  │  │  ├─ [v1] mapboxTemplate (quick-temp) <b>
-│  │  │  ├─ Project Maker (project-maker)
+│  │  │  ├─ [v1] Project Maker (project-maker)
 │  │  ├─ User Configs
 │  │  │  ├─ [v1] QuickViewAdminConfigTemplate (quick-temp)
 │  │  │  ├─ [v1] QuickViewManagerConfig (quick-view)
