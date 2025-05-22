@@ -61,7 +61,7 @@ const ProjectMakerView = (props) => {
       setTimeout(() => {
 
          try {
-            IafApplication.getAppAdminsUserGroup(project).then((ug) => {
+            IafApplication.getAppDeveloperUserGroup(project).then((ug) => {
                
                setCheckingAdmin(false)
                if (ug) {
