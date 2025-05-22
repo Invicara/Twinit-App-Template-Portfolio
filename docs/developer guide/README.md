@@ -43,7 +43,7 @@ You can drill down further into the details of the template and how it works in 
 * [In-Depth: Quick Model View Manager](./implementation/imp-projmake.md)
 * [In-Depth: Quick Model View Projects](./implementation/imp-qmvprojects.md)
 * [In-Depth: Template Data Model](./implementation/imp-data-model.md)
-* [In-Depth: Handling Mapbox Secrets](./implenetation/imp-map-secrets.md)
+* [In-Depth: Handling Secrets and the Mapbox Token Workflow](./implementation/imp-secrets.md)
 
 ## Customizing and Extending the Application Template
 

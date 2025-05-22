@@ -18,6 +18,7 @@ _May 2025_
 * React client updated to React 18.
 * React client updated to 4.6 @dtplatform package versions.
 * Common component refactoring into components directory.
+* ModeContext refactored into a contexts directory.
 * Specified migration paths for ProjectMaker project migration.
 
 ### Update Support
