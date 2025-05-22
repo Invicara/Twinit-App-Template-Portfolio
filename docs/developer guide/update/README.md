@@ -50,8 +50,8 @@ To update your existing deployed template follow these steps:
 
 > **IMPORTANT**: These steps will update the Quick Model View template and web client. To take advantage of all new updates, additional steps are required by Admin users in each Quick Model View project. Be sure to consult the [User Guide](../user%20guide/README.md) for more information.
 
-## Changes in 2.0.0
+## Changes in 2.1.0
 
-1. [Model Import Script Changes](./details/import.md)
-2. [User Config Theme Additions](./details/theme.md)
+1. [Model File Attachment]()
+2. [Secrets and Mapbox]()
 3. [Web Client Changes](./details/webclient.md)
