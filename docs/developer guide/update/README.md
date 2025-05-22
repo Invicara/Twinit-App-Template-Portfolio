@@ -35,13 +35,13 @@ Each template release has its corresponding tag in the GitHub repository allowin
 
 ## Updating to 2.1.0
 
-> **BEFORE UPDATING QUICK MODEL VIEW**: You must first make sure your Twinit VS Code extension is version 6.2.2 or newer. If you do not then the update process will not correctly deploy the emplate scripts to the Quick View Manager project.
+> **BEFORE UPDATING QUICK MODEL VIEW**: You must first make sure your Twinit VS Code extension is version 6.2.2 or newer. If you do not then the update process will not correctly deploy the template scripts to your Quick View Manager project.
 
-Updating to 2.0.0 is seamless to users of Quick Model View. User will not be impacted during the update. The previous version of the web client will continue to function during the update. Once the new web client is deployed they will see the updated user interface.
+Updating to 2.1.0 is seamless to users of Quick Model View. User will not be impacted during the update. The previous version of the web client will continue to function during the update. Once the new web client is deployed they will see the updated user interface.
 
 > **Note**: It is highly recommended that you first test the update on a test deployment of the template. You can do this by creating a new deploy of the previous version of the template and then deploying this update to it.
 
-> **A Note About Template Customizations**: If you have made any custom changes to the template, you will need to first merge the new version of the template with your custom changes. See the **Changes in 2.0.0** section below for a list of the changes in this version.
+> **A Note About Template Customizations**: If you have made any custom changes to the template, you will need to first merge the new version of the template with your custom changes. See the **Changes in 2.1.0** section below for a list of the changes in this version.
 
 To update your existing deployed template follow these steps:
 
