@@ -2,6 +2,8 @@
 
 The Quick Model View Application Template manages these types of data:
 
+
+
 * [Imported Model Data](./data/imported-model.md)
 * [Secrets](./data/secrets.md)
 * [Files](./data/files.md)

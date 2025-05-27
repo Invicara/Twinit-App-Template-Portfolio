@@ -44,6 +44,7 @@ You can drill down further into the details of the template and how it works in 
 * [In-Depth: Quick Model View Projects](./implementation/imp-qmvprojects.md)
 * [In-Depth: Template Data Model](./implementation/imp-data-model.md)
 * [In-Depth: Handling Secrets and the Mapbox Token Workflow](./implementation/imp-secrets.md)
+* [In-Depth: Template Permissions](./implementation/imp-perms.md) 
 
 ## Customizing and Extending the Application Template
 
@@ -61,6 +62,7 @@ Future updates to the Quick Model View could include:
 * Moving the Twinit logic in ModelContext into Twinit Object Model API endpoints that the web client will use instead of directly using the Twinit APIs
 * Allow other custom components to be loaded in the bottom panel of the SimpleViewerView pageComponent
 * Additional element table capabilities like hiding columns or removing selected properties from the table
+* Associating files to specific model elements
 
 ## Finding Support
 
