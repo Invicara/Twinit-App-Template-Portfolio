@@ -66,7 +66,9 @@ A new workflow was introduced to allow the web-client to fetch temporary Mapbox 
 
 For a complete description of the entire workflow see [In-Depth: Handling Secrets and the Mapbox Token Workflow](./implementation/imp-secrets.md).
 
-The workflow begins with the new [MapboxSettingsView pageComponent](../../../../app/ipaCore/pageComponents/mapboxSettings/MapboxSettingsView.jsx) in which admin users can enter a Mapbox user name and secret token. The pageComponent also displays a checklist of the necessary confgurations for the Mapbox API Token workflow to complete succesfully:
+The workflow begins with the new [MapboxSettingsView pageComponent](../../../../app/ipaCore/pageComponents/mapboxSettings/MapboxSettingsView.jsx) in which admin users can enter a Mapbox user name and secret token. Only one Mapbox secret is allowed in the Secrets collection, so if one already exists and the admin enters a new user name and secret token on the MapboxSettingsView pageComponent, the new entry will replace the existing one.
+
+The pageComponent also displays a checklist of the necessary configurations for the Mapbox API Token workflow to complete successfully:
 
 * Mapbox Authentication Script
 * Mapbox Authentication Orchestrator
