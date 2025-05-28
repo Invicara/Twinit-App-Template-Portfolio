@@ -256,7 +256,7 @@ To learn more about Mapbox temporary tokens and the TOKEN_SCOPES see the [Mapbox
 
 To keep the secrets secure but also allow users without access to the secrets to generate tokens permissions have been distributed between user groups and permission profiles.
 
-| who | permissions | notes |
+| Who/What | Permissions | Notes |
 | --- | --- | --- |
 | Admin user group | All Access | Admins can access the secrets collection and secret items as well as run the Mapbox Token Orchestrator |
 | Viewer user group | READ and RUN the Mapbox Orchestrator | Viewers only have access to run the Mapbox Token Orchestrator |
