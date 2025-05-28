@@ -11,4 +11,4 @@ The Quick Model View Application Template manages these types of data:
 Future updates to the template may introduce new types of data to the list.
 
 ---
-[Developer Guide](../README.md) < Back
+[Developer Guide](../README.md) < Back | Next > [In-Depth: Template Permissions](./imp-perms.md)
