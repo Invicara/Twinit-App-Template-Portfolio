@@ -31,19 +31,18 @@ To deploy the Quick Model View Twinit Application Template to Twinit and to depl
 4. [Test the Template](./deploy/d4-test.md)
 5. [Deploy the Web Client for Users](./deploy/d5-deploy-to-cloud.md)
 
-## Updating an Existing Quick Model View Template to 2.1.0
+## Updating an Existing Quick Model View Template to 2.0.0
 
 If you have already deployed an earlier version of the Quick Model View and wish to update your deployment to the the current version, please refer to the [Developer Update Guide](./update/README.md)
 
 ## In-Depth Knowledge of the Application Template
 
-You can drill down further into the details of the template and how it works in the In-Depth Guides below. These guides describe the low level details of the template and its inner workings. If you are looking to make changes to the template code or configuration to add your own use cases, you'll want to make sure you read the In-Depth guides first.
+You can drill down further into the details of the template and how it works in the In-Depth Guides blow. These guides describe the low level details of the template and its inner workings. If you are looking to make changes to the template code or configuration to add your own use cases, you'll want to make sure you read the In-Depth guides first.
 
 * [In-Depth: The Template Web Client](./implementation/imp-webclient.md)
 * [In-Depth: Quick Model View Manager](./implementation/imp-projmake.md)
 * [In-Depth: Quick Model View Projects](./implementation/imp-qmvprojects.md)
 * [In-Depth: Template Data Model](./implementation/imp-data-model.md)
-* [In-Depth: Handling Secrets and the Mapbox Token Workflow](./implementation/imp-secrets.md)
 * [In-Depth: Template Permissions](./implementation/imp-perms.md) 
 
 ## Customizing and Extending the Application Template
@@ -62,7 +61,6 @@ Future updates to the Quick Model View could include:
 * Moving the Twinit logic in ModelContext into Twinit Object Model API endpoints that the web client will use instead of directly using the Twinit APIs
 * Allow other custom components to be loaded in the bottom panel of the SimpleViewerView pageComponent
 * Additional element table capabilities like hiding columns or removing selected properties from the table
-* Associating files to specific model elements
 
 ## Finding Support
 
