@@ -8,6 +8,8 @@ import ProjectUpdater from './ProjectUpdater'
 import './ProjectList.scss'
 
 const ProjectList = ({
+      user,       // the current user, currently only projects created by he current user can be migrated
+                  // TO DO: Instead check that the user has access to all usergroups in each target project
       currentVer, // the current Project Maker version assigned to new projects when created
       migrateVersions, // the supported versions to migrate to currentVer
       projects,   // the list projects to which the user has access
@@ -85,7 +87,7 @@ const ProjectList = ({
                      <ProjectUpdater 
                         project={p}
                         version={getProjectVer(p)}
-                        migratable={migrateVersions.includes(getProjectVer(p))}
+                        migratable={migrateVersions.includes(getProjectVer(p)) && p._metadata._createdById === user._id}
                         isOutOfDate={isOutOfDate(p)}
                         disabled={!!updatingProject && updatingProject._id !== p._id} 
                         onUpdateStart={setUpdatingProject}
