@@ -107,16 +107,16 @@ const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback
 		_permissionprofileid: permProfile._id,
 		_params: {
 			tasks: [
-			{
-				name: "default_script_target",
-				_actualparams: {
-					userType: "mapbox",
-					_scriptName: "fetchMapboxToken"
-				},
-				_sequenceno: 1,
-			},
-			],
-		},
+				{
+					name: "default_script_target",
+					_actualparams: {
+						userType: "mapbox",
+						_scriptName: "fetchMapboxToken"
+					},
+					_sequenceno: 1,
+				}
+			]
+		}
    })
 
 	console.log(`STEP ${stepNum}: mapbox token orchestrator`, mapboxOrchResp)
@@ -148,6 +148,154 @@ const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback
 
 }
 
+const _updatePermissions = async (stepNum, project, libraries, callback) => {
+	// we need to update the permissions for the Viewers user group, as orginally the group
+	// was given full read permissions to all the services on Twinit. However, we do not want
+	// Viewers to have access to the secrets NamedUserCollection. SO instead we need to remove
+	// Viewers permission to read everything and create finer grained permssions instead.
+
+	const { IafProj, IafPassSvc, IafPermission } = libraries.PlatformApi
+
+	// get the viewers user group
+	let allUserGroups = await IafProj.getUserGroups(project)
+	let viewerGroup = allUserGroups.find(ug => ug._name === 'Viewers')
+
+	// get the permissions assigned to the Viewers user group
+	let viewerPerms = await IafPassSvc.getUsergroupPermissions(viewerGroup._id)
+	console.log(`STEP ${stepNum}: Viewers permission before update`, viewerPerms._list)
+
+	// this is the original permission gving Viewers read to a Twinit services
+	// we will delete this permission
+	let allReadPerms = viewerPerms._list.find(p => p._resourceDesc._irn === "*:*:*")
+	
+	// we will update the existing RUN permission for the Mapbox orchestrator to
+	// include READ so that the Viewers can see the orchestrator
+	let datasourcesPerm = viewerPerms._list.find(p => p._actions.includes('RUN'))
+	datasourcesPerm._actions.push('READ')
+
+	// this is the base permission objec to asign a READ permission to the Viewers
+	// user group in this project. We will use to create fine grain permissions to
+	// replace the broad read all permission
+	const basePerm = {
+		_namespace: project._namespaces[0],
+		_user: {
+			_id: viewerGroup._id,
+			_type: "usergroup"
+		},
+		_actions: [ IafPermission.PermConst.Action.Read ]
+	}
+
+	// give Viewers READ to everything in the file service
+	let fileReadPerms = Object.assign({}, basePerm, {
+		_resourceDesc: {
+			_irn: `${IafPermission.Resources.File.Irn}*`
+		}
+	})
+
+	// give Viewers READ to model composite items
+	let compositeItemReadPerms = Object.assign({}, basePerm, {
+		_resourceDesc: {
+			_irn: `${IafPermission.Resources.NamedUserItem.Irn}*`,
+			_criteria: {
+				_userType: 'bim_model_version'
+			}
+		}
+	})
+
+	// give Viewers READ to model element collections
+	let elementItemReadPerms = Object.assign({}, basePerm, {
+		_resourceDesc: {
+			_irn: `${IafPermission.Resources.NamedUserItem.Irn}*`,
+			_criteria: {
+				_userType: 'rvt_elements'
+			}
+		}
+	})
+
+	// give Viewers READ to model element property collections
+	let elementPropsItemReadPerms = Object.assign({}, basePerm, {
+		_resourceDesc: {
+			_irn: `${IafPermission.Resources.NamedUserItem.Irn}*`,
+			_criteria: {
+				_userType: 'rvt_element_props'
+			}
+		}
+	})
+
+	// give Viewers READ to model element type property collections
+	let elementTypesItemReadPerms = Object.assign({}, basePerm, {
+		_resourceDesc: {
+			_irn: `${IafPermission.Resources.NamedUserItem.Irn}*`,
+			_criteria: {
+				_userType: 'rvt_type_elements'
+			}
+		}
+	})
+
+	// give Viewers READ to model geometry view collections
+	let geomViewsItemReadPerms = Object.assign({}, basePerm, {
+		_resourceDesc: {
+			_irn: `${IafPermission.Resources.NamedUserItem.Irn}*`,
+			_criteria: {
+				_userType: 'bim_model_geomviews'
+			}
+		}
+	})
+
+	// give Viewers READ to model geometry resources collections
+	let geomResourcesItemReadPerms = Object.assign({}, basePerm, {
+		_resourceDesc: {
+			_irn: `${IafPermission.Resources.NamedUserItem.Irn}*`,
+			_criteria: {
+				_userType: 'bim_model_geomresources'
+			}
+		}
+	})
+
+	// give Viewers READ to model data cache collections
+	let dataCacheItemReadPerms = Object.assign({}, basePerm, {
+		_resourceDesc: {
+			_irn: `${IafPermission.Resources.NamedUserItem.Irn}*`,
+			_criteria: {
+				_userType: 'data_cache'
+			}
+		}
+	})
+
+	// give Viewers READ to workspaces that they belong to
+	let WorkspacePerm = Object.assign({}, basePerm, {
+		_resourceDesc: {
+			_irn: `${IafPermission.Resources.Workspace.Irn}*`,
+		}
+	})
+
+	// udpate and create new permissions
+	await IafPermission.updateDatasourcePermissions([datasourcesPerm])
+
+	await IafPermission.createFilePermissions([fileReadPerms])
+
+	await IafPermission.createItemPermissions([
+		compositeItemReadPerms,
+		elementItemReadPerms,
+		elementPropsItemReadPerms,
+		elementTypesItemReadPerms,
+		geomViewsItemReadPerms,
+		geomResourcesItemReadPerms,
+		dataCacheItemReadPerms
+	])
+
+	await IafPermission.createPassPermissions([WorkspacePerm])
+
+	// delete the old READ all permission
+	if (allReadPerms) await IafPassSvc.deletePermission(allReadPerms._id)
+
+	let updatedViewerPerms = await IafPassSvc.getUsergroupPermissions(viewerGroup._id)
+	console.log(`STEP ${stepNum}: Viewers permission after update`, updatedViewerPerms._list)
+	if (callback) callback(`STEP ${stepNum++}: Updated Viewer Permissions`)
+
+	return stepNum
+
+}
 
 let scriptModule = {
 	async getCurrentMakerVersion() {
@@ -330,7 +478,8 @@ let scriptModule = {
 			console.log('STEP 11: importOrch', importOrch)
 			if (callback) callback(`STEP 11: Created Import Orchestrator`)
 
-			await _enableGis(12, newProject, scriptTemplates, libraries, callback)
+			let stepNum = await _enableGis(12, newProject, scriptTemplates, libraries, callback)
+			await _updatePermissions(stepNum, newProject, libraries, callback)
 
 		} catch (error) {
 
@@ -377,6 +526,7 @@ let scriptModule = {
 			callback('STEP 1: Updated Admin User Config')
 
 			let step = await _enableGis(2, updateProject, scriptTemplates, libraries, callback)
+			step = await _updatePermissions(step, project, libraries, callback)
 
 			// project updates onyl allowed if _description is present
 			if (!updateProject._description) {
