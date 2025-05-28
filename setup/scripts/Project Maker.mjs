@@ -107,16 +107,16 @@ const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback
 		_permissionprofileid: permProfile._id,
 		_params: {
 			tasks: [
-			{
-				name: "default_script_target",
-				_actualparams: {
-					userType: "mapbox",
-					_scriptName: "fetchMapboxToken"
-				},
-				_sequenceno: 1,
-			},
-			],
-		},
+				{
+					name: "default_script_target",
+					_actualparams: {
+						userType: "mapbox",
+						_scriptName: "fetchMapboxToken"
+					},
+					_sequenceno: 1,
+				}
+			]
+		}
    })
 
 	console.log(`STEP ${stepNum}: mapbox token orchestrator`, mapboxOrchResp)
