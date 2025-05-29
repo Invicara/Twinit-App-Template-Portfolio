@@ -74,7 +74,7 @@ const ProjectUpdater = ({
          <i className="far fa-times-circle fa-2x"></i>
       </Tooltip>}
 
-      {isOutOfDate && !migratable && <Tooltip title='Poject Requires a Previous Migration'>
+      {isOutOfDate && !migratable && <Tooltip title='Project Cannot Be Migrated'>
          <i className="far fa-times-circle fa-2x disabled"></i>
       </Tooltip>}
 

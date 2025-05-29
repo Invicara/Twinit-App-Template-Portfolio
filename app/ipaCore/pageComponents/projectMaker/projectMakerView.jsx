@@ -61,7 +61,7 @@ const ProjectMakerView = (props) => {
       setTimeout(() => {
 
          try {
-            IafApplication.getAppAdminsUserGroup(project).then((ug) => {
+            IafApplication.getAppDeveloperUserGroup(project).then((ug) => {
                
                setCheckingAdmin(false)
                if (ug) {
@@ -146,7 +146,13 @@ const ProjectMakerView = (props) => {
             {!checkingAdmin && isAdmin && <ProjectCreate onCreate={getMyProjects} />}
          </div>
          <div className='projectmake-right'>
-            {!checkingAdmin && isAdmin && <ProjectList projects={myProjects} currentVer={currentMakerVersion} migrateVersions={migratFromVersions} onUpdate={getMyProjects}/>}
+            {!checkingAdmin && isAdmin && <ProjectList
+               user={props.user}
+               projects={myProjects}
+               currentVer={currentMakerVersion}
+               migrateVersions={migratFromVersions}
+               onUpdate={getMyProjects}
+            />}
          </div>
       </ConfigContext.Provider>
    </div>
