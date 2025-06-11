@@ -83,6 +83,8 @@ For a complete description of the entire workflow see [In-Depth: Handling Secret
 
 ## ProjectMaker Supported Migrations
 
+Users are now only able to migrate projects which they created.
+
 The ProjectMakerView pageComponent now relies on a two versions returned from the Project Maker script. As before it uses the [CURRENT_MAKER_VERSION](../../../../app/ipaCore/pageComponents/projectMaker/projectMakerView.jsx#L88) to know it current release version. It now also uses an array of previous release versions in [MIGRATE_PROJECT_VERSIONS](../../../../app/ipaCore/pageComponents/projectMaker/projectMakerView.jsx#L89) to know projects at what versions [can be migrated to the current release](../../../../app/ipaCore/pageComponents/projectMaker/ProjectList/ProjectUpdater.jsx#L77). 
 
 ---
