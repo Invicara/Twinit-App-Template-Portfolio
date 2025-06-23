@@ -79,8 +79,7 @@ const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback
 	// this is a workaround to a bug in the IafPassSvc.createPermissionProfiles which is
 	// supposed to poll until permission profile has been created (or errored) but does not
 	do {
-		console.log(`get perm profile try #${tryCount}`)
-		tryCount++
+		console.log(`get perm profile try #${++tryCount}`)
 
 		let permissionProfiles = await IafPassSvc.getPermissionProfiles(
 			{ },
@@ -90,7 +89,7 @@ const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback
 
 		permProfile = permissionProfiles._list.find(pp => pp._userType === 'secrets_perm')
 
-	} while(!permProfile && tryCount < 30)
+	} while(!permProfile && tryCount < 50)
 
 	console.log(`STEP ${stepNum}: secrets perm profile`, permProfile)
 	if (callback) callback(`STEP ${stepNum++}: Created Secrets Perm Profile`)
