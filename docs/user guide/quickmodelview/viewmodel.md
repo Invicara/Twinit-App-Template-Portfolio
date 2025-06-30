@@ -111,7 +111,7 @@ When the search completes the model viewer will update to isolate the searched e
 
 1. Once you have the element table configured with your desired properties click the green download button to save the current state of the table to an Excel xlsx file.
 
-![element table donwload](../../img/element-table/element-table-row-download.jpg)
+![element table download](../../img/element-table/element-table-row-download.jpg)
 
 ![element table click](../../img/element-table/element-table-row-excel.jpg)
 
