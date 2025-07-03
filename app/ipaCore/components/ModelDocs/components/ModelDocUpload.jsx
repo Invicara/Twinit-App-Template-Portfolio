@@ -85,34 +85,12 @@ const ModelDocUpload = ({ onFilesUploaded }) => {
 				const relations = [
 					{
 						_relatedFromId: selectedElement._id,
-						_relatedToIds: [fileUploadResults[0]._id],
+						_relatedToIds: [fileUploadResults[fileUploadResults.length - 1]._id],
 						_relatedUserItemDbId: sharedContainer._userItemId,
 					}
 				];
 
 				await IafItemSvc.addRelations(modelRelatedCollections.elements._userItemId, relations);
-
-				const result = await IafScriptEngine.findWithRelated({
-					parent: {
-						query: {
-							_id: selectedElement._id
-						},
-						collectionDesc: {
-							_userItemId: modelRelatedCollections.elements._userItemId,
-						}
-					},
-					related: [
-						{
-							relatedDesc: {
-								_relatedUserType: "file_container"
-							},
-							query: {},
-							as: "RelatedFiles"
-						}
-					]
-				});
-
-				console.log({ result })
 			} catch (e) {
 				console.log(e)
 				deferredReject(e)

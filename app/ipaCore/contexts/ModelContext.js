@@ -1,4 +1,4 @@
-import React, {createContext, useEffect, useState, useMemo } from 'react'
+import React, { createContext, useEffect, useState, useMemo } from 'react'
 
 import { IafProj, IafItemSvc } from '@dtplatform/platform-api'
 import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
@@ -11,37 +11,37 @@ const ELEMENT_CHUNK_SIZE = 500
 const ModelContextProvider = ({ children }) => {
 
    // availableModelComposites: Array[<Object>] the array of imported models in the project
-   const [ availableModelComposites, setAvailableModelComposites ] = useState([])
+   const [availableModelComposites, setAvailableModelComposites] = useState([])
 
    // selectedModelComposite: <NamedComposieItem> the currently selected model to show in the viewer and to query
-   const [ selectedModelComposite, setSelectedModelComposite ] = useState()
+   const [selectedModelComposite, setSelectedModelComposite] = useState()
    // all selectedModelComposite versions of the selected imported model 
-   const [ selectedModelCompositeVersions, setSelectedModelCompositeVersions ] = useState()
+   const [selectedModelCompositeVersions, setSelectedModelCompositeVersions] = useState()
    // the specific selected version of the selected imported model
-   const [ selectedModelCompositeVersion, setSelectedModelCompositeVersion ] = useState()
+   const [selectedModelCompositeVersion, setSelectedModelCompositeVersion] = useState()
 
    // modelRelatedCollections: <Object> the related model collections for the selectedModelComposite Item Version
    // modelRelatedCollections.elements: <NamedUserCollection> the NamdUserCollection containing model elements
    // modelRelatedCollections.typeProps: <NamedUserCollection> the NamdUserCollection containing element type properties
    // modelRelatedCollections.instanceProps: <NamedUserCollection> the NamdUserCollection containing element instance properties
    // modelRelatedCollections.dataCache: <NamedUserCollection> the NamdUserCollection containing model data cached during import
-   const [ modelRelatedCollections, setModelRelatedCollections ] = useState()
+   const [modelRelatedCollections, setModelRelatedCollections] = useState()
 
    // total number of elements in the selected model version
-   const [ totalElementsCount, setTotalElementsCount ] = useState()
+   const [totalElementsCount, setTotalElementsCount] = useState()
 
    // all property references cached during model import for the selected model version 
-   const [ allPropRefs, setAllPropRefs ] = useState([])
+   const [allPropRefs, setAllPropRefs] = useState([])
    // selectedPropRefs: Array[<Object>] the currently selected set of properties to include in model queries and the table
    // setSelectedPropRefs: <function> the function to set the selectedPropRefs
-   const [ selectedPropRefs, setSelectedPropRefs ] = useState([])
+   const [selectedPropRefs, setSelectedPropRefs] = useState([])
 
    // selectedElement: <Object> the currently selected element in the model with all property info
-   const [ selectedElement, setSelectedElement ] = useState()
+   const [selectedElement, setSelectedElement] = useState()
 
    // sliceElements: Array[<Object>] the array of elements to isolate in the viewer
    // setSliceElements: <function> the function to set the sliceElements
-   const [ sliceElements, setSliceElements ] = useState([])
+   const [sliceElements, setSliceElements] = useState([])
 
    useEffect(() => {
       loadAllModels()
@@ -86,7 +86,7 @@ const ModelContextProvider = ({ children }) => {
       } catch (err) {
          console.error("ERROR: Retrieving Imported Models")
          console.error(err)
-         setAvailableModelComposites([{ _id: 0, _name:"Error Retrieving Imported Models"}])
+         setAvailableModelComposites([{ _id: 0, _name: "Error Retrieving Imported Models" }])
       }
    }
 
@@ -104,10 +104,10 @@ const ModelContextProvider = ({ children }) => {
       if (selectedModelComposite) {
          try {
             // get collections contained in the NamedCompositeItem representing the model version
-            let collectionsModelCompositeItem = (await IafItemSvc.getRelatedInItem(selectedModelComposite._userItemId, {}, null, {userItemVersionId: compositeVersionId}))._list
+            let collectionsModelCompositeItem = (await IafItemSvc.getRelatedInItem(selectedModelComposite._userItemId, {}, null, { userItemVersionId: compositeVersionId }))._list
             if (versionId) {
-               
-              return {
+
+               return {
                   elements: collectionsModelCompositeItem.find(c => c._userType === 'rvt_elements'),
                   instanceProps: collectionsModelCompositeItem.find(c => c._userType === 'rvt_element_props'),
                   typeProps: collectionsModelCompositeItem.find(c => c._userType === 'rvt_type_elements'),
@@ -158,8 +158,8 @@ const ModelContextProvider = ({ children }) => {
             // with no items, so we can get the _total from the response
             // userItemVersionId - ensures we are searchgn the correct collection version for the selected model version
             IafItemSvc.getRelatedItems(modelRelatedCollections.elements._userItemId, {
-               query : {},
-            }, null, { page: { _pageSize: 0, _offset: 0 }, userItemVersionId: modelRelatedCollections.elements._userItemVersionId } ).then((result => {
+               query: {},
+            }, null, { page: { _pageSize: 0, _offset: 0 }, userItemVersionId: modelRelatedCollections.elements._userItemVersionId }).then((result => {
                setTotalElementsCount(result._total)
             }))
          } catch (error) {
@@ -179,25 +179,25 @@ const ModelContextProvider = ({ children }) => {
          let _pageSize = 200
          let _offset = 0
          let total = 0
-   
+
          let propRefs = []
-   
+
          try {
             do {
-   
+
                let page = await IafItemSvc.getRelatedItems(modelRelatedCollections.dataCache._userItemId, {
                   // the data_cache collection contains lots of different types of cache data
                   // we are looking for items with the dataType property of 'propertyReference'
-                  query : {dataType: 'propertyReference'},
+                  query: { dataType: 'propertyReference' },
                }, null, { page: { _pageSize: _pageSize, _offset: _offset }, userItemVersionId: modelRelatedCollections.dataCache._userItemVersionId })
-   
+
                total = page._total
                _offset += _pageSize
 
                propRefs.push(...page._list)
-   
+
             } while (propRefs.length < total)
-   
+
             // save prop refs to state
             setAllPropRefs(propRefs)
 
@@ -260,7 +260,7 @@ const ModelContextProvider = ({ children }) => {
 
          let userSelectedElement = selectedModelElements._list[0]
          if (userSelectedElement) {
-            
+
             if (altCollections) {
                return simplifyElementItems([userSelectedElement])[0]
             } else {
@@ -303,10 +303,10 @@ const ModelContextProvider = ({ children }) => {
       let collections = altCollections ? altCollections : modelRelatedCollections
 
       let query = {
-         parent: { 
+         parent: {
             query: elementQuery || {},
             collectionDesc: {
-               _userItemId: collections.elements._userItemId, 
+               _userItemId: collections.elements._userItemId,
                _userType: collections.elements._userType,
                "_versions.all": true,
                "_versions._version": collections.elements._userItemVersion
@@ -317,12 +317,18 @@ const ModelContextProvider = ({ children }) => {
          },
          related: [
             {
-               relatedDesc: { _relatedUserType: collections.instanceProps._userType},
+               relatedDesc: { _relatedUserType: collections.instanceProps._userType },
                as: 'instanceProps'
             },
             {
-               relatedDesc: { _relatedUserType: collections.typeProps._userType},
+               relatedDesc: { _relatedUserType: collections.typeProps._userType },
                as: 'typeProps'
+            },
+            {
+               relatedDesc: {
+                  _relatedUserType: "file_container"
+               },
+               as: "RelatedFiles"
             }
          ]
       }
@@ -334,9 +340,9 @@ const ModelContextProvider = ({ children }) => {
    // you can have it optionally return the element ids by passing true for withElemIds
    const makeElementByPropQuery = (propertyColl, queryPartials, withElemIds) => {
       console.log('propertyColl ----> ', propertyColl)
-      let query =  {
+      let query = {
          parent: {
-            query: {$and: queryPartials.map(qp => qp.queryPartial)},
+            query: { $and: queryPartials.map(qp => qp.queryPartial) },
             collectionDesc: {
                _userItemId: propertyColl._userItemId,
                _userType: propertyColl._userType,
@@ -364,7 +370,7 @@ const ModelContextProvider = ({ children }) => {
 
       if (withElemIds) {
          query.related[0].options.project = { _id: 1 },
-         query.related[0].options.page = { getAllItems: true }
+            query.related[0].options.page = { getAllItems: true }
       }
 
       return query
@@ -408,7 +414,7 @@ const ModelContextProvider = ({ children }) => {
             // this is much faster for queries than using an alternative like the relatedFilter which would 
             // cause us to have to page through every page of elements looking for the ones that match the relatedFilter
             // -- in a large file that could be 100,000 or more elements
-            
+
             // with this implmentation we generate a smaller list of element _ids that match the
             // instance query and a smaller list of element _ids that match the type query and
             // then find the element _ids in both, then fetch the elements by _id
@@ -430,7 +436,7 @@ const ModelContextProvider = ({ children }) => {
             }))
 
             await Promise.all(bothPromises)
-          
+
             let inBoth = instElemIds.filter(i => typeElemIds.includes(i))
 
             return inBoth.length
@@ -458,12 +464,12 @@ const ModelContextProvider = ({ children }) => {
       // first we get the list of element _ids the query will return
 
       let idChunks
- 
+
       try {
          if (instanceQuery && !typeQuery) {
             // since there is only an instance query we can simply query the elements related to the instance property
             // instancePropery ---_isInverse:true---> element
-   
+
             let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true))
 
             let instElemIds = []
@@ -474,14 +480,14 @@ const ModelContextProvider = ({ children }) => {
          } else if (!instanceQuery && typeQuery) {
             // since there is only a type query we can simply query the elements related to the type property
             // typePropery ---_isInverse:true---> element
-   
+
             let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true))
             console.log('result ----->', result)
             let typeElemIds = []
             result._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
 
             idChunks = chunkIds(typeElemIds, ELEMENT_CHUNK_SIZE)
-   
+
          } else if (instanceQuery && typeQuery) {
 
             // if both instance and type queries are present we do each search individually
@@ -492,7 +498,7 @@ const ModelContextProvider = ({ children }) => {
             // this is much faster for queries than using an alternative like the relatedFilter which would 
             // cause us to have to page through every page of elements looking for the ones that match the relatedFilter
             // -- in a large file that could be 100,000 or more elements
-            
+
             // with this implmentation we generate a smaller list of element _ids that match the
             // instance query and a smaller list of element _ids that match the type query and
             // then find the element _ids in both, then fetch the elements by _id
@@ -500,7 +506,7 @@ const ModelContextProvider = ({ children }) => {
             // this is much faster than paging through all model elements using relatedFilter
 
             // and when retrieving only a few elements it is hundreds of times faster
-   
+
             let bothPromises = []
 
             let instElemIds = []
@@ -514,11 +520,11 @@ const ModelContextProvider = ({ children }) => {
             }))
 
             await Promise.all(bothPromises)
-          
+
             let inBoth = instElemIds.filter(i => typeElemIds.includes(i))
 
             idChunks = chunkIds(inBoth, ELEMENT_CHUNK_SIZE)
-   
+
          }
       } catch (error) {
          console.error('ERROR: Getting Model Element ids by Search')
@@ -540,7 +546,7 @@ const ModelContextProvider = ({ children }) => {
             // for each d chunk of elements call the Item Service
             for (let i = 0; i < idChunk.length; i++) {
 
-               let query = {_id: {$in: idChunk[i]}}
+               let query = { _id: { $in: idChunk[i] } }
 
                idChunkPromises.push(IafScriptEngine.findWithRelated(makeElementQuery(query)).then((res) => {
                   // add page of elements to the list of all returned elements
@@ -587,23 +593,25 @@ const ModelContextProvider = ({ children }) => {
          getElementCount,
          sliceElements,
          setSliceElements,
-         setSliceElementsByQuery}
-   }, [ 
-         availableModelComposites,
-         selectedModelComposite,
-         selectedModelCompositeVersions,
-         selectedModelCompositeVersion,
-         modelRelatedCollections,
-         totalElementsCount,
-         selectedElement,
-         allPropRefs,
-         selectedPropRefs,
-         sliceElements
-      ]
+         setSliceElementsByQuery,
+         resetContext,
+      }
+   }, [
+      availableModelComposites,
+      selectedModelComposite,
+      selectedModelCompositeVersions,
+      selectedModelCompositeVersion,
+      modelRelatedCollections,
+      totalElementsCount,
+      selectedElement,
+      allPropRefs,
+      selectedPropRefs,
+      sliceElements
+   ]
    )
 
    return <ModelContext.Provider value={memoizedContextValue}>
-      { children }
+      {children}
    </ModelContext.Provider>
 }
 
