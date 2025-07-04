@@ -8,7 +8,7 @@ import './ElementDetails.scss'
 // displays a list of element type and instance properties in a row of the table
 // when a row is expanded
 const ElementDetails = ({ element, horizontal = true, readOnly, onView }) => {
-   const { resetContext } = useContext(ModelContext)
+   const { setSelectedElement, setSliceElements } = useContext(ModelContext)
 
    if (element.RelatedFiles._list.length > 0) {
       element.files = [];
@@ -36,7 +36,10 @@ const ElementDetails = ({ element, horizontal = true, readOnly, onView }) => {
             {element?.files?.map(f => <FileRow
                key={f._id}
                file={f}
-               onChange={resetContext}
+               onChange={() => {
+                  setSelectedElement(null)
+                  setSliceElements([])
+               }}
                onView={onView}
                readOnly={readOnly}
             />)}

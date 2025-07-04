@@ -594,7 +594,7 @@ const ModelContextProvider = ({ children }) => {
          sliceElements,
          setSliceElements,
          setSliceElementsByQuery,
-         resetContext,
+         setSelectedElement,
       }
    }, [
       availableModelComposites,

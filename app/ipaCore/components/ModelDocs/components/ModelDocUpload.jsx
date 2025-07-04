@@ -9,7 +9,7 @@ import { getModelFolder } from "../modelDocUtils"
 import { ChooseFiles } from "../../ChooseFiles/ChooseFiles"
 
 const ModelDocUpload = ({ onFilesUploaded }) => {
-	const { selectedModelComposite, selectedElement, modelRelatedCollections } = useContext(ModelContext)
+	const { selectedModelComposite, selectedElement, modelRelatedCollections, setSelectedElement } = useContext(ModelContext)
 
 	const [busy, setBusy] = useState(false)
 	const [totalFileCount, setTotalFileCount] = useState(0)
@@ -32,6 +32,7 @@ const ModelDocUpload = ({ onFilesUploaded }) => {
 			fileUploadResults.push(file)
 			setCurrentProgress('100')
 			deferredResolve()
+			setSelectedElement(null)
 		}
 
 		// we will provide an onProgress callback as well to the upload function
