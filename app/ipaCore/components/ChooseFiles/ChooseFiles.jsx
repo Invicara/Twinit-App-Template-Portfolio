@@ -25,11 +25,13 @@ export const ChooseFiles = ({ onAddFiles, busy, selectedElement, busyMsg = 'Uplo
 
    return (
       <div className="dropzone-anchor">
-         {!selectedElement ? (
-            <div className="dropzone">
-               <p className="warningText">Please select an element on the viewer to associate with the uploaded file.</p>
-            </div>
-         ) : busy ? (
+         <p className="warningText">
+            {selectedElement ?
+            `The selected file will be associated with ${selectedElement.instanceProps?.['BA Name']?.val}`
+            : "The selected file will be associated with the project."
+            }
+         </p>
+         {busy ? (
             <div className="dropzone">
                <div className="icon-wrapper">
                   <i className="fas fa-spinner fa-spin" />

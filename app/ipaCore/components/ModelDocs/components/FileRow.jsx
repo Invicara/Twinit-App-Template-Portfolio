@@ -58,7 +58,7 @@ const FileRow = ({ file,       // the file in the row
 
       const currentProject = await IafProj.getCurrent()
       const sharedFileContainer = await IafFile.getContainers(currentProject, { _name: "SHARED" });
-      const fileItem = (await IafFile.getFileItems(sharedFileContainer[0], { name: file._name }))._list[0];
+      const fileItem = (await IafFile.getFileItems(sharedFileContainer[0], { name: file._name }))?._list[0];
 
       if (sharedFileContainer && fileItem) {
          await IafFile.deleteFileItem(sharedFileContainer[0], fileItem);
