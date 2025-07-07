@@ -1,7 +1,6 @@
 import React, { useContext, useState } from "react"
 
 import { IafFileSvc, IafProj, IafFile, IafItemSvc } from "@dtplatform/platform-api"
-import { IafScriptEngine } from '@dtplatform/iaf-script-engine'
 
 import { ModelContext } from "../../../contexts/ModelContext"
 
@@ -74,24 +73,35 @@ const ModelDocUpload = ({ onFilesUploaded }) => {
 			})
 
 			try {
-				await IafFile.uploadFileResumable(sharedContainer, file, {
-					filename: encodeURI(file.name),
-					onProgress: (bytesUploaded, bytesTotal) => onUploadProgress(bytesUploaded, bytesTotal, file),
-					onComplete: (upfile) => onUploadComplete(deferredResolve, upfile), // onComplete will be passed the file record in the file service
-					onError: (error) => onUploadError(deferredReject, error, file)
-				});
+				if (!selectedElement) {
+					await IafFileSvc.addFileResumable(file, project._namespaces, [folder._id], [], null, {
+						filename: encodeURI(file.name),
+						onProgress: (bytesUploaded, bytesTotal) => onUploadProgress(bytesUploaded, bytesTotal, file),
+						onComplete: (upfile) => onUploadComplete(deferredResolve, upfile), // onComplete will be passed the file record in the file service
+						onError: (error) => onUploadError(deferredReject, error, file)
+					});
 
-				await Promise.all([uploadPromise]);
+					await Promise.all([uploadPromise]);
+				} else {
+					await IafFile.uploadFileResumable(sharedContainer, file, {
+						filename: encodeURI(file.name),
+						onProgress: (bytesUploaded, bytesTotal) => onUploadProgress(bytesUploaded, bytesTotal, file),
+						onComplete: (upfile) => onUploadComplete(deferredResolve, upfile), // onComplete will be passed the file record in the file service
+						onError: (error) => onUploadError(deferredReject, error, file)
+					});
 
-				const relations = [
-					{
-						_relatedFromId: selectedElement._id,
-						_relatedToIds: [fileUploadResults[fileUploadResults.length - 1]._id],
-						_relatedUserItemDbId: sharedContainer._userItemId,
-					}
-				];
+					await Promise.all([uploadPromise]);
 
-				await IafItemSvc.addRelations(modelRelatedCollections.elements._userItemId, relations);
+					const relations = [
+						{
+							_relatedFromId: selectedElement._id,
+							_relatedToIds: [fileUploadResults[fileUploadResults.length - 1]._id],
+							_relatedUserItemDbId: sharedContainer._userItemId,
+						}
+					];
+
+					await IafItemSvc.addRelations(modelRelatedCollections.elements._userItemId, relations);
+				}
 			} catch (e) {
 				console.log(e)
 				deferredReject(e)
