@@ -24,7 +24,7 @@ import './TablePanel.scss'
 // and more than 100 isn't usable in the bottom panel
 const TABLE_PAGE_SIZE = 100
 
-const TablePanel = () => {
+const TablePanel = ({ readOnly, onView }) => {
 
    // Model Context
    const { selectedElement, selectedPropRefs, sliceElements } = useContext(ModelContext)
@@ -195,7 +195,7 @@ const TablePanel = () => {
             }}
             rowOptions={{
                renderAfterRow: (item) => ( <>
-                  {expandedRowIds.includes(item._id) && <ElementDetails element={item}/>}
+                  {expandedRowIds.includes(item._id) && <ElementDetails element={item} readOnly={readOnly} onView={onView}/>}
                </>)
             }}
          /></div>}
