@@ -27,8 +27,8 @@ export const ChooseFiles = ({ onAddFiles, busy, selectedElement, busyMsg = 'Uplo
       <div className="dropzone-anchor">
          <p className="warningText">
             {selectedElement ?
-            `The selected file will be associated with ${selectedElement.instanceProps?.['BA Name']?.val}`
-            : "The selected file will be associated with the project."
+               `The selected file will be associated with ${selectedElement.instanceProps?.['BA Name']?.val}`
+               : "The selected file will be associated with the current model."
             }
          </p>
          {busy ? (
