@@ -21,6 +21,7 @@ import './ProjectUpdater.scss'
 */
 const ProjectUpdater = ({
       isOutOfDate,         // whether the project is out of date
+      migratable = false,          // if migration is supported for this project
       project,             // the project for which the component is responsible
       version,             // the current version of the project
       onUpdateStart,       // a callback to the parent for when an update is started
@@ -65,12 +66,16 @@ const ProjectUpdater = ({
 
    return <div className='project-updater'>
 
-      {isOutOfDate && !isUpdating && !disabled && projectUpdateScript && projectUpdateScript.length && <Tooltip title='Update Project Now'>
+      {isOutOfDate && migratable && !isUpdating && !disabled && projectUpdateScript && projectUpdateScript.length && <Tooltip title='Update Project Now'>
          <i className="far fa-play-circle fa-2x" onClick={doUpdate}></i>
       </Tooltip>}
 
-      {isOutOfDate && !isUpdating && !disabled && (!projectUpdateScript || !projectUpdateScript.length) && <Tooltip title='Project Update Script Missing'>
+      {isOutOfDate && migratable && !isUpdating && !disabled && (!projectUpdateScript || !projectUpdateScript.length) && <Tooltip title='Project Update Script Missing'>
          <i className="far fa-times-circle fa-2x"></i>
+      </Tooltip>}
+
+      {isOutOfDate && !migratable && <Tooltip title='Project Cannot Be Migrated'>
+         <i className="far fa-times-circle fa-2x disabled"></i>
       </Tooltip>}
 
       {!isOutOfDate && !isUpdating && !disabled && <Tooltip title='Project Up to Date'>

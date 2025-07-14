@@ -463,6 +463,15 @@ class SimpleModelImportView extends React.Component {
 
   };
 
+  downloadVersionBimpk = async (ver) => {
+
+    console.log(ver)
+    IafFileSvc.getFileVersionUrl(ver._fileId, ver._id).then((res) => {
+      window.location.href = res._url
+    })
+
+  }
+
   render() {
     const {
       isPageLoading,
@@ -520,6 +529,7 @@ class SimpleModelImportView extends React.Component {
                     <th></th>
                     <th></th>
                     <th>Version</th>
+                    <th></th>
                     <th>Created On</th>
                   </tr>
                 </thead>
@@ -541,16 +551,24 @@ class SimpleModelImportView extends React.Component {
                     </td>
                     <td>{isImported(bv, allImportedModelVersions) && isTipVersion(bv, bimpks, selectedBimpk) && <div 
                         className='delete-ver' 
-                        onClick={() => this.deleteImportedVersion(bv, allImportedModelVersions)}
+                        onClick={() =>deleteImportedVersion(bv, allImportedModelVersions) }
                       >
                         <i className='fas fa-trash'></i>
                       </div>}
                     </td>
                     <td>{bv._version}</td>
+                    <td>
+                      <div 
+                        className='download-ver' 
+                        onClick={() => this.downloadVersionBimpk(bv)}
+                      >
+                        <i className='fas fa-download'></i>
+                      </div>
+                    </td>
                     <td>{bv.displayCreateDate}</td>
                   </tr>)}
                   <tr>
-                    <td colSpan='4'>Only tip versions may be imported. Imported versions will display with a check mark. Currently the model viewer only supports viewing the tip imported version of a model.</td>
+                    <td colSpan='5'>Only tip versions may be imported. Imported versions will display with a check mark.</td>
                   </tr>
                   <tr>
                     {this.state.isDeletingModel && <td colSpan='4' className='delete-msg'><i className='fas fa-spinner fa-spin'></i> Deleting latest imported model version</td>}

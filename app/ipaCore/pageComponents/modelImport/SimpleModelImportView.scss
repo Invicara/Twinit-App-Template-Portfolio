@@ -31,7 +31,11 @@
       }
 
       td:nth-of-type(3) {
-         width: 20%;
+         width: 10%;
+      }
+
+      td:nth-of-type(4) {
+         width: 10%;
       }
 
       .delete-msg {
@@ -41,5 +45,16 @@
 
    .delete-ver {
       cursor: pointer;
+
+      &:hover {
+         color: red;
+      }
+
    }
+
+   .download-ver {
+      cursor: pointer;
+      color: darkblue;
+   }
+
 }

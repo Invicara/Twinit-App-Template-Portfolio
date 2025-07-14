@@ -6,8 +6,12 @@ import TwinitLogo from "../../../assets/images/invicara-logo_white.svg"
 
 const Logo = ({ userGroupId, appImageSettings }) => {
     const [imgSrc, setImgSrc] = useState()
-    useEffect(async () => {
+    useEffect(() => {
         const { url, filename } = appImageSettings
+        getLogo(url, filename)
+    }, [userGroupId, appImageSettings])
+
+    const getLogo = async (url, filename) => {
         if (url) {
             setImgSrc(url)
         } else if (filename) {
@@ -22,7 +26,7 @@ const Logo = ({ userGroupId, appImageSettings }) => {
         } else {
             setImgSrc(TwinitLogo)
         }
-    }, [userGroupId, appImageSettings])
+    }
 
     return (
         <div id="logo" className="logo-wrapper">

@@ -3,7 +3,7 @@ import React, { useEffect, useState, useContext} from 'react'
 // https://github.com/ant-design/ant-design
 import { TreeSelect } from 'antd'
 
-import { ModelContext } from "../../ModelContext"
+import { ModelContext } from "../../../contexts/ModelContext"
 
 import './PropertySelector.scss'
 

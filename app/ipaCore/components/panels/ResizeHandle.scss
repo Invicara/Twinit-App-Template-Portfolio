@@ -4,10 +4,9 @@
       flex: 0 0 1.5em;
       position: relative;
       outline: none;
-      border-top: 2px solid lightgray;
       background-color: white;
       z-index: 1000;
-   
+      border-top: 2px solid lightgray;
       --background-color: transparent;
 
       .ResizeHandleInner {
@@ -27,8 +26,17 @@
             left: calc(50% - 0.5rem);
             top: calc(50% - 0.5rem);
          }
+
+         .horizontal {
+            transform: rotate(90deg);
+         }
       }
 
+   }
+
+   .ResizeHandleOuter.horizontal {
+      border-right: 2px solid lightgray;
+      border-top: unset;
    }
    .ResizeHandleOuter[data-resize-handle-active] {
       --background-color: var(--color-solid-resize-bar-handle);

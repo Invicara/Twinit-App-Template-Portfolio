@@ -1,0 +1,58 @@
+.dropzone-anchor {
+  position: relative;
+}
+
+.dropzone {
+
+  height: 200px;
+  background: #FFFFFF;
+  box-shadow: 0px 10px 20px #0000001A;
+  border: 3px dashed #E6E6E6;
+  border-radius: 25px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+
+  &.dragging {
+    border: 3px solid var(--app-accent-color);
+    background: #e0e0e0;
+  }
+
+  >* {
+    margin: 13px 0;
+  }
+
+  .cloud-icon {
+    font-size: 3em;
+    ;
+    color: var(--app-accent-color);
+  }
+
+  .fa-spinner {
+    font-size: 3em;
+    ;
+    color: var(--app-accent-color);
+  }
+
+  .dropzone-legend {
+    font-size: 22px;
+    font-weight: 300;
+    letter-spacing: 0;
+    color: gray;
+  }
+}
+
+.warningText {
+  color: red;
+}
+
+.main-button {
+  font-size: 17px;
+  height: 44px;
+  color: white;
+  background: var(--app-accent-color);
+  border-radius: 25px;
+  box-shadow: none;
+}

@@ -19,6 +19,15 @@
       "description": "Model View",
       "pageComponent": "simpleViewer/SimpleViewerView",
       "path": "/modelview",
+      "config": {
+        "manageFiles": true
+      }
+    },
+    "mapboxSettings": {
+      "title": "Mapbox Settings",
+      "icon": "fas fa-map-marked-alt fa-2x",
+      "pageComponent": "mapboxSettings/MapboxSettingsView",
+      "path": "/mapboxsettings",
       "config": {}
     },
     "userGroups": {
@@ -53,6 +62,16 @@
           "handler": "modelImport"
         }
       ]
+    },
+    "settings": {
+      "icon": "fas fa-tools fa-2x",
+      "position": 2,
+      "pages": [
+        {
+          "page": "Mapbox Settings",
+          "handler": "mapboxSettings"
+        }
+      ]
     }
   },
   "settings": {
@@ -75,7 +94,6 @@
       "--fancytree-two-channel-color": "#fde0d7",
       "--fancytree-three-color": "#00a693",
       "--fancytree-three-channel-color": "#cdebe8",
-
       "--element-table-font-primary": "#141414",
       "--element-table-font-secondary": "#757575",
       "--element-table-font-disabled": "#9e9e9e",
