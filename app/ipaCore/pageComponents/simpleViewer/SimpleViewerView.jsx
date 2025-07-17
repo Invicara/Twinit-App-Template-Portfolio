@@ -127,6 +127,7 @@ const SimpleViewerPage = ({ handler }) => {
                      selection={selectedElement ? [selectedElement.package_id, selectedElement.source_id] : []}
                      OnSelectedElementChangeCallback={getSelectedElement}
                      modelComposition={modelComposition}
+                     enableOptimizedSelection={true}
                      gis={{
                         enabled: !!mapboxToken,
                         token: mapboxToken
