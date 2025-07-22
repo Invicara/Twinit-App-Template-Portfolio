@@ -244,6 +244,15 @@ const _updatePermissions = async (stepNum, project, libraries, callback) => {
 		}
 	})
 
+	let sharedContainerReadPerms = Object.assign({}, basePerm, {
+		_resourceDesc: {
+			_irn: `${IafPermission.Resources.NamedUserItem.Irn}*`,
+			_criteria: {
+				_userType: 'file_container'
+			}
+		}
+	})
+
 	// give Viewers READ to workspaces that they belong to
 	let WorkspacePerm = Object.assign({}, basePerm, {
 		_resourceDesc: {
@@ -263,7 +272,8 @@ const _updatePermissions = async (stepNum, project, libraries, callback) => {
 		elementTypesItemReadPerms,
 		geomViewsItemReadPerms,
 		geomResourcesItemReadPerms,
-		dataCacheItemReadPerms
+		dataCacheItemReadPerms,
+		sharedContainerReadPerms,
 	])
 
 	await IafPermission.createPassPermissions([WorkspacePerm])
