@@ -11,7 +11,7 @@
 3. Type a new project name in the "New Project Name" text field
 4. Click the "Create Project" button
 
-A status log will display and update completed steps as the new project is created.
+A status log will display and update completed steps as the new project is created. The steps will vary based on the template release, so you may see different steps than pictured below.
 
 ![project in progress](../../img/proj-make-in-progress.jpg)
 
