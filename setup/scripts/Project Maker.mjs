@@ -289,6 +289,31 @@ const _updatePermissions = async (stepNum, project, libraries, callback) => {
 
 }
 
+const _alwaysPatchAdminPermExists = async(IafPermission, IafPassSvc, adminGroup, viewerGroup) => {
+
+	// chck o se if th permission allowing Admins to manag the Viewer user group already exists
+	let adminPerms = await IafPassSvc.getUsergroupPermissions(adminGroup._id)
+	let adminViewerPerm = adminPerms._list.find(p => p._resourceDesc?._irn === `passportsvc:usergroup:${viewerGroup._id}`)
+	console.log('existing', adminViewerPerm)
+
+	// if the permision does not exist create it
+	if (!adminViewerPerm) {
+
+		let adminReportersAllPerm = await IafPermission.constructPermObjWithActions(
+			[IafPermission.PermConst.Action.All],
+			viewerGroup._namespaces[0],
+			adminGroup._id,
+			'passportsvc:usergroup:',
+			viewerGroup._id,
+			false,
+			false
+		)
+
+		let passPermsResult = await IafPermission.createPassPermissions([adminReportersAllPerm])
+		console.log('Created Admin Viewer Managemenet Permission', JSON.stringify(passPermsResult))
+	}
+}
+
 let scriptModule = {
 	async getCurrentMakerVersion() {
 		return  { CURRENT_MAKER_VERSION, MIGRATE_PROJECT_VERSIONS }
@@ -296,7 +321,7 @@ let scriptModule = {
 	// input { projName: <REQUIRED>, projDesc: <OPTIONAL> }
 	async createNewQuickModelViewProject(input, libraries, ctx, callback) {
 
-		const { IafProj, IafUserGroup, IafWorkspace, IafDataSource, IafPermission } = libraries.PlatformApi
+		const { IafProj, IafUserGroup, IafWorkspace, IafDataSource, IafPermission, IafPassSvc } = libraries.PlatformApi
 
 		const {
 			projName,	// REQUIRED: name of the new project to create
@@ -388,6 +413,7 @@ let scriptModule = {
 			// create read only permissions for the viewer user group on across all of Twinit
 			let readViewerPermCreate = await IafWorkspace.addAllAccess(newProject, viewerGroup, [ IafPermission.PermConst.Action.Read ])
 
+			await _alwaysPatchAdminPermExists(IafPermission, IafPassSvc, adminGroup, viewerGroup)
 			console.log('STEP 7: viewerGroup', viewerGroup, readViewerPermCreate)
 			console.log('STEP 7: viewerGroup read permissons create', readViewerPermCreate)
 			if (callback) callback(`STEP 7: Created Viewers User Group ${viewerGroup._id}`)
@@ -490,7 +516,7 @@ let scriptModule = {
 	// input { project, version }
 	async updateQuickModelViewProject(input, libraries, ctx, callback) {
 
-		const { IafProj, IafScripts, IafUserConfig } = libraries.PlatformApi
+		const { IafProj, IafScripts, IafUserConfig, IafPassSvc, IafPermission } = libraries.PlatformApi
 		const { 	project,	// REQUIRED: the project to migrate
 					version 	// REQUIRED: the current version of the project to migrate
 		} = input
@@ -518,7 +544,13 @@ let scriptModule = {
 			callback('STEP 1: Updated Admin User Config')
 
 			let step = await _enableGis(2, updateProject, scriptTemplates, libraries, callback)
-			step = await _updatePermissions(step, project, libraries, callback)
+			step = await _updatePermissions(step, updateProject, libraries, callback)
+
+			const allUserGroups = await IafProj.getUserGroups(updateProject, ctx)
+
+			const viewerGroup = allUserGroups.find(ug => ug._name === 'Viewers')
+			const adminGroup = allUserGroups.find(ug => ug._name === 'Admin')
+			await _alwaysPatchAdminPermExists(IafPermission, IafPassSvc, adminGroup, viewerGroup)
 
 			// project updates onyl allowed if _description is present
 			if (!updateProject._description) {
