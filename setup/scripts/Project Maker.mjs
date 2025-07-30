@@ -39,7 +39,7 @@ const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback
 
 	// create the permission profile for the Mapbox authorization instant orchestrator
 	// so that it can access the secrets collection
-	await IafPassSvc.createPermissionProfiles(
+	let permProfileResp = await IafPassSvc.createPermissionProfiles(
 		[
 			{
 				_name: "Secrets orchestrator perms",
@@ -72,24 +72,7 @@ const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback
 		]
 	)
 
-	let permProfile
-	let tryCount = 0
-
-	// we loop here (a max of 30 times) to get the permission profile once it is created
-	// this is a workaround to a bug in the IafPassSvc.createPermissionProfiles which is
-	// supposed to poll until permission profile has been created (or errored) but does not
-	do {
-		console.log(`get perm profile try #${++tryCount}`)
-
-		let permissionProfiles = await IafPassSvc.getPermissionProfiles(
-			{ },
-			null,
-			{ _pageSize: 25, _offset: 0 }
-		)
-
-		permProfile = permissionProfiles._list.find(pp => pp._userType === 'secrets_perm')
-
-	} while(!permProfile && tryCount < 50)
+	let permProfile = permProfileResp._list[0]
 
 	console.log(`STEP ${stepNum}: secrets perm profile`, permProfile)
 	if (callback) callback(`STEP ${stepNum++}: Created Secrets Perm Profile`)
@@ -261,6 +244,15 @@ const _updatePermissions = async (stepNum, project, libraries, callback) => {
 		}
 	})
 
+	let sharedContainerReadPerms = Object.assign({}, basePerm, {
+		_resourceDesc: {
+			_irn: `${IafPermission.Resources.NamedUserItem.Irn}*`,
+			_criteria: {
+				_userType: 'file_container'
+			}
+		}
+	})
+
 	// give Viewers READ to workspaces that they belong to
 	let WorkspacePerm = Object.assign({}, basePerm, {
 		_resourceDesc: {
@@ -280,7 +272,8 @@ const _updatePermissions = async (stepNum, project, libraries, callback) => {
 		elementTypesItemReadPerms,
 		geomViewsItemReadPerms,
 		geomResourcesItemReadPerms,
-		dataCacheItemReadPerms
+		dataCacheItemReadPerms,
+		sharedContainerReadPerms,
 	])
 
 	await IafPermission.createPassPermissions([WorkspacePerm])
