@@ -42,6 +42,7 @@ The features available to each user group are listed below:
 * [How to view a model and model element properties](./viewmodel.md)
 * [How to manage files](./files.md)
 * [How to configure Mapbox credentials](./mapbox.md)
+* [How to enable Mapbox in the model viewer](./use-mapbox.md)
 * [How to invite users to a Quick Model View project](./inviteusers.md)
 
 ## More Info
