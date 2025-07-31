@@ -84,7 +84,7 @@ const ModelDocUpload = ({ onFilesUploaded }) => {
 					await Promise.all([uploadPromise]);
 				} else {
 					await IafFile.uploadFileResumable(sharedContainer, file, {
-						filename: encodeURI(file.name),
+						//filename: encodeURI(file.name),
 						onProgress: (bytesUploaded, bytesTotal) => onUploadProgress(bytesUploaded, bytesTotal, file),
 						onComplete: (upfile) => onUploadComplete(deferredResolve, upfile), // onComplete will be passed the file record in the file service
 						onError: (error) => onUploadError(deferredReject, error, file)
