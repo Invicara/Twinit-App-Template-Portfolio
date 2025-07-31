@@ -26,7 +26,14 @@ Node version 18 has been tested and certified for this template. Using other ver
 1. Open a terminal window in the directory to which you copied the template code
 2. Run ```npm install```
 
-If you experience authentication issues for @dtplatform or @invicara packages when installing dependencies please follow the steps in [this knowledgebase article](https://community.digitaltwin-factory.com/knowledgebase-5wzpkylt/post/authentication-errors-installing-twinit-npm-libraries-ySEzOpPtA3uKVfw) to ensure you have correctly configured your system environment variables to work with the template's .npmrc file.
+If you experience authentication issues such as the one in the image below for @dtplatform or @invicara packages when installing dependencies please follow the steps on:
+
+* [twinit.dev](https://twinit.dev/docs/apis/javascript/npm-install) for configuring your .npmrc files
+* and in [this knowledgebase article](https://community.digitaltwin-factory.com/knowledgebase-5wzpkylt/post/authentication-errors-installing-twinit-npm-libraries-ySEzOpPtA3uKVfw) to ensure you have correctly configured your system environment variables to work with the template's .npmrc file
+
+![npm-auth-error-image](../../img/npm-auth-error.png)
+
+> **Remember**: While you may be setting up the Quick Model View template on the Twinit Sandbox, when you configure your .npmrc file you must use you [Twinit Production account and credentials](https://api.invicara.com/passportsvc/api/accounts?returnUrl=https://twinit.dev/docs/apis/javascript/npm-install#authenticator).
 
 ## Update the Web Client Configuration
 
