@@ -1,4 +1,6 @@
 import React from 'react'
+
+// https://github.com/bokuweb/react-rnd
 import { Rnd } from "react-rnd"
 
 import IafDocViewer from '@dtplatform/iaf-doc-viewer'

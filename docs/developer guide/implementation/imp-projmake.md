@@ -23,7 +23,19 @@ The QMV Manager project has one user config to provide the user interface and on
 
 The QMV Manager user config is named "QuickViewManagerConfig" and has the _userType "quick-view".
 
-![project maker config](../../img/vscode-proj-maker-config.jpg)
+<pre><code>TWINIT
+├─ Quick Model View
+│  ├─ QMV Manager (p)
+│  │  ├─ Scripts
+│  │  │  ├─ [v1] importHelperTemplate (quick-temp) &lt;b>
+│  │  │  ├─ [v1] mapboxTemplate (quick-temp) &lt;b>
+│  │  │  ├─ [v1] Project Maker (project-maker)
+│  │  ├─ User Configs
+│  │  │  ├─ [v1] QuickViewAdminConfigTemplate (quick-temp)
+│  │  │  ├─ <mark>[v1] QuickViewManagerConfig (quick-view)</mark>
+│  │  │  ├─ [v1] QuickViewViewerConfigTemplate (quick-temp)
+│  │  ├─ API Configs
+</pre></code>
 
 The User Config exposes two pages to the user:
 
@@ -59,7 +71,7 @@ Those scripts are specified in the handler in two places.
 
 1. **scriptTypes**: the _userType of the script in Twinit must be specified in the handlers scriptTypes array so that the necessary script item can be loaded when the page loads, making the scripts the page needs available to be run
 2. **config**: three scripts must be configured in the handlers config to support creating and updating projects:
-   * **currentVersionScript**: returns the current version assigned to newly created Quick Model View projects. This is also used to determine if existing projects are out of date
+   * **currentVersionScript**: returns the current versions assigned to newly created Quick Model View projects. This is also used to determine if existing projects are out of date and can be migrated to the current release.
    * **projectCreateScript**: the script used to create new Quick Model View projects
    * **projectUpdateScript**: the script used to migrate a project from an older version to the current version
 
@@ -69,7 +81,19 @@ Those scripts are specified in the handler in two places.
 
 The Project Maker script file is named "Project Maker" and has the _userType "project-maker".
 
-![project maker config](../../img/vscode-proj-maker-script.jpg)
+<pre><code>TWINIT
+├─ Quick Model View
+│  ├─ QMV Manager (p)
+│  │  ├─ Scripts
+│  │  │  ├─ [v1] importHelperTemplate (quick-temp) &lt;b>
+│  │  │  ├─ [v1] mapboxTemplate (quick-temp) &lt;b>
+│  │  │  ├─ <mark>[v1] Project Maker (project-maker)</mark>
+│  │  ├─ User Configs
+│  │  │  ├─ [v1] QuickViewAdminConfigTemplate (quick-temp)
+│  │  │  ├─ [v1] QuickViewManagerConfig (quick-view)
+│  │  │  ├─ [v1] QuickViewViewerConfigTemplate (quick-temp)
+│  │  ├─ API Configs
+</pre></code>
 
 This script file contains the individual scripts configured in the page handler. In addition to the script descriptions below, read through the [commented script code](../../../setup/scripts/Project%20Maker.mjs) to understand how the script works.
 
@@ -88,7 +112,19 @@ The script does the following:
 
 1. Retrieves the template scripts and user configs that will be added to the new Quick Model View project, from the QMV Manager project. The scripts and user configs all have the _userType "quick-temp".
 
-![template items](../../img/vscode-proj-maker-temps.jpg)
+<pre><code>TWINIT
+├─ Quick Model View
+│  ├─ QMV Manager (p)
+│  │  ├─ Scripts
+│  │  │  ├─ <mark>[v1] importHelperTemplate (quick-temp) &lt;\b></mark>
+│  │  │  ├─ <mark>[v1] mapboxTemplate (quick-temp) &lt;\b></mark>
+│  │  │  ├─ [v1] Project Maker (project-maker)
+│  │  ├─ User Configs
+│  │  │  ├─ <mark>[v1] QuickViewAdminConfigTemplate (quick-temp)</mark>
+│  │  │  ├─ [v1] QuickViewManagerConfig (quick-view)
+│  │  │  ├─ <mark>[v1] QuickViewViewerConfigTemplate (quick-temp)</mark>
+│  │  ├─ API Configs
+</pre></code>
 
 2. Creates the new project in Twinit
 3. Switches its context to working within the newly created project
@@ -99,6 +135,11 @@ The script does the following:
 8. Creates a Viewers user config from the QuickViewViewerConfigTemplate and relates the new config to the Viewers User Group
 9. Creates a new importHelper script from the importHelperTemplate script.
 10. Creates an import orchestrator that uses the newly created importHelper script.
+11. Creates a new encrypted NamedUserCollection to hold Secrets (like the Mapbox secret token that can be used to create temporary tokens).
+12. Creates a Mapbox script for generating temporary Mapbox tokens.
+13. Creates a Permission Profile for he Mapbox Token orchestrator allowing the orchestrator to have permission to the Secrets collection and the Mapbox script.
+14. Creates a Mapbox Token orchestrator using the Permission Profile and the Mapbox script.
+15. Add permission for the Viewers group to be able to run the Mapbox Token orchestrator (Admins already have full permission to the project).
 11. Switches its context back to working within the QMV Manager project
 
 While the script is running it uses the callback function provided by the web client to provide success or error updates to the user interface like so:
@@ -140,7 +181,19 @@ Detailed results of each step or errors are also logged to the browser console, 
 
 The template scripts and user configs are the templates for the scripts and user configs that will be created in new projects created using the QMV Manager. Templates all have the _userType "quick-temp".
 
-![template items](../../img/vscode-proj-maker-temps.jpg)
+<pre><code>TWINIT
+├─ Quick Model View
+│  ├─ QMV Manager (p)
+│  │  ├─ Scripts
+│  │  │  ├─ <mark>[v1] importHelperTemplate (quick-temp) &lt;b></mark>
+│  │  │  ├─ <mark>[v1] mapboxTemplate (quick-temp) &lt;b></mark>
+│  │  │  ├─ [v1] Project Maker (project-maker)
+│  │  ├─ User Configs
+│  │  │  ├─ <mark>[v1] QuickViewAdminConfigTemplate (quick-temp)</mark>
+│  │  │  ├─ [v1] QuickViewManagerConfig (quick-view)
+│  │  │  ├─ <mark>[v1] QuickViewViewerConfigTemplate (quick-temp)</mark>
+│  │  ├─ API Configs
+</pre></code>
 
 If you wish to make changes to how Quick Model View projects are created, you'll do so by modifying or adding to these script and config templates.
 
@@ -153,6 +206,14 @@ The script takes as inputs:
  * filVersionId: the _id of a version of the file in the File Service
 
 The script then imports the contents of the bimpk into Twinit. For more information on the model import process please refer to the "Twinit Self-Led Developer Training Intermediate" course on [Twinit Academy](https://academy.twinit.io/enrollments).
+
+### mapboxTemplate Script
+
+The mapboxTemplate script is the template for the script used to requs temporary tokens from Mapbox to enable Mapbox features in the Twinit 2D/3D IafViewer. It gets added to newly created Quick Model View projects and is used by the Mapbox Token orchestrator.
+
+The script takes no inputs.
+
+When run, it fetches the Mapbox secret token from the Secrets collection. It then uses the secret token to request a temporary token from the Mapbox API. If successful, it returns the temporary token for the IafViewer to use.
 
 ### QuickViewAdminConfigTemplate User Config
 

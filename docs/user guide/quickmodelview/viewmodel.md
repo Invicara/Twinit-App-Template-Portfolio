@@ -23,6 +23,23 @@ Follow the links for Tutorials on how to:
 
 ![view model load](../../img/view-model-load.jpg)
 
+By default the latest version of the model will load in the viewer.
+
+## View Older Versions of a Model
+
+1. Click the Version dropdown and select another version of the model
+
+![view model load](../../img/view-model-version.jpg)
+
+> Note: the version selected is the version of the imported model, not the version of the bimpk from which it was imported. For instance, if you have three versions of the bimpk but only imported version 1 and 3 of the bimpk, version 1 of the imported model would match version 1 of the bimpk. But version two of the imported model would match version 3 of the bimpk.
+>
+>| bimpk version | imported model version |
+>| --- | --- |
+>| 1 | 1 |
+>| 2 | not imported |
+>| 3 | 2 |
+
+
 ## View Selected Element Properties
 
 1. Click on an element in the model
@@ -94,7 +111,7 @@ When the search completes the model viewer will update to isolate the searched e
 
 1. Once you have the element table configured with your desired properties click the green download button to save the current state of the table to an Excel xlsx file.
 
-![element table donwload](../../img/element-table/element-table-row-download.jpg)
+![element table download](../../img/element-table/element-table-row-download.jpg)
 
 ![element table click](../../img/element-table/element-table-row-excel.jpg)
 
