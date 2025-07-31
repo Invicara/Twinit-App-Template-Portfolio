@@ -7,6 +7,7 @@ _May 2025_
 
 * A new dropdown has been added allowing older versions of the imported model to be viewed.
 * Files can now be attached to a model, downloaded, and viewed directly in the browser.
+* Files can now be attached to a model element, downloaded, and viewed directly in the browser.
 * Twinit 2D/3D Model viewer updated to version 4.6 from 4.3. See these release notes for new viewer capabilities
    * [IafViewer 4.4](https://twinit.dev/docs/concepts/v4.4/release-notes#improved-iafviewer)
    * [IafViewer 4.5](https://twinit.dev/docs/concepts/v4.5/release-notes#improved-iafviewer)
