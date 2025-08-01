@@ -71,7 +71,7 @@ The Quick Model View projects contain:
 
 A typical workflow for using the Quick Model View Twinit Application Template would be:
 
-1. Sign in to the Quick Model View application and the "Quick Model View Manager"
+1. Sign in to the Quick Model View application and the "Quick Model View Manager" project
 2. Create a new project using the "Quick Model View Manager" user interface
 3. Switch to the newly created Quick Model View project
 4. Upload and import a model using the model import page or one of the supported CAD Twinit plugins

@@ -23,9 +23,10 @@ Be sure to check back often as new features and capabilities will be added to th
 
 ## Materials included in the template are:
 
+* All the script and user config templates needed to setup and extend both the Quick Model View Manager and the Quick Model View applications and user interface.
 * A React web client that you can build and deploy to provide a user interface for the Quick Model View Application
 * A Quick Model View Application Manager to allow you create new Quick Model View projects for users and to update existing Quick Model View projects to the latest released version
-* All the script and user config templates needed to setup and extend both the Quick Model View Manager and the Quick Model View applications and user interface.
+
 
 Two sets of documentation have also been provided:
 
