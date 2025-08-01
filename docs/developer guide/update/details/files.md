@@ -1,14 +1,15 @@
-# Model File Attachment
+# Model and Model Element File Attachment
 
-The user can now associate files to models.
+The user can now associate files to models and model elements.
 
 Files are saved in the File Service. Each model has its own folder with the model name in the project's root container. All files related to the model are saved in the model's folder.
+All files related to a model element are saved in a SHARED folder in the File Service. Those files will also have a corresponding File Item in the Item Service.
 
 ## Code Updates
 
-[getModelFolder in modelDOcUtils.js](../../../../app/ipaCore/components/ModelDocs/modelDocUtils.js) will either create a new folder for a model if it does not yet exist or it will return the existing one.
+[getModelFolder in modelDOcUtils.js](../../../../app/ipaCore/components/ModelDocs/modelDocUtils.js) will either create a new folder for a model if it does not yet exist or it will return the existing one. It will also make sure the SHARED folder is created and the Item Service is configured with file containers.
 
-[uploadFilesToModelFolder in ModelDocUpload.jsx](../../../../app/ipaCore/components/ModelDocs/components/ModelDocUpload.jsx#L19) then handles uploading the files to the model's folder using [resumable upload](../../../../app/ipaCore/components/ModelDocs/components/ModelDocUpload.jsx#L91).
+[uploadFilesToModelFolder in ModelDocUpload.jsx](../../../../app/ipaCore/components/ModelDocs/components/ModelDocUpload.jsx#L19) then handles uploading the files to the model's folder or the SHARED folder using [resumable upload](../../../../app/ipaCore/components/ModelDocs/components/ModelDocUpload.jsx#L91).
 
 ## Config Updates
 

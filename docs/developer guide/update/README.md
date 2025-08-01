@@ -52,6 +52,6 @@ To update your existing deployed template follow these steps:
 
 ## Changes in 2.1.0
 
-1. [Model File Attachment](./details/files.md)
+1. [Model and Model Element File Attachment](./details/files.md)
 2. [Secrets and Mapbox](./details/secrets.md)
 3. [Web Client Changes](./details/webclient.md)
