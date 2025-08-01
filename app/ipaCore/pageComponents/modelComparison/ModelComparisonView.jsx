@@ -1,4 +1,5 @@
-import React, { useRef, useContext, useState, useCallback, useMemo } from "react";
+import React, { useRef, useContext, useState, useCallback, useMemo, useEffect } from "react";
+import _ from 'lodash';
 
 import { ModelContext, ModelContextProvider } from "../../contexts/ModelContext";
 import { IafViewerDBM } from '@dtplatform/iaf-viewer';
@@ -16,9 +17,14 @@ const ModelComparisonView = (props) => {
 };
 
 const ModelComparisonPage = () => {
-    const viewer = useRef();
+    const viewerOne = useRef();
+    const viewerTwo = useRef();
 
     const [cameraState, setCameraState] = useState(undefined);
+    const [selectOne, setSelectOne] = useState("");
+    const [selectTwo, setSelectTwo] = useState("");
+    const [modelOne, setModelOne] = useState(null);
+    const [modelTwo, setModelTwo] = useState(null);
 
     const handleCameraUpdate = useCallback((camera) => {
         setCameraState(prev => {
@@ -39,6 +45,18 @@ const ModelComparisonPage = () => {
 
     const { availableModelComposites } = useContext(ModelContext);
 
+    useEffect(() => {
+        if (Array.isArray(availableModelComposites) && selectOne !== "") {
+            setModelOne(availableModelComposites.find(item => item._name === selectOne));
+        }
+    }, [selectOne, availableModelComposites]);
+
+    useEffect(() => {
+        if (Array.isArray(availableModelComposites) && selectTwo !== "") {
+            setModelTwo(availableModelComposites.find(item => item._name === selectTwo));
+        }
+    }, [selectTwo, availableModelComposites]);
+
     return (
         availableModelComposites && availableModelComposites.length > 1 && (
             <div className="viewerWrapper">
@@ -47,47 +65,60 @@ const ModelComparisonPage = () => {
                         <div className="panel-row">
                             <StackableDrawer level={1} iconKey='fa-search' tooltip='Search'>
                                 <div className='viewer-sidebar'>
-                                    <p>Test</p>
+                                    <label htmlFor="model-one">Model:</label>
+                                    <select id="model-one" value={selectOne} onChange={(e) => setSelectOne(e.target.value)}>
+                                        <option value="">--Please choose an option--</option>
+                                        {availableModelComposites.map(({ _name }, key) => <option key={key} value={_name}>{_name}</option>)}
+                                    </select>
+                                </div>
+                                <div className='viewer-sidebar'>
+                                    <label htmlFor="model-two">Model:</label>
+                                    <select id="model-two" value={selectTwo} onChange={(e) => setSelectTwo(e.target.value)}>
+                                        <option value="">--Please choose an option--</option>
+                                        {availableModelComposites.map(({ _name }, key) => <option key={key} value={_name}>{_name}</option>)}
+                                    </select>
                                 </div>
                             </StackableDrawer>
-                            <div className="viewers">
-                                <CompareView>
-                                    <IafViewerDBM
-                                        ref={viewer}
-                                        serverUri={endPointConfig.graphicsServiceOrigin}
-                                        model={availableModelComposites[0]}
-                                        modelVersionId={availableModelComposites[0]._versions[0]._id}
-                                        sliceElementIds={[]}
-                                        highlightedElementIds={[]}
-                                        isolatedElementIds={[]}
-                                        spaceElementIds={[]}
-                                        selection={[]}
-                                        OnSelectedElementChangeCallback={(e) => { console.log(e) }}
-                                        title={"Left Model"}
-                                        view3d={viewerCamera}
-                                        view2d={{
-                                            enable: false
-                                        }}
-                                    />
-                                    <IafViewerDBM
-                                        ref={viewer}
-                                        serverUri={endPointConfig.graphicsServiceOrigin}
-                                        model={availableModelComposites[1]}
-                                        modelVersionId={availableModelComposites[1]._versions[0]._id}
-                                        sliceElementIds={[]}
-                                        highlightedElementIds={[]}
-                                        isolatedElementIds={[]}
-                                        spaceElementIds={[]}
-                                        selection={[]}
-                                        OnSelectedElementChangeCallback={(e) => { console.log(e) }}
-                                        title={"Right Model"}
-                                        view3d={viewerCamera}
-                                        view2d={{
-                                            enable: false
-                                        }}
-                                    />
-                                </CompareView>
-                            </div>
+                            {modelOne && modelTwo &&
+                                <div className="viewers">
+                                    <CompareView>
+                                        <IafViewerDBM
+                                            ref={viewerOne}
+                                            serverUri={endPointConfig.graphicsServiceOrigin}
+                                            model={modelOne}
+                                            modelVersionId={modelOne._versions[0]._id}
+                                            sliceElementIds={[]}
+                                            highlightedElementIds={[]}
+                                            isolatedElementIds={[]}
+                                            spaceElementIds={[]}
+                                            selection={[]}
+                                            OnSelectedElementChangeCallback={(e) => { console.log(e) }}
+                                            title={"Left Model"}
+                                            view3d={viewerCamera}
+                                            view2d={{
+                                                enable: false
+                                            }}
+                                        />
+                                        <IafViewerDBM
+                                            ref={viewerTwo}
+                                            serverUri={endPointConfig.graphicsServiceOrigin}
+                                            model={modelTwo}
+                                            modelVersionId={modelTwo._versions[0]._id}
+                                            sliceElementIds={[]}
+                                            highlightedElementIds={[]}
+                                            isolatedElementIds={[]}
+                                            spaceElementIds={[]}
+                                            selection={[]}
+                                            OnSelectedElementChangeCallback={(e) => { console.log(e) }}
+                                            title={"Right Model"}
+                                            view3d={viewerCamera}
+                                            view2d={{
+                                                enable: false
+                                            }}
+                                        />
+                                    </CompareView>
+                                </div>
+                            }
                         </div>
                     </Panel>
                 </PanelGroup>
