@@ -1729,7 +1729,7 @@ async function createModelDataCache(params, libraries, ctx) {
 
 			await cacheSourceFileGraphicsIds(params, libraries, ctx)
 			await cachePropertyReferences(params, libraries, ctx)
-			const outParams = await IafScriptEngine.getVar("outparams");
+			const outParams = await IafScriptEngine.getVar("outparams")
 
 			resolve(outParams)
 		} catch (error) {
@@ -1742,5 +1742,69 @@ async function createModelDataCache(params, libraries, ctx) {
 }
 
 async function migrateFileItemRelations(params, libraries, ctx) {
-	return "TO DO"
+	return new Promise(async (resolve, reject) => {
+
+		const { IafItemSvc } = libraries.PlatformApi
+		const { IafScriptEngine } = libraries
+
+		console.log('MIGRATING FILE RELATIONS FROM PREVIOUS MODEL VERSION')
+
+		async function resolveStep () {
+			const outParams = await IafScriptEngine.getVar("outparams")
+			resolve(outParams)
+		}
+
+		const { model_els_coll } = params.inparams.myCollections
+
+		// no previous version
+		if (model_els_coll._tipVersion === 1) {
+			resolveStep()
+		}
+
+		let model_els_coll_all_vers = await IafItemSvc.getNamedUserItems({"query":{_id: model_els_coll._id, "_versions.all": true}}, ctx)
+
+		let allVersions = model_els_coll_all_vers._list[0]._versions
+		allVersions.sort((a,b) => b._version - a._version)
+		const prevVersion = sortedVersions[1]
+
+		// get relations to file item in the SHARED file_container
+		let relations = (await IafItemSvc.getRelations(prevVersion._userItemDbId, {
+			query: { _relatedUserType: 'file_container' }
+			}, ctx, 
+			{userItemVersionId: prevVersion._id} // be sure to geth the relations defied in the previous version of the collection
+		))._list
+
+		if (!relations.length) {
+			resolveStep()
+		}
+
+		// for each relation
+		for (const rel of relations) {
+
+			// get the item from the previous collection version to get its source_id
+			let previousElem = await IafItemSvc.getRelatedItem(prevVersion._userItemId, rel._relatedFromId, ctx, { useritemVersionId: prevVersion._relatedUserItemVersionId})
+			let source_id = previousElem.source_id
+
+			// get element in the new version fo the collection
+			let latestElem = (await IafItemSvc.getRelatedItems(model_els_coll._userItemId, {query: {source_id}}, ctx))._list[0]
+
+			// if no element was found then the element was removed from the latest version
+			if (!latestElem) {
+				resolveStep()
+			}
+
+			// related the latest element to the file items
+			let latestRelation = {
+				_relatedFromId: latestElem._id,
+				_relatedToIds: rel._relatedToIds,
+				_relatedUserItemDbId: rel._relatedUserItemId,
+			}
+
+			await IafItemSvc.addRelations(model_els_coll.elements._userItemId, [latestRelation])
+			console.log('MIGRATED FILE RELATION')
+
+		}
+
+		resolveStep()
+	})
 }
