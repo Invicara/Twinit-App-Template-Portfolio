@@ -1744,67 +1744,89 @@ async function createModelDataCache(params, libraries, ctx) {
 async function migrateFileItemRelations(params, libraries, ctx) {
 	return new Promise(async (resolve, reject) => {
 
-		const { IafItemSvc } = libraries.PlatformApi
-		const { IafScriptEngine } = libraries
+		try {
+			const { IafItemSvc } = libraries.PlatformApi
+			const { IafScriptEngine } = libraries
 
-		console.log('MIGRATING FILE RELATIONS FROM PREVIOUS MODEL VERSION')
+			console.log(JSON.stringify({level: 'INFO', message: 'MIGRATING FILE RELATIONS FROM PREVIOUS MODEL VERSION'}))
 
-		async function resolveStep () {
-			const outParams = await IafScriptEngine.getVar("outparams")
-			resolve(outParams)
-		}
+			async function resolveStep () {
+				const outParams = await IafScriptEngine.getVar("outparams")
+				resolve(outParams)
+			}
 
-		const { model_els_coll } = params.inparams.myCollections
+			const { model_els_coll } = params.inparams.myCollections
+			console.log(JSON.stringify({level: 'INFO', message: 'LATEST MODEL ELEMS COLLECTION'}))
+			console.log(JSON.stringify({level: 'INFO', message: model_els_coll}))
 
-		// no previous version
-		if (model_els_coll._tipVersion === 1) {
-			resolveStep()
-		}
-
-		let model_els_coll_all_vers = await IafItemSvc.getNamedUserItems({"query":{_id: model_els_coll._id, "_versions.all": true}}, ctx)
-
-		let allVersions = model_els_coll_all_vers._list[0]._versions
-		allVersions.sort((a,b) => b._version - a._version)
-		const prevVersion = sortedVersions[1]
-
-		// get relations to file item in the SHARED file_container
-		let relations = (await IafItemSvc.getRelations(prevVersion._userItemDbId, {
-			query: { _relatedUserType: 'file_container' }
-			}, ctx, 
-			{userItemVersionId: prevVersion._id} // be sure to geth the relations defied in the previous version of the collection
-		))._list
-
-		if (!relations.length) {
-			resolveStep()
-		}
-
-		// for each relation
-		for (const rel of relations) {
-
-			// get the item from the previous collection version to get its source_id
-			let previousElem = await IafItemSvc.getRelatedItem(prevVersion._userItemId, rel._relatedFromId, ctx, { useritemVersionId: prevVersion._relatedUserItemVersionId})
-			let source_id = previousElem.source_id
-
-			// get element in the new version fo the collection
-			let latestElem = (await IafItemSvc.getRelatedItems(model_els_coll._userItemId, {query: {source_id}}, ctx))._list[0]
-
-			// if no element was found then the element was removed from the latest version
-			if (!latestElem) {
+			// no previous version
+			if (model_els_coll._tipVersion === 1) {
 				resolveStep()
 			}
 
-			// related the latest element to the file items
-			let latestRelation = {
-				_relatedFromId: latestElem._id,
-				_relatedToIds: rel._relatedToIds,
-				_relatedUserItemDbId: rel._relatedUserItemId,
+			let model_els_coll_all_vers = await IafItemSvc.getNamedUserItems({"query":{_userItemId: model_els_coll._userItemId, "_versions.all": true}}, ctx)
+			console.log(JSON.stringify({level: 'INFO', message: 'ALL MODEL ELEMS COLLECTION VERSIONS'}))
+			console.log(JSON.stringify({level: 'INFO', message: model_els_coll_all_vers}))
+
+			let allVersions = model_els_coll_all_vers._list[0]._versions
+			allVersions.sort((a,b) => b._version - a._version)
+			const prevVersion = allVersions[1]
+			console.log(JSON.stringify({level: 'INFO', message: 'PREVIOUS VERSIONS'}))
+			console.log(JSON.stringify({level: 'INFO', message: prevVersion}))
+
+			// get relations to file item in the SHARED file_container
+			let relationsQuery = await IafItemSvc.getRelations(prevVersion._userItemDbId, {
+				query: { _relatedUserType: 'file_container' }
+				}, ctx, 
+				{userItemVersionId: prevVersion._id} // be sure to get the relations defined in the previous version of the collection
+			)
+			let relations = relationsQuery._list
+
+			console.log(JSON.stringify({level: 'INFO', message: 'PREVIOUS RELATIONS'}))
+			console.log(JSON.stringify({level: 'INFO', message: relations}))
+
+			if (!relations.length) {
+				resolveStep()
 			}
 
-			await IafItemSvc.addRelations(model_els_coll.elements._userItemId, [latestRelation])
-			console.log('MIGRATED FILE RELATION')
+			// for each relation
+			for (const rel of relations) {
 
+				// get the item from the previous collection version to get its source_id
+				let previousElem = await IafItemSvc.getRelatedItem(model_els_coll._userItemId, rel._relatedFromId, ctx, { userItemVersionId: prevVersion._id})
+				let source_id = previousElem.source_id
+				console.log(JSON.stringify({level: 'INFO', message: 'PREVIOUS ELEMENT'}))
+				console.log(JSON.stringify({level: 'INFO', message: previousElem}))
+				console.log(JSON.stringify({level: 'INFO', message: source_id}))
+
+				// get element in the new version fo the collection
+				let latestElem = (await IafItemSvc.getRelatedItems(model_els_coll._userItemId, {query: {source_id}}, ctx))._list[0]
+				console.log(JSON.stringify({level: 'INFO', message: 'LATEST ELEMENT'}))
+				console.log(JSON.stringify({level: 'INFO', message: latestElem}))
+
+				// if no element was found then the element was removed from the latest version
+				if (!latestElem) {
+					resolveStep()
+				}
+
+				// related the latest element to the file items
+				let latestRelation = {
+					_relatedFromId: latestElem._id,
+					_relatedToIds: rel._relatedToIds,
+					_relatedUserItemDbId: rel._relatedUserItemId,
+				}
+				console.log(JSON.stringify({level: 'INFO', message: 'RELATION'}))
+				console.log(JSON.stringify({level: 'INFO', message: latestRelation}))
+
+				await IafItemSvc.addRelations(model_els_coll._userItemId, [latestRelation], ctx)
+				console.log(JSON.stringify({level: 'INFO', message: 'MIGRATED FILE RELATION'}))
+
+			}
+
+			resolveStep()
+		} catch(error) {
+			console.log(JSON.stringify({level: 'ERROR', message: error}))
+			reject(error)
 		}
-
-		resolveStep()
 	})
 }
