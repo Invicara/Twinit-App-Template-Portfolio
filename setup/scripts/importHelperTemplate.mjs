@@ -1774,16 +1774,32 @@ async function migrateFileItemRelations(params, libraries, ctx) {
 			console.log(JSON.stringify({level: 'INFO', message: 'PREVIOUS VERSIONS'}))
 			console.log(JSON.stringify({level: 'INFO', message: prevVersion}))
 
-			// get relations to file item in the SHARED file_container
-			let relationsQuery = await IafItemSvc.getRelations(prevVersion._userItemDbId, {
-				query: { _relatedUserType: 'file_container' }
-				}, ctx, 
-				{userItemVersionId: prevVersion._id} // be sure to get the relations defined in the previous version of the collection
-			)
-			let relations = relationsQuery._list
+			let _pageSize = 100
+			let _offset = 0
+			let total = 0
+			let relations = []
+
+			do {
+				// get relations to file item in the SHARED file_container
+				let relationsQuery = await IafItemSvc.getRelations(prevVersion._userItemDbId, {
+					query: { _relatedUserType: 'file_container' }
+					}, ctx, 
+					{
+						userItemVersionId: prevVersion._id, // be sure to get the relations defined in the previous version of the collection
+						page: {_pageSize, _offset}
+					} 
+				)
+
+				total = relationsQuery._total
+				_offset += _pageSize
+
+				relations.push(...relationsQuery._list)
+
+			} while (_offset < total)
+			
 
 			console.log(JSON.stringify({level: 'INFO', message: 'PREVIOUS RELATIONS'}))
-			console.log(JSON.stringify({level: 'INFO', message: relations}))
+			console.log(JSON.stringify({level: 'INFO', message: relations.length}))
 
 			if (!relations.length) {
 				resolveStep()
