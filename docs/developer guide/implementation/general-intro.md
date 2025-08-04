@@ -52,9 +52,9 @@ Two user groups are created in each Quick Model View project:
 * Admin
 * Viewers
 
-Admin users can upload and import models, as well as view the models. They have admin permissions to the entire project.
+Admin users can upload and import models, as well as view the models. Thy can also upload, view and delete files associated to the models. They have admin permissions to the entire project.
 
-Viewers users can only view models and only have read-only access to the project.
+Viewers users can only view models, view and download files, and have read-only access to the project.
 
 The Quick Model View projects contain:
 
@@ -64,12 +64,14 @@ The Quick Model View projects contain:
     * Configured to display the Model View page
 * An ["importHelper" script](../../../setup/scripts/importHelperTemplate.mjs) with the logic used to import model bimpks to Twinit
 * A Datasources orchestrator configured to use the "importHelper" script to import model bimpks uploaded to the Twinit File Service
+* A [Mapbox script](../../../setup/scripts/mapboxTemplate.mjs) that takes a secret token stored in an encrypted NamedUserCollection and generates a temporary Mapbox token using the Mapbox API.
+* A Datasources orchestrator configured to use the Mapbox script and assigned a permission profile giving it access to the encrypted NamedUserCollection, that creates temporary Mapbox tokens.
 
 ### The Quick Model View Template Workflow
 
 A typical workflow for using the Quick Model View Twinit Application Template would be:
 
-1. Sign in to the Quick Model View application and the "Quick Model View Manager"
+1. Sign in to the Quick Model View application and the "Quick Model View Manager" project
 2. Create a new project using the "Quick Model View Manager" user interface
 3. Switch to the newly created Quick Model View project
 4. Upload and import a model using the model import page or one of the supported CAD Twinit plugins

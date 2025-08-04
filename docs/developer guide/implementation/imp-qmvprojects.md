@@ -23,12 +23,12 @@ Quick Model View projects have these User Configs:
 
 ## Quick Model View Pages
 
-Quick Model View has three pages available to configure for user interfaces. Which pages are available depend on the User Group the user is a member of.
+Quick Model View has four pages available to configure for user interfaces. Which pages are available depend on the User Group the user is a member of.
 
-| User Group | User Groups Page | Model Import Page | Model View Page | 
-| ------ | ------ |------ |------ |
-| Admin | Yes (via header menu) | Yes | Yes |
-| Viewers | No | No | Yes |
+| User Group | User Groups Page | Model Import Page | Model View Page | Mapbox Settings |
+| ------ | ------ |------ |------ | ------ |
+| Admin | Yes (via header menu) | Yes | Yes | Yes |
+| Viewers | No | No | Yes | No |
 
 The User Config related to the User Group expose the pages by configuring the following pageHandlers.
 
@@ -63,7 +63,7 @@ The Model Import pageComponent can be configured to display in the web client by
 
 The Model Import handler takes two config settings:
 
-* bimpkUserType: the _userType of the model import orchestrator configured to import model bimpk files
+* bimpkUserType: (String) the _userType of the model import orchestrator configured to import model bimpk files
 * sgpkUserType: **NOT CURRENTLY SUPPORTED IN QUICK MODEL VIEW** the _userType of the model import orchestrator configured to import model sgpk (Navisworks) files
 
 ### Model View Page
@@ -82,11 +82,35 @@ The Simple Viewer pageComponent can be configured to display in the web client b
    "description": "Model View",
    "pageComponent": "simpleViewer/SimpleViewerView",
    "path": "/modelview",
-   "config": {}
+   "config": {
+      "manageFiles": true
+   }
 }
 ```
 
-The Simple Viewer pageComponent requires no further configuration.
+The Simple Viewer pageComponent takes one additional optional configuration:
+
+* manageFiles: (Boolean) whether to display the UI for uploading and deleting files in the files drawer. If this config is not provided the setting defaults to false. 
+
+### Mapbox Settings Page
+
+The Model View Page allows users to view imported models and see model element properties. It leverages the Twinit IafViewer component to display the 2D/3D models.
+
+### Page Handler
+
+The Mapbox Settings pageComponent can be configured to display in the web client by adding the following handler to a User Config.
+
+```json
+"mapboxSettings": {
+   "title": "Mapbox Settings",
+   "icon": "fas fa-map-marked-alt fa-2x",
+   "pageComponent": "mapboxSettings/MapboxSettingsView",
+   "path": "/mapboxsettings",
+   "config": {}
+   },
+```
+
+The Mapbox Settings pageComponent requires no further configuration.
 
 ---
 [Developer Guide](../README.md) < Back
