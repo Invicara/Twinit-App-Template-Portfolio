@@ -1,8 +1,8 @@
 # Quick Model View Twinit Application Template
 
-Release: 2.1.0.
+Release: 2.1.1
 
-![Quick Model Viewer User Interface](./docs/img/model-view.jpg)
+![Quick Model Viewer User Interface](./docs/img/model-view-w-gis.jpg)
 
 The Quick Model View Twinit Application Template provides an easy to learn,  easy to deploy, easy to use, and easy to extend model viewing application utilizing the capabilities Twinit provides for importing and viewing models imported using supported CAD authoring or file types. This template is also a good place to start if you are looking for a first step toward using and deploying other more complex templates or if you plan to develop your own templates.
 
@@ -15,15 +15,18 @@ The Quick Model View Twinit Application Template provides an easy to learn,  eas
 | Create new and update existing Quick Model View projects with the click of a button | ![](./docs/img/project-maker.jpg) |
 | ![](./docs/img/import-view.jpg) |  Import multiple CAD models to your Quick Model View projects |
 | View your imported models and review the properties on model elements you select in the viewer. Download element reports to Excel. | ![](./docs/img/model-view.jpg) |
+| ![](./docs/img/model-view-w-gis.jpg) | Enable the Mapbox integration in the Twinit 2D/3D model viewer to view your models on a map |
+| Attach files to your models and model elements for reference or download, and even view supported file formats directly in the browser | ![](./docs/img/model-view-docs.jpg) |
 | ![](./docs/img/invite-users.jpg) | Collaborate with other users by inviting them to your Quick Model View projects |
 
 Be sure to check back often as new features and capabilities will be added to the template over time.
 
 ## Materials included in the template are:
 
+* All the script and user config templates needed to setup and extend both the Quick Model View Manager and the Quick Model View applications and user interface.
 * A React web client that you can build and deploy to provide a user interface for the Quick Model View Application
 * A Quick Model View Application Manager to allow you create new Quick Model View projects for users and to update existing Quick Model View projects to the latest released version
-* All the script and user config templates needed to setup and extend both the Quick Model View Manager and the Quick Model View applications and user interface.
+
 
 Two sets of documentation have also been provided:
 

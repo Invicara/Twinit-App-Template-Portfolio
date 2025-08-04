@@ -85,17 +85,15 @@ Your application admin can add you to these group by:
 
 As part of the Self-Led Developer courses on Twinit Academy, you configured your Twinit VS Code Extension to connect to Twinit Sandbox. You can follow the same steps to add the Twinit Production instance (if needed) or your self-managed instance.
 
-You may also need to add your application ID to your Twinit VS Code extension configuration as well.
-
-Instructions on how to do both, if you need a refresher, are available on [twinit.dev](https://twinit.dev/docs/marketplace/Tools/vscode-ext-docs/getting-started).
+Instructions on how to do so, if you need a refresher, are available on [twinit.dev](https://twinit.dev/docs/marketplace/Tools/vscode-ext-docs/getting-started).
 
 **Do not proceed on to the next step unless you can sign into Twinit and your application through the Twinit VS Code extension.** You should be able to see something similar to the image below with your application's name displayed in the extension panel.
 
 ![vscode signed in](../../img/vscode-signed-in.jpg)
 
-## Clone the Template Code Local
+## Clone or Fork the Template Code Local
 
-1. Using the tool of your choice, clone this GitHub repo locally to your system.
+1. Using the tool of your choice, clone or fork this GitHub repo locally to your system.
 
 If using the git command line, run the following from the directory in which you want to clone the repository:
 

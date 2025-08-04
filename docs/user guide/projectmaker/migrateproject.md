@@ -2,7 +2,7 @@
 
 1. Sign in to your Quick Model View Manager project
 
-Any projects that can be updated will appear in the list with an 'Update Project' button.
+Any projects that can be migrated will appear in the list with an 'Update Project' button. Currently, you may only migrate projects that you created.
 
 ![migrate button](../../img/migrate-btn.jpg)
 
