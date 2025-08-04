@@ -8,6 +8,8 @@ When uploading a file and associating it to a model element, the file is uploade
 
 ## Model .bimpks
 
+![model-comp-bimpk](../../../img/data-model/model-comp-to-bimpk.jpg)
+
 All model .bimpk files are uploaded to the Root Container for the project in the File Service.
 
 ```
@@ -30,6 +32,8 @@ const fetchedBimpks = await IafFileSvc.getFiles(bimpkCriteria, null, { _pageSize
 ```
 
 ## Model Folders
+
+![model-comp-to-folder](../../../img/data-model/model-comp-to-folder.jpg)
 
 When a file is uploaded through the Quick Model View web-client, if a folder for the model does not yet exist in the Root Container, then one will be created with the model's name, and the file then uploaded to it.
 
@@ -289,6 +293,37 @@ The File Item contains these references you can use to get the file it represent
 * _fileId: The id of the file in the File Service
 * _versions[x]._fileVersionId: The id of the file version in he File Service
 * _versions[x].versionNumber: The version number of the file version in the File Service
+
+### Model Elements
+
+![elem-to-file-item](../../../img/data-model/files-shared-related-elements.jpg)
+
+Model elements are then related to the File Items in the Shared folder and can be queried in Twinit along with their related elements.
+
+```js
+let query = {
+  parent: {
+    query: elementQuery || {},
+    collectionDesc: {
+        _userItemId: collections.elements._userItemId,
+        _userType: collections.elements._userType,
+        "_versions.all": true,
+        "_versions._version": collections.elements._userItemVersion
+    },
+    options: {
+        page: { getAllItems: true }
+    }
+  },
+  related: [
+    {
+      relatedDesc: {
+        _relatedUserType: "file_container"
+      },
+      as: "RelatedFiles"
+    }
+  ]
+}
+```
 
 
 ---
