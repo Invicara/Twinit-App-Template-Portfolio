@@ -394,3 +394,6 @@ You can find version info on the NamedCompositeItem.
   ]
 }
 ```
+
+---
+[In-Depth: Template Data Model](../imp-data-model.md) < Back
