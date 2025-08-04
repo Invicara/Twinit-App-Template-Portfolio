@@ -1,5 +1,5 @@
-const CURRENT_MAKER_VERSION = '2.1.0'
-const MIGRATE_PROJECT_VERSIONS = ['2.0.0']
+const CURRENT_MAKER_VERSION = '2.1.1'
+const MIGRATE_PROJECT_VERSIONS = ['2.0.0', '2.1.0']
 
 const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback) => {
 
@@ -489,7 +489,17 @@ let scriptModule = {
 								'_scriptName': 'createModelDataCache'
 							},
 							_sequenceno: 2
-						}
+						},
+						{
+							// our import helper script again, but this time running migrateFileItemRelations
+							_orchcomp: 'default_script_target',
+							_name: 'Migrate File Item Relations',
+							'_actualparams': {
+								'userType': 'importHelper',
+								'_scriptName': 'migrateFileItemRelations'
+							},
+							_sequenceno: 3
+						},
 					]
 				}
 			})
@@ -516,7 +526,7 @@ let scriptModule = {
 	// input { project, version }
 	async updateQuickModelViewProject(input, libraries, ctx, callback) {
 
-		const { IafProj, IafScripts, IafUserConfig, IafPassSvc, IafPermission } = libraries.PlatformApi
+		const { IafProj, IafScripts, IafUserConfig, IafPassSvc, IafPermission, IafDataSource } = libraries.PlatformApi
 		const { 	project,	// REQUIRED: the project to migrate
 					version 	// REQUIRED: the current version of the project to migrate
 		} = input
@@ -569,8 +579,103 @@ let scriptModule = {
 
 		}
 
+		const migrate_2_1_0_to_2_1_1 = async (userConfigTemplates, scriptTemplates) => {
+
+			callback(`Applying 2.1.1 patch to project ${project._name}`)
+			console.log(`STEP 0: Updating project`, project)
+			await IafProj.switchProject(project._id)
+			let updateProject = await IafProj.getCurrent()
+
+			const allUserGroups = await IafProj.getUserGroups(updateProject, ctx)
+			const viewerGroup = allUserGroups.find(ug => ug._name === 'Viewers')
+			const adminGroup = allUserGroups.find(ug => ug._name === 'Admin')
+			await _alwaysPatchAdminPermExists(IafPermission, IafPassSvc, adminGroup, viewerGroup)
+
+			// update import script
+			let scripts = await IafProj.getScripts(updateProject)
+			let importScript = scripts.find(s => s._userType === 'importHelper')
+			let importScriptTemplate = scriptTemplates.find(s => s._name === "importHelperTemplate")
+			
+			let newVersion = importScript._versions[0]
+			newVersion._userData = importScriptTemplate._versions[0]._userData
+
+			let verResult = await IafScripts.createVersion(importScript._id, newVersion)
+			console.log('STEP 1:', importScript, importScriptTemplate, verResult)
+			callback('STEP 1: Updated bimpk Import Script')
+
+			// update import orchestrator by deleting the exsting one and creating a new one
+			let currentImportOrch = (await IafDataSource.getOrchestratorBasedOnUserType('bimpk_importer'))[0]
+			if (currentImportOrch) {
+				await IafDataSource.deleteOrchestrator(currentImportOrch.id)
+			}
+			currentImportOrch = (await IafDataSource.getOrchestratorBasedOnUserType('bimpk_importer'))[0]
+			if (currentImportOrch) {
+				throw('Failed to delete existing Import Orchestrator')
+			}
+
+			// recreate import orchestrator with updatd steps
+			let importOrch =  await IafDataSource.createOrchestrator({
+				_name: 'Import BIMPK Models',
+				_description: 'Orchestrator to import model from BIMPK file',
+				_namespaces: updateProject._namespaces,
+				_userType: 'bimpk_importer', // _userType we will use to find the orchestrator when we want to run it
+				_schemaversion: '2.0',
+				_params: {
+					tasks: [
+						{
+							// our import helper script that runs importModel from the script
+							// uses the parameter passed to it at runtime
+							_orchcomp: 'default_script_target',
+							_name: 'Import Model from bimpk File',
+							'_actualparams': {
+								'userType': 'importHelper',
+								'_scriptName': 'importModel'
+							},
+							_sequenceno: 1
+						},
+						{
+							// our import helper script again, but this time running createModelDataCache
+							_orchcomp: 'default_script_target',
+							_name: 'Post Process Imported Model',
+							'_actualparams': {
+								'userType': 'importHelper',
+								'_scriptName': 'createModelDataCache'
+							},
+							_sequenceno: 2
+						},
+						{
+							// our import helper script again, but this time running migrateFileItemRelations
+							_orchcomp: 'default_script_target',
+							_name: 'Migrate File Item Relations',
+							'_actualparams': {
+								'userType': 'importHelper',
+								'_scriptName': 'migrateFileItemRelations'
+							},
+							_sequenceno: 3
+						},
+					]
+				}
+			})
+			console.log('STEP 2: importOrch', importOrch)
+			if (callback) callback(`STEP 2: Recreated Import Orchestrator`)
+
+			// project updates onyl allowed if _description is present
+			if (!updateProject._description) {
+				updateProject._description = updateProject._name
+			}
+			
+			if (updateProject._userAttributes?.quickModelView) {
+				updateProject._userAttributes.quickModelView.currentVersion = '2.1.1'
+			}
+			let projUpdateResult = await IafProj.update(updateProject)
+			console.log(`STEP 3:`, updateProject, projUpdateResult)
+			callback(`STEP 3: Updated Project Current Version -> 2.1.0`)
+
+		}
+
 		const migrations = [
-			{ from: '2.0.0', to: '2.1.0', migrateFunction: migrate_2_0_0_to_2_1_0 }
+			{ from: '2.0.0', to: '2.1.0', migrateFunction: migrate_2_0_0_to_2_1_0 },
+			{ from: '2.1.0', to: '2.1.1', migrateFunction: migrate_2_1_0_to_2_1_1 }
 		]
 
 		const managerProject = await IafProj.getCurrent()

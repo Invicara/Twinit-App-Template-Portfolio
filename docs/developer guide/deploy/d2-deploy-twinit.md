@@ -6,6 +6,8 @@
 
 Next you will deploy the template and its configuration to Twinit. This is the first of two deploys to completely deploy the template. In a later step you will learn how to build and deploy the template's web client.
 
+> Note: Images are provided as an example of what you will see during the deployment process. Depending on the release of Quick Model View which you are deploying, the actual scripts and configs you see will diff
+
 To deploy the template to Twinit you will:
 
 1. Clone the template code locally
@@ -25,7 +27,10 @@ Remember, as mentioned in the [General Introduction](../implementation/general-i
 
 Your Twinit extension panel should look like this, with your application name displayed.
 
-![twinit panel](../../img/vscode-signed-in.jpg)
+```
+TWINIT
+├─ Quick Model View
+```
 
 ## Create a New "Quick Model View Manager" project
 
@@ -36,7 +41,11 @@ Your Twinit extension panel should look like this, with your application name di
 
 A new project should now be visible in the extension panel.
 
-![new maker proj](../../img/vscode-maker-proj.jpg)
+```
+TWINIT
+├─ Quick Model View
+│  ├─ QMV Manager (p)
+```
 
 ## Upload the Scripts, Configurations, and Template Configurations
 
@@ -50,16 +59,31 @@ A new project should now be visible in the extension panel.
 8. When prompted to select config files, navigate to the directory in which you have saved the template code, and select all the ```.json``` files in ```setup/configs```
 9. Once the config upload has completed, the panel will refresh and configs will be displayed in your User Configs folder
 
-![bulk upload result](../../img/vscode-bulk-upload.jpg)
+```
+TWINIT
+├─ Quick Model View
+│  ├─ QMV Manager (p)
+│  │  ├─ Scripts
+│  │  │  ├─ [v1] importHelperTemplate (quick-temp) <b>
+│  │  │  ├─ [v1] mapboxTemplate (quick-temp) <b>
+│  │  │  ├─ [v1] Project Maker (project-maker)
+│  │  ├─ User Configs
+│  │  │  ├─ [v1] QuickViewAdminConfigTemplate (quick-temp)
+│  │  │  ├─ [v1] QuickViewManagerConfig (quick-view)
+│  │  │  ├─ [v1] QuickViewViewerConfigTemplate (quick-temp)
+│  │  ├─ API Configs
+```
 
 ## Create an QMV Managers User Group
 
 1. Right click on your "QMV Manager" project in the extension panel and select "Create a Project Admin Group"
 2. When prompted replace the name "Admin" with "QMV Managers" 
 
-You'll see a notice in the bottom right corner of the VS Cod window once the new QMV Managers Admin user group has been created.
+You'll see a notice in the bottom right corner of the VS Code window once the new QMV Managers Admin user group has been created.
 
-![admin group notice](../../img/vscode-admin-created.jpg)
+```
+(i) Admin user group created for QMV Manager
+```
 
 ## Assign the Manager User Config
 
@@ -68,7 +92,9 @@ You'll see a notice in the bottom right corner of the VS Cod window once the new
 
 You'll see a notice in the bottom right corner of the VS Code window once the user config has been related to the user group.
 
-![user config rel](../../img/vscode-config-rel.jpg)
+```
+(i) User config relatd to Admin
+```
 
 ## Next Steps
 

@@ -6,6 +6,7 @@ The template web client is an ipa-core based React Twinit web client. It extends
 * A Project Maker pageComponent
 * A Model Import pageComponent
 * A Simple Viewer pageComponent
+* A Mapbox Settings pagComponent
 
 Additionally it uses these standard pageComponents provided by ipa-core:
 
@@ -58,6 +59,14 @@ Also read through the [ModelContext](../../../app/ipaCore/pageComponents/simpleV
 
 To learn more about how the Simple Viewer pageComponent works read [In-Depth: Quick Model View Projects](./imp-qmvprojects.md)
 
+##  Mapbox Settings pageComponent
+
+The Mapbox Settings pageComponent can be found at ```app/ipaCore/pageComponents/mapboxSettings/MapboxSettingsView.jsx```.
+
+Read through [the pageComponent code](../../../app/ipaCore/pageComponents/mapboxSettings/MapboxSettingsView.jsx) to get a better understanding of how it works.
+
+To learn more about how the Simple Viewer pageComponent works read [In-Depth: Quick Model View Projects](./imp-qmvprojects.md)
+
 ## Other Node Packages Used by the Web Client
 
 In addition to the libraries provided by @dtplatform and ipa-core, these node packages are also used.
@@ -75,6 +84,12 @@ The InputNumber component is used to provide numerical input fields for property
 [https://github.com/bvaughn/react-resizable-panels](https://github.com/bvaughn/react-resizable-panels)
 
 The PanelGroup, Panel, and ResizeHandle components are used to provide the resizable bottom panel containing the element search table.
+
+* react-rnd
+
+[https://github.com/bokuweb/react-rnd](https://github.com/bokuweb/react-rnd)
+
+The Rnd component is used to provide the floating, resizable, and draggable dialog in which the IafDocViewer is rendered for viewing files in the browser.
 
 * @table-library/react-table-library
 
