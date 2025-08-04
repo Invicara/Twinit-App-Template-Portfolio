@@ -1821,9 +1821,8 @@ async function migrateFileItemRelations(params, libraries, ctx) {
 				console.log(JSON.stringify({level: 'INFO', message: latestElem}))
 
 				// if no element was found then the element was removed from the latest version
-				if (!latestElem) {
-					resolveStep()
-				} else {
+				// otherwise recreate the relation to the latest model element
+				if (latestElem) {
 					// related the latest element to the file items
 					let latestRelation = {
 						_relatedFromId: latestElem._id,
