@@ -1823,19 +1823,19 @@ async function migrateFileItemRelations(params, libraries, ctx) {
 				// if no element was found then the element was removed from the latest version
 				if (!latestElem) {
 					resolveStep()
-				}
+				} else {
+					// related the latest element to the file items
+					let latestRelation = {
+						_relatedFromId: latestElem._id,
+						_relatedToIds: rel._relatedToIds,
+						_relatedUserItemDbId: rel._relatedUserItemId,
+					}
+					console.log(JSON.stringify({level: 'INFO', message: 'RELATION'}))
+					console.log(JSON.stringify({level: 'INFO', message: latestRelation}))
 
-				// related the latest element to the file items
-				let latestRelation = {
-					_relatedFromId: latestElem._id,
-					_relatedToIds: rel._relatedToIds,
-					_relatedUserItemDbId: rel._relatedUserItemId,
+					await IafItemSvc.addRelations(model_els_coll._userItemId, [latestRelation], ctx)
+					console.log(JSON.stringify({level: 'INFO', message: 'MIGRATED FILE RELATION'}))
 				}
-				console.log(JSON.stringify({level: 'INFO', message: 'RELATION'}))
-				console.log(JSON.stringify({level: 'INFO', message: latestRelation}))
-
-				await IafItemSvc.addRelations(model_els_coll._userItemId, [latestRelation], ctx)
-				console.log(JSON.stringify({level: 'INFO', message: 'MIGRATED FILE RELATION'}))
 
 			}
 
