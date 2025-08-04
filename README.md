@@ -1,6 +1,6 @@
 # Quick Model View Twinit Application Template
 
-Release: 2.1.0
+Release: 2.1.1
 
 ![Quick Model Viewer User Interface](./docs/img/model-view-w-gis.jpg)
 
