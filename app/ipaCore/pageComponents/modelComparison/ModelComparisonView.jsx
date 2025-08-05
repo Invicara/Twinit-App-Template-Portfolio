@@ -25,6 +25,7 @@ const ModelComparisonPage = () => {
     const [selectTwo, setSelectTwo] = useState("");
     const [modelOne, setModelOne] = useState(null);
     const [modelTwo, setModelTwo] = useState(null);
+    const [cameraSyncEnabled, setCameraSyncEnabled] = useState(true);
 
     const handleCameraUpdate = useCallback((camera) => {
         setCameraState(prev => {
@@ -39,9 +40,9 @@ const ModelComparisonPage = () => {
         camera: cameraState,
         onCameraUpdate: {
             delay: 300,
-            callback: handleCameraUpdate,
+            callback: cameraSyncEnabled ? handleCameraUpdate : null,
         }
-    }), [cameraState, handleCameraUpdate]);
+    }), [cameraState, handleCameraUpdate, cameraSyncEnabled]);
 
     const { availableModelComposites } = useContext(ModelContext);
 
@@ -65,18 +66,27 @@ const ModelComparisonPage = () => {
                         <div className="panel-row">
                             <StackableDrawer level={1} iconKey='fa-search' tooltip='Search'>
                                 <div className='viewer-sidebar'>
-                                    <label htmlFor="model-one">Model:</label>
+                                    <label htmlFor="model-one" className="model-select-label">Select Model One:</label>
                                     <select id="model-one" value={selectOne} onChange={(e) => setSelectOne(e.target.value)}>
                                         <option value="">--Please choose an option--</option>
                                         {availableModelComposites.map(({ _name }, key) => <option key={key} value={_name}>{_name}</option>)}
                                     </select>
                                 </div>
                                 <div className='viewer-sidebar'>
-                                    <label htmlFor="model-two">Model:</label>
+                                    <label htmlFor="model-two" className="model-select-label">Select Model Two:</label>
                                     <select id="model-two" value={selectTwo} onChange={(e) => setSelectTwo(e.target.value)}>
                                         <option value="">--Please choose an option--</option>
                                         {availableModelComposites.map(({ _name }, key) => <option key={key} value={_name}>{_name}</option>)}
                                     </select>
+                                </div>
+                                <div className="viewer-sidebar">
+                                    <label htmlFor="camera-synch" className="synch-check">Enable Camera Sync</label>
+                                    <input
+                                        id="camera-synch"
+                                        type="checkbox"
+                                        checked={cameraSyncEnabled}
+                                        onChange={() => setCameraSyncEnabled(prev => !prev)}
+                                    />
                                 </div>
                             </StackableDrawer>
                             {modelOne && modelTwo &&
