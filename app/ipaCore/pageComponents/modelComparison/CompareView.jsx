@@ -10,7 +10,7 @@ const CompareView = ({
     const [isDragging, setIsDragging] = useState(false);
     const containerRef = useRef();
 
-    const [leftChild, rightChild] = React.Children.toArray(children);
+    const [rightChild, leftChild] = React.Children.toArray(children);
 
     const updateDivider = (clientX, clientY) => {
         if (!containerRef.current) return;
