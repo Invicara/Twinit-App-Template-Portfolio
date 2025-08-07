@@ -54,13 +54,13 @@ const ModelComparisonPage = () => {
     const { availableModelComposites } = useContext(ModelContext);
 
     useEffect(() => {
-        if (Array.isArray(availableModelComposites) && selectModelOne !== "") {
+        if (Array.isArray(availableModelComposites) && availableModelComposites.length > 0 && selectModelOne !== "") {
             setModelOne(availableModelComposites.find(item => item._name === selectModelOne));
         }
     }, [selectModelOne, availableModelComposites]);
 
     useEffect(() => {
-        if (Array.isArray(availableModelComposites) && selectModelTwo !== "") {
+        if (Array.isArray(availableModelComposites) && availableModelComposites.length > 0 && selectModelTwo !== "") {
             setModelTwo(availableModelComposites.find(item => item._name === selectModelTwo));
         }
     }, [selectModelTwo, availableModelComposites]);
