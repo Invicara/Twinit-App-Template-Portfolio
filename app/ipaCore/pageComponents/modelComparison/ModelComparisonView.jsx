@@ -7,6 +7,7 @@ import { IafItemSvc } from "@dtplatform/platform-api";
 import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls';
 
 import CompareView from "./CompareView";
+import ElementSearch from "./ElementSearch";
 import { Panel, PanelGroup } from "react-resizable-panels";
 
 import "./ModelComparisonView.scss";
@@ -33,6 +34,9 @@ const ModelComparisonPage = () => {
     const [modelTwo, setModelTwo] = useState(null);
     const [modelOneWithVersions, setModelOneWithVersions] = useState(null);
     const [modelTwoWithVersions, setModelTwoWithVersions] = useState(null);
+
+    const [modelOneSliceIDs, setModelOneSliceIDs] = useState([]);
+    const [modelTwoSliceIDs, setModelTwoSliceIDs] = useState([]);
 
     const handleCameraUpdate = useCallback((camera) => {
         setCameraState(prev => {
@@ -140,6 +144,26 @@ const ModelComparisonPage = () => {
                                         onChange={() => setCameraSyncEnabled(prev => !prev)}
                                     />
                                 </div>
+                                <div className="viewer-sidebar">
+                                    {
+                                        modelOneWithVersions &&
+                                        modelTwoWithVersions &&
+                                        selectModelOneVersion !== "" &&
+                                        selectModelTwoVersion !== "" &&
+                                        <ElementSearch
+                                            modelOne={{
+                                                ...modelOneWithVersions,
+                                                selectedVersion: modelOneWithVersions.fetchedVersions._list.find(({ _version }) => _version == selectModelOneVersion)
+                                            }}
+                                            modelTwo={{
+                                                ...modelTwoWithVersions,
+                                                selectedVersion: modelTwoWithVersions.fetchedVersions._list.find(({ _version }) => _version == selectModelTwoVersion)
+                                            }}
+                                            setModelOneSliceIDs={setModelOneSliceIDs}
+                                            setModelTwoSliceIDs={setModelTwoSliceIDs}
+                                        />
+                                    }
+                                </div>
                             </StackableDrawer>
                             {modelOneWithVersions && modelTwoWithVersions && selectModelOneVersion !== "" && selectModelTwoVersion !== "" &&
                                 <div className="viewers">
@@ -149,7 +173,7 @@ const ModelComparisonPage = () => {
                                             serverUri={endPointConfig.graphicsServiceOrigin}
                                             model={modelOneWithVersions}
                                             modelVersionId={modelOneWithVersions.fetchedVersions._list.find(({ _version }) => _version == selectModelOneVersion)._id}
-                                            sliceElementIds={[]}
+                                            sliceElementIds={modelOneSliceIDs.map(se => [se.package_id, se.source_id]).flat()}
                                             highlightedElementIds={[]}
                                             isolatedElementIds={[]}
                                             spaceElementIds={[]}
@@ -166,7 +190,7 @@ const ModelComparisonPage = () => {
                                             serverUri={endPointConfig.graphicsServiceOrigin}
                                             model={modelTwoWithVersions}
                                             modelVersionId={modelTwoWithVersions.fetchedVersions._list.find(({ _version }) => _version == selectModelTwoVersion)._id}
-                                            sliceElementIds={[]}
+                                            sliceElementIds={modelTwoSliceIDs.map(se => [se.package_id, se.source_id]).flat()}
                                             highlightedElementIds={[]}
                                             isolatedElementIds={[]}
                                             spaceElementIds={[]}
