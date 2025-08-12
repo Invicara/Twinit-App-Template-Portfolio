@@ -31,16 +31,18 @@ async function _fetchTemporaryMapBoxToken() {
          let orchResult = await IafDataSource.runOrchestrator(tokenOrch.id, {
             orchestratorId: tokenOrch.id
          })
-         
+
+         console.log("mapbox token",orchResult)
+
          if (orchResult._result.success) {
             token =  orchResult._result.token
 
             _saveTokenToSession(orchResult._result)
          } else {
             console.error("ERROR: running mapbox orchestrator")
-            console.error(error)
+            console.error(orchResult._result)
          }
-      
+
    }
 
    return token
