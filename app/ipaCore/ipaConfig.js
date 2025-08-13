@@ -11,6 +11,16 @@ const ipaConfig = {
       dashboard: [],
       entityData: [],
       entityAction: []
+   },
+   mapPortfolio: {
+      statePanel: {
+         componentPaths:
+             {
+                "portfolio": "PortfolioDetails.jsx",
+                "portfolio.site": "SiteDetails.jsx",
+                "portfolio.site.building": "BuildingDetails.jsx",
+             }
+      }
    }
 }
 
