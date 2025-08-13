@@ -122,19 +122,19 @@ const ModelQuery = ({ modelOne, modelTwo, selectedPropRefs, setModelOneSliceIDs,
         } else {
             setFilteredElementsCount(totalElementsCount);
             setModelOneSliceIDs([]);
-            setModelTwoSliceIDs([])
+            setModelTwoSliceIDs([]);
         }
     };
 
     const onFilterDelete = (deletedFilter) => {
         const updatedFilters = filters.filter(f => f.label !== deletedFilter.label);
 
-        setFilters(updatedFilters)
-        getFilteredElementCount(updatedFilters)
+        setFilters(updatedFilters);
+        getFilteredElementCount(updatedFilters);
 
-        if (!updatedFilters?.length) {
+        if (!updatedFilters?.length || updatedFilters.length === 0) {
             setModelOneSliceIDs([]);
-            setModelTwoSliceIDs([])
+            setModelTwoSliceIDs([]);
         }
     };
 

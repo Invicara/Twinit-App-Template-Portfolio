@@ -55,6 +55,14 @@ const ModelComparisonPage = () => {
         }
     }), [cameraState, handleCameraUpdate, cameraSyncEnabled]);
 
+    const removeGlassMode = async (viewerRef) => {
+        const commands = _.get(viewerRef, "current.iafviewerRef.current.commands");
+
+        if (commands && commands.setDrawMode) {
+            await commands.setDrawMode(false, false, undefined);
+        }
+    };
+
     const { availableModelComposites } = useContext(ModelContext);
 
     useEffect(() => {
@@ -96,6 +104,16 @@ const ModelComparisonPage = () => {
 
         if (modelTwo) { getModelVersion(modelTwo); }
     }, [modelTwo]);
+
+    useEffect(() => {
+        if (modelOneSliceIDs.length === 0) {
+            removeGlassMode(viewerOne);
+        }
+
+        if (modelTwoSliceIDs.length === 0) {
+            removeGlassMode(viewerTwo);
+        }
+    }, [modelOneSliceIDs, modelTwoSliceIDs]);
 
     return (
         availableModelComposites?.length > 1 && (
