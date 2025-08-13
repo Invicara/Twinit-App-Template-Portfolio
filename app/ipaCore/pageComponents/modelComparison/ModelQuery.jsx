@@ -77,7 +77,6 @@ const ModelQuery = ({ modelOne, modelTwo, selectedPropRefs, setModelOneSliceIDs,
         getFilteredElementCount(updatedFilters);
     }, [selectedPropRefs, totalElementsCount]);
 
-
     const getTreeNodes = () => {
         let availablePropRefs;
 

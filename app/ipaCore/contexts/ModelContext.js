@@ -167,8 +167,6 @@ const ModelContextProvider = ({ children }) => {
    const getTotalElementCount = async (providedCollections = null) => {
       const tempCollections = providedCollections ? providedCollections : modelRelatedCollections;
 
-      let elemsTotal = 0;
-
       if (tempCollections?.elements) {
          try {
             // providing a _pageSize = 0 and _offset = 0 will just return the page info
@@ -179,13 +177,9 @@ const ModelContextProvider = ({ children }) => {
             }, null, { page: { _pageSize: 0, _offset: 0 }, userItemVersionId: tempCollections.elements._userItemVersionId });
 
             if (providedCollections) {
-               elemsTotal = elementsTotal._total;
+               return elementsTotal._total;
             } else {
                setTotalElementsCount(elementsTotal._total)
-            }
-
-            if (providedCollections) {
-               return elemsTotal;
             }
          } catch (error) {
             console.error('ERROR: Getting Total Element Count')
