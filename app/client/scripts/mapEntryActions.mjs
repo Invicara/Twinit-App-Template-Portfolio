@@ -3,8 +3,9 @@ import mapboxgl from 'mapbox-gl';
 import { point, multiPoint,
     lineString, multiLineString,
     polygon, multiPolygon, featureCollection } from '@turf/helpers';
-import bbox from '@turf/bbox';
 import {IafProj, IafSession} from "@dtplatform/platform-api";
+import { MMV_COMMANDS } from '@invicara/ipa-core-mmv';
+import {v4 as uuid} from "uuid"
 
 function extendBoundsFromCoords(bounds, coords) {
     if (typeof coords[0] === 'number') {
@@ -57,18 +58,22 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
     if (state && featureId) {
         const level = getLevel(state);
         if (!level || !level.idKey) return;
-        const sourceId = `${level.state}-features`;
-        const src = map.getSource(sourceId);
-        if (src) {
-            const data = src._data || src._options?.data;
-            if (data && data.type === 'FeatureCollection') {
-                const feature = data.features.find(f => f.properties[level.idKey] === featureId);
-                if (feature) {
-                    const box = bbox(feature);
-                    map.fitBounds([[box[0], box[1]], [box[2], box[3]]], { padding: 100, pitch: 0 });
+
+        context.mmvSend([{
+            commandName: MMV_COMMANDS.ZOOM_TO,
+            commandRef: uuid(),
+            params: {
+                elementId: featureId,
+                extra: {
+                    field: level.idKey,
+                    layerNames: [`${level.state}-features-layer`],
+                    cameraOptions: {
+                        animate: true,
+                        duration: 2700
+                    }
                 }
             }
-        }
+        }]);
         return;
     }
 
