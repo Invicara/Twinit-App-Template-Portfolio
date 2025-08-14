@@ -8,7 +8,7 @@ const ModelContext = createContext()
 const API_CHUNK_SIZE = 15
 const ELEMENT_CHUNK_SIZE = 500
 
-const ModelContextProvider = ({ children }) => {
+const ModelContextProvider = ({ children, project, appContext }) => {
 
    // availableModelComposites: Array[<Object>] the array of imported models in the project
    const [availableModelComposites, setAvailableModelComposites] = useState([])
@@ -82,6 +82,7 @@ const ModelContextProvider = ({ children }) => {
       try {
          let currentProject = await IafProj.getCurrent()
          let importedModelComposites = await IafProj.getModels(currentProject)
+         console.log("loadAllModels", {project, currentProject, importedModelComposites})
          setAvailableModelComposites(importedModelComposites)
       } catch (err) {
          console.error("ERROR: Retrieving Imported Models")
@@ -595,6 +596,8 @@ const ModelContextProvider = ({ children }) => {
          setSliceElements,
          setSliceElementsByQuery,
          setSelectedElement,
+         project,
+         appContext,
       }
    }, [
       availableModelComposites,
@@ -606,7 +609,9 @@ const ModelContextProvider = ({ children }) => {
       selectedElement,
       allPropRefs,
       selectedPropRefs,
-      sliceElements
+      sliceElements,
+      project,
+      appContext
    ]
    )
 
