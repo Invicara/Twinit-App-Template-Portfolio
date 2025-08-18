@@ -51,10 +51,18 @@ const PropertyFilter = ({ filter, onFilterUpdate, onFilterSave, onFilterDelete, 
          propQuery[`properties.${filter.propRef.property.key}.psDispName`] = filter.propRef.property.propSet
          propQuery[`properties.${filter.propRef.property.key}.dName`] = filter.propRef.property.dName
 
+         // filter.propRef.property.propSet seems to be undefined most of the times.
+         // Did we mean proSetName?
+
          // use a $distinctRelatedItemField query to get the unique (distinct) values of the property
          const query = {
             $distinctRelatedItemField: {
-               collectionDesc: { _userItemId: propertyCollection._userItemId, _userType: propertyCollection._userType },
+               collectionDesc: {
+                  _userItemId: propertyCollection._userItemId,
+                  _userType: propertyCollection._userType,
+                  '_versions.all': true,
+                  '_versions._version': propertyCollection._userItemVersion
+               },
                field: `properties.${filter.propRef.property.key}.val`,
                query: propQuery
             }
