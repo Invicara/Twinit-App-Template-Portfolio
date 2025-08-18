@@ -14,7 +14,7 @@
    "author": "Scott Mollon",
    "dependencies": {
       "@dtplatform/iaf-script-engine": "~4.6.0",
-      "@dtplatform/iaf-viewer": "^5.0.83",
+      "@dtplatform/iaf-viewer": "^5.0.98",
       "@dtplatform/platform-api": "4.6.14",
       "@invicara/ipa-core": "3.0.32",
       "@material-ui/core": "^4.8.0",
