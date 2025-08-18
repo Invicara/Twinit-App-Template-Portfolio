@@ -48,11 +48,8 @@ const PropertyFilter = ({ filter, onFilterUpdate, onFilterSave, onFilterDelete, 
 
          // query the elements based on property set name and property display name
          const propQuery = {}
-         propQuery[`properties.${filter.propRef.property.key}.psDispName`] = filter.propRef.property.propSet
+         propQuery[`properties.${filter.propRef.property.key}.psDispName`] = filter.propRef.property.propSetName === 'No Property Set' ? undefined : filter.propRef.property.propSetName;
          propQuery[`properties.${filter.propRef.property.key}.dName`] = filter.propRef.property.dName
-
-         // filter.propRef.property.propSet seems to be undefined most of the times.
-         // Did we mean proSetName?
 
          // use a $distinctRelatedItemField query to get the unique (distinct) values of the property
          const query = {
