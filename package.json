@@ -128,7 +128,6 @@
       "react-dom": "^18.0.0",
       "react-router-dom": "^5.3.4",
       "@dtplatform/iaf-script-engine": "~4.6.0",
-      "@dtplatform/iaf-viewer": "~4.6.0",
       "@dtplatform/platform-api": "4.6.14",
       "@dtplatform/iaf-doc-viewer": "~4.6.0",
       "@invicara/ipa-core": {
