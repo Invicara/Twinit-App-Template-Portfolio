@@ -7,6 +7,7 @@ const ModelContext = createContext()
 
 const API_CHUNK_SIZE = 15
 const ELEMENT_CHUNK_SIZE = 500
+const NO_MODELS = []
 
 const ModelContextProvider = ({ children, project, appContext }) => {
 
@@ -15,7 +16,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
 
    // selectedModelComposite: <NamedComposieItem> the currently selected model to show in the viewer and to query
    const [selectedModelComposite, setSelectedModelComposite] = useState()
-   // all selectedModelComposite versions of the selected imported model 
+   // all selectedModelComposite versions of the selected imported model
    const [selectedModelCompositeVersions, setSelectedModelCompositeVersions] = useState()
    // the specific selected version of the selected imported model
    const [selectedModelCompositeVersion, setSelectedModelCompositeVersion] = useState()
@@ -30,7 +31,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
    // total number of elements in the selected model version
    const [totalElementsCount, setTotalElementsCount] = useState()
 
-   // all property references cached during model import for the selected model version 
+   // all property references cached during model import for the selected model version
    const [allPropRefs, setAllPropRefs] = useState([])
    // selectedPropRefs: Array[<Object>] the currently selected set of properties to include in model queries and the table
    // setSelectedPropRefs: <function> the function to set the selectedPropRefs
@@ -44,8 +45,8 @@ const ModelContextProvider = ({ children, project, appContext }) => {
    const [sliceElements, setSliceElements] = useState([])
 
    useEffect(() => {
-      loadAllModels()
-   }, [])
+      loadAllModels(project)
+   }, [project])
 
    useEffect(() => {
 
@@ -78,9 +79,12 @@ const ModelContextProvider = ({ children, project, appContext }) => {
       setTotalElementsCount()
    }
 
-   const loadAllModels = async () => {
+   const loadAllModels = async (currentProject) => {
+      if(!currentProject){
+         setAvailableModelComposites(NO_MODELS);
+         return;
+      }
       try {
-         let currentProject = await IafProj.getCurrent()
          let importedModelComposites = await IafProj.getModels(currentProject)
          console.log("loadAllModels", {project, currentProject, importedModelComposites})
          setAvailableModelComposites(importedModelComposites)
@@ -412,7 +416,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
             // instancePropery ---_isInverse:true---> element (_id)
             // typePropery ---_isInverse:true---> element (_id)
 
-            // this is much faster for queries than using an alternative like the relatedFilter which would 
+            // this is much faster for queries than using an alternative like the relatedFilter which would
             // cause us to have to page through every page of elements looking for the ones that match the relatedFilter
             // -- in a large file that could be 100,000 or more elements
 
@@ -496,7 +500,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
             // instancePropery ---_isInverse:true---> element (_id)
             // typePropery ---_isInverse:true---> element (_id)
 
-            // this is much faster for queries than using an alternative like the relatedFilter which would 
+            // this is much faster for queries than using an alternative like the relatedFilter which would
             // cause us to have to page through every page of elements looking for the ones that match the relatedFilter
             // -- in a large file that could be 100,000 or more elements
 
