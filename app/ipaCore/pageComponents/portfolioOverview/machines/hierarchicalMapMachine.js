@@ -39,32 +39,106 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
         return expanded;
     }
 
-    function buildTransitions(pathList, usePendingEvent) {
-        return pathList.reverse().map(path => {
+    function buildTransitions(pathList, { usePending = false } = {}) {
+        const normalize = (p) =>
+            typeof p === 'string' ? { state: p, idKey: p + 'Id' } : p;
+        const normalizedPaths = pathList.map(path => path.map(normalize));
+
+        // helper to pick correct event source
+        const getEvt = ({ context, event }) =>
+            usePending ? (context.pendingEvent || {}) : event;
+
+        // check all required ids present for the path
+        const hasAllIds = (fullPath, evt) =>
+            fullPath.every(p => !p.idKey || (evt.hasOwnProperty(p.idKey) && evt[p.idKey] != null));
+
+
+        // did any id differ vs context?
+        const anyIdChanged = (fullPath, ctx, evt) =>
+            fullPath.some(p => p.idKey && ctx[p.idKey] !== evt[p.idKey]);
+
+        // did all ids match vs context?
+        const allIdsSame = (fullPath, ctx, evt) =>
+            fullPath.every(p => !p.idKey || ctx[p.idKey] === evt[p.idKey]);
+
+        const deeperKeysAfter = (fullPath) => {
+            const depth = fullPath.length;
+            const anyPath = normalizedPaths.find(p => p.length >= depth) || [];
+            return anyPath.slice(depth).map(seg => seg.idKey).filter(Boolean);
+        };
+
+        return normalizedPaths.reverse().flatMap(path => {
             const fullPath = path.map(p => typeof p === 'string' ? { state: p, idKey: p + 'Id' } : p);
-            return {
-                target: `#${MACHINE_ID}.${fullPath.map(p => p.state).join('.')}`,
-                guard: ({ context, event }) => {
-                    const eventSource = usePendingEvent ? context.pendingEvent || event : event;
-                    const guard = fullPath.every(p => {
-                        if (!p.idKey) return true;
-                        if (eventSource.hasOwnProperty(p.idKey)) {
-                            return eventSource[p.idKey] != null;
-                        }
+            const target = `#${MACHINE_ID}.${fullPath.map(p => p.state).join('.')}`;
+            const deeperKeys = deeperKeysAfter(fullPath);
+
+            // 1) Upward bubbling: any deeper idKey is explicitly null → jump to this level
+            const upward = {
+                target,
+                reenter: true,
+                guard: (args) => {
+                    const evt = getEvt(args);
+                    if (!hasAllIds(fullPath, evt)) {
+                        console.log("machine upward guard1", {guard: false, target, fullPath, evt});
                         return false;
-                    });
-                    console.log("guard", {guard, target: `#${MACHINE_ID}.${fullPath.map(p => p.state).join('.')}`}, fullPath, eventSource)
-                    return guard;
+                    } // let reentering handle that
+                    // if ANY deeper key is present and null → this is an upward request
+                    const anyDeeperCleared = deeperKeys.some(k => evt.hasOwnProperty(k) && evt[k] === null);
+                    console.log("machine upward guard2", {guard: anyDeeperCleared, target, fullPath, evt});
+                    return anyDeeperCleared;
                 },
-                reenter: ({ context, event }) => {
-                    const eventSource = usePendingEvent ? context.pendingEvent || event : event;
-                    return fullPath.some(p => p.idKey && context[p.idKey] !== eventSource[p.idKey]);
-                },
-                actions: assign(({ context, event }) => {
-                    const eventSource = usePendingEvent ? context.pendingEvent || event : event;
-                    return updateContextForEvent(context, eventSource);
+                actions: assign((args) => {
+                    const evt = getEvt(args);
+                    return {
+                        ...updateContextForEvent(args.context, evt),
+                        pendingEvent: null,
+                        suppressEntryActions: false
+                    };
                 })
             };
+
+            // 2) Reentering transition when IDs changed (and present)
+            const reentering = {
+                target,
+                reenter: true,
+                guard: args => {
+                    const evt = getEvt(args);
+                    const guard =  hasAllIds(fullPath, evt) && anyIdChanged(fullPath, args.context, evt);
+                    console.log("machine reentering guard", {guard, target, fullPath, evt});
+                    return guard;
+                },
+                actions: assign(args => {
+                    const evt = getEvt(args);
+                    return {
+                        ...updateContextForEvent(args.context, evt),
+                        pendingEvent: null,
+                        suppressEntryActions: false
+                    };
+                })
+            };
+
+            // 3) No-op: all ids same at this level AND no upward request
+            const noop = {
+                target,
+                reenter: false,
+                guard: args => {
+                    const evt = getEvt(args);
+                    const guard =  hasAllIds(fullPath, evt) && !anyIdChanged(fullPath, args.context, evt);
+                    console.log("machine noop guard", {guard, target, fullPath, evt});
+                    return guard;
+                },
+                actions: assign(args => {
+                    const evt = getEvt(args);
+                    return {
+                        ...updateContextForEvent(args.context, evt),
+                        pendingEvent: null,
+                        suppressEntryActions: true
+                    };
+                })
+            };
+
+            //this has to be done as reenter option is not a function, and cannot check against context or event
+            return [upward, reentering, noop];
         });
     }
 
@@ -77,7 +151,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
         const stateKey = toStateKey(currentPath);
 
         const childState = buildStates(rest, currentPath);
-        const transitions = buildTransitions(expandPaths(paths), true);
+        const transitions = buildTransitions(expandPaths(paths), {usePending: true});
 
         const stateObj = {
             initial: 'idle',
@@ -90,19 +164,21 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                     on: {
                         GO_TO: {
                             target: 'confirmExit',
+                            reenter: true,
                             actions: assign(({ event }) => ({ pendingEvent: event }))
                         }
                     }
                 },
                 confirmExit: {
-                    entry: ({ self }) => self.send({ type: 'CONFIRM_YES' }),
+                    entry: ({ self }) => {console.log("machine confirmExit entry", self);return self.send({ type: 'CONFIRM_YES' })},
                     on: {
                         CONFIRM_YES: transitions.map(t => ({ ...t, actions: [
                                 ...(Array.isArray(t.actions) ? t.actions : [t.actions]),
                                 assign(() => ({
                                     pendingEvent: null,
                                     suppressEntryActions: false
-                                }))
+                                })),
+                                ({context, event}) => console.log('machine confirmExit Got CONFIRM_YES:', event)
                             ] })),
                         CONFIRM_NO: {
                             target: `idle`,
@@ -178,21 +254,24 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                 on: {
                     GO_TO: {
                         target: 'confirmExit',
+                        reenter: true,
                         actions: assign(({ event }) => ({ pendingEvent: event }))
                     }
                 }
             },
             confirmExit: {
-                entry: ({ self }) => self.send({ type: 'CONFIRM_YES' }),
+                entry: ({ self }) => {console.log("machine confirmExit entry1", self);return self.send({ type: 'CONFIRM_YES' })},
+                //entry: ({ self }) => self.send({ type: 'CONFIRM_YES' }),
                 on: {
-                    CONFIRM_YES: buildTransitions(expandPaths(paths), true).map(t => ({
+                    CONFIRM_YES: buildTransitions(expandPaths(paths), {usePending: true}).map(t => ({
                         ...t,
                         actions: [
                             ...(Array.isArray(t.actions) ? t.actions : [t.actions]),
                             assign(() => ({
                                 pendingEvent: null,
                                 suppressEntryActions: false
-                            }))
+                            })),
+                            (_ctx, e) => console.log('machine Got CONFIRM_YES:', e)
                         ]
                     })),
                     CONFIRM_NO: {
@@ -227,9 +306,10 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
             }
         },
         on: {
+            '*': { actions: [({context, event}) => console.log('[machine event]', event)] },
             GO_TO: {
                 actions: assign(({ event }) => ({ pendingEvent: event }))
-            }
+            },
         }
     };
 }
