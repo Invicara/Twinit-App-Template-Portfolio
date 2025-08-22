@@ -18,7 +18,7 @@ const useStyles = makeStyles((theme) => ({
     secondaryHeader: {
         backgroundColor: "#333",
         height: "40px",
-        padding: "0 40px",
+        padding: "0 8px",
         position: "relative",
         display: "flex",
         flexDirection: "row",
@@ -67,7 +67,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 // Create context for the actor
-export const PortfolioActorContext = createContext();
+export const MapStateContext = createContext();
 const DEFAULT_PATHS = [
     [
         { state: 'portfolio', idKey: null },
@@ -83,14 +83,14 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     const namedPaths = useMemo(()=>namedPathsConfig?.namedPaths || DEFAULT_PATHS,[]);
     const machineDef = useMemo(()=>createMachine("mapMachine",namedPaths),[namedPaths]);
     const [snapshot, send, actor] = useMachine(machineDef);
-    
+
     // MMV Configuration state
     const [mmvConfig, setMmvConfig] = useState({});
     const [mmvMode, setMmvMode] = useState("");
-    
+
     // Command state for MMV communication
     const [command, setCommand] = useState([]);
-    
+
     // Read MMV config from project or user config
     const readMMVConfigFromProject = () => {
         let newConfig = selectedItems?.selectedProject?._userAttributes?.mmvConfig;
@@ -114,7 +114,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             }
         }
     }, [userConfig, handler, selectedItems]);
-    
+
     useEffect(()=>{
         const subscription = actor.subscribe((state, e) => {
             console.log("PortfolioOverview Machine state changed",state,{state: JSON.parse(JSON.stringify(state.value)) });
@@ -123,14 +123,14 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     },[actor])
 
     const currentState = useSelector(actor, state => state);
-    
+
     // Extract modelElementId from current state context
     const modelElementId = currentState?.context?.modelElementId;
     const showSimpleViewer = modelElementId != null && modelElementId !== undefined;
-    
+
     // Track previous display state to detect switches
     const [mapInstance, setMapInstance] = useState(null);
-    
+
     // Handle display switching and map refresh
     useEffect(() => {
         // If switching back to MMV map, trigger resize after a short delay
@@ -148,44 +148,44 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             }, 100);
         }
     }, [showSimpleViewer, mapInstance]);
-    
+
     const handleMMVEvent = (event) => {
         console.log('PortfolioOverview MMV Event:', event);
         // Handle MMV events as needed
     };
 
     return (
-        <PortfolioActorContext.Provider value={{ actor, send: actor.send, currentState }}>
+        <MapStateContext.Provider value={{ actor, send: actor.send, currentState }}>
             <div className={classes.container}>
                 <div className={classes.secondaryHeader}>
                     <div className={classes.headerInner}>
                         <div className={classes.headerFlex}>
                             <div className={classes.breadcrumbsContainer}>
-                                <PortfolioBreadCrumbs />
+                                <PortfolioBreadCrumbs namedPath={namedPaths[0]} />
                             </div>
                         </div>
                     </div>
                 </div>
-                
+
                 <Grid container className={classes.mainContent}>
                     <Grid item className={classes.statePanel}>
                         <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
                     </Grid>
                     <Grid item xs className={classes.viewerContainer}>
-                        <div 
+                        <div
                             className={classes.mmvContainer}
-                            style={{ 
+                            style={{
                                 visibility: showSimpleViewer ? 'hidden' : 'visible',
                                 opacity: showSimpleViewer ? 0 : 1,
                                 pointerEvents: showSimpleViewer ? 'none' : 'auto',
                                 zIndex: showSimpleViewer ? 0 : 1
                             }}
                         >
-                            <MMVIntegratedMap 
+                            <MMVIntegratedMap
                                 onMapReady={(map) => {
                                     setMapInstance(map); // Store map instance for refresh
                                     actor.send({ type: 'MAP_READY', map, mmvSend: setCommand });
-                                }} 
+                                }}
                                 mmvConfig={mmvConfig}
                                 mmvMode={mmvMode}
                                 appId={ipaConfig.applicationId}
@@ -193,23 +193,23 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                                 command={command}
                             />
                         </div>
-                        
-                        <div 
+
+                        <div
                             className={classes.simpleViewerContainer}
-                            style={{ 
+                            style={{
                                 visibility: showSimpleViewer ? 'visible' : 'hidden',
                                 opacity: showSimpleViewer ? 1 : 0,
                                 pointerEvents: showSimpleViewer ? 'auto' : 'none',
                                 zIndex: showSimpleViewer ? 1 : 0
                             }}
                         >
-                            <SimpleViewerView 
+                            <SimpleViewerView
                                 handler={handler}
                             />
                         </div>
                     </Grid>
                 </Grid>
             </div>
-        </PortfolioActorContext.Provider>
+        </MapStateContext.Provider>
     );
 }
