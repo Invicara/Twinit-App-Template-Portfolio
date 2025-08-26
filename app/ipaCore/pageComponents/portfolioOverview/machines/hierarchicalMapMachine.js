@@ -229,6 +229,11 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
         on: {
             GO_TO: {
                 actions: assign(({ event }) => ({ pendingEvent: event }))
+            },
+            UPDATE_DATA: {
+                actions: assign(({ event }) => ({ 
+                    data: event.data 
+                }))
             }
         }
     };

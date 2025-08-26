@@ -4,8 +4,12 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { getTemporaryMapBoxToken } from "../../utils/mapboxUtils.js";
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { IafMultiModalViewer } from "@invicara/ipa-core-mmv"
+import { setClickEvent } from '../../../redux/pageComponentState.js';
+import { useDispatch } from 'react-redux';
 
 export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId, mmvEventHandler, command }) {
+    const dispatch = useDispatch();
+
     const mmvContainerRef = useRef();
 
     const [mapboxToken, setMapboxToken] = useState();
@@ -25,8 +29,6 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
         intervalRef.current = setInterval(() => {
             getMapboxToken();
         }, 1000*60*60);
-
-        return () => clearInterval(interval);
     }, []);
 
     useEffect(() => {
@@ -50,13 +52,9 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
             }
         }
 
-        // if(event.eventName === 'selection_update'){
-        //   console.log("SELECTION_ELEMENTS", event.payload.elements);
-        //   // Handle 3D model feature selection
-        //  const features = event.payload.elements.filter(el => el.elementType === '2d_site' || el.elementType === 'building_represetation');
-        //  if (features.length > 0) {
-        //    console.log("Found registered features", features);
-        //  }
+        if(event.eventName === 'selection_update' && event.payload.action === "click"){
+            dispatch(setClickEvent(event.payload))
+        }
 
         // }        
         // Forward event to external handler if provided
@@ -64,6 +62,8 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
             mmvEventHandler(event);
         }
     }
+
+    if(!mapboxToken) return <></>
 
     return (
         <div style={{ width: '100%', height: '100%', position: 'relative' }}>
