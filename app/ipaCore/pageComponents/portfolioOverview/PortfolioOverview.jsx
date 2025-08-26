@@ -1,7 +1,6 @@
 import React, {useEffect, useMemo, useState, createContext} from 'react';
 import { useActor, useSelector, useMachine } from '@xstate/react';
 import { makeStyles } from '@material-ui/core';
-import MapboxMap from './components/MapboxMap';
 import MMVIntegratedMap from './components/MMVIntegratedMap';
 import StatePanel from './components/StatePanel';
 import PortfolioBreadCrumbs from './components/BreadCrumbs';
@@ -68,6 +67,7 @@ const useStyles = makeStyles((theme) => ({
 
 // Create context for the actor
 export const PortfolioActorContext = createContext();
+export const MapContext = createContext();
 const DEFAULT_PATHS = [
     [
         { state: 'portfolio', idKey: null },
@@ -148,68 +148,74 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             }, 100);
         }
     }, [showSimpleViewer, mapInstance]);
+    window.currentState = currentState;
+    window.mapInstance = mapInstance;
     
     const handleMMVEvent = (event) => {
-        console.log('PortfolioOverview MMV Event:', event);
+        // console.log('PortfolioOverview MMV Event:', event);
         // Handle MMV events as needed
     };
 
     return (
-        <PortfolioActorContext.Provider value={{ actor, send: actor.send, currentState }}>
-            <div className={classes.container}>
-                <div className={classes.secondaryHeader}>
-                    <div className={classes.headerInner}>
-                        <div className={classes.headerFlex}>
-                            <div className={classes.breadcrumbsContainer}>
-                                <PortfolioBreadCrumbs />
+        <MapContext.Provider value={{ command, setCommand, mapInstance }}>
+            <PortfolioActorContext.Provider value={{ actor, send: actor.send, currentState }}>
+                <div className={classes.container}>
+                    <div className={classes.secondaryHeader}>
+                        <div className={classes.headerInner}>
+                            <div className={classes.headerFlex}>
+                                <div className={classes.breadcrumbsContainer}>
+                                    <PortfolioBreadCrumbs />
+                                </div>
                             </div>
                         </div>
                     </div>
+                    
+                    <Grid container className={classes.mainContent}>
+                        <Grid item className={classes.statePanel}>
+                            <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
+                        </Grid>
+                        <Grid item xs className={classes.viewerContainer}>
+                            <div 
+                                className={classes.mmvContainer}
+                                style={{ 
+                                    visibility: showSimpleViewer ? 'hidden' : 'visible',
+                                    opacity: showSimpleViewer ? 0 : 1,
+                                    pointerEvents: showSimpleViewer ? 'none' : 'auto',
+                                    zIndex: showSimpleViewer ? 0 : 1
+                                }}
+                            >
+                                <MMVIntegratedMap 
+                                    onMapReady={(map) => {
+                                        setMapInstance(map); // Store map instance for refresh
+                                        actor.send({ type: 'MAP_READY', map, mmvSend: setCommand });
+                                    }} 
+                                    mmvConfig={mmvConfig}
+                                    mmvMode={mmvMode}
+                                    appId={ipaConfig.applicationId}
+                                    mmvEventHandler={handleMMVEvent}
+                                    command={command}
+                                />
+                                {/* <GraphicPortal/> */}
+                            </div>
+                            
+                            <div 
+                                className={classes.simpleViewerContainer}
+                                style={{ 
+                                    visibility: showSimpleViewer ? 'visible' : 'hidden',
+                                    opacity: showSimpleViewer ? 1 : 0,
+                                    pointerEvents: showSimpleViewer ? 'auto' : 'none',
+                                    zIndex: showSimpleViewer ? 1 : 0
+                                }}
+                            >
+                                <SimpleViewerView 
+                                    key={modelElementId}
+                                    handler={handler}
+                                />
+                            </div>
+                        </Grid>
+                    </Grid>
                 </div>
-                
-                <Grid container className={classes.mainContent}>
-                    <Grid item className={classes.statePanel}>
-                        <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
-                    </Grid>
-                    <Grid item xs className={classes.viewerContainer}>
-                        <div 
-                            className={classes.mmvContainer}
-                            style={{ 
-                                visibility: showSimpleViewer ? 'hidden' : 'visible',
-                                opacity: showSimpleViewer ? 0 : 1,
-                                pointerEvents: showSimpleViewer ? 'none' : 'auto',
-                                zIndex: showSimpleViewer ? 0 : 1
-                            }}
-                        >
-                            <MMVIntegratedMap 
-                                onMapReady={(map) => {
-                                    setMapInstance(map); // Store map instance for refresh
-                                    actor.send({ type: 'MAP_READY', map, mmvSend: setCommand });
-                                }} 
-                                mmvConfig={mmvConfig}
-                                mmvMode={mmvMode}
-                                appId={ipaConfig.applicationId}
-                                mmvEventHandler={handleMMVEvent}
-                                command={command}
-                            />
-                        </div>
-                        
-                        <div 
-                            className={classes.simpleViewerContainer}
-                            style={{ 
-                                visibility: showSimpleViewer ? 'visible' : 'hidden',
-                                opacity: showSimpleViewer ? 1 : 0,
-                                pointerEvents: showSimpleViewer ? 'auto' : 'none',
-                                zIndex: showSimpleViewer ? 1 : 0
-                            }}
-                        >
-                            <SimpleViewerView 
-                                handler={handler}
-                            />
-                        </div>
-                    </Grid>
-                </Grid>
-            </div>
-        </PortfolioActorContext.Provider>
+            </PortfolioActorContext.Provider>
+        </MapContext.Provider>        
     );
 }

@@ -2,6 +2,38 @@ import React, { useMemo, useContext } from 'react';
 import { makeStyles } from '@material-ui/core';
 import { PortfolioActorContext } from '../PortfolioOverview';
 
+// Helper function to execute callbacks sequentially with intervals
+function executeSequentialCallbacks(callbacks, intervalMs = 100) {
+    if (!Array.isArray(callbacks) || callbacks.length === 0) {
+        console.warn('executeSequentialCallbacks: No callbacks provided');
+        return;
+    }
+    
+    let currentIndex = 0;
+    
+    const intervalId = setInterval(() => {
+        if (currentIndex >= callbacks.length) {
+            clearInterval(intervalId);
+            return;
+        }
+        
+        const callback = callbacks[currentIndex];
+        if (typeof callback === 'function') {
+            try {
+                callback();
+            } catch (error) {
+                console.error(`Error executing callback ${currentIndex}:`, error);
+            }
+        } else {
+            console.warn(`Callback at index ${currentIndex} is not a function:`, callback);
+        }
+        
+        currentIndex++;
+    }, intervalMs);
+    
+    return intervalId; // Return interval ID in case caller wants to clear it manually
+}
+
 const useStyles = makeStyles((theme) => ({
     container: {
         height: 40,
@@ -70,7 +102,12 @@ const PortfolioBreadCrumbs = () => {
         crumbs.push({
             title: 'Portfolio',
             isActive: states.includes('portfolio') && !context.siteId,
-            onClick: () => send({ type: 'GO_TO' }) // Go back to portfolio root
+            onClick: () => {
+                executeSequentialCallbacks([
+                    () => send({ type: 'GO_TO' }),
+                    () => send({ type: 'CONFIRM_YES' })
+                ], 100);
+            }
         });
         
         // Site level
@@ -79,10 +116,17 @@ const PortfolioBreadCrumbs = () => {
             crumbs.push({
                 title: siteData?.name || `Site ${context.siteId}`,
                 isActive: states.includes('site') && !states.includes('building'),
-                onClick: () => send({ 
-                    type: 'GO_TO', 
-                    siteId: context.siteId 
-                })
+                onClick: () => {
+                    executeSequentialCallbacks([
+                        () => send({ 
+                            type: 'GO_TO', 
+                            siteId: context.siteId 
+                        }),
+                        () => send({ 
+                            type: 'CONFIRM_YES' 
+                        })
+                    ], 100);
+                }
             });
         }
         
@@ -92,11 +136,18 @@ const PortfolioBreadCrumbs = () => {
             crumbs.push({
                 title: buildingData?.name || `Building ${context.buildingId}`,
                 isActive: states.includes('building') && !states.includes('modelElement'),
-                onClick: () => send({ 
-                    type: 'GO_TO', 
-                    siteId: context.siteId,
-                    buildingId: context.buildingId 
-                })
+                onClick: () => {
+                    executeSequentialCallbacks([
+                        () => send({ 
+                            type: 'GO_TO', 
+                            siteId: context.siteId,
+                            buildingId: context.buildingId 
+                        }),
+                        () => send({ 
+                            type: 'CONFIRM_YES' 
+                        })
+                    ], 100);
+                }
             });
         }
         
@@ -105,12 +156,19 @@ const PortfolioBreadCrumbs = () => {
             crumbs.push({
                 title: `Model: ${context.modelElementId}`,
                 isActive: true, // This is the deepest level
-                onClick: () => send({ 
-                    type: 'GO_TO', 
-                    siteId: context.siteId,
-                    buildingId: context.buildingId,
-                    modelElementId: context.modelElementId 
-                })
+                onClick: () => {
+                    executeSequentialCallbacks([
+                        () => send({ 
+                            type: 'GO_TO', 
+                            siteId: context.siteId,
+                            buildingId: context.buildingId,
+                            modelElementId: context.modelElementId 
+                        }),
+                        () => send({ 
+                            type: 'CONFIRM_YES' 
+                        })
+                    ], 100);
+                }
             });
         }
         
