@@ -20,7 +20,7 @@ import FloatingModelDocViewer from '../../components/FloatingDocViewer/FloatingM
 // Mapbox utilities to support Mapbox in the viewer
 import { getTemporaryMapBoxToken } from '../utils/mapboxUtils'
 
-import { ModelContext, ModelContextProvider } from '../../contexts/ModelContext'
+import { ModelContext } from '../../contexts/ModelContext'
 
 import TablePanel from './panels/TablePanel'
 
@@ -28,13 +28,7 @@ import "@dtplatform/iaf-viewer/dist/iaf-viewer.css";
 import './SimpleViewerView.scss'
 
 
-const SimpleViewerView = (props) => {
-   return <ModelContextProvider>
-      <SimpleViewerPage {...props} />
-   </ModelContextProvider>
-}
-
-const SimpleViewerPage = ({ handler }) => {
+const SimpleViewerView = ({ handler }) => {
 
    // used to access viewer commands, not used in this example
    const viewerRef = useRef()
