@@ -43,7 +43,7 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
 
     // Handle MMV events and extract map reference
     const handleMMVEvent = (event) => {
-        
+
         // Extract map reference from MMV when available
         if (event.eventName === 'viewer_ready' && event?.payload?.map) {
             console.log('Viewer is ready:', event.payload.map);
@@ -58,7 +58,7 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
             dispatch(setClickEvent(event.payload))
         }
 
-        // }        
+        // }
         // Forward event to external handler if provided
         if (mmvEventHandler) {
             mmvEventHandler(event);
@@ -84,21 +84,21 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
                             cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
                         }}
                     >
-                        <IafMultiModalViewer 
-                            mode={"mmvGIS"} 
+                        {mapboxToken && <IafMultiModalViewer
+                            mode={"mmvGIS"}
                             config={{
                             accessToken: mapboxToken,
                             style: 'mapbox://styles/mapbox/light-v10',
                             // Layer information for event handling
                             layerInfo: {
-                                'site-features-layer': { 
+                                'site-features-layer': {
                                     idField: 'siteId',
                                     elementType: '2d_site',
                                     extraAttributes: ['name'],
                                     fromMapboxID: (id, attrs) => id,
                                     toMapboxID: (id) => id
                                 },
-                                'building-features-layer': { 
+                                'building-features-layer': {
                                     idField: 'buildingId',
                                     elementType: 'building_represetation',
                                     extraAttributes: ["latitude", "longitude"],
@@ -114,15 +114,15 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
                                     yaw: 0
                                 }
                             }, height, width
-                            }} 
-                            eventHandler={handleMMVEvent} 
+                            }}
+                            eventHandler={handleMMVEvent}
                             appId={appId}
                             command={command}
                             style={{
                                 cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
                             }}
                             {...{ width, height }}
-                        />
+                        />}
                     </div>
                 )}
             </AutoSizer>

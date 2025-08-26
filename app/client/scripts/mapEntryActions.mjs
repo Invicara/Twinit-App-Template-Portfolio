@@ -6,6 +6,7 @@ import { point, multiPoint,
 import {IafProj, IafSession} from "@dtplatform/platform-api";
 import { MMV_COMMANDS } from '@invicara/ipa-core-mmv';
 import {v4 as uuid} from "uuid"
+import bbox from "@turf/bbox";
 
 function extendBoundsFromCoords(bounds, coords) {
     if (typeof coords[0] === 'number') {
@@ -55,6 +56,7 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
     // Helper to get level def from state name
     const getLevel = (stateName) => namedPath.find(lvl => lvl.state === stateName);
 
+    // debugger;
     if (state && featureId) {
         const level = getLevel(state);
         if (!level || !level.idKey) return;
@@ -69,11 +71,13 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
                     layerNames: [`${level.state}-features-layer`],
                     cameraOptions: {
                         animate: true,
-                        duration: 2700
+                        duration: 2700,
+                        padding: 100
                     }
                 }
             }
         }]);
+
         return;
     }
 
@@ -465,10 +469,9 @@ export async function getEntryAction({mapMachineInput }) {
         return { suppressEntryActions: false };
     }
 
-    const bubblingUp = self?.getSnapshot()?.matches(`${stateValue}.confirmExit`);
-
     switch (stateValue) {
         case 'portfolio': {
+
             zoomToFeature({map: context.map, context});
             return { commands: null };
         }
