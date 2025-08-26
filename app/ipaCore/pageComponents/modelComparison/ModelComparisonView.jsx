@@ -13,9 +13,7 @@ import { Panel, PanelGroup } from "react-resizable-panels";
 import "./ModelComparisonView.scss";
 
 const ModelComparisonView = (props) => {
-    return <ModelContextProvider>
-        <ModelComparisonPage {...props} />
-    </ModelContextProvider>
+    return <ModelComparisonPage {...props} />
 };
 
 const ModelComparisonPage = () => {
