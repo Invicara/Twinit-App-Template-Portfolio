@@ -52,33 +52,50 @@
         "allowManageInvites": true,
         "allowManageUsers": true
       }
+    },
+    "portfolioOverview": {
+      "title": "Portfolio Overview",
+      "icon": "fas fa-map-marked-alt fa-2x",
+      "pageComponent": "portfolioOverview/PortfolioOverview",
+      "path": "/portfoliomap",
+      "config": {}
     }
   },
   "homepage": {
-    "handler": "modelView"
+    "handler": "portfolioOverview"
   },
   "groupedPages": {
+    "home": {
+      "icon": "fas fa-home fa-2x",
+      "position": 1,
+      "pages": [
+        {
+          "page": "Portfolio Overview",
+          "handler": "portfolioOverview"
+        }
+      ]
+    },
     "model": {
       "icon": "fas fa-building fa-2x",
-      "position": 1,
+      "position": 2,
       "pages": [
         {
           "page": "Model View",
           "handler": "modelView"
         },
         {
-          "page": "Model Import",
-          "handler": "modelImport"
-        },
-        {
           "page": "Model Comparison",
           "handler": "modelComparison"
+        },
+        {
+          "page": "Model Import",
+          "handler": "modelImport"
         }
       ]
     },
     "settings": {
       "icon": "fas fa-tools fa-2x",
-      "position": 2,
+      "position": 3,
       "pages": [
         {
           "page": "Mapbox Settings",
