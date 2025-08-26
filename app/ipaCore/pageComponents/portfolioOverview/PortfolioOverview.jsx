@@ -19,7 +19,7 @@ const useStyles = makeStyles((theme) => ({
     secondaryHeader: {
         backgroundColor: "#333",
         height: "40px",
-        padding: "0 40px",
+        padding: "0 8px",
         position: "relative",
         display: "flex",
         flexDirection: "row",
@@ -92,10 +92,10 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     // MMV Configuration state
     const [mmvConfig, setMmvConfig] = useState({});
     const [mmvMode, setMmvMode] = useState("");
-    
+
     // Command state for MMV communication
     const [command, setCommand] = useState([]);
-    
+
     // Read MMV config from project or user config
     const readMMVConfigFromProject = () => {
         let newConfig = selectedItems?.selectedProject?._userAttributes?.mmvConfig;
@@ -119,7 +119,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             }
         }
     }, [userConfig, handler, selectedItems]);
-    
+
     useEffect(()=>{
         const subscription = actor.subscribe((state, e) => {
             console.log("PortfolioOverview Machine state changed",state,{state: JSON.parse(JSON.stringify(state.value)) });
@@ -128,14 +128,14 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     },[actor])
 
     const currentState = useSelector(actor, state => state);
-    
+
     // Extract modelElementId from current state context
     const modelElementId = currentState?.context?.modelElementId;
     const showSimpleViewer = modelElementId != null && modelElementId !== undefined;
-    
+
     // Track previous display state to detect switches
     const [mapInstance, setMapInstance] = useState(null);
-    
+
     // Handle display switching and map refresh
     useEffect(() => {
         // If switching back to MMV map, trigger resize after a short delay
@@ -169,7 +169,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                         <div className={classes.headerInner}>
                             <div className={classes.headerFlex}>
                                 <div className={classes.breadcrumbsContainer}>
-                                    <PortfolioBreadCrumbs />
+                                    <PortfolioBreadCrumbs namedPath={namedPaths[0]} />
                                 </div>
                             </div>
                         </div>
