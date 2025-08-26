@@ -9,6 +9,8 @@ import { Grid } from '@mui/material';
 import './PortfolioOverview.css'
 import {createMachine} from "./machines/hierarchicalMapMachine.js";
 import ipaConfig from "../../ipaConfig.js";
+import { useSelector as useReduxSelector } from 'react-redux';
+import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -83,6 +85,9 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     const namedPaths = useMemo(()=>namedPathsConfig?.namedPaths || DEFAULT_PATHS,[]);
     const machineDef = useMemo(()=>createMachine("mapMachine",namedPaths),[namedPaths]);
     const [snapshot, send, actor] = useMachine(machineDef);
+    
+    // Get the site selection state from Redux
+    const isSelectingPosition = useReduxSelector(selectIsSelectingPosition);
     
     // MMV Configuration state
     const [mmvConfig, setMmvConfig] = useState({});
@@ -176,7 +181,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                         </Grid>
                         <Grid item xs className={classes.viewerContainer}>
                             <div 
-                                className={classes.mmvContainer}
+                                className={`${classes.mmvContainer} ${isSelectingPosition ? 'map-selecting-position' : ''}`}
                                 style={{ 
                                     visibility: showSimpleViewer ? 'hidden' : 'visible',
                                     opacity: showSimpleViewer ? 0 : 1,

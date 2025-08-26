@@ -5,10 +5,12 @@ import { getTemporaryMapBoxToken } from "../../utils/mapboxUtils.js";
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { IafMultiModalViewer } from "@invicara/ipa-core-mmv"
 import { setClickEvent } from '../../../redux/pageComponentState.js';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { selectIsSelectingPosition } from '../../../redux/siteSetup.js';
 
 export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId, mmvEventHandler, command }) {
     const dispatch = useDispatch();
+    const isSelectingPosition = useSelector(selectIsSelectingPosition);
 
     const mmvContainerRef = useRef();
 
@@ -66,12 +68,21 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
     if(!mapboxToken) return <></>
 
     return (
-        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <div style={{ 
+            width: '100%', 
+            height: '100%', 
+            position: 'relative',
+            cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
+        }}>
             <AutoSizer>
                 {({ height, width }) => (
                     <div
                         ref={mmvContainerRef}
-                        style={{ width, height }}
+                        style={{ 
+                            width, 
+                            height,
+                            cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
+                        }}
                     >
                         <IafMultiModalViewer 
                             mode={"mmvGIS"} 
@@ -107,6 +118,9 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
                             eventHandler={handleMMVEvent} 
                             appId={appId}
                             command={command}
+                            style={{
+                                cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
+                            }}
                             {...{ width, height }}
                         />
                     </div>
