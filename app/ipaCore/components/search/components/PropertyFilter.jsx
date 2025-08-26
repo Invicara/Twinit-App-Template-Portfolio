@@ -19,16 +19,16 @@ const numValueComparisons = {
    OT: 'outside'
 }
 
-const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) => {
+const PropertyFilter = ({ filter, onFilterUpdate, onFilterSave, onFilterDelete, modelOneCollections, modelTwoCollections }) => {
 
    // Model Context
    const { modelRelatedCollections } = useContext(ModelContext)
 
    // the values to select from for a string filter
-   const [ propertyValues, setPropertyValues ] = useState()
+   const [propertyValues, setPropertyValues] = useState([]);
 
    // whether the filter has changed and requires a save
-   const [ hasChanged, setHasChanged ] = useState(true)
+   const [hasChanged, setHasChanged] = useState(true)
 
    // on mount if a string filter fetch the unique values for that property
    // for the property from the model data
@@ -39,42 +39,65 @@ const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) 
    }, [])
 
    // fetchs the unique values in the model data for a string property
-   const getStringPropValues = () => {
+   const getStringPropValues = async () => {
+      const tempCollections = modelOneCollections && modelTwoCollections ? [modelOneCollections, modelTwoCollections] : modelRelatedCollections;
 
-      // get the NamedUserCollection for the proeprties based on the type or instance properties
-      let propertyCollection = filter.propRef.property.propertyType === 'type' ? modelRelatedCollections.typeProps : modelRelatedCollections.instanceProps
+      const myFunc = async (myColls) => {
+         // get the NamedUserCollection for the proeprties based on the type or instance properties
+         const propertyCollection = filter.propRef.property.propertyType === 'type' ? myColls.typeProps : myColls.instanceProps
 
-      // query the elements based on property set name and property display name
-      let propQuery = {}
-      propQuery[`properties.${filter.propRef.property.key}.psDispName`] = filter.propRef.property.propSet
-      propQuery[`properties.${filter.propRef.property.key}.dName`] = filter.propRef.property.dName
+         // query the elements based on property set name and property display name
+         const propQuery = {}
+         propQuery[`properties.${filter.propRef.property.key}.psDispName`] = filter.propRef.property.propSetName === 'No Property Set' ? undefined : filter.propRef.property.propSetName;
+         propQuery[`properties.${filter.propRef.property.key}.dName`] = filter.propRef.property.dName
 
-      // use a $distinctRelatedItemField query to get the unique (distinct) values of the property
-      let query = {
-         $distinctRelatedItemField: {
-            collectionDesc: { _userItemId: propertyCollection._userItemId, _userType: propertyCollection._userType},
-            field: `properties.${filter.propRef.property.key}.val`,
-            query: propQuery
+         // use a $distinctRelatedItemField query to get the unique (distinct) values of the property
+         const query = {
+            $distinctRelatedItemField: {
+               collectionDesc: {
+                  _userItemId: propertyCollection._userItemId,
+                  _userType: propertyCollection._userType,
+                  '_versions.all': true,
+                  '_versions._version': propertyCollection._userItemVersion
+               },
+               field: `properties.${filter.propRef.property.key}.val`,
+               query: propQuery
+            }
          }
-      }
 
-      try {
-         IafItemSvc.searchRelatedItems(query).then((res) => {
+         try {
+            const res = await IafItemSvc.searchRelatedItems(query);
 
-            // convert the unique values into tree nodes for the filter TreeSelect
-            let treeNodes = res._list[0]._versions[0]._relatedItems[`properties.${filter.propRef.property.key}.val`].map(v => {
+            const treeNodes = res._list[0]._versions[0]._relatedItems[`properties.${filter.propRef.property.key}.val`].map(v => {
                return {
                   title: v,
                   value: v
                }
-            })
+            });
 
-            setPropertyValues(treeNodes)
+            setPropertyValues(prev => {
+               const combined = [...prev, ...treeNodes];
+               const seen = new Set();
+               return combined.filter(item => {
+                  const id = item.value;
+                  if (seen.has(id)) return false;
+                  seen.add(id);
+                  return true;
+               });
+            });
+         } catch (error) {
+            console.error('ERROR: Fetching property values')
+            console.error(error)
+         }
+      };
 
-         })
-      } catch (error) {
-         console.error('ERROR: Fetching property values')
-         console.error(error)
+
+      if (Array.isArray(tempCollections) && tempCollections.length > 0) {
+         for (const coll of tempCollections) {
+            await myFunc(coll)
+         }
+      } else {
+         myFunc(tempCollections);
       }
    }
 
@@ -89,7 +112,7 @@ const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) 
 
       if (type === 'string') {
          updatedFilter.stringValue = value
-         query[`properties.${filter.propRef.property.key}.val`] = {$in: value}
+         query[`properties.${filter.propRef.property.key}.val`] = { $in: value }
       } else if (type === 'comp') {
          updatedFilter.comparisonValue = value
          query = makeNumberQueryPartial(updatedFilter)
@@ -120,7 +143,7 @@ const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) 
 
       // if a comparison that requries two number inputs
       if (['between', 'outside'].includes(updatedFilter.comparisonValue)) {
-         
+
          // figure out the low and high values
          // so UI doesn't hav to require which is entered first
          // ui just take two values
@@ -136,23 +159,23 @@ const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) 
 
          if (updatedFilter.comparisonValue === numValueComparisons.BT) {
 
-            query[`properties.${filter.propRef.property.key}.val`] = {$gt: low, $lt: high}
+            query[`properties.${filter.propRef.property.key}.val`] = { $gt: low, $lt: high }
 
          } else if (updatedFilter.comparisonValue === numValueComparisons.OT) {
 
-            query[`properties.${filter.propRef.property.key}.val`] = {$lt: low, $gt: high}
+            query[`properties.${filter.propRef.property.key}.val`] = { $lt: low, $gt: high }
 
          }
 
 
       } else {
-         
+
          if (updatedFilter.comparisonValue === numValueComparisons.EQ) {
             query[`properties.${filter.propRef.property.key}.val`] = numberOne
          } else if (updatedFilter.comparisonValue === numValueComparisons.GT) {
-            query[`properties.${filter.propRef.property.key}.val`] = {$gt: numberOne}
+            query[`properties.${filter.propRef.property.key}.val`] = { $gt: numberOne }
          } else if (updatedFilter.comparisonValue === numValueComparisons.LT) {
-            query[`properties.${filter.propRef.property.key}.val`] = {$lt: numberOne}
+            query[`properties.${filter.propRef.property.key}.val`] = { $lt: numberOne }
          }
 
       }
@@ -168,13 +191,13 @@ const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) 
 
    return <div className='property-filter'>
       <div className='filter-label'>{filter.label}</div>
-      <hr/>
+      <hr />
       {stringValueTypes.includes(filter.propRef.property.srcType) && <div className='string-filter-values'>
          <TreeSelect
             className='filter-tree-select'
             treeData={propertyValues}
             value={filter.stringValue}
-            treeCheckable= {true}
+            treeCheckable={true}
             placeholder='Select Property Values'
             onChange={(values) => onFilterChange('string', values)}
             autoClearSearchValue={false}
@@ -194,14 +217,14 @@ const PropertyFilter = ({filter, onFilterUpdate, onFilterSave, onFilterDelete}) 
             placeholder='Select Comparison'
          />
          <div className='num-input-section'>
-            <InputNumber id='numOne' className='filter-num-input' 
+            <InputNumber id='numOne' className='filter-num-input'
                value={filter.numberOneValue}
                onChange={(value) => onFilterChange('numOne', parseFloat(value))}
             />
             {['between', 'outside'].includes(filter.comparisonValue) && <div> and </div>}
-            {['between', 'outside'].includes(filter.comparisonValue) && <InputNumber id='numTwo' className='filter-num-input' 
-                  value={filter.numberTwoValue}
-                  onChange={(value) => onFilterChange('numTwo', parseFloat(value))}
+            {['between', 'outside'].includes(filter.comparisonValue) && <InputNumber id='numTwo' className='filter-num-input'
+               value={filter.numberTwoValue}
+               onChange={(value) => onFilterChange('numTwo', parseFloat(value))}
             />}
          </div>
       </div>}

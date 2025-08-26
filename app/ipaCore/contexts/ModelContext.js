@@ -98,7 +98,21 @@ const ModelContextProvider = ({ children, project, appContext }) => {
    // loads the related collections related to a model NamedCompositeItem
    // if versionId is provided then the context state is not set and the result is returned instead
    // this makes the model context logic useable by other without need of duplication
-   const loadModelCollections = async (versionId) => {
+   const loadModelCollections = async (versionId = null, providedModel = null) => {
+      const getItems = async (selectedModelComposite, compositeVersionId) => {
+         return (await IafItemSvc.getRelatedInItem(selectedModelComposite._userItemId, {}, null, { userItemVersionId: compositeVersionId }))._list;
+      };
+
+      if (providedModel) {
+         const collections = await getItems(providedModel, providedModel.selectedVersion._id);
+
+         return {
+            elements: collections.find(c => c._userType === 'rvt_elements'),
+            instanceProps: collections.find(c => c._userType === 'rvt_element_props'),
+            typeProps: collections.find(c => c._userType === 'rvt_type_elements'),
+            dataCache: collections.find(c => c._userType === 'data_cache')
+         };
+      }
 
       let compositeVersionId = versionId ? versionId : selectedModelCompositeVersion._id
 
@@ -109,7 +123,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
       if (selectedModelComposite) {
          try {
             // get collections contained in the NamedCompositeItem representing the model version
-            let collectionsModelCompositeItem = (await IafItemSvc.getRelatedInItem(selectedModelComposite._userItemId, {}, null, { userItemVersionId: compositeVersionId }))._list
+            let collectionsModelCompositeItem = await getItems(selectedModelComposite, compositeVersionId);
             if (versionId) {
 
                return {
@@ -155,18 +169,23 @@ const ModelContextProvider = ({ children, project, appContext }) => {
    }
 
    // get the total element count for the currently selected model
-   const getTotalElementCount = () => {
+   const getTotalElementCount = async (providedCollections = null) => {
+      const tempCollections = providedCollections ? providedCollections : modelRelatedCollections;
 
-      if (modelRelatedCollections?.elements) {
+      if (tempCollections?.elements) {
          try {
             // providing a _pageSize = 0 and _offset = 0 will just return the page info
             // with no items, so we can get the _total from the response
             // userItemVersionId - ensures we are searchgn the correct collection version for the selected model version
-            IafItemSvc.getRelatedItems(modelRelatedCollections.elements._userItemId, {
+            const elementsTotal = await IafItemSvc.getRelatedItems(tempCollections.elements._userItemId, {
                query: {},
-            }, null, { page: { _pageSize: 0, _offset: 0 }, userItemVersionId: modelRelatedCollections.elements._userItemVersionId }).then((result => {
-               setTotalElementsCount(result._total)
-            }))
+            }, null, { page: { _pageSize: 0, _offset: 0 }, userItemVersionId: tempCollections.elements._userItemVersionId });
+
+            if (providedCollections) {
+               return elementsTotal._total;
+            } else {
+               setTotalElementsCount(elementsTotal._total)
+            }
          } catch (error) {
             console.error('ERROR: Getting Total Element Count')
             console.error(error)
@@ -177,9 +196,10 @@ const ModelContextProvider = ({ children, project, appContext }) => {
    }
 
    // gets the property references from the model data cache collection
-   const getPropertyReferences = async () => {
+   const getPropertyReferences = async (providedCollections = null) => {
+      const tempCollections = providedCollections ? providedCollections : modelRelatedCollections;
 
-      if (modelRelatedCollections?.dataCache) {
+      if (tempCollections?.dataCache) {
 
          let _pageSize = 200
          let _offset = 0
@@ -190,11 +210,11 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          try {
             do {
 
-               let page = await IafItemSvc.getRelatedItems(modelRelatedCollections.dataCache._userItemId, {
+               let page = await IafItemSvc.getRelatedItems(tempCollections.dataCache._userItemId, {
                   // the data_cache collection contains lots of different types of cache data
                   // we are looking for items with the dataType property of 'propertyReference'
                   query: { dataType: 'propertyReference' },
-               }, null, { page: { _pageSize: _pageSize, _offset: _offset }, userItemVersionId: modelRelatedCollections.dataCache._userItemVersionId })
+               }, null, { page: { _pageSize: _pageSize, _offset: _offset }, userItemVersionId: tempCollections.dataCache._userItemVersionId })
 
                total = page._total
                _offset += _pageSize
@@ -202,6 +222,10 @@ const ModelContextProvider = ({ children, project, appContext }) => {
                propRefs.push(...page._list)
 
             } while (propRefs.length < total)
+
+            if (providedCollections) {
+               return propRefs;
+            }
 
             // save prop refs to state
             setAllPropRefs(propRefs)
@@ -343,7 +367,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
 
    // creates a findWithRelated query between a property collection and the element collection
    // you can have it optionally return the element ids by passing true for withElemIds
-   const makeElementByPropQuery = (propertyColl, queryPartials, withElemIds) => {
+   const makeElementByPropQuery = (propertyColl, queryPartials, withElemIds, elementsColl = null) => {
       console.log('propertyColl ----> ', propertyColl)
       let query = {
          parent: {
@@ -363,7 +387,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
             {
                relatedDesc: {
                   _isInverse: true,
-                  _relatedUserType: modelRelatedCollections.elements._userType
+                  _relatedUserType: elementsColl ? elementsColl._userType : modelRelatedCollections.elements._userType
                },
                options: {
                   page: { _pageSize: 0 }
@@ -383,7 +407,8 @@ const ModelContextProvider = ({ children, project, appContext }) => {
 
    // gets the count of elements that would be returned by a model query
    // does it the most efficient way depending on if there are instance, type, or both queries
-   const getElementCount = async (filters) => {
+   const getElementCount = async (filters, providedCollections = null, myTotalElementsCount = null) => {
+      const tempCollections = providedCollections ? providedCollections : modelRelatedCollections;
 
       // get all the instance and type query partials from filters which have them
       let instanceQueryPartials = filters.filter(f => f.propRef.property.propertyType === 'instance' && f.queryPartial)
@@ -397,7 +422,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
             // since there is only an instance query we can simply query the elements related to the instance property
             // instancePropery ---_isInverse:true---> element
 
-            let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials))
+            let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(tempCollections.instanceProps, instanceQueryPartials, null, tempCollections.elements))
 
             return result._list.reduce((acc, value) => acc += value.elements._total, 0)
 
@@ -405,7 +430,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
             // since there is only a type query we can simply query the elements related to the type property
             // typePropery ---_isInverse:true---> element
 
-            let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials))
+            let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(tempCollections.typeProps, typeQueryPartials, null, tempCollections.elements))
             console.log('result ----->', result)
             return result._list.reduce((acc, value) => acc += value.elements._total, 0)
 
@@ -431,12 +456,12 @@ const ModelContextProvider = ({ children, project, appContext }) => {
             let bothPromises = []
 
             let instElemIds = []
-            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true)).then((instResult) => {
+            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(tempCollections.instanceProps, instanceQueryPartials, true, tempCollections.elements)).then((instResult) => {
                instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
             }))
 
             let typeElemIds = []
-            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true)).then((typeResult) => {
+            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(tempCollections.typeProps, typeQueryPartials, true, tempCollections.elements)).then((typeResult) => {
                typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
             }))
 
@@ -447,7 +472,11 @@ const ModelContextProvider = ({ children, project, appContext }) => {
             return inBoth.length
 
          } else {
-            return totalElementsCount
+            if (providedCollections && myTotalElementsCount !== null) {
+               return myTotalElementsCount;
+            } else {
+               return totalElementsCount;
+            }
          }
       } catch (error) {
          console.error('ERROR: Getting Model Element Count')
@@ -457,7 +486,8 @@ const ModelContextProvider = ({ children, project, appContext }) => {
    }
 
    // given a query, fetch the model elements and set them as the sliceElements in the viewer
-   const setSliceElementsByQuery = async (filters) => {
+   const setSliceElementsByQuery = async (filters, providedCollections = null) => {
+      const tempCollections = providedCollections ? providedCollections : modelRelatedCollections;
 
       // get all the instance and type query partials from filters which have them
       let instanceQueryPartials = filters.filter(f => f.propRef.property.propertyType === 'instance' && f.queryPartial)
@@ -475,7 +505,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
             // since there is only an instance query we can simply query the elements related to the instance property
             // instancePropery ---_isInverse:true---> element
 
-            let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true))
+            let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(tempCollections.instanceProps, instanceQueryPartials, true, tempCollections.elements))
 
             let instElemIds = []
             result._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
@@ -486,7 +516,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
             // since there is only a type query we can simply query the elements related to the type property
             // typePropery ---_isInverse:true---> element
 
-            let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true))
+            let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(tempCollections.typeProps, typeQueryPartials, true, tempCollections.elements))
             console.log('result ----->', result)
             let typeElemIds = []
             result._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
@@ -515,12 +545,12 @@ const ModelContextProvider = ({ children, project, appContext }) => {
             let bothPromises = []
 
             let instElemIds = []
-            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.instanceProps, instanceQueryPartials, true)).then((instResult) => {
+            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(tempCollections.instanceProps, instanceQueryPartials, true, tempCollections.elements)).then((instResult) => {
                instResult._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
             }))
 
             let typeElemIds = []
-            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(modelRelatedCollections.typeProps, typeQueryPartials, true)).then((typeResult) => {
+            bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(tempCollections.typeProps, typeQueryPartials, true, tempCollections.elements)).then((typeResult) => {
                typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
             }))
 
@@ -553,7 +583,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
 
                let query = { _id: { $in: idChunk[i] } }
 
-               idChunkPromises.push(IafScriptEngine.findWithRelated(makeElementQuery(query)).then((res) => {
+               idChunkPromises.push(IafScriptEngine.findWithRelated(makeElementQuery(query, tempCollections)).then((res) => {
                   // add page of elements to the list of all returned elements
                   allElements.push(...res._list)
                   console.log(res)
@@ -573,9 +603,12 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          allElements = []
       }
 
-      // isolate the elements in the model viewer
-      setSliceElements(simplifyElementItems(allElements))
-
+      if (providedCollections) {
+         return simplifyElementItems(allElements);
+      } else {
+         // isolate the elements in the model viewer
+         setSliceElements(simplifyElementItems(allElements));
+      }
    }
 
    const memoizedContextValue = useMemo(() => {
@@ -600,6 +633,8 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          setSliceElements,
          setSliceElementsByQuery,
          setSelectedElement,
+         getPropertyReferences,
+         getTotalElementCount,
          project,
          appContext,
       }
