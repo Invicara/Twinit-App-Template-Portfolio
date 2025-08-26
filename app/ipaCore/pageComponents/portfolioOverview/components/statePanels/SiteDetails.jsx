@@ -8,6 +8,9 @@ import { usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
 import { InfoComponent } from '../../../../components/InfoComponent/InfoComponent';
 import { useDebounce } from '../../../../hooks/useDebounce';
 import { setIsSelectingPosition, setSelectedCoordinate } from '../../../../redux/siteSetup';
+import { IafItemSvc } from '@dtplatform/platform-api';
+
+export const defaultNewSiteId = "<newSite>";
 
 export default function SiteDetails({ context }) {
     const {data = [], siteId} = context;
@@ -111,8 +114,8 @@ export default function SiteDetails({ context }) {
     };
 
     // Handle site submission (finalize draft)
-    const handleSubmitSite = () => {
-        if (!currentSite || !mapInstance || !currentState.context?.namedPaths) return;
+    const handleSubmitSite = async () => {
+        if (!currentSite || currentSite.siteId === defaultNewSiteId || !mapInstance || !currentState.context?.namedPaths) return;
 
         // Get the namedPath for map operations
         const namedPath = currentState.context.namedPaths[0];
@@ -144,7 +147,11 @@ export default function SiteDetails({ context }) {
             siteId: finalizedSite.siteId
         });
 
-        console.log('Site submitted and finalized:', finalizedSite);
+        //item service creation side effect
+        const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: "geo_sites_coll"}}))._list[0];
+        const result = await IafItemSvc.createRelatedItems(coll._userItemId, [finalizedSite]);
+
+        console.log('Site submitted and finalized:', {finalizedSite, result});
     };
 
     // Handle site cancellation (remove draft site)
