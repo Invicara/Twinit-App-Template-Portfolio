@@ -8,6 +8,7 @@ import { usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
 import {v4 as uuid} from "uuid";
 import { addFeatureToMapLayer } from '../../../../client/scripts/mapEntryActions.mjs';
 import { PinDrop } from '@material-ui/icons';
+import { defaultNewSiteId } from './statePanels/SiteDetails';
 
 // Helper function to execute callbacks sequentially with intervals
 function executeSequentialCallbacks(callbacks, intervalMs = 100) {
@@ -91,7 +92,7 @@ const AddSiteSection = ({classes}) => {
             // Generate square coordinates around the selected point (500m width)
             const squareCoords = generateSquareCoordinates(centerLng, centerLat, 500);
             
-            const newSiteId = "<newSite>";
+            const newSiteId = defaultNewSiteId;
             const newSite = {
                 requestId: uuid(),
                 isDraft: true,
