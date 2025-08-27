@@ -9,6 +9,8 @@ import { ModelContextProvider } from '../ipaCore/contexts/ModelContext';
 import ipaConfig from '../ipaCore/ipaConfig'
 import './styles/app.scss'
 import { mapboxGISMode, mmvRegisterMode } from '@invicara/ipa-core-mmv';
+import { ThemeProvider, CssBaseline } from '@material-ui/core';
+import { themeOptions } from '../styles/defaultTheme';
 
 mmvRegisterMode("mmvGIS", mapboxGISMode)
 
@@ -35,12 +37,15 @@ const AppWithModelContext = () => {
   }
 
   return (
-    <ModelContextProvider project={project} appContext={appContext}>
-      <IpaMainLayout
-        ipaConfig={ipaConfig}
-        onConfigLoad={onConfigLoad}
-      />
-    </ModelContextProvider>
+    <ThemeProvider theme={themeOptions}>
+      <CssBaseline />
+      <ModelContextProvider project={project} appContext={appContext}>
+        <IpaMainLayout
+          ipaConfig={ipaConfig}
+          onConfigLoad={onConfigLoad}
+        />
+      </ModelContextProvider>
+    </ThemeProvider>
   )
 }
 
