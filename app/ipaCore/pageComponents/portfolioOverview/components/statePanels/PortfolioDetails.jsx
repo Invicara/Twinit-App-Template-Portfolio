@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useContext, useEffect } from 'react';
 import { Typography, Divider } from '@mui/material';
+
 
 export default function PortfolioDetails({ context }) {
     const {data = {}} = context;
     const {building: buildings = []} = data;
+
+
     return (
         <div>
             <Typography variant="h6">Portfolio</Typography>

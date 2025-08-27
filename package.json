@@ -21,7 +21,8 @@
       "@emotion/react": "^11.14.0",
       "@emotion/styled": "^11.14.1",
       "@invicara/ipa-core": "3.0.32",
-      "@invicara/ipa-core-mmv": "0.2.101-mapbox-alpha-1",
+      "@invicara/ipa-core-ct": "^1.0.19",
+      "@invicara/ipa-core-mmv": "0.2.101-mapbox-alpha-2",
       "@material-ui/core": "^4.8.0",
       "@material-ui/icons": "^4.9.1",
       "@material-ui/lab": "^4.0.0-alpha.36",
@@ -135,6 +136,12 @@
       "@invicara/ipa-core": {
          "@dtplatform/core-utils": "~4.6.0",
          "@dtplatform/ui-utils": "~4.6.0"
+      },
+      "@invicara/ipa-core-ct": {
+         "@invicara/ipa-core-mmv": "$@invicara/ipa-core-mmv"
+      },
+      "@dtplatform/react-ifef": {
+         "react-router": "$react-router"
       },
       "@emotion/react": "^11.14.0",
       "@emotion/styled": "^11.14.1"
