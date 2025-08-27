@@ -78,7 +78,7 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
             ) : (
                 type?.map((prop, i) => (
                     <React.Fragment key={prop[0]}>
-                        <Grid container>
+                        <Grid style={{justifyContent: "space-between", alignItems: "center"}} container>
                             <Grid item xs={4}>
                                 <Typography
                                     variant="body2"

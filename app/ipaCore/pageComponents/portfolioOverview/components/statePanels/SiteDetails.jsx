@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { Typography, Divider, Button, Alert, Box } from '@mui/material';
+import { Typography, Divider, Button, Box } from '@material-ui/core';
+import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
 import { PortfolioActorContext, MapContext } from '../../PortfolioOverview';
 import { getClickEvent } from '../../../../redux/pageComponentState';
@@ -46,6 +47,14 @@ export default function SiteDetails({ context }) {
         ['siteId', { title: 'Site ID', readOnly: false, description: 'Unique identifier for the site' }]
     ];
 
+    // useEffect(() => {
+    //     return () => {
+    //         if(currentSite.isDraft){
+    //             handleCancelSite()
+    //         }
+    //     }
+    // }, [currentSite])
+
     // Handle site property changes
     const handleSiteChange = (newValue, propertyName, metadata) => {
         if (!currentSite) return;
@@ -86,7 +95,7 @@ export default function SiteDetails({ context }) {
                 siteId: newValue
             });
 
-            const removeSuccess2 = removeFeatureFromMapLayer({
+            const removeSuccess = removeFeatureFromMapLayer({
                 map: mapInstance,
                 levelState: 'site',
                 featureId: oldSiteId,
@@ -507,54 +516,58 @@ export default function SiteDetails({ context }) {
             <Typography variant="body2">Buildings: {buildings.length}</Typography>
             
             {isDraftSite && (
-                <>
-                    <Box sx={{ my: 2 }}>
-                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
-                            Site Details
-                        </Typography>
-                        <InfoComponent
-                            entity={currentSite}
-                            handleChange={debouncedHandleSiteChange}
-                            type={siteEditingConfig}
-                            entityType="Site"
-                            originalEntity={currentSite}
-                        />
-                    </Box>
-                    
-                    <Button 
-                        variant="contained" 
-                        style={{backgroundColor: "#CC3289"}}
-                        onClick={toggleDrawingMode}
-                        sx={{ mb: 2 }}
-                        fullWidth
-                    >
-                        {isDrawingMode ? 'Cancel Drawing' : 'Draw Site Perimeter'}
-                    </Button>
-                    
-                    <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
-                        <Button 
+                <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between", height: "calc(100vh - 230px)"}}>
+                    <div style={{marginTop: 30}}>
+                        <Box sx={{ my: 2 }}>
+                            <div style={{display: "flex", gap: 8}}>
+                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }} style={{marginBottom: 10}}>
+                                    Site Info
+                                </Typography>
+                            </div>
+                            <InfoComponent
+                                entity={currentSite}
+                                handleChange={debouncedHandleSiteChange}
+                                type={siteEditingConfig}
+                                entityType="Site"
+                                originalEntity={currentSite}
+                            />
+                        </Box>
+                        
+                        <CustomButton 
                             variant="contained" 
-                            style={{backgroundColor: "#CC3289"}}
-                            onClick={handleSubmitSite}
-                            sx={{ flex: 1 }}
-                            disabled={isDrawingMode}
+                            color="primary"
+                            onClick={toggleDrawingMode}
+                            style={{ marginBottom: 16 }}
+                            fullWidth
                         >
-                            Submit Site
-                        </Button>
-                        <Button 
+                            {isDrawingMode ? 'Cancel Drawing' : 'Draw Site Perimeter'}
+                        </CustomButton>
+                    </div>
+                    
+                    <Box style={{ marginTop: 24, display: 'flex', gap: 16 }}>
+                        <CustomButton 
                             variant="outlined" 
-                            color="error"
+                            color="secondary"
                             onClick={handleCancelSite}
-                            sx={{ flex: 1 }}
+                            style={{ flex: 1 }}
                             disabled={isDrawingMode}
                         >
-                            Cancel Site
-                        </Button>
+                            Cancel
+                        </CustomButton>
+                        <CustomButton 
+                            variant="contained" 
+                            color="primary"
+                            onClick={handleSubmitSite}
+                            style={{ flex: 1 }}
+                            disabled={isDrawingMode}
+                        >
+                            Save
+                        </CustomButton>
                     </Box>
-                </>
+                </div>
             )}
             
-            <Divider sx={{ my: 2 }} />
+            <Divider style={{ margin: '16px 0' }} />
             {buildings.map((unit, i) => (
                 <Typography key={i} variant="body2">
                     {unit.name}

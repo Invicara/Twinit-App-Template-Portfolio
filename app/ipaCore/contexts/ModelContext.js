@@ -45,9 +45,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
    const [sliceElements, setSliceElements] = useState([])
 
    useEffect(() => {
-      if(project && !availableModelComposites.length){
-         loadAllModels()
-      }
+      loadAllModels(project)
    }, [project])
 
    useEffect(() => {
@@ -87,7 +85,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          return;
       }
       try {
-         let importedModelComposites = await IafProj.getModels(project)
+         let importedModelComposites = await IafProj.getModels(currentProject)
          setAvailableModelComposites(importedModelComposites)
       } catch (err) {
          console.error("ERROR: Retrieving Imported Models")
