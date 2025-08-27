@@ -137,6 +137,12 @@
          "@dtplatform/core-utils": "~4.6.0",
          "@dtplatform/ui-utils": "~4.6.0"
       },
+      "@invicara/ipa-core-ct": {
+         "@invicara/ipa-core-mmv": "$@invicara/ipa-core-mmv"
+      },
+      "@dtplatform/react-ifef": {
+         "react-router": "$react-router"
+      },
       "@emotion/react": "^11.14.0",
       "@emotion/styled": "^11.14.1"
    },
