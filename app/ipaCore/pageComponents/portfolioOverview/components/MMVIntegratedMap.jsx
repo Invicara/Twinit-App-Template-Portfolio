@@ -4,8 +4,14 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { getTemporaryMapBoxToken } from "../../utils/mapboxUtils.js";
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { IafMultiModalViewer } from "@invicara/ipa-core-mmv"
+import { setClickEvent } from '../../../redux/pageComponentState.js';
+import { useDispatch, useSelector } from 'react-redux';
+import { selectIsSelectingPosition } from '../../../redux/siteSetup.js';
 
 export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId, mmvEventHandler, command }) {
+    const dispatch = useDispatch();
+    const isSelectingPosition = useSelector(selectIsSelectingPosition);
+
     const mmvContainerRef = useRef();
 
     const [mapboxToken, setMapboxToken] = useState();
@@ -25,8 +31,6 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
         intervalRef.current = setInterval(() => {
             getMapboxToken();
         }, 1000*60*60);
-
-        return () => clearInterval(intervalRef.current);
     }, []);
 
     useEffect(() => {
@@ -50,13 +54,9 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
             }
         }
 
-        // if(event.eventName === 'selection_update'){
-        //   console.log("SELECTION_ELEMENTS", event.payload.elements);
-        //   // Handle 3D model feature selection
-        //  const features = event.payload.elements.filter(el => el.elementType === '2d_site' || el.elementType === 'building_represetation');
-        //  if (features.length > 0) {
-        //    console.log("Found registered features", features);
-        //  }
+        if(event.eventName === 'selection_update' && event.payload.action === "click"){
+            dispatch(setClickEvent(event.payload))
+        }
 
         // }
         // Forward event to external handler if provided
@@ -65,13 +65,24 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
         }
     }
 
+    if(!mapboxToken) return <></>
+
     return (
-        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <div style={{ 
+            width: '100%', 
+            height: '100%', 
+            position: 'relative',
+            cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
+        }}>
             <AutoSizer>
                 {({ height, width }) => (
                     <div
                         ref={mmvContainerRef}
-                        style={{ width, height }}
+                        style={{ 
+                            width, 
+                            height,
+                            cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
+                        }}
                     >
                         {mapboxToken && <IafMultiModalViewer
                             mode={"mmvGIS"}
@@ -107,6 +118,9 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
                             eventHandler={handleMMVEvent}
                             appId={appId}
                             command={command}
+                            style={{
+                                cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
+                            }}
                             {...{ width, height }}
                         />}
                     </div>

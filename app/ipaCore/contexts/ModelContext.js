@@ -86,7 +86,6 @@ const ModelContextProvider = ({ children, project, appContext }) => {
       }
       try {
          let importedModelComposites = await IafProj.getModels(currentProject)
-         console.log("loadAllModels", {project, currentProject, importedModelComposites})
          setAvailableModelComposites(importedModelComposites)
       } catch (err) {
          console.error("ERROR: Retrieving Imported Models")
