@@ -10,6 +10,7 @@ import { InfoComponent } from '../../../../components/InfoComponent/InfoComponen
 import { useDebounce } from '../../../../hooks/useDebounce';
 import { setIsSelectingPosition, setSelectedCoordinate } from '../../../../redux/siteSetup';
 import { IafItemSvc } from '@dtplatform/platform-api';
+import _ from 'lodash';
 
 export const defaultNewSiteId = "<newSite>";
 
@@ -35,9 +36,18 @@ export default function SiteDetails({ context }) {
     
     // Cache for original perimeter when entering drawing mode
     const [cachedPerimeter, setCachedPerimeter] = useState(null);
+    
+    // Cache for original site when entering editing mode
+    const [cachedOriginalSite, setCachedOriginalSite] = useState(null);
 
     // Check if this site is a draft that needs perimeter drawing
     const isDraftSite = currentSite?.isDraft === true;
+    
+    // Check if this site is being edited
+    const isEditingSite = currentSite?.isEditing === true;
+    
+    // Site is in edit mode if it's either draft or being edited
+    const isInEditMode = isDraftSite || isEditingSite;
 
     const prevIsDrawingMode = usePrevious(isDrawingMode);
 
@@ -206,6 +216,128 @@ export default function SiteDetails({ context }) {
         });
 
         console.log('Draft site cancelled and removed:', { siteId, removedSite: currentSite });
+    };
+
+    const setSiteForEdition = () => {
+        // Cache the original site before editing
+        setCachedOriginalSite(_.cloneDeep(currentSite));
+        
+        const updatedData = _.cloneDeep(currentState.context?.data || {});
+        const currentSites = updatedData.site || [];
+        const siteToEdit = currentSites.find(s => s.siteId === siteId);
+        siteToEdit.isEditing = true;
+        console.log("setSiteForEdition", {updatedData, cachedOriginalSite: currentSite})
+
+        // Send event to update XState context
+        send({
+            type: 'UPDATE_DATA',
+            data: updatedData
+        });
+    };
+    
+    // Handle canceling edit mode
+    const handleCancelEdit = () => {
+        if (!cachedOriginalSite) return;
+        
+        // Restore the original site data
+        const currentData = currentState.context?.data || {};
+        const currentSites = currentData.site || [];
+        const restoredSites = currentSites.map(s => 
+            s.siteId === siteId ? cachedOriginalSite : s
+        );
+        const restoredData = {
+            ...currentData,
+            site: restoredSites
+        };
+        
+        // Clear the cached original site
+        setCachedOriginalSite(null);
+        
+        // Update XState context with restored data
+        send({
+            type: 'UPDATE_DATA',
+            data: restoredData
+        });
+        
+        // Update map layer if needed
+        if (mapInstance && currentState.context?.namedPaths) {
+            const namedPath = currentState.context.namedPaths[0];
+            
+            // Remove current feature and add restored one
+            removeFeatureFromMapLayer({
+                map: mapInstance,
+                levelState: 'site',
+                featureId: currentSite.siteId,
+                idKey: 'siteId',
+                namedPath: namedPath
+            });
+            
+            addFeatureToMapLayer({
+                map: mapInstance,
+                levelState: 'site',
+                feature: {
+                    properties: cachedOriginalSite,
+                    geometry: cachedOriginalSite.coordinates ? {
+                        type: 'Polygon',
+                        coordinates: cachedOriginalSite.coordinates
+                    } : null,
+                    coordinates: cachedOriginalSite.coordinates
+                },
+                namedPath: namedPath
+            });
+        }
+        
+        console.log('Edit cancelled, site restored:', { original: cachedOriginalSite, siteId });
+    };
+    
+    // Handle saving edit mode
+    const handleSaveEdit = async () => {
+        if (!currentSite || !cachedOriginalSite) return;
+        
+        // Check if there were any changes
+        const hasChanges = !_.isEqual(
+            _.omit(currentSite, ['isEditing']), 
+            _.omit(cachedOriginalSite, ['isEditing'])
+        );
+        
+        // Finalize the edited site (remove isEditing flag)
+        const finalizedSite = { ...currentSite };
+        delete finalizedSite.isEditing;
+        
+        // Update XState context
+        const currentData = currentState.context?.data || {};
+        const currentSites = currentData.site || [];
+        const updatedSites = currentSites.map(s => 
+            s.siteId === siteId ? finalizedSite : s
+        );
+        const updatedData = {
+            ...currentData,
+            site: updatedSites
+        };
+        
+        // Clear the cached original site
+        setCachedOriginalSite(null);
+        
+        // Send event to update XState context with finalized site
+        send({
+            type: 'UPDATE_DATA',
+            data: updatedData
+        });
+        
+        // If there were changes, update the backend
+        if (hasChanges) {
+            try {
+                const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: "geo_sites_coll"}}))._list[0];
+                const result = await IafItemSvc.updateRelatedItems(coll._userItemId, [finalizedSite]);
+                console.log('Site updated successfully:', {finalizedSite, result});
+            } catch (error) {
+                console.error('Error updating site:', error);
+            }
+        } else {
+            console.log('No changes detected, skipping backend update');
+        }
+        
+        console.log('Site edit completed:', { finalizedSite, hasChanges });
     };
 
     useEffect(() => {
@@ -514,8 +646,20 @@ export default function SiteDetails({ context }) {
         <div>
             <Typography variant="h6">Site: {plantName}</Typography>
             <Typography variant="body2">Buildings: {buildings.length}</Typography>
+
+            {!isInEditMode && <div style={{marginTop: 12}}>
+                <CustomButton 
+                    variant="contained" 
+                    color="primary"
+                    onClick={setSiteForEdition}
+                    style={{ flex: 1 }}
+                    disabled={isDrawingMode}
+                >
+                    Edit Site
+                </CustomButton>    
+            </div>}
             
-            {isDraftSite && (
+            {isInEditMode && (
                 <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between", height: "calc(100vh - 230px)"}}>
                     <div style={{marginTop: 30}}>
                         <Box sx={{ my: 2 }}>
@@ -548,7 +692,7 @@ export default function SiteDetails({ context }) {
                         <CustomButton 
                             variant="outlined" 
                             color="secondary"
-                            onClick={handleCancelSite}
+                            onClick={isDraftSite ? handleCancelSite : handleCancelEdit}
                             style={{ flex: 1 }}
                             disabled={isDrawingMode}
                         >
@@ -557,7 +701,7 @@ export default function SiteDetails({ context }) {
                         <CustomButton 
                             variant="contained" 
                             color="primary"
-                            onClick={handleSubmitSite}
+                            onClick={isDraftSite ? handleSubmitSite : handleSaveEdit}
                             style={{ flex: 1 }}
                             disabled={isDrawingMode}
                         >
