@@ -205,26 +205,19 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <Grid container className={classes.mainContent}>
-                    <Grid item className={classes.statePanel}>
-                        <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
-                    </Grid>
-                    <Grid item xs className={classes.viewerContainer}>
-                        <div
-                            className={clsx(classes.mmvContainer, "dark-map", {'map-selecting-position' : isSelectingPosition})}
-                            style={{
-                                visibility: showSimpleViewer ? 'hidden' : 'visible',
-                                opacity: showSimpleViewer ? 0 : 1,
-                                pointerEvents: showSimpleViewer ? 'none' : 'auto',
-                                zIndex: showSimpleViewer ? 0 : 1
-                            }}
-                        >
-                            <MMVIntegratedMap
-                                onMapReady={(map) => {
-                                    setMapInstance(map); // Store map instance for refresh
-                                    actor.send({ type: 'MAP_READY', map, mmvSend: setCommand });
+                    <Grid container className={classes.mainContent}>
+                        <Grid item className={classes.statePanel}>
+                            <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
+                        </Grid>
+                        <Grid item xs className={classes.viewerContainer}>
+                            <div
+                                className={clsx(classes.mmvContainer, "dark-map", {'map-selecting-position' : isSelectingPosition})}
+                                style={{
+                                    visibility: showSimpleViewer ? 'hidden' : 'visible',
+                                    opacity: showSimpleViewer ? 0 : 1,
+                                    pointerEvents: showSimpleViewer ? 'none' : 'auto',
+                                    zIndex: showSimpleViewer ? 0 : 1
                                 }}
                             >
                                 <MMVIntegratedMap
