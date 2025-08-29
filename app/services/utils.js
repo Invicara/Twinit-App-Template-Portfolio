@@ -29,6 +29,13 @@ export const regexBetween0and255 = /^([0-1]?[0-9]?[0-9]|[2][0-4][0-9]|25[0-5])$/
 
 export const regexHexColor = /^#(?:[0-9a-fA-F]{3}){1,2}$/
 
+export const toTitleCase = (str) => {
+    if (!str) return '';
+    return str.replace(/\w\S*/g, (txt) => {
+        return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+    });
+}
+
 export const getFileUrlFromFilename = async ({ filename, container }) => {
     let currentContainer = container
     if (!container) {

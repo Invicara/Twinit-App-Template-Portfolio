@@ -1,5 +1,14 @@
 {
   "handlers": {
+    "modelComparison": {
+      "title": "Model Comparison",
+      "icon": "fa fa-clone fa-2x",
+      "shortName": "modelComparison",
+      "description": "Model Comparison",
+      "pageComponent": "modelComparison/ModelComparisonView",
+      "path": "/modelcomparison",
+      "config": {}
+    },
     "modelImport": {
       "title": "Model Import",
       "icon": "fas fa-file-import fa-2x",
@@ -43,6 +52,13 @@
         "allowManageInvites": true,
         "allowManageUsers": true
       }
+    },
+    "portfolioOverview": {
+      "title": "Portfolio Overview",
+      "icon": "fas fa-map-marked-alt fa-2x",
+      "pageComponent": "portfolioOverview/PortfolioOverview",
+      "path": "/portfoliomap",
+      "config": {}
     }
   },
   "portfolioOverview": {
@@ -56,7 +72,7 @@
     ]
   },
   "homepage": {
-    "handler": "modelView"
+    "handler": "portfolioOverview"
   },
   "groupedPages": {
     "home": {
@@ -76,6 +92,10 @@
         {
           "page": "Model View",
           "handler": "modelView"
+        },
+        {
+          "page": "Model Comparison",
+          "handler": "modelComparison"
         },
         {
           "page": "Model Import",

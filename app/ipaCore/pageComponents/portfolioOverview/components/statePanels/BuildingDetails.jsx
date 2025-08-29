@@ -1,8 +1,9 @@
 // components/UnitDetails.js
 import React, { useContext } from 'react';
 import { Typography, Divider, Button, Box } from '@mui/material';
-import { MapStateContext } from '../../PortfolioOverview';
+import { PortfolioActorContext } from '../../PortfolioOverview';
 import { ModelContext } from '../../../../contexts/ModelContext';
+import CustomButton from '../../../../components/atoms/CustomButton';
 
 export default function BuildingDetails({ context }) {
     const {data = [], siteId, buildingId} = context;
@@ -10,7 +11,7 @@ export default function BuildingDetails({ context }) {
     const unit = buildings.find(b => b.buildingId == buildingId);
 
     // Get actor context from PortfolioOverview
-    const portfolioContext = useContext(MapStateContext);
+    const portfolioContext = useContext(PortfolioActorContext);
     const { send } = portfolioContext || {};
 
     // Get ModelContext
@@ -58,14 +59,14 @@ export default function BuildingDetails({ context }) {
             <Typography variant="body2">Model: {unit.ModelName}</Typography>
 
             <Box sx={{ mt: 2 }}>
-                <Button
+                <CustomButton
                     variant="contained"
                     color="primary"
                     onClick={handleSelectModel}
                     disabled={!send}
                 >
                     Select Model
-                </Button>
+                </CustomButton>
             </Box>
         </div>
     );

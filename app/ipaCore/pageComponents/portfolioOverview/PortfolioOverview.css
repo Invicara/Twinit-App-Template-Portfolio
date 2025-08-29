@@ -26,3 +26,16 @@
 .mapboxgl-marker {
     position: absolute !important;
 }
+
+/* Site selection cursor styles */
+.map-selecting-position {
+    cursor: url('/icons/map-pin.svg') 12 24, crosshair !important;
+}
+
+.map-selecting-position * {
+    cursor: url('/icons/map-pin.svg') 12 24, crosshair !important;
+}
+
+.map-selecting-position canvas {
+    cursor: url('/icons/map-pin.svg') 12 24, crosshair !important;
+}
