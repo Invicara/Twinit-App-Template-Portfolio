@@ -78,7 +78,7 @@ const DEFAULT_PATHS = [
     [
         { state: 'portfolio', idKey: null },
         { state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all" },
-        { state: 'building', idKey: 'buildingId', feature: "point", api: "building/all", options: defaultBuildingMapConfig },
+        { state: 'building', idKey: 'buildingId', feature: "point", api: "building/all" },
         { state: 'modelElement', idKey: 'modelElementId' },
     ]
 ]
