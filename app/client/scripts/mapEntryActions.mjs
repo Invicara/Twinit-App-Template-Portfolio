@@ -112,7 +112,6 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
         return;
     }
 
-    // No state? Zoom to all features in all feature layers
     zoomToAllFeatures(map, namedPath.map(lvl => `${lvl.state}-features`));
 }
 
@@ -188,8 +187,9 @@ export function markHandled(e) {
  * @param {Function} params.send - xstate .send
  * @param {object} [params.context] - optional; can hold lookup indices
  * @param {number} [params.pixelTolerance=0] - optional radius in pixels
+ * @param {Function} [params.getContext] - optional function to get current context for draft site checking
  */
-export function makeMapOnClickHandler({ map, namedPath, send, context, pixelTolerance = 0 }) {
+export function makeMapOnClickHandler({ map, namedPath, send, context, pixelTolerance = 0, getContext }) {
     const featureLayers = getFeatureLayers(namedPath);
     const layerIds = featureLayers.map(l => l.layerId);
 
@@ -213,6 +213,17 @@ export function makeMapOnClickHandler({ map, namedPath, send, context, pixelTole
         }
 
         const event = { type: 'GO_TO' };
+
+        if (getContext) {
+            const currentContext = getContext();
+            console.log("GETTING_CURRENT_CONTEXT", {event, currentContext});
+            
+            // If we have a siteId and site data, check if the site is in draft mode
+            if (currentContext.data.site.some(s => s.isDraft)) {
+                console.log('Navigation blocked: Site is in draft mode');
+                return; // Don't send the GO_TO event
+            }
+        }
 
         // if nothing relevant clicked → bubble to top
         if (hits.length === 0) {
@@ -325,7 +336,7 @@ export function featureFromKnownType(type, coords, properties = {}) {
 }
 
 // Main function to add all feature layers from a namedPath
-export async function addAllFeatureLayers({ map, namedPath, sendBack }) {
+export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext }) {
     const allFeatureLayers = {}
     let parentFeatures = [];
     for (const level of namedPath) {
@@ -387,7 +398,7 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack }) {
                     ? { 'circle-radius': 0.01, 'circle-color': '#fff' }//TODO: or also make invisible by default?
                     : { 'fill-color': '#fff', 'fill-opacity': 0.18 }//TODO: or also make invisible by default?
             });
-            const handler = makeMapOnClickHandler({ map, namedPath, send: sendBack });
+            const handler = makeMapOnClickHandler({ map, namedPath, send: sendBack, getContext });
             map.on('click', handler);
             map.on('mouseenter', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = 'pointer'; });
             map.on('mouseleave', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = ''; });
@@ -425,13 +436,113 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack }) {
     return allFeatureLayers;
 }
 
+// Function to add a single feature to an existing map layer
+export function addFeatureToMapLayer({ map, levelState, feature, namedPath }) {
+    const sourceId = `${levelState}-features`;
+    const layerId = `${sourceId}-layer`;
+    
+    // Get the level definition to understand feature type
+    const levelDef = namedPath.find(lvl => lvl.state === levelState);
+    if (!levelDef || !levelDef.feature) {
+        console.warn(`Level definition not found for state: ${levelState}`);
+        return false;
+    }
+    
+    try {
+        // Get existing source
+        const existingSource = map.getSource(sourceId);
+        if (!existingSource) {
+            console.warn(`Map source not found: ${sourceId}`);
+            return false;
+        }
+        
+        // Get current data
+        const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
+        
+        // Convert the new feature to GeoJSON format
+        const coords = Array.isArray(feature.geometry)
+            ? feature.geometry
+            : feature.geometry?.coordinates ?? feature.properties?.coordinates ?? feature.coordinates;
+            
+        const turfFeature = featureFromKnownType(levelDef.feature, coords, feature.properties || feature);
+        
+        // Add new feature to existing collection
+        const updatedFeatures = [...(currentData.features || []), turfFeature];
+        const updatedFeatureCollection = featureCollection(updatedFeatures);
+        
+        // Update the map source with new data
+        existingSource.setData(updatedFeatureCollection);
+        
+        console.log(`Added feature to ${sourceId}:`, turfFeature);
+        return true;
+        
+    } catch (error) {
+        console.error(`Error adding feature to map layer ${sourceId}:`, error);
+        return false;
+    }
+}
+
+// Function to remove a feature from an existing map layer
+export function removeFeatureFromMapLayer({ map, levelState, featureId, idKey, namedPath }) {
+    const sourceId = `${levelState}-features`;
+    const layerId = `${sourceId}-layer`;
+    
+    // Get the level definition to understand feature type
+    const levelDef = namedPath.find(lvl => lvl.state === levelState);
+    if (!levelDef || !levelDef.feature) {
+        console.warn(`Level definition not found for state: ${levelState}`);
+        return false;
+    }
+    
+    // Use the provided idKey or fall back to the level's idKey
+    const keyToUse = idKey || levelDef.idKey;
+    if (!keyToUse) {
+        console.warn(`No idKey found for level state: ${levelState}`);
+        return false;
+    }
+    
+    try {
+        // Get existing source
+        const existingSource = map.getSource(sourceId);
+        if (!existingSource) {
+            console.warn(`Map source not found: ${sourceId}`);
+            return false;
+        }
+        
+        // Get current data
+        const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
+        
+        // Filter out the feature to be removed
+        const filteredFeatures = (currentData.features || []).filter(feature => {
+            const featureIdValue = feature.properties?.[keyToUse];
+            return featureIdValue !== featureId;
+        });
+        
+        // Update the map source with filtered data
+        const updatedFeatureCollection = featureCollection(filteredFeatures);
+        existingSource.setData(updatedFeatureCollection);
+        
+        console.log(`Removed feature from ${sourceId}:`, { featureId, idKey: keyToUse });
+        return true;
+        
+    } catch (error) {
+        console.error(`Error removing feature from map layer ${sourceId}:`, error);
+        return false;
+    }
+}
+
 // Example: Use this in your addLayersService for XState
-export async function addLayers({ context, sendBack }) {
+export async function addLayers({ context, sendBack, self }) {
     // Choose the correct namedPath for this instance
     // For now, we pick the first path
     const { map, namedPaths } = context;
     if (!map || !namedPaths) return;
-    const allFeatureLayers = await addAllFeatureLayers({ map, namedPath: namedPaths[0], sendBack });
+    const allFeatureLayers = await addAllFeatureLayers({ 
+        map, 
+        namedPath: namedPaths[0], 
+        sendBack, 
+        getContext: self ? () => self.getSnapshot().context : () => context 
+    });
     return {data: allFeatureLayers};
 }
 
@@ -439,6 +550,7 @@ export async function getInitAction({mapMachineInput }) {
     return addLayers(mapMachineInput)
 }
 export async function getEntryAction({mapMachineInput }) {
+    console.log("getEntryAction", {mapMachineInput});
     const {stateValue, context, event, self} = mapMachineInput;
 
     const {suppressEntryActions} = context;
@@ -504,7 +616,13 @@ export async function getEntryAction({mapMachineInput }) {
 
         case 'portfolio.site': {
             const siteId = event.siteId ?? context.siteId;
+            // const buildingId = event.buildingId ?? context.buildingId;
+            // const siteIdChanged = event.hasOwnProperty('siteId') && siteId !== context.siteId;
+            // const buildingIdChanged = event.hasOwnProperty('buildingId') && buildingId !== context.buildingId;
+
+            // if (siteIdChanged || buildingIdChanged || bubblingUp) {
             zoomToFeature({map: context.map, context, state: 'site', featureId: siteId});
+            // }
             return { commands: null };
         }
 

@@ -1,7 +1,6 @@
 import React, {useEffect, useMemo, useState, createContext} from 'react';
 import { useActor, useSelector, useMachine } from '@xstate/react';
 import { makeStyles } from '@material-ui/core';
-import MapboxMap from './components/MapboxMap';
 import MMVIntegratedMap from './components/MMVIntegratedMap';
 import StatePanel from './components/StatePanel';
 import PortfolioBreadCrumbs from './components/BreadCrumbs';
@@ -11,6 +10,8 @@ import './PortfolioOverview.css'
 import './components/map/darkMap.scss'
 import {createMachine} from "./machines/hierarchicalMapMachine";
 import ipaConfig from "../../ipaConfig.js";
+import { useSelector as useReduxSelector } from 'react-redux';
+import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
 import clsx from "clsx";
 import {Custom2D3DToggle} from "./components/map/Custom2D3DToggle";
@@ -71,16 +72,8 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 // Create context for the actor
-export const MapStateContext = createContext();
-const defaultBuildingMapConfig = {
-    cluster: {
-        sourceOptions: {
-            cluster: true,
-            clusterRadius: 60,
-            clusterMaxZoom: 14
-        }
-    }
-}
+export const PortfolioActorContext = createContext();
+export const MapContext = createContext();
 const DEFAULT_PATHS = [
     [
         { state: 'portfolio', idKey: null },
@@ -122,6 +115,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         fetchGisConfig();
     },[namedPaths])
 
+    const isSelectingPosition = useReduxSelector(selectIsSelectingPosition);
     const [mmvMode, setMmvMode] = useState("");
 
     // Command state for MMV communication
@@ -190,6 +184,8 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             }, 100);
         }
     }, [showSimpleViewer, mapInstance]);
+    window.currentState = currentState;
+    window.mapInstance = mapInstance;
 
     const handleMMVEvent = (event) => {
         //console.log('PortfolioOverview MMV Event:', event);
@@ -197,13 +193,15 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     };
 
     return (
-        <MapStateContext.Provider value={{ actor, send: actor.send, currentState }}>
-            <div className={classes.container}>
-                <div className={classes.secondaryHeader}>
-                    <div className={classes.headerInner}>
-                        <div className={classes.headerFlex}>
-                            <div className={classes.breadcrumbsContainer}>
-                                <PortfolioBreadCrumbs namedPath={namedPaths[0]} />
+        <MapContext.Provider value={{ command, setCommand, mapInstance }}>
+            <PortfolioActorContext.Provider value={{ actor, send: actor.send, currentState }}>
+                <div className={classes.container}>
+                    <div className={classes.secondaryHeader}>
+                        <div className={classes.headerInner}>
+                            <div className={classes.headerFlex}>
+                                <div className={classes.breadcrumbsContainer}>
+                                    <PortfolioBreadCrumbs namedPath={namedPaths[0]} />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -215,7 +213,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                     </Grid>
                     <Grid item xs className={classes.viewerContainer}>
                         <div
-                            className={clsx(classes.mmvContainer, "dark-map")}
+                            className={clsx(classes.mmvContainer, "dark-map", {'map-selecting-position' : isSelectingPosition})}
                             style={{
                                 visibility: showSimpleViewer ? 'hidden' : 'visible',
                                 opacity: showSimpleViewer ? 0 : 1,
@@ -228,30 +226,39 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                                     setMapInstance(map); // Store map instance for refresh
                                     actor.send({ type: 'MAP_READY', map, mmvSend: setCommand });
                                 }}
-                                mmvConfig={mmvConfig}
-                                mmvMode={mmvMode}
-                                appId={ipaConfig.applicationId}
-                                mmvEventHandler={handleMMVEvent}
-                                command={command}
-                            />
-                        </div>
+                            >
+                                <MMVIntegratedMap
+                                    onMapReady={(map) => {
+                                        setMapInstance(map); // Store map instance for refresh
+                                        actor.send({ type: 'MAP_READY', map, mmvSend: setCommand });
+                                    }}
+                                    mmvConfig={mmvConfig}
+                                    mmvMode={mmvMode}
+                                    appId={ipaConfig.applicationId}
+                                    mmvEventHandler={handleMMVEvent}
+                                    command={command}
+                                />
+                                {/* <GraphicPortal/> */}
+                            </div>
 
-                        <div
-                            className={classes.simpleViewerContainer}
-                            style={{
-                                visibility: showSimpleViewer ? 'visible' : 'hidden',
-                                opacity: showSimpleViewer ? 1 : 0,
-                                pointerEvents: showSimpleViewer ? 'auto' : 'none',
-                                zIndex: showSimpleViewer ? 1 : 0
-                            }}
-                        >
-                            <SimpleViewerView
-                                handler={handler}
-                            />
-                        </div>
+                            <div
+                                className={classes.simpleViewerContainer}
+                                style={{
+                                    visibility: showSimpleViewer ? 'visible' : 'hidden',
+                                    opacity: showSimpleViewer ? 1 : 0,
+                                    pointerEvents: showSimpleViewer ? 'auto' : 'none',
+                                    zIndex: showSimpleViewer ? 1 : 0
+                                }}
+                            >
+                                <SimpleViewerView
+                                    key={modelElementId}
+                                    handler={handler}
+                                />
+                            </div>
+                        </Grid>
                     </Grid>
-                </Grid>
-            </div>
-        </MapStateContext.Provider>
+                </div>
+            </PortfolioActorContext.Provider>
+        </MapContext.Provider>
     );
 }

@@ -16,12 +16,13 @@
    "dependencies": {
       "@arcgis/core": "^4.30.8",
       "@dtplatform/iaf-script-engine": "~4.6.0",
-      "@dtplatform/iaf-viewer": "~4.6.0",
+      "@dtplatform/iaf-viewer": "^5.0.98",
       "@dtplatform/platform-api": "4.6.14",
       "@emotion/react": "^11.14.0",
       "@emotion/styled": "^11.14.1",
       "@invicara/ipa-core": "3.0.32",
       "@invicara/ipa-core-mmv": "^0.2.101-mapbox-alpha-2.0",
+      "@invicara/ipa-core-ct": "^1.0.19",
       "@material-ui/core": "^4.8.0",
       "@material-ui/icons": "^4.9.1",
       "@material-ui/lab": "^4.0.0-alpha.36",
@@ -131,12 +132,17 @@
       "react-dom": "^18.0.0",
       "react-router-dom": "^5.3.4",
       "@dtplatform/iaf-script-engine": "~4.6.0",
-      "@dtplatform/iaf-viewer": "~4.6.0",
       "@dtplatform/platform-api": "4.6.14",
       "@dtplatform/iaf-doc-viewer": "~4.6.0",
       "@invicara/ipa-core": {
          "@dtplatform/core-utils": "~4.6.0",
          "@dtplatform/ui-utils": "~4.6.0"
+      },
+      "@invicara/ipa-core-ct": {
+         "@invicara/ipa-core-mmv": "$@invicara/ipa-core-mmv"
+      },
+      "@dtplatform/react-ifef": {
+         "react-router": "$react-router"
       },
       "@emotion/react": "^11.14.0",
       "@emotion/styled": "^11.14.1"

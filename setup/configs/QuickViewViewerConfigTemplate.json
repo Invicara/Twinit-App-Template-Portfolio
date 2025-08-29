@@ -1,5 +1,14 @@
 {
   "handlers": {
+    "modelComparison": {
+      "title": "Model Comparison",
+      "icon": "fa fa-clone fa-2x",
+      "shortName": "modelComparison",
+      "description": "Model Comparison",
+      "pageComponent": "modelComparison/ModelComparisonView",
+      "path": "/modelcomparison",
+      "config": {}
+    },
     "modelView": {
       "title": "Model View",
       "icon": "fas fa-building fa-2x",
@@ -41,6 +50,10 @@
         {
           "page": "Model View",
           "handler": "modelView"
+        },
+        {
+          "page": "Model Comparison",
+          "handler": "modelComparison"
         }
       ]
     }
@@ -65,7 +78,6 @@
       "--fancytree-two-channel-color": "#fde0d7",
       "--fancytree-three-color": "#00a693",
       "--fancytree-three-channel-color": "#cdebe8",
-
       "--element-table-font-primary": "#141414",
       "--element-table-font-secondary": "#757575",
       "--element-table-font-disabled": "#9e9e9e",
