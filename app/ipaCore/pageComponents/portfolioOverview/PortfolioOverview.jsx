@@ -104,7 +104,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         const fetchGisConfig = async () => {
             const config = await ScriptCache.runScript("getGISConfig", {namedPaths});
             const controlsConfig = config?.mapControlsConfig || [];
-            console.log({ Custom2D3DToggle })
             if (controlsConfig) {
                 for (let i = 0; i < controlsConfig.length; i++) {
                     const controlConfig = controlsConfig[i];
@@ -227,13 +226,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                             <MMVIntegratedMap
                                 onMapReady={(map) => {
                                     setMapInstance(map); // Store map instance for refresh
-                                    if(!map.id){
-                                        map.id = Math.random();
-                                        console.log("MAP READY", map.id)
-                                    }
-                                    else {
-                                        console.log("MAP READY SAME", map.id)
-                                    }
                                     actor.send({ type: 'MAP_READY', map, mmvSend: setCommand });
                                 }}
                                 mmvConfig={mmvConfig}

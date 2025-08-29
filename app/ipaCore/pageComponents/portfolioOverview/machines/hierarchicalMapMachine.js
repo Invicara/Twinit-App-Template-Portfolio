@@ -79,12 +79,12 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                 guard: (args) => {
                     const evt = getEvt(args);
                     if (!hasAllIds(fullPath, evt)) {
-                        console.log("machine upward guard1", {guard: false, target, fullPath, evt});
+                        //console.log("machine upward guard1", {guard: false, target, fullPath, evt});
                         return false;
                     } // let reentering handle that
                     // if ANY deeper key is present and null → this is an upward request
                     const anyDeeperCleared = deeperKeys.some(k => evt.hasOwnProperty(k) && evt[k] === null);
-                    console.log("machine upward guard2", {guard: anyDeeperCleared, target, fullPath, evt});
+                    //console.log("machine upward guard2", {guard: anyDeeperCleared, target, fullPath, evt});
                     return anyDeeperCleared;
                 },
                 actions: assign((args) => {
@@ -104,7 +104,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                 guard: args => {
                     const evt = getEvt(args);
                     const guard =  hasAllIds(fullPath, evt) && anyIdChanged(fullPath, args.context, evt);
-                    console.log("machine reentering guard", {guard, target, fullPath, evt});
+                    //console.log("machine reentering guard", {guard, target, fullPath, evt});
                     return guard;
                 },
                 actions: assign(args => {
@@ -124,7 +124,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                 guard: args => {
                     const evt = getEvt(args);
                     const guard =  hasAllIds(fullPath, evt) && !anyIdChanged(fullPath, args.context, evt);
-                    console.log("machine noop guard", {guard, target, fullPath, evt});
+                    //console.log("machine noop guard", {guard, target, fullPath, evt});
                     return guard;
                 },
                 actions: assign(args => {
@@ -163,7 +163,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                 },
                 onDone: {
                     actions: assign(({ event }) => {
-                        console.log("entryService output", event)
+                        //console.log("entryService output", event)
                         return event.output || {}
                     })
                 },
@@ -179,7 +179,10 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                     }
                 },
                 confirmExit: {
-                    entry: ({ event, self, context }) => {console.log("machine confirmExit", {self, event, context});return self.send({ type: 'CONFIRM_YES' })},
+                    entry: ({ event, self, context }) => {
+                        //console.log("machine confirmExit", {self, event, context});
+                        return self.send({ type: 'CONFIRM_YES' });
+                    },
                     on: {
                         CONFIRM_YES: "exiting",
                         CONFIRM_NO: {
@@ -279,7 +282,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                     },
                     onDone: {
                         actions: assign(({ event }) => {
-                            console.log("entryService output", event)
+                            //console.log("entryService output", event)
                             return event.output || {}
                         })
                     },
@@ -354,7 +357,9 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
             }
         },
         on: {
-            '*': { actions: [({context, event}) => console.log('[machine event]', event)] },
+            '*': { actions: [({context, event}) => {
+                //console.log('[machine event]', event)
+            }] },
             GO_TO: {
                 actions: assign(({ event }) => ({ pendingEvent: event }))
             }
@@ -376,13 +381,13 @@ export const createMachine = (id = 'mapMachine', paths, machineSetup = {}) => {
                 return getInitAction(input);
             }),
             entryService: fromPromise(async ({input}) => {
-                console.log(`Entry Args`, {input});
+                //console.log(`Entry Args`, {input});
                 const {context, event, self, stateValue} = input;
                 if (context.suppressEntryActions) return {};
                 return getEntryAction({ stateValue, context, event, self });
             }),
             exitService: fromPromise(async ({ input }) => {
-                console.log(`Exit Args`, {input});
+                //console.log(`Exit Args`, {input});
                 const {context, event, self, stateValue} = input;
                 if (context.suppressEntryActions) return {};
                 return getExitAction({ stateValue, context, event, self });
