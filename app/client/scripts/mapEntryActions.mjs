@@ -7,6 +7,38 @@ import {IafProj, IafSession} from "@dtplatform/platform-api";
 import { MMV_COMMANDS } from '@invicara/ipa-core-mmv';
 import {v4 as uuid} from "uuid"
 import bbox from "@turf/bbox";
+import centroid from "@turf/centroid";
+import {
+    clearStaleMarkersByPath,
+    makeMarkerShell,
+    makePieCanvas,
+    renderAllMarkers,
+    zoomIntoClusterByExpansion
+} from "./clusteredMarkers.mjs";
+import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils/index.js";
+
+function makeBinColorExpression(config) {
+    const expr = ["case"];
+
+    for (const bin of config.bins) {
+        const conds = [];
+
+        if (bin.min !== null && bin.min !== undefined) {
+            conds.push([">=", ["coalesce", ["number", ["get", config.property], 0], 0], bin.min]);
+        }
+        if (bin.max !== null && bin.max !== undefined) {
+            conds.push(["<", ["coalesce", ["number", ["get", config.property], 0], 0], bin.max]);
+        }
+
+        let cond = conds.length === 1 ? conds[0] : ["all", ...conds];
+        expr.push(cond, bin.color);
+    }
+
+    // fallback color
+    expr.push("#e30f0f");
+    console.log("makeBinColorExpression",expr);
+    return expr;
+}
 
 function extendBoundsFromCoords(bounds, coords) {
     if (typeof coords[0] === 'number') {
@@ -25,7 +57,7 @@ function zoomToAllFeatures(map, sources) {
         const src = map.getSource(srcId);
         if (!src) continue;
 
-        const data = src._data || src._options?.data; // ⚠️ private API
+        const data = src._data || src._options?.data;
         if (!data || data.type !== 'FeatureCollection') continue;
 
         for (const feature of data.features) {
@@ -56,7 +88,6 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
     // Helper to get level def from state name
     const getLevel = (stateName) => namedPath.find(lvl => lvl.state === stateName);
 
-    debugger;
     if (state && featureId) {
         const level = getLevel(state);
         if (!level || !level.idKey) return;
@@ -135,7 +166,15 @@ function getFeatureLayers(namedPath) {
         }))
         .filter(l => !!l.feature); // only states with feature layers
 }
+const CLICK_HANDLED = Symbol('map.click.handled');
 
+export function isHandled(e) {
+    return !!(e[CLICK_HANDLED] || (e.originalEvent && e.originalEvent[CLICK_HANDLED]));
+}
+export function markHandled(e) {
+    e[CLICK_HANDLED] = true;
+    if (e.originalEvent) e.originalEvent[CLICK_HANDLED] = true; // in case someone checks DOM event
+}
 /**
  * Generic Mapbox click handler that:
  * - detects the deepest clicked feature
@@ -155,6 +194,7 @@ export function makeMapOnClickHandler({ map, namedPath, send, context, pixelTole
     const layerIds = featureLayers.map(l => l.layerId);
 
     return (e) => {
+        if (isHandled(e)) return;
         // query features for all relevant layers (optionally with a tolerance box)
         const geometry = pixelTolerance > 0
             ? [
@@ -291,6 +331,10 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack }) {
     for (const level of namedPath) {
         if (!level.feature) continue;
 
+        const options = level.options || {}
+        const clusterOptions = options.cluster || {}
+        const {sourceOptions} = clusterOptions
+
         const features = await fetchFeaturesForLevel(level, parentFeatures);
         parentFeatures = features; // propagate if needed
         allFeatureLayers[level.state] = features.map(f=>f.properties);
@@ -304,15 +348,27 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack }) {
 
         const fc = featureCollection(turfFeatures);
 
+        console.log("Features",{level: level.state, fc});
+
         const sourceId = `${level.state}-features`;
         // Add or update source
         if (!map.getSource(sourceId)) {
-            console.log("adding features", sourceId, features, turfFeatures);
+            //console.log("adding features", sourceId, features, turfFeatures);
             try {
-                map.addSource(sourceId, {
+                let source = {
                     type: 'geojson',
-                    data: fc
-                });
+                    data: fc,
+                }
+                if(sourceOptions){
+                    source = {
+                        ...source,
+                        //...sourceOptions,
+                        //clusterProperties: {
+                        //    Capacity: ["+", ["get","Capacity"]]
+                        //}
+                    }
+                }
+                map.addSource(sourceId, source);
             } catch (e) {
                 console.error(e);
             }
@@ -320,18 +376,50 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack }) {
             map.getSource(sourceId).setData({ type: 'FeatureCollection', features });
         }
 
-        // Add or update layer
+        // Always add/update UNCLUSTERED layer
         if (!map.getLayer(`${sourceId}-layer`)) {
             map.addLayer({
                 id: `${sourceId}-layer`,
                 type: level.feature === 'point' ? 'circle' : 'fill',
                 source: sourceId,
+                filter: ['!', ['has', 'point_count']],
                 paint: level.feature === 'point'
-                    ? { 'circle-radius': 7, 'circle-color': '#3377FF' }
-                    : { 'fill-color': '#44C', 'fill-opacity': 0.18 }
+                    ? { 'circle-radius': 0.01, 'circle-color': '#fff' }//TODO: or also make invisible by default?
+                    : { 'fill-color': '#fff', 'fill-opacity': 0.18 }//TODO: or also make invisible by default?
             });
             const handler = makeMapOnClickHandler({ map, namedPath, send: sendBack });
             map.on('click', handler);
+            map.on('mouseenter', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = 'pointer'; });
+            map.on('mouseleave', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = ''; });
+        }
+        // Optionally add/update CLUSTERED layer
+        if (!map.getLayer(`${sourceId}-layer-clustered`) && level.feature === 'point' && sourceOptions.cluster) {
+            map.addLayer({
+                id: `${sourceId}-layer-clustered`,
+                type: 'circle',
+                source: sourceId,
+                filter: ['has', 'point_count'],
+                paint: { 'circle-radius': 0.01, 'circle-opacity': 0 } // invisible
+            });
+        }
+
+        // Always add/update centroids layer for polygon features
+        if (!map.getLayer(`${sourceId}-centroids-layer-circle`) && (level.feature === "polygon" || level.feature === "multiPolygon")) {
+            let centroidFeatures = turfFeatures.map(f => {
+                const c = centroid(f);
+                // copy over properties so pies can use them
+                c.properties = { ...f.properties };
+                return c;
+            });
+            const centroidFc = featureCollection(centroidFeatures);
+            map.addSource(`${sourceId}-centroids`, { type: "geojson", data: centroidFc });
+
+            map.addLayer({
+                id: `${sourceId}-centroids-layer-circle`,
+                type: 'circle',
+                source: `${sourceId}-centroids`,
+                paint: { 'circle-radius': 0.01, 'circle-opacity': 0 } // invisible
+            });
         }
     }
     return allFeatureLayers;
@@ -353,15 +441,65 @@ export async function getInitAction({mapMachineInput }) {
 export async function getEntryAction({mapMachineInput }) {
     const {stateValue, context, event, self} = mapMachineInput;
 
-    if (context.suppressEntryActions) {
+    const {suppressEntryActions} = context;
+
+    if (suppressEntryActions) {
         return { suppressEntryActions: false };
     }
-
     switch (stateValue) {
         case 'portfolio': {
 
+            //we are calling the mapbox API imperatively here, we will replace that with commands in next task
+
+            let { commands, theme = {}, singleMarkers, clustersMarkers } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
+            //zoom out to all features
             zoomToFeature({map: context.map, context});
-            return { commands: null };
+
+
+            for(const layerId of Object.keys(theme)) {
+                const themeConfig = theme[layerId];
+                context.map.setPaintProperty(
+                    layerId,
+                    "circle-color",
+                    makeBinColorExpression(themeConfig)
+                );
+                if(themeConfig["circle-radius"]){
+                    context.map.setPaintProperty(
+                        layerId,
+                        "circle-radius",
+                        themeConfig["circle-radius"]);
+                }
+            }
+
+            for(const path of Object.keys(singleMarkers)) {
+                const markersConfig = singleMarkers[path];
+                markersConfig.forEach(markerConfig => {
+                    try {
+                        const src = context.map.getSource(markerConfig.sourceId);
+                        const data = src._data || src.serialize().data; // raw GeoJSON
+                        const features = data?.features;
+                        markerConfig.features = features;
+                    } catch(e){
+                        console.error(e);
+                        markerConfig.features = [];
+                    }
+                })
+            }
+
+            let manageMarkers;
+            manageMarkers = (e) => renderAllMarkers(e, {context, self}, clustersMarkers, singleMarkers);
+            if(context.manageMarkers){
+                context.map.off('moveend', context.manageMarkers);
+                context.map.off('idle', context.manageMarkers);
+                context.map.off('sourcedata', context.manageMarkers)
+            }
+            context.map.on('moveend', manageMarkers);
+            context.map.on('idle', manageMarkers);
+            context.map.on('sourcedata', manageMarkers);
+            manageMarkers();
+
+
+            return { commands: null, manageMarkers };
         }
 
         case 'portfolio.site': {
@@ -373,10 +511,31 @@ export async function getEntryAction({mapMachineInput }) {
         case 'portfolio.site.building': {
             const siteId = event.siteId ?? context.siteId;
             const buildingId = event.buildingId ?? context.buildingId;
-
             zoomToFeature({map: context.map, context, state: 'building', featureId: buildingId});
-
             return { commands: null };
+        }
+
+        default:
+            return {};
+    }
+}
+
+export async function getExitAction({mapMachineInput }) {
+    const {stateValue, context, event, self} = mapMachineInput;
+
+    if (context.suppressEntryActions) {
+        return { suppressEntryActions: false };
+    }
+    switch (stateValue) {
+        case 'portfolio': {
+
+            context.manageMarkers && context.map.off('moveend', context.manageMarkers);
+            context.manageMarkers && context.map.off('idle', context.manageMarkers);
+            context.manageMarkers && context.map.off('sourcedata', context.manageMarkers);
+            console.log("leaving state portfolio", {stateValue, context})
+            clearStaleMarkersByPath("site")
+
+            return { manageMarkers: null };
         }
 
         default:
