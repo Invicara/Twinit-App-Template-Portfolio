@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { getTemporaryMapBoxToken } from "../../utils/mapboxUtils.js";
@@ -65,6 +65,10 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
         }
     }
 
+    const mergedMMVConfig = useMemo(() => {
+        return {accessToken: mapboxToken, ...mmvConfig}
+    },[mmvConfig,mapboxToken])
+
     return (
         <div style={{ width: '100%', height: '100%', position: 'relative' }}>
             <AutoSizer>
@@ -75,35 +79,7 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
                     >
                         {mapboxToken && <IafMultiModalViewer
                             mode={"mmvGIS"}
-                            config={{
-                            accessToken: mapboxToken,
-                            style: 'mapbox://styles/mapbox/light-v10',
-                            // Layer information for event handling
-                            layerInfo: {
-                                'site-features-layer': {
-                                    idField: 'siteId',
-                                    elementType: '2d_site',
-                                    extraAttributes: ['name'],
-                                    fromMapboxID: (id, attrs) => id,
-                                    toMapboxID: (id) => id
-                                },
-                                'building-features-layer': {
-                                    idField: 'buildingId',
-                                    elementType: 'building_represetation',
-                                    extraAttributes: ["latitude", "longitude"],
-                                    fromMapboxID: (id, attrs) => id,
-                                    toMapboxID: (id) => id
-                                }
-                            },
-                            initialCameraPosition: {
-                                position: [2, 46],
-                                zoom: 5,
-                                rotation: {
-                                    pitch: 0,
-                                    yaw: 0
-                                }
-                            }, height, width
-                            }}
+                            config={{...mergedMMVConfig, width, height}}
                             eventHandler={handleMMVEvent}
                             appId={appId}
                             command={command}

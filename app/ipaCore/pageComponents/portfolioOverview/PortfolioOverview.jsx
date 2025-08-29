@@ -8,8 +8,12 @@ import PortfolioBreadCrumbs from './components/BreadCrumbs';
 import SimpleViewerView from '../simpleViewer/SimpleViewerView';
 import { Grid } from '@mui/material';
 import './PortfolioOverview.css'
-import {createMachine} from "./machines/hierarchicalMapMachine.js";
+import './components/map/darkMap.scss'
+import {createMachine} from "./machines/hierarchicalMapMachine";
 import ipaConfig from "../../ipaConfig.js";
+import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
+import clsx from "clsx";
+import {Custom2D3DToggle} from "./components/map/Custom2D3DToggle";
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -68,11 +72,20 @@ const useStyles = makeStyles((theme) => ({
 
 // Create context for the actor
 export const MapStateContext = createContext();
+const defaultBuildingMapConfig = {
+    cluster: {
+        sourceOptions: {
+            cluster: true,
+            clusterRadius: 60,
+            clusterMaxZoom: 14
+        }
+    }
+}
 const DEFAULT_PATHS = [
     [
         { state: 'portfolio', idKey: null },
         { state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all" },
-        { state: 'building', idKey: 'buildingId', feature: "point", api: "building/all" },
+        { state: 'building', idKey: 'buildingId', feature: "point", api: "building/all", options: defaultBuildingMapConfig },
         { state: 'modelElement', idKey: 'modelElementId' },
     ]
 ]
@@ -84,8 +97,32 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     const machineDef = useMemo(()=>createMachine("mapMachine",namedPaths),[namedPaths]);
     const [snapshot, send, actor] = useMachine(machineDef);
 
-    // MMV Configuration state
-    const [mmvConfig, setMmvConfig] = useState({});
+    // MMV Configuration state -> this should be removed to a user config or a script
+    const [mmvConfig, setMmvConfig] = useState();
+
+    useEffect(()=>{
+        const fetchGisConfig = async () => {
+            const config = await ScriptCache.runScript("getGISConfig", {namedPaths});
+            const controlsConfig = config?.mapControlsConfig || [];
+            console.log({ Custom2D3DToggle })
+            if (controlsConfig) {
+                for (let i = 0; i < controlsConfig.length; i++) {
+                    const controlConfig = controlsConfig[i];
+                    if (typeof controlConfig === "string" && controlConfig === '2d3d') {
+                        controlsConfig[i] = {type: Custom2D3DToggle}
+                    } else if (controlConfig.type === '2d3d') {
+                        controlsConfig[i] = {
+                            ...controlConfig,
+                            type: Custom2D3DToggle
+                        }
+                    }
+                }
+            }
+            setMmvConfig(config);
+        }
+        fetchGisConfig();
+    },[namedPaths])
+
     const [mmvMode, setMmvMode] = useState("");
 
     // Command state for MMV communication
@@ -131,6 +168,12 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     // Track previous display state to detect switches
     const [mapInstance, setMapInstance] = useState(null);
 
+    useEffect(() => {
+        return () => {
+            setMapInstance();//releasing map from memory
+        }
+    }, []);
+
     // Handle display switching and map refresh
     useEffect(() => {
         // If switching back to MMV map, trigger resize after a short delay
@@ -150,7 +193,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     }, [showSimpleViewer, mapInstance]);
 
     const handleMMVEvent = (event) => {
-        console.log('PortfolioOverview MMV Event:', event);
+        //console.log('PortfolioOverview MMV Event:', event);
         // Handle MMV events as needed
     };
 
@@ -173,7 +216,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                     </Grid>
                     <Grid item xs className={classes.viewerContainer}>
                         <div
-                            className={classes.mmvContainer}
+                            className={clsx(classes.mmvContainer, "dark-map")}
                             style={{
                                 visibility: showSimpleViewer ? 'hidden' : 'visible',
                                 opacity: showSimpleViewer ? 0 : 1,
@@ -184,6 +227,13 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                             <MMVIntegratedMap
                                 onMapReady={(map) => {
                                     setMapInstance(map); // Store map instance for refresh
+                                    if(!map.id){
+                                        map.id = Math.random();
+                                        console.log("MAP READY", map.id)
+                                    }
+                                    else {
+                                        console.log("MAP READY SAME", map.id)
+                                    }
                                     actor.send({ type: 'MAP_READY', map, mmvSend: setCommand });
                                 }}
                                 mmvConfig={mmvConfig}

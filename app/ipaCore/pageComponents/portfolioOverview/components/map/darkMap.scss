@@ -1,0 +1,78 @@
+.dark-map {
+  /* 1) Make the control group horizontal */
+  .mapboxgl-ctrl-group {
+    display: flex;
+    flex-direction: row;   /* default is column */
+    gap: 6px;              /* space between buttons */
+    padding: 6px;          /* inner padding for the group */
+    background: transparent; /* we'll style buttons individually */
+    border: none;            /* remove group border */
+    box-shadow: none;
+  }
+
+  /* 2) Base dark style for the buttons (zoom in/out + compass) */
+  .mapboxgl-ctrl-group button,
+  .mapboxgl-ctrl-zoom-in,
+  .mapboxgl-ctrl-zoom-out,
+  .mapboxgl-ctrl-compass {
+    background: #1b1b1f;        /* dark surface */
+    color: #fff;                /* bright text */
+    border: 1px solid #2a2a30;  /* subtle border */
+    border-radius: 10px;         /* rounded pills */
+    width: 40px;
+    height: 40px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+    transition: background 120ms ease, transform 80ms ease, border-color 120ms ease;
+    outline: none;
+  }
+
+  /* 3) Hover / active states */
+  .mapboxgl-ctrl-group button:hover,
+  .mapboxgl-ctrl-zoom-in:hover,
+  .mapboxgl-ctrl-zoom-out:hover,
+  .mapboxgl-ctrl-compass:hover {
+    background: #23232a;
+    border-color: #3a3a44;
+  }
+
+  .mapboxgl-ctrl-group button:active,
+  .mapboxgl-ctrl-zoom-in:active,
+  .mapboxgl-ctrl-zoom-out:active,
+  .mapboxgl-ctrl-compass:active {
+    transform: translateY(1px);
+  }
+
+  /* 4) Make the built-in SVG icons appear light on dark
+     (Mapbox uses background-image SVGs on a span inside the button) */
+  .mapboxgl-ctrl button .mapboxgl-ctrl-icon,
+  .mapboxgl-ctrl-zoom-in .mapboxgl-ctrl-icon,
+  .mapboxgl-ctrl-zoom-out .mapboxgl-ctrl-icon,
+  .mapboxgl-ctrl-compass .mapboxgl-ctrl-icon {
+    filter: invert(1) brightness(1.4) contrast(1.1);
+  }
+
+  /* 5) Optional: tighter icon sizing inside buttons (helps with the new size) */
+  .mapboxgl-ctrl button .mapboxgl-ctrl-icon {
+    background-size: 60% auto !important; /* default is ~50–75% depending on control */
+    background-position: center;
+  }
+
+  /* 6) Optional: compact group spacing when multiple groups are stacked */
+  .mapboxgl-ctrl-top-left .mapboxgl-ctrl,
+  .mapboxgl-ctrl-top-right .mapboxgl-ctrl,
+  .mapboxgl-ctrl-bottom-left .mapboxgl-ctrl,
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl {
+    margin: 6px;
+  }
+
+  /* 7) If you ONLY want the zoom+compass horizontal (and not other groups),
+     scope by a wrapper class you control, e.g. .dark-map */
+  .dark-map .mapboxgl-ctrl-group { flex-direction: row; }
+
+  /* 8) If you see residual inner borders from Mapbox defaults, nuke them: */
+  .mapboxgl-ctrl-group > button { border-right-width: 1px !important; }
+  .mapboxgl-ctrl-group > button + button { border-left-width: 1px !important; }
+
+
+
+}

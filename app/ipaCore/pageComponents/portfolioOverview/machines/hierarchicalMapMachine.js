@@ -1,6 +1,6 @@
 // generateMapMachine.js (XState v5 compatible)
-import {assign, fromPromise, setup} from 'xstate';
-import {getEntryAction, getInitAction} from './utils/scriptedEntryActions';
+import {assign, fromPromise, setup, spawnChild} from 'xstate';
+import {getEntryAction, getInitAction, getExitAction} from './utils/scriptedEntryActions';
 
 export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
 
@@ -155,9 +155,18 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
 
         const stateObj = {
             initial: 'idle',
-            entry: ({ context, event, self }) => {
-                if (context.suppressEntryActions) return;
-                return getEntryAction({ stateValue: stateKey, context, event, self });
+            invoke: {
+                src: "entryService",
+                id: "entryService", // stable id so we can handle its done event
+                input: ({ context, event, self }) => {
+                    return { stateValue: stateKey, context, event, self, sendBack: self.send }
+                },
+                onDone: {
+                    actions: assign(({ event }) => {
+                        console.log("entryService output", event)
+                        return event.output || {}
+                    })
+                },
             },
             states: {
                 idle: {
@@ -170,16 +179,9 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                     }
                 },
                 confirmExit: {
-                    entry: ({ self }) => {console.log("machine confirmExit entry", self);return self.send({ type: 'CONFIRM_YES' })},
+                    entry: ({ event, self, context }) => {console.log("machine confirmExit", {self, event, context});return self.send({ type: 'CONFIRM_YES' })},
                     on: {
-                        CONFIRM_YES: transitions.map(t => ({ ...t, actions: [
-                                ...(Array.isArray(t.actions) ? t.actions : [t.actions]),
-                                assign(() => ({
-                                    pendingEvent: null,
-                                    suppressEntryActions: false
-                                })),
-                                ({context, event}) => console.log('machine confirmExit Got CONFIRM_YES:', event)
-                            ] })),
+                        CONFIRM_YES: "exiting",
                         CONFIRM_NO: {
                             target: `idle`,
                             actions: assign(() => ({
@@ -187,6 +189,28 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                                 suppressEntryActions: true
                             }))
                         }
+                    }
+                },
+                exiting: {
+                    invoke: {
+                        id: "exitService",
+                        src: "exitService",
+                        input: ({ context, event, self }) => {
+                            const snapshot = self.getSnapshot();
+                            const stateValue = typeof snapshot.value === 'string'
+                                ? snapshot.value
+                                : Object.keys(snapshot.value)[0]; // for top-level compound states
+                            return { stateValue, context, event, self, sendBack: self.send }
+                        },
+                    },
+                    on: {
+                        "xstate.done.actor.exitService": transitions.map(t => ({ ...t, actions: [
+                                ...(Array.isArray(t.actions) ? t.actions : [t.actions]),
+                                assign(() => ({
+                                    pendingEvent: null,
+                                    suppressEntryActions: false
+                                }))
+                        ]}))
                     }
                 },
                 ...childState
@@ -243,13 +267,22 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                 }
             },
             idle: {
-                entry: ({ context, event, self }) => {
-                    if (context.suppressEntryActions) return;
-                    const snapshot = self.getSnapshot();
-                    const stateValue = typeof snapshot.value === 'string'
-                        ? snapshot.value
-                        : Object.keys(snapshot.value)[0]; // for top-level compound states
-                    return getEntryAction({ stateValue, context, event, self });
+                invoke: {
+                    src: "entryService",
+                    id: "entryService", // stable id so we can handle its done event
+                    input: ({ context, event, self }) => {
+                        const snapshot = self.getSnapshot();
+                        const stateValue = typeof snapshot.value === 'string'
+                            ? snapshot.value
+                            : Object.keys(snapshot.value)[0]; // for top-level compound states
+                        return { stateValue, context, event, self, sendBack: self.send }
+                    },
+                    onDone: {
+                        actions: assign(({ event }) => {
+                            console.log("entryService output", event)
+                            return event.output || {}
+                        })
+                    },
                 },
                 on: {
                     GO_TO: {
@@ -260,20 +293,10 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                 }
             },
             confirmExit: {
-                entry: ({ self }) => {console.log("machine confirmExit entry1", self);return self.send({ type: 'CONFIRM_YES' })},
+                entry: ({ self }) => {return self.send({ type: 'CONFIRM_YES' })},
                 //entry: ({ self }) => self.send({ type: 'CONFIRM_YES' }),
                 on: {
-                    CONFIRM_YES: buildTransitions(expandPaths(paths), {usePending: true}).map(t => ({
-                        ...t,
-                        actions: [
-                            ...(Array.isArray(t.actions) ? t.actions : [t.actions]),
-                            assign(() => ({
-                                pendingEvent: null,
-                                suppressEntryActions: false
-                            })),
-                            (_ctx, e) => console.log('machine Got CONFIRM_YES:', e)
-                        ]
-                    })),
+                    CONFIRM_YES: 'exiting',
                     CONFIRM_NO: {
                         target: `idle`,
                         actions: assign(() => ({
@@ -281,6 +304,31 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                             suppressEntryActions: true
                         }))
                     }
+                }
+            },
+            exiting: {
+                invoke: {
+                    id: "exitService",
+                    src: "exitService",
+                    input: ({ context, event, self }) => {
+                        const snapshot = self.getSnapshot();
+                        const stateValue = typeof snapshot.value === 'string'
+                            ? snapshot.value
+                            : Object.keys(snapshot.value)[0]; // for top-level compound states
+                        return { stateValue, context, event, self, sendBack: self.send }
+                    },
+                },
+                on: {
+                    "xstate.done.actor.exitService": buildTransitions(expandPaths(paths), {usePending: true}).map(t => ({
+                        ...t,
+                        actions: [
+                            ...(Array.isArray(t.actions) ? t.actions : [t.actions]),
+                            assign(() => ({
+                                pendingEvent: null,
+                                suppressEntryActions: false
+                            }))
+                        ]
+                    }))
                 }
             },
             ...buildStates(rest, [top])
@@ -309,7 +357,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
             '*': { actions: [({context, event}) => console.log('[machine event]', event)] },
             GO_TO: {
                 actions: assign(({ event }) => ({ pendingEvent: event }))
-            },
+            }
         }
     };
 }
@@ -317,13 +365,27 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
 export const createMachine = (id = 'mapMachine', paths, machineSetup = {}) => {
     const {actors, actions} = machineSetup;
     const machineDef = generateMapMachine(id, paths, {
-        initializeService: 'initializeService'
+        initializeService: 'initializeService',
+        entryService: 'entryService',
+        exitService: 'exitService'
     });
     return setup({
         actors: actors || {
             initializeService: fromPromise(async ({ input }) => {
                 const {context, sendBack} = input;
                 return getInitAction(input);
+            }),
+            entryService: fromPromise(async ({input}) => {
+                console.log(`Entry Args`, {input});
+                const {context, event, self, stateValue} = input;
+                if (context.suppressEntryActions) return {};
+                return getEntryAction({ stateValue, context, event, self });
+            }),
+            exitService: fromPromise(async ({ input }) => {
+                console.log(`Exit Args`, {input});
+                const {context, event, self, stateValue} = input;
+                if (context.suppressEntryActions) return {};
+                return getExitAction({ stateValue, context, event, self });
             })
         }
     }).createMachine(machineDef);
