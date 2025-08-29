@@ -217,7 +217,7 @@ export function makeMapOnClickHandler({ map, namedPath, send, context, pixelTole
         if (getContext) {
             const currentContext = getContext();
             console.log("GETTING_CURRENT_CONTEXT", {event, currentContext});
-            
+
             // If we have a siteId and site data, check if the site is in draft mode
             if (currentContext.data.site.some(s => s.isDraft)) {
                 console.log('Navigation blocked: Site is in draft mode');
@@ -342,9 +342,9 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
     for (const level of namedPath) {
         if (!level.feature) continue;
 
-        const options = level.options || {}
-        const clusterOptions = options.cluster || {}
-        const {sourceOptions} = clusterOptions
+        const options = level.options || {};
+        const clusterOptions = options.cluster || {};
+        const {sourceOptions} = clusterOptions;
 
         const features = await fetchFeaturesForLevel(level, parentFeatures);
         parentFeatures = features; // propagate if needed
@@ -404,7 +404,7 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
             map.on('mouseleave', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = ''; });
         }
         // Optionally add/update CLUSTERED layer
-        if (!map.getLayer(`${sourceId}-layer-clustered`) && level.feature === 'point' && sourceOptions.cluster) {
+        if (!map.getLayer(`${sourceId}-layer-clustered`) && level.feature === 'point' && sourceOptions?.cluster) {
             map.addLayer({
                 id: `${sourceId}-layer-clustered`,
                 type: 'circle',
@@ -440,14 +440,14 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
 export function addFeatureToMapLayer({ map, levelState, feature, namedPath }) {
     const sourceId = `${levelState}-features`;
     const layerId = `${sourceId}-layer`;
-    
+
     // Get the level definition to understand feature type
     const levelDef = namedPath.find(lvl => lvl.state === levelState);
     if (!levelDef || !levelDef.feature) {
         console.warn(`Level definition not found for state: ${levelState}`);
         return false;
     }
-    
+
     try {
         // Get existing source
         const existingSource = map.getSource(sourceId);
@@ -455,27 +455,27 @@ export function addFeatureToMapLayer({ map, levelState, feature, namedPath }) {
             console.warn(`Map source not found: ${sourceId}`);
             return false;
         }
-        
+
         // Get current data
         const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
-        
+
         // Convert the new feature to GeoJSON format
         const coords = Array.isArray(feature.geometry)
             ? feature.geometry
             : feature.geometry?.coordinates ?? feature.properties?.coordinates ?? feature.coordinates;
-            
+
         const turfFeature = featureFromKnownType(levelDef.feature, coords, feature.properties || feature);
-        
+
         // Add new feature to existing collection
         const updatedFeatures = [...(currentData.features || []), turfFeature];
         const updatedFeatureCollection = featureCollection(updatedFeatures);
-        
+
         // Update the map source with new data
         existingSource.setData(updatedFeatureCollection);
-        
+
         console.log(`Added feature to ${sourceId}:`, turfFeature);
         return true;
-        
+
     } catch (error) {
         console.error(`Error adding feature to map layer ${sourceId}:`, error);
         return false;
@@ -486,21 +486,21 @@ export function addFeatureToMapLayer({ map, levelState, feature, namedPath }) {
 export function removeFeatureFromMapLayer({ map, levelState, featureId, idKey, namedPath }) {
     const sourceId = `${levelState}-features`;
     const layerId = `${sourceId}-layer`;
-    
+
     // Get the level definition to understand feature type
     const levelDef = namedPath.find(lvl => lvl.state === levelState);
     if (!levelDef || !levelDef.feature) {
         console.warn(`Level definition not found for state: ${levelState}`);
         return false;
     }
-    
+
     // Use the provided idKey or fall back to the level's idKey
     const keyToUse = idKey || levelDef.idKey;
     if (!keyToUse) {
         console.warn(`No idKey found for level state: ${levelState}`);
         return false;
     }
-    
+
     try {
         // Get existing source
         const existingSource = map.getSource(sourceId);
@@ -508,23 +508,23 @@ export function removeFeatureFromMapLayer({ map, levelState, featureId, idKey, n
             console.warn(`Map source not found: ${sourceId}`);
             return false;
         }
-        
+
         // Get current data
         const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
-        
+
         // Filter out the feature to be removed
         const filteredFeatures = (currentData.features || []).filter(feature => {
             const featureIdValue = feature.properties?.[keyToUse];
             return featureIdValue !== featureId;
         });
-        
+
         // Update the map source with filtered data
         const updatedFeatureCollection = featureCollection(filteredFeatures);
         existingSource.setData(updatedFeatureCollection);
-        
+
         console.log(`Removed feature from ${sourceId}:`, { featureId, idKey: keyToUse });
         return true;
-        
+
     } catch (error) {
         console.error(`Error removing feature from map layer ${sourceId}:`, error);
         return false;
@@ -537,11 +537,11 @@ export async function addLayers({ context, sendBack, self }) {
     // For now, we pick the first path
     const { map, namedPaths } = context;
     if (!map || !namedPaths) return;
-    const allFeatureLayers = await addAllFeatureLayers({ 
-        map, 
-        namedPath: namedPaths[0], 
-        sendBack, 
-        getContext: self ? () => self.getSnapshot().context : () => context 
+    const allFeatureLayers = await addAllFeatureLayers({
+        map,
+        namedPath: namedPaths[0],
+        sendBack,
+        getContext: self ? () => self.getSnapshot().context : () => context
     });
     return {data: allFeatureLayers};
 }
