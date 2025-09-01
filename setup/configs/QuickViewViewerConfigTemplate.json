@@ -17,15 +17,35 @@
       "pageComponent": "simpleViewer/SimpleViewerView",
       "path": "/modelview",
       "config": {}
+    },
+    "portfolioOverview": {
+      "title": "Portfolio Overview",
+      "icon": "fas fa-map-marked-alt fa-2x",
+      "pageComponent": "portfolioOverview/PortfolioOverview",
+      "path": "/portfoliomap",
+      "config": {},
+      "scriptTypes": [
+        "mmv_config"
+      ]
     }
   },
   "homepage": {
     "handler": "modelView"
   },
   "groupedPages": {
+    "home": {
+      "icon": "fas fa-home fa-2x",
+      "position": 1,
+      "pages": [
+        {
+          "page": "Portfolio Overview",
+          "handler": "portfolioOverview"
+        }
+      ]
+    },
     "model": {
       "icon": "fas fa-building fa-2x",
-      "position": 1,
+      "position": 2,
       "pages": [
         {
           "page": "Model View",
