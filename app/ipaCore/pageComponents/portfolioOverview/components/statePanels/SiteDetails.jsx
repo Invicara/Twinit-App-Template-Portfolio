@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Typography, Divider, Button, Box } from '@material-ui/core';
 import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
-import { PortfolioActorContext, MapContext } from '../../PortfolioOverview';
+import { MapMachineContext, MapContext } from '../../PortfolioOverview';
 import { getClickEvent } from '../../../../redux/pageComponentState';
 import { addFeatureToMapLayer, removeFeatureFromMapLayer } from '../../../../../client/scripts/mapEntryActions.mjs';
 import { usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
@@ -10,6 +10,7 @@ import { InfoComponent } from '../../../../components/InfoComponent/InfoComponen
 import { useDebounce } from '../../../../hooks/useDebounce';
 import { setIsSelectingPosition, setSelectedCoordinate } from '../../../../redux/siteSetup';
 import { IafItemSvc } from '@dtplatform/platform-api';
+import {useSelector as useXstateSelector} from "@xstate/react";
 
 export const defaultNewSiteId = "<newSite>";
 
@@ -21,7 +22,8 @@ export default function SiteDetails({ context }) {
     const plantName = siteId;
 
     // Get contexts and state
-    const { send, currentState } = useContext(PortfolioActorContext);
+    const { send, actor } = useContext(MapMachineContext);
+    const currentState = useXstateSelector(actor, state => state);
     const { mapInstance } = useContext(MapContext);
     const dispatch = useDispatch();
     const clickEvent = useSelector(getClickEvent);
@@ -32,7 +34,7 @@ export default function SiteDetails({ context }) {
     const [isDrawingMode, setIsDrawingMode] = useState(false);
     const [currentDrawingPins, setCurrentDrawingPins] = useState([]);
     const currentDrawingPinsTracker = useRef(currentDrawingPins);
-    
+
     // Cache for original perimeter when entering drawing mode
     const [cachedPerimeter, setCachedPerimeter] = useState(null);
 
@@ -71,7 +73,7 @@ export default function SiteDetails({ context }) {
         // Update XState context
         const currentData = currentState.context?.data || {};
         const currentSites = currentData.site || [];
-        const updatedSites = currentSites.map(s => 
+        const updatedSites = currentSites.map(s =>
             s.siteId === siteId ? updatedSite : s
         );
         const updatedData = {
@@ -88,7 +90,7 @@ export default function SiteDetails({ context }) {
         // If siteId was changed, navigate to the new siteId to maintain selection
         if (propertyName === 'siteId' && newValue !== oldSiteId && newValue.length) {
             console.log('SiteId changed, navigating to new site:', { oldSiteId, newSiteId: newValue });
-            
+
             // Send GO_TO action to navigate to the updated siteId
             send({
                 type: 'GO_TO',
@@ -136,7 +138,7 @@ export default function SiteDetails({ context }) {
         // Update XState context
         const currentData = currentState.context?.data || {};
         const currentSites = currentData.site || [];
-        const updatedSites = currentSites.map(s => 
+        const updatedSites = currentSites.map(s =>
             s.siteId === siteId ? finalizedSite : s
         );
         const updatedData = {
@@ -266,7 +268,7 @@ export default function SiteDetails({ context }) {
 
         const siteLayerId = 'site-features-layer';
         const layerExists = mapInstance.getLayer(siteLayerId);
-        
+
         if (layerExists) {
             if (isDrawingMode) {
                 // Hide the current perimeter layer when drawing
@@ -293,10 +295,10 @@ export default function SiteDetails({ context }) {
         if (newPins.length > 2) {
             const firstPin = newPins[0];
             const distance = Math.sqrt(
-                Math.pow(newPin[0] - firstPin[0], 2) + 
+                Math.pow(newPin[0] - firstPin[0], 2) +
                 Math.pow(newPin[1] - firstPin[1], 2)
             );
-            
+
             // Close shape if clicked within ~50 meters of first pin (approximate)
             if (distance < 0.0005) {
                 completeShape(newPins);
@@ -349,7 +351,7 @@ export default function SiteDetails({ context }) {
 
         // Close the polygon
         const closedCoordinates = [...pins, pins[0]];
-        
+
         // Update the current site's coordinates
         const updatedSite = {
             ...currentSite,
@@ -360,7 +362,7 @@ export default function SiteDetails({ context }) {
         // Update XState context
         const currentData = currentState.context?.data || {};
         const currentSites = currentData.site || [];
-        const updatedSites = currentSites.map(s => 
+        const updatedSites = currentSites.map(s =>
             s.siteId === siteId ? updatedSite : s
         );
         const updatedData = {
@@ -380,7 +382,7 @@ export default function SiteDetails({ context }) {
         // Update the map layer with new coordinates
         if (mapInstance && currentState.context?.namedPaths) {
             const namedPath = currentState.context.namedPaths[0];
-            
+
             // Remove old feature and add updated one
             const sourceId = 'site-features';
             const existingSource = mapInstance.getSource(sourceId);
@@ -402,16 +404,16 @@ export default function SiteDetails({ context }) {
                     }
                     return feature;
                 });
-                
+
                 existingSource.setData({
                     type: 'FeatureCollection',
                     features: updatedFeatures
                 });
-                
+
                 mapInstance.triggerRepaint();
             }
         }
-        
+
         // Reset drawing state
         resetDrawingState();
 
@@ -421,7 +423,7 @@ export default function SiteDetails({ context }) {
     const resetDrawingState = () => {
         setCurrentDrawingPins([]);
         setIsDrawingMode(false);
-        
+
         // Clear drawing visuals
         if (mapInstance) {
             mapInstance.getSource('drawing-pins').setData({
@@ -440,7 +442,7 @@ export default function SiteDetails({ context }) {
         if (currentSite?.coordinates) {
             setCachedPerimeter(currentSite.coordinates);
         }
-        
+
         // Start with empty drawing pins array
         setCurrentDrawingPins([]);
         setIsDrawingMode(true);
@@ -451,7 +453,7 @@ export default function SiteDetails({ context }) {
         if (cachedPerimeter && mapInstance && currentState.context?.namedPaths) {
             const currentData = currentState.context?.data || {};
             const currentSites = currentData.site || [];
-            const restoredSites = currentSites.map(s => 
+            const restoredSites = currentSites.map(s =>
                 s.siteId === siteId ? { ...s, coordinates: cachedPerimeter } : s
             );
             const restoredData = {
@@ -483,19 +485,19 @@ export default function SiteDetails({ context }) {
                     }
                     return feature;
                 });
-                
+
                 existingSource.setData({
                     type: 'FeatureCollection',
                     features: restoredFeatures
                 });
-                
+
                 mapInstance.triggerRepaint();
             }
         }
-        
+
         // Clear cached perimeter
         setCachedPerimeter(null);
-        
+
         // Reset drawing state
         resetDrawingState();
     };
@@ -514,7 +516,7 @@ export default function SiteDetails({ context }) {
         <div>
             <Typography variant="h6">Site: {plantName}</Typography>
             <Typography variant="body2">Buildings: {buildings.length}</Typography>
-            
+
             {isDraftSite && (
                 <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between", height: "calc(100vh - 230px)"}}>
                     <div style={{marginTop: 30}}>
@@ -532,9 +534,9 @@ export default function SiteDetails({ context }) {
                                 originalEntity={currentSite}
                             />
                         </Box>
-                        
-                        <CustomButton 
-                            variant="contained" 
+
+                        <CustomButton
+                            variant="contained"
                             color="primary"
                             onClick={toggleDrawingMode}
                             style={{ marginBottom: 16 }}
@@ -543,10 +545,10 @@ export default function SiteDetails({ context }) {
                             {isDrawingMode ? 'Cancel Drawing' : 'Draw Site Perimeter'}
                         </CustomButton>
                     </div>
-                    
+
                     <Box style={{ marginTop: 24, display: 'flex', gap: 16 }}>
-                        <CustomButton 
-                            variant="outlined" 
+                        <CustomButton
+                            variant="outlined"
                             color="secondary"
                             onClick={handleCancelSite}
                             style={{ flex: 1 }}
@@ -554,8 +556,8 @@ export default function SiteDetails({ context }) {
                         >
                             Cancel
                         </CustomButton>
-                        <CustomButton 
-                            variant="contained" 
+                        <CustomButton
+                            variant="contained"
                             color="primary"
                             onClick={handleSubmitSite}
                             style={{ flex: 1 }}
@@ -566,7 +568,7 @@ export default function SiteDetails({ context }) {
                     </Box>
                 </div>
             )}
-            
+
             <Divider style={{ margin: '16px 0' }} />
             {buildings.map((unit, i) => (
                 <Typography key={i} variant="body2">

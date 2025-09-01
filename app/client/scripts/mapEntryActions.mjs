@@ -16,6 +16,7 @@ import {
     zoomIntoClusterByExpansion
 } from "./clusteredMarkers.mjs";
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils/index.js";
+import {isColorProp, normalizeColorRGB} from "./colorNormalization.mjs";
 
 function makeBinColorExpression(config) {
     const expr = ["case"];
@@ -39,6 +40,103 @@ function makeBinColorExpression(config) {
     console.log("makeBinColorExpression",expr);
     return expr;
 }
+
+/**
+ * Build theming groups from a numeric bin config, supporting extra paint props
+ * at the top level and per-bin.
+ *
+ * @param {mapboxgl.Map} map
+ * @param {string} layerId                    // target layer id
+ * @param {string} idKey                      // property holding feature id
+ * @param {{
+ *   property: string,
+ *   bins: Array<{
+ *     id: string,
+ *     min: number|null,
+ *     max: number|null,
+ *     color?: any,
+ *     label?: string,
+ *     // ...any extra paint props, e.g. "circle-radius", "line-width", etc.
+ *   }>,
+ *   // Optional top-level defaults for all groups (e.g., "circle-radius": 7)
+ *   [extraProp: string]: any
+ * }} binConfig
+ * @returns {{
+ *   groupsObject: Record<string, { ids: string[], [prop:string]: any }>
+ * }}
+ */
+function buildGroupsFromBins(map, layerId, idKey, binConfig) {
+    const layer = map.getLayer(layerId);
+    if (!layer) throw new Error(`Layer "${layerId}" not found`);
+
+    const sourceId = layer.source;
+    const src = map.getSource(sourceId);
+    if (!src) throw new Error(`Source "${sourceId}" not found for layer "${layerId}"`);
+
+    // Collect features we can access
+    let features = [];
+    if (src.type === 'geojson') {
+        const data = src._data;
+        features = Array.isArray(data?.features) ? data.features : [];
+    } else if (src.type === 'vector') {
+        const sourceLayer = layer['source-layer'];
+        if (!sourceLayer) throw new Error(`Layer "${layerId}" is vector-backed but missing "source-layer"`);
+        features = map.querySourceFeatures(sourceId, { sourceLayer });
+    } else {
+        throw new Error(`Unsupported source type for binning: ${src.type}`);
+    }
+
+    const propName = binConfig.property;
+    const bins = binConfig.bins || [];
+
+    // Determine which keys are "control" keys we shouldn't copy as paint props
+    const CONTROL_KEYS = new Set(['id', 'min', 'max', 'label', 'ids']);
+
+    // Extract top-level extra props to apply to every group (unless overridden)
+    const topLevelExtras = Object.fromEntries(
+        Object.entries(binConfig).filter(([k]) => !['property', 'bins'].includes(k))
+    );
+
+    // Prepare groups keyed by bin id, prefilled with top-level extras
+    const groupsObject = {};
+    for (const bin of bins) {
+        const base = { ids: [] };
+
+        // Start with top-level extras…
+        for (const [k, v] of Object.entries(topLevelExtras)) {
+            base[k] = isColorProp(k) ? normalizeColorRGB(v) : v;
+        }
+        // …then apply per-bin props (these override top-level extras)
+        for (const [k, v] of Object.entries(bin)) {
+            if (!CONTROL_KEYS.has(k)) {
+                base[k] = isColorProp(k) ? normalizeColorRGB(v) : v; // includes 'color' and any explicit paint prop like 'circle-radius'
+            }
+        }
+        groupsObject[bin.id] = base;
+    }
+
+    // Assign features to bins
+    for (const f of features) {
+        const props = f?.properties || {};
+        const id = props?.[idKey];
+        if (id == null) continue;
+
+        const rawVal = props?.[propName];
+        const val = typeof rawVal === 'number' ? rawVal : Number(rawVal);
+        if (Number.isNaN(val)) continue;
+
+        const bin = bins.find(b =>
+            (b.min == null || val >= b.min) &&
+            (b.max == null || val <  b.max)
+        );
+        if (bin) {
+            groupsObject[bin.id].ids.push(String(id));
+        }
+    }
+
+    return { groupsObject };
+}
+
 
 function extendBoundsFromCoords(bounds, coords) {
     if (typeof coords[0] === 'number') {
@@ -88,11 +186,12 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
     // Helper to get level def from state name
     const getLevel = (stateName) => namedPath.find(lvl => lvl.state === stateName);
 
+    let commands;
     if (state && featureId) {
         const level = getLevel(state);
         if (!level || !level.idKey) return;
 
-        context.mmvSend([{
+        commands = [{
             commandName: MMV_COMMANDS.ZOOM_TO,
             commandRef: uuid(),
             params: {
@@ -107,9 +206,11 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
                     }
                 }
             }
-        }]);
+        }]
 
-        return;
+        context.mmvSend(commands);
+
+        return {/*commands - soon we will be sending commands to queue them and schedule react and mapbox requests for main thread execution*/};
     }
 
     zoomToAllFeatures(map, namedPath.map(lvl => `${lvl.state}-features`));
@@ -566,20 +667,32 @@ export async function getEntryAction({mapMachineInput }) {
             let { commands, theme = {}, singleMarkers, clustersMarkers } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
             //zoom out to all features
             zoomToFeature({map: context.map, context});
-
+            const namedPath = context.namedPaths[0];//TODO, select correct namedPath index
+            const getLevel = (stateName) => namedPath.find(lvl => lvl.state === stateName);
 
             for(const layerId of Object.keys(theme)) {
                 const themeConfig = theme[layerId];
-                context.map.setPaintProperty(
-                    layerId,
-                    "circle-color",
-                    makeBinColorExpression(themeConfig)
-                );
-                if(themeConfig["circle-radius"]){
-                    context.map.setPaintProperty(
-                        layerId,
-                        "circle-radius",
-                        themeConfig["circle-radius"]);
+                const state = layerId.split("-")[0];
+                const level = getLevel(state);
+                if(level){
+                    const { groupsObject } =
+                        buildGroupsFromBins(context.map, layerId, level.idKey, themeConfig);
+
+                    const mmvThemeCommands = [{
+                        commandName: MMV_COMMANDS.THEME_ELEMENTS,
+                        commandRef: uuid(),
+                        params: {
+                            groups: groupsObject,
+                            clear: false,
+                            extra: {
+                                field: level.idKey,
+                                fieldType: level.idType || "string",
+                                layerNames: [layerId]
+                            }
+                        }
+                    }];
+                    console.log("Theming command",mmvThemeCommands)
+                    context.mmvSend(mmvThemeCommands)
                 }
             }
 
@@ -611,7 +724,7 @@ export async function getEntryAction({mapMachineInput }) {
             manageMarkers();
 
 
-            return { commands: null, manageMarkers };
+            return { commands: null, manageMarkers, theme };
         }
 
         case 'portfolio.site': {

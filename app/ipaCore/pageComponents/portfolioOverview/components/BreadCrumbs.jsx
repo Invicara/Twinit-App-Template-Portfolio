@@ -1,7 +1,8 @@
 import React, { useMemo, useContext, useEffect } from 'react';
 import { makeStyles } from '@material-ui/core';
 import { useDispatch, useSelector } from 'react-redux';
-import { MapContext, PortfolioActorContext } from '../PortfolioOverview';
+import { useSelector as useXstateSelector } from '@xstate/react';
+import { MapContext, MapMachineContext } from '../PortfolioOverview';
 import { selectIsSelectingPosition, setSelectedCoordinate, setIsSelectingPosition, selectSelectedCoordinate, setDraftSite } from '../../../redux/siteSetup';
 import { getClickEvent } from '../../../redux/pageComponentState';
 import { usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
@@ -25,11 +26,11 @@ const AddSiteSection = ({classes}) => {
         // 1 degree of latitude ≈ 110,540 meters
         const halfWidthLng = (widthInMeters / 2) / (111320 * Math.cos(centerLat * Math.PI / 180));
         const halfWidthLat = (widthInMeters / 2) / 110540;
-        
+
         // Create square coordinates (clockwise from top-left)
         return [
             [centerLng - halfWidthLng, centerLat + halfWidthLat], // Top-left
-            [centerLng + halfWidthLng, centerLat + halfWidthLat], // Top-right  
+            [centerLng + halfWidthLng, centerLat + halfWidthLat], // Top-right
             [centerLng + halfWidthLng, centerLat - halfWidthLat], // Bottom-right
             [centerLng - halfWidthLng, centerLat - halfWidthLat], // Bottom-left
             [centerLng - halfWidthLng, centerLat + halfWidthLat]  // Close polygon
@@ -41,9 +42,10 @@ const AddSiteSection = ({classes}) => {
     const selectedCoordinate = useSelector(selectSelectedCoordinate);
 
     const { mapInstance } = useContext(MapContext);
-    const portContext = useContext(PortfolioActorContext);
-    const { send, currentState } = portContext || {};
-    
+    const mapMachineContext = useContext(MapMachineContext);
+    const { send, actor } = mapMachineContext || {};
+    const currentState = useXstateSelector(actor, state => state);
+
     const previousIsSelectingPosition = usePrevious(isSelectingPosition);
 
     const handleAddSite = () => {
@@ -59,10 +61,10 @@ const AddSiteSection = ({classes}) => {
         }
         if(selectedCoordinate?.length && currentState){
             const [centerLng, centerLat] = selectedCoordinate;
-            
+
             // Generate square coordinates around the selected point (500m width)
             const squareCoords = generateSquareCoordinates(centerLng, centerLat, 500);
-            
+
             const newSiteId = defaultNewSiteId;
             const newSite = {
                 requestId: uuid(),
@@ -71,7 +73,7 @@ const AddSiteSection = ({classes}) => {
                 coordinates: [squareCoords], // GeoJSON Polygon format
                 siteId: newSiteId
             };
-            
+
             // Update XState context by appending to context.data.site
             const currentData = currentState.context?.data || {};
             const currentSites = currentData.site || [];
@@ -80,14 +82,14 @@ const AddSiteSection = ({classes}) => {
                 site: [...currentSites, newSite]
             };
             console.log("updatedData", updatedData)
-            
+
             // Send event to update XState context with new data
             send({
                 type: 'UPDATE_DATA',
                 data: updatedData
             });
             console.log("updatedData, UPDATED")
-            
+
             // Add the new site to the map layer
             if (mapInstance && currentState.context?.namedPaths) {
                 const namedPath = currentState.context.namedPaths[0]; // Use first named path
@@ -97,7 +99,7 @@ const AddSiteSection = ({classes}) => {
                     feature: newSite,
                     namedPath: namedPath
                 });
-                
+
                 if (success) {
                     console.log('Successfully added new site to map layer');
                     // Trigger map refresh/repaint
@@ -106,7 +108,7 @@ const AddSiteSection = ({classes}) => {
                     console.warn('Failed to add new site to map layer');
                 }
             }
-            
+
             // Navigate to the newly created site
             setTimeout(() => {
                 send({
@@ -114,10 +116,10 @@ const AddSiteSection = ({classes}) => {
                     siteId: newSiteId
                 });
             }, 100);
-            
+
             // Store in Redux as well
             dispatch(setDraftSite(newSite));
-            
+
             // Clear the selected coordinate
             dispatch(setSelectedCoordinate());
             dispatch(setIsSelectingPosition(false));
@@ -206,11 +208,11 @@ const useStyles = makeStyles((theme) => ({
         fontSize: 13,
         fontWeight: 500
     },
-    homeLink: { 
-        display: 'inline-flex', 
-        alignItems: 'center', 
-        cursor: 'pointer', 
-        padding: '4px' 
+    homeLink: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        cursor: 'pointer',
+        padding: '4px'
     }
 }));
 
@@ -264,7 +266,8 @@ function buildGoToHome(namedPath) {
 
 const PortfolioBreadCrumbs = ({namedPath, getLabel}) => {
     const classes = useStyles();
-    const { currentState, send } = useContext(PortfolioActorContext);
+    const { send, actor } = useContext(MapMachineContext);
+    const currentState = useXstateSelector(actor, state => state);
 
     const context = currentState?.context ?? {};
     const chain = getActiveChain(currentState?.value ?? {});

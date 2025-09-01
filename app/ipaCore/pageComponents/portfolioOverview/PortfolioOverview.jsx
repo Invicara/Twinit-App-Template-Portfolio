@@ -1,5 +1,5 @@
-import React, {useEffect, useMemo, useState, createContext} from 'react';
-import { useActor, useSelector, useMachine } from '@xstate/react';
+import React, {useEffect, useMemo, useState, createContext, useCallback} from 'react';
+import { useActor, useSelector as useXstateSelector, useMachine } from '@xstate/react';
 import { makeStyles } from '@material-ui/core';
 import MMVIntegratedMap from './components/MMVIntegratedMap';
 import StatePanel from './components/StatePanel';
@@ -10,11 +10,12 @@ import './PortfolioOverview.css'
 import './components/map/darkMap.scss'
 import {createMachine} from "./machines/hierarchicalMapMachine";
 import ipaConfig from "../../ipaConfig.js";
-import { useSelector as useReduxSelector } from 'react-redux';
 import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
 import clsx from "clsx";
 import {Custom2D3DToggle} from "./components/map/Custom2D3DToggle";
+import {useSelector} from "react-redux";
+import {Legend} from "./components/map/Legend.jsx";
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -72,7 +73,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 // Create context for the actor
-export const PortfolioActorContext = createContext();
+export const MapMachineContext = createContext();
 export const MapContext = createContext();
 const DEFAULT_PATHS = [
     [
@@ -85,8 +86,9 @@ const DEFAULT_PATHS = [
 
 export default function PortfolioOverview({handler, userConfig, selectedItems}) {
     const classes = useStyles();
-    const namedPathsConfig = handler?.componentConfig;
-    const namedPaths = useMemo(()=>namedPathsConfig?.namedPaths || DEFAULT_PATHS,[]);
+    const componentConfig = handler?.componentConfig;
+    const namedPaths = useMemo(()=>componentConfig?.namedPaths || DEFAULT_PATHS,[]);
+    const legendPath = useMemo(()=>componentConfig?.legendPath || "building",[]);
     const machineDef = useMemo(()=>createMachine("mapMachine",namedPaths),[namedPaths]);
     const [snapshot, send, actor] = useMachine(machineDef);
 
@@ -115,7 +117,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         fetchGisConfig();
     },[namedPaths])
 
-    const isSelectingPosition = useReduxSelector(selectIsSelectingPosition);
+    const isSelectingPosition = useSelector(selectIsSelectingPosition);
     const [mmvMode, setMmvMode] = useState("");
 
     // Command state for MMV communication
@@ -152,7 +154,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         return ()=> subscription.unsubscribe();
     },[actor])
 
-    const currentState = useSelector(actor, state => state);
+    const currentState = useXstateSelector(actor, state => state);
 
     // Extract modelElementId from current state context
     const modelElementId = currentState?.context?.modelElementId;
@@ -187,14 +189,27 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     window.currentState = currentState;
     window.mapInstance = mapInstance;
 
-    const handleMMVEvent = (event) => {
+    const handleMMVEvent = useCallback((event) => {
         //console.log('PortfolioOverview MMV Event:', event);
         // Handle MMV events as needed
-    };
+    },[]);
+
+    const onMapReady = useCallback((map) => {
+        setMapInstance(map); // Store map instance for refresh
+        actor.send({ type: 'MAP_READY', map, mmvSend: setCommand });
+    },[actor, setCommand])
+
+    const mapMachineContextValue = useMemo(() => {
+        return { actor, send: actor.send }
+    }, [actor]);
+
+    const mapContextValue = useMemo(() => {
+        return {setCommand, mapInstance }
+    }, [setCommand, mapInstance]);
 
     return (
-        <MapContext.Provider value={{ command, setCommand, mapInstance }}>
-            <PortfolioActorContext.Provider value={{ actor, send: actor.send, currentState }}>
+        <MapContext.Provider value={mapContextValue}>
+            <MapMachineContext.Provider value={mapMachineContextValue}>
                 <div className={classes.container}>
                     <div className={classes.secondaryHeader}>
                         <div className={classes.headerInner}>
@@ -221,10 +236,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                                 }}
                             >
                                 <MMVIntegratedMap
-                                    onMapReady={(map) => {
-                                        setMapInstance(map); // Store map instance for refresh
-                                        actor.send({ type: 'MAP_READY', map, mmvSend: setCommand });
-                                    }}
+                                    onMapReady={onMapReady}
                                     mmvConfig={mmvConfig}
                                     mmvMode={mmvMode}
                                     appId={ipaConfig.applicationId}
@@ -232,6 +244,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                                     command={command}
                                 />
                                 {/* <GraphicPortal/> */}
+                                <Legend map={mapInstance} path={legendPath}/>
                             </div>
 
                             <div
@@ -251,7 +264,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                         </Grid>
                     </Grid>
                 </div>
-            </PortfolioActorContext.Provider>
+            </MapMachineContext.Provider>
         </MapContext.Provider>
     );
 }
