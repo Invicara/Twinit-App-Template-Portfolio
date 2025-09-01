@@ -90,6 +90,16 @@ const useStyles = makeStyles((theme) => ({
         opacity: 1,
         color: '#5D5D5D',    
       },
+      divider: {
+        border: 'none',
+        height: '1px',
+        borderTop: '1px solid #EBEBEB',
+        marginBottom: 24,
+        width: 532,
+        marginTop: 0,
+        marginLeft: 'auto',
+        marginRight: 'auto',
+      },
 }));
 
 export default function SearchPanel({ currentState, context }) {
@@ -260,6 +270,7 @@ export default function SearchPanel({ currentState, context }) {
           </Grid>
         </form>
       </Box>
+      <Box className={classes.divider} />
     </Paper>
   );
 };
