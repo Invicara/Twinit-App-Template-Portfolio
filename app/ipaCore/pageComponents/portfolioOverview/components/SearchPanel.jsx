@@ -1,0 +1,267 @@
+import React, { useState } from 'react';
+import {
+  Grid,
+  Button,
+  Paper,
+  Box,
+  MenuItem,
+  TextField,
+  Select,
+  Typography,
+  InputAdornment,
+  FormControl,
+  makeStyles
+} from '@material-ui/core';
+import clsx from 'clsx';
+import SearchIcon from '@material-ui/icons/Search';
+import KeyboardArrowDownIcon from '@material-ui/icons/KeyboardArrowDown';
+
+const useStyles = makeStyles((theme) => ({
+    sidebarPaper: {
+        width: 580,
+        height: '100%',
+        overflowY: 'auto',
+        flexShrink: 0,
+        position: 'fixed', 
+        '& .MuiSelect-outlined.MuiSelect-select': {
+            display: 'flex',
+            alignItems: 'center',      
+            height: '100%',
+            padding: '0',                 
+        },
+      },
+      formControl: {
+        width: 258,
+        '& .MuiOutlinedInput-root': {
+            height: 36,             
+            borderRadius: 4,    
+            '& .MuiSelect-select': {
+                display: 'flex',
+                alignItems: 'center', 
+                padding: '0 12px',    
+                boxSizing: 'border-box',
+              },
+          },
+      },
+      placeholder: {
+        color: '#B8B8B8',
+        fontFamily: 'Inter, sans-serif',
+        fontWeight: 400, 
+        marginTop: 5
+      },
+      textField: {
+        width: 532,
+        paddingBottom: 8,
+        '& input::placeholder': {
+            color: '#B8B8B8',     
+            fontFamily: 'Inter, sans-serif',
+            fontWeight: 400,
+            fontSize: '14px',       
+        },
+        '& .MuiOutlinedInput-root': {
+          borderRadius: 4,
+          '& input': {
+            height: 36,
+            padding: 0,
+            color: '#000000', 
+          },
+        },
+      },
+      label: {
+        color: '#1D1D1D',
+        fontWeight: 500,
+        fontFamily: 'Inter, sans-serif',
+        fontSize: '14px',
+        lineHeight: '19px',
+        display: 'block',
+        paddingTop: 5
+      },
+      inputText: {
+        color: '#B8B8B8',
+        transform: 'translate(0px, 1.5px)',
+      },
+      searchIcon: {
+        width: 16,      
+        height: 16,     
+        position: 'relative',
+        top: 2.67,        
+        left: 2.67,      
+        transform: 'rotate(0deg)', 
+        opacity: 1,
+        color: '#5D5D5D',    
+      },
+}));
+
+export default function SearchPanel({ currentState, context }) {
+  const classes = useStyles();
+
+  const [filters, setFilters] = useState({
+    search: '',
+    palierGroup: '',
+    plant: '',
+    department: '',
+    deployStatus: '',
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log('Search filters:', filters);
+  };
+
+  return (
+    <Paper elevation={3} className={clsx(classes.sidebarPaper)}>
+      <Box display='flex' justifyContent='center' p={4}>
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Typography variant="body1" className={classes.label}>Search</Typography>
+              <TextField
+                fullWidth
+                variant="outlined"
+                name="search"
+                placeholder="Search nuclear power plant..."
+                value={filters.search}
+                onChange={handleChange}
+                className={classes.textField}
+                InputProps={{
+                  classes: { input: classes.inputText }, 
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon className={classes.searchIcon} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+
+            <Grid item>
+              <Typography variant="body1" className={classes.label}>Palier Group</Typography>
+              <FormControl
+                variant="outlined"
+                className={classes.formControl}
+              >
+                <Select
+                  name="palierGroup"
+                  value={filters.palierGroup}
+                  onChange={handleChange}
+                  displayEmpty
+                  IconComponent={KeyboardArrowDownIcon} 
+                  renderValue={(selected) => {
+                    if (!selected) {
+                      return <span className={classes.placeholder}>Choose</span>;
+                    }
+                    return selected;
+                  }}
+                >
+                {/* TODO: hook real data into the menu items selection */}
+                  <MenuItem value="group1">Group 1</MenuItem>
+                  <MenuItem value="group2">Group 2</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item>
+              <Typography variant="body1" className={classes.label}>Choose plant name / location</Typography>
+              <FormControl
+                variant="outlined"
+                className={classes.formControl}
+              >
+                <Select
+                  name="plant"
+                  value={filters.plant}
+                  onChange={handleChange}
+                  displayEmpty
+                  IconComponent={KeyboardArrowDownIcon} 
+                  renderValue={(selected) => {
+                    if (!selected) {
+                      return <span className={classes.placeholder}>Choose</span>;
+                    }
+                    return selected;
+                  }}
+                  classes={{ root: classes.selectInput }}
+                >
+                {/* TODO: hook real data into the menu items selection */}
+                  <MenuItem value="plantA">Plant A</MenuItem>
+                  <MenuItem value="plantB">Plant B</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item>
+              <Typography variant="body1" className={classes.label}>Choose departments / regions</Typography>
+              <FormControl
+                variant="outlined"
+                className={classes.formControl}
+              >
+                <Select
+                  name="department"
+                  value={filters.department}
+                  onChange={handleChange}
+                  displayEmpty
+                  IconComponent={KeyboardArrowDownIcon} 
+                  renderValue={(selected) => {
+                    if (!selected) {
+                      return <span className={classes.placeholder}>Choose</span>;
+                    }
+                    return selected;
+                  }}
+                  classes={{ root: classes.selectInput }}
+                >
+                {/* TODO: hook real data into the menu items selection */}
+                  <MenuItem value="region1">Region 1</MenuItem>
+                  <MenuItem value="region2">Region 2</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item>
+              <Typography variant="body1" className={classes.label}>Deploy Status</Typography>
+              <FormControl
+                variant="outlined"
+                className={classes.formControl}
+              >
+                <Select
+                  name="deployStatus"
+                  value={filters.deployStatus}
+                  onChange={handleChange}
+                  displayEmpty
+                  IconComponent={KeyboardArrowDownIcon} 
+                  renderValue={(selected) => {
+                    if (!selected) {
+                      return <span className={classes.placeholder}>Choose</span>;
+                    }
+                    return selected;
+                  }}
+                  classes={{ root: classes.selectInput }}
+                >
+                {/* TODO: hook real data into the menu items selection */}
+                  <MenuItem value="deployed">Deployed</MenuItem>
+                  <MenuItem value="pending">Pending</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12}>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                fullWidth
+                disabled={true}
+              >
+                Search
+              </Button>
+            </Grid>
+          </Grid>
+        </form>
+      </Box>
+    </Paper>
+  );
+};
+
+
