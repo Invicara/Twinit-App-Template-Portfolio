@@ -176,6 +176,16 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                             reenter: true,
                             actions: assign(({ event }) => ({ pendingEvent: event }))
                         },
+                        START_DRAFT: {
+                            target: 'editing',
+                        }
+                    }
+                },
+                editing: {
+                    on: {
+                        END_DRAFT: {
+                            target: 'idle',
+                        }
                     }
                 },
                 confirmExit: {
