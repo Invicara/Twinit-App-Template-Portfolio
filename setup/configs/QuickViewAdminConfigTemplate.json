@@ -61,6 +61,16 @@
       "config": {}
     }
   },
+  "portfolioOverview": {
+    "title": "Portfolio Overview",
+    "icon": "fas fa-map-marked-alt fa-2x",
+    "pageComponent": "portfolioOverview/PortfolioOverview",
+    "path": "/portfoliomap",
+    "config": {},
+    "scriptTypes": [
+      "mmv_config"
+    ]
+  },
   "homepage": {
     "handler": "portfolioOverview"
   },

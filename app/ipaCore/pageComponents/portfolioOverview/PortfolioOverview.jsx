@@ -7,11 +7,15 @@ import PortfolioBreadCrumbs from './components/BreadCrumbs';
 import SimpleViewerView from '../simpleViewer/SimpleViewerView';
 import { Grid } from '@mui/material';
 import './PortfolioOverview.css'
-import {createMachine} from "./machines/hierarchicalMapMachine.js";
+import './components/map/darkMap.scss'
+import {createMachine} from "./machines/hierarchicalMapMachine";
 import ipaConfig from "../../ipaConfig.js";
 import { useSelector as useReduxSelector } from 'react-redux';
 import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
 import SearchPanel from './components/SearchPanel';
+import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
+import clsx from "clsx";
+import {Custom2D3DToggle} from "./components/map/Custom2D3DToggle";
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -90,12 +94,33 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     const namedPaths = useMemo(()=>namedPathsConfig?.namedPaths || DEFAULT_PATHS,[]);
     const machineDef = useMemo(()=>createMachine("mapMachine",namedPaths),[namedPaths]);
     const [snapshot, send, actor] = useMachine(machineDef);
-    
-    // Get the site selection state from Redux
+
+    // MMV Configuration state -> this should be removed to a user config or a script
+    const [mmvConfig, setMmvConfig] = useState();
+
+    useEffect(()=>{
+        const fetchGisConfig = async () => {
+            const config = await ScriptCache.runScript("getGISConfig", {namedPaths});
+            const controlsConfig = config?.mapControlsConfig || [];
+            if (controlsConfig) {
+                for (let i = 0; i < controlsConfig.length; i++) {
+                    const controlConfig = controlsConfig[i];
+                    if (typeof controlConfig === "string" && controlConfig === '2d3d') {
+                        controlsConfig[i] = {type: Custom2D3DToggle}
+                    } else if (controlConfig.type === '2d3d') {
+                        controlsConfig[i] = {
+                            ...controlConfig,
+                            type: Custom2D3DToggle
+                        }
+                    }
+                }
+            }
+            setMmvConfig(config);
+        }
+        fetchGisConfig();
+    },[namedPaths])
+
     const isSelectingPosition = useReduxSelector(selectIsSelectingPosition);
-    
-    // MMV Configuration state
-    const [mmvConfig, setMmvConfig] = useState({});
     const [mmvMode, setMmvMode] = useState("");
 
     // Command state for MMV communication
@@ -141,6 +166,12 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     // Track previous display state to detect switches
     const [mapInstance, setMapInstance] = useState(null);
 
+    useEffect(() => {
+        return () => {
+            setMapInstance();//releasing map from memory
+        }
+    }, []);
+
     // Handle display switching and map refresh
     useEffect(() => {
         // If switching back to MMV map, trigger resize after a short delay
@@ -160,9 +191,9 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     }, [showSimpleViewer, mapInstance]);
     window.currentState = currentState;
     window.mapInstance = mapInstance;
-    
+
     const handleMMVEvent = (event) => {
-        // console.log('PortfolioOverview MMV Event:', event);
+        //console.log('PortfolioOverview MMV Event:', event);
         // Handle MMV events as needed
     };
 
@@ -189,20 +220,20 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                             <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
                         </Grid>
                         <Grid item xs className={classes.viewerContainer}>
-                            <div 
-                                className={`${classes.mmvContainer} ${isSelectingPosition ? 'map-selecting-position' : ''}`}
-                                style={{ 
+                            <div
+                                className={clsx(classes.mmvContainer, "dark-map", {'map-selecting-position' : isSelectingPosition})}
+                                style={{
                                     visibility: showSimpleViewer ? 'hidden' : 'visible',
                                     opacity: showSimpleViewer ? 0 : 1,
                                     pointerEvents: showSimpleViewer ? 'none' : 'auto',
                                     zIndex: showSimpleViewer ? 0 : 1
                                 }}
                             >
-                                <MMVIntegratedMap 
+                                <MMVIntegratedMap
                                     onMapReady={(map) => {
                                         setMapInstance(map); // Store map instance for refresh
                                         actor.send({ type: 'MAP_READY', map, mmvSend: setCommand });
-                                    }} 
+                                    }}
                                     mmvConfig={mmvConfig}
                                     mmvMode={mmvMode}
                                     appId={ipaConfig.applicationId}
@@ -211,17 +242,17 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                                 />
                                 {/* <GraphicPortal/> */}
                             </div>
-                            
-                            <div 
+
+                            <div
                                 className={classes.simpleViewerContainer}
-                                style={{ 
+                                style={{
                                     visibility: showSimpleViewer ? 'visible' : 'hidden',
                                     opacity: showSimpleViewer ? 1 : 0,
                                     pointerEvents: showSimpleViewer ? 'auto' : 'none',
                                     zIndex: showSimpleViewer ? 1 : 0
                                 }}
                             >
-                                <SimpleViewerView 
+                                <SimpleViewerView
                                     key={modelElementId}
                                     handler={handler}
                                 />
@@ -230,6 +261,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                     </Grid>
                 </div>
             </PortfolioActorContext.Provider>
-        </MapContext.Provider>        
+        </MapContext.Provider>
     );
 }
