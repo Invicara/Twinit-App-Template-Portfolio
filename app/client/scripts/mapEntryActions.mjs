@@ -315,17 +315,6 @@ export function makeMapOnClickHandler({ map, namedPath, send, context, pixelTole
 
         const event = { type: 'GO_TO' };
 
-        if (getContext) {
-            const currentContext = getContext();
-            console.log("GETTING_CURRENT_CONTEXT", {event, currentContext});
-
-            // If we have a siteId and site data, check if the site is in draft mode
-            if (currentContext.data.site.some(s => s.isDraft)) {
-                console.log('Navigation blocked: Site is in draft mode');
-                return; // Don't send the GO_TO event
-            }
-        }
-
         // if nothing relevant clicked → bubble to top
         if (hits.length === 0) {
             featureLayers.forEach(def => {
@@ -729,13 +718,7 @@ export async function getEntryAction({mapMachineInput }) {
 
         case 'portfolio.site': {
             const siteId = event.siteId ?? context.siteId;
-            // const buildingId = event.buildingId ?? context.buildingId;
-            // const siteIdChanged = event.hasOwnProperty('siteId') && siteId !== context.siteId;
-            // const buildingIdChanged = event.hasOwnProperty('buildingId') && buildingId !== context.buildingId;
-
-            // if (siteIdChanged || buildingIdChanged || bubblingUp) {
             zoomToFeature({map: context.map, context, state: 'site', featureId: siteId});
-            // }
             return { commands: null };
         }
 
