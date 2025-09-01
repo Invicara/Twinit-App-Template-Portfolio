@@ -210,7 +210,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                             </div>
                         </div>
                     </div>
-                    
                     <Grid container className={classes.mainContent}> 
                         {/* TODO: remove here later, test search panel UI for now by uncommenting SearchPanel here and commenting out StatePanel grid item below */}
                         {/* <Grid item className={classes.searchPanel}>
