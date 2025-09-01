@@ -226,7 +226,6 @@ export default function SiteDetails({ context }) {
         const currentSites = updatedData.site || [];
         const siteToEdit = currentSites.find(s => s.siteId === siteId);
         siteToEdit.isEditing = true;
-        console.log("setSiteForEdition", {updatedData, cachedOriginalSite: currentSite})
 
         // Send event to update XState context
         send({
@@ -508,6 +507,7 @@ export default function SiteDetails({ context }) {
             type: 'UPDATE_DATA',
             data: updatedData
         });
+        send({ type: "END_DRAFT" });
 
         // Update the map layer with new coordinates
         if (mapInstance && currentState.context?.namedPaths) {
@@ -576,6 +576,7 @@ export default function SiteDetails({ context }) {
         // Start with empty drawing pins array
         setCurrentDrawingPins([]);
         setIsDrawingMode(true);
+        send({ type: "START_DRAFT" });
     };
 
     const cancelDrawingMode = () => {
@@ -590,6 +591,8 @@ export default function SiteDetails({ context }) {
                 ...currentData,
                 site: restoredSites
             };
+
+            send({ type: "END_DRAFT" });
 
             // Update XState context with restored data
             send({
