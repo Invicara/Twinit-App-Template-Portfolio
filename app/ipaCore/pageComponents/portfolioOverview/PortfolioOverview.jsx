@@ -3,7 +3,7 @@ import { useActor, useSelector, useMachine } from '@xstate/react';
 import { makeStyles } from '@material-ui/core';
 import MMVIntegratedMap from './components/MMVIntegratedMap';
 import StatePanel from './components/StatePanel';
-import PortfolioBreadCrumbs from './components/BreadCrumbs';
+import PortfolioBreadCrumbs from './components/Breadcrumbs/BreadCrumbs.jsx';
 import SimpleViewerView from '../simpleViewer/SimpleViewerView';
 import { Grid } from '@mui/material';
 import './PortfolioOverview.css'

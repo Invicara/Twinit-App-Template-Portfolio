@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
 import { Typography, Divider, Button, Box } from '@material-ui/core';
 import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
@@ -7,10 +7,10 @@ import { getClickEvent } from '../../../../redux/pageComponentState';
 import { addFeatureToMapLayer, removeFeatureFromMapLayer } from '../../../../../client/scripts/mapEntryActions.mjs';
 import { usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
 import { InfoComponent } from '../../../../components/InfoComponent/InfoComponent';
-import { useDebounce } from '../../../../hooks/useDebounce';
 import { setIsSelectingPosition, setSelectedCoordinate } from '../../../../redux/siteSetup';
 import { IafItemSvc } from '@dtplatform/platform-api';
 import _ from 'lodash';
+import { Add, Dashboard } from '@material-ui/icons';
 
 export const defaultNewSiteId = "<newSite>";
 
@@ -51,19 +51,69 @@ export default function SiteDetails({ context }) {
 
     const prevIsDrawingMode = usePrevious(isDrawingMode);
 
+    // Define core fields that cannot be removed
+    const coreFields = ['_id', '_metadata', 'coordinates', 'name', 'siteId', 'address', 'siteType', "requestId", "buildings"];
+    
     // Site editing configuration for InfoComponent
-    const siteEditingConfig = [
-        ['name', { title: 'Site Name', readOnly: false, description: 'Name of the site' }],
-        ['siteId', { title: 'Site ID', readOnly: false, description: 'Unique identifier for the site' }]
-    ];
-
-    // useEffect(() => {
-    //     return () => {
-    //         if(currentSite.isDraft){
-    //             handleCancelSite()
-    //         }
-    //     }
-    // }, [currentSite])
+    const siteEditingConfig = useMemo(() => {
+        const baseConfig = [
+            ['name', { 
+                title: 'Site Name', 
+                readOnly: false, 
+                description: 'Name of the site',
+                isKeyEditable: false,
+                isDeletable: false
+            }],
+            ['address', { 
+                title: 'Site Address', 
+                readOnly: false, 
+                description: 'Address of the site',
+                isKeyEditable: false,
+                isDeletable: false
+            }],
+            ['siteType', { 
+                title: 'Site Type', 
+                readOnly: false, 
+                description: 'Type of the site based on power generation',
+                type: 'dropdown',
+                options: ['900MW', '1300MW', '1450MW'],
+                isKeyEditable: false,
+                isDeletable: false
+            }]
+        ];
+        
+        // Only include Site ID field for draft sites
+        if (isDraftSite) {
+            baseConfig.splice(1, 0, ['siteId', { 
+                title: 'Site ID', 
+                readOnly: false, 
+                description: 'Unique identifier for the site',
+                isKeyEditable: false,
+                isDeletable: false
+            }]);
+        }
+        
+        // Add dynamic custom fields from the site object (extra fields from coreFields)
+        if (currentSite) {
+            const extraFields = Object.keys(currentSite).filter(key => 
+                !coreFields.includes(key) && 
+                !['isDraft', 'isEditing'].includes(key)
+            );
+            
+            extraFields.forEach(fieldKey => {
+                baseConfig.push([fieldKey, { 
+                    title: fieldKey.charAt(0).toUpperCase() + fieldKey.slice(1).replace(/([A-Z])/g, ' $1'),
+                    readOnly: false, 
+                    description: 'Custom site field',
+                    isKeyEditable: true,
+                    isDeletable: true,
+                    isCustom: true
+                }]);
+            });
+        }
+        
+        return baseConfig;
+    }, [isDraftSite, currentSite]);
 
     // Handle site property changes
     const handleSiteChange = (newValue, propertyName, metadata) => {
@@ -339,6 +389,92 @@ export default function SiteDetails({ context }) {
         console.log('Site edit completed:', { finalizedSite, hasChanges });
     };
 
+    // Handle field removal/renaming
+    const handleFieldRemove = (fieldName, options = {}) => {
+        if (!currentSite) return;
+        
+        const { action, newFieldName, newFieldTitle, value } = options;
+        
+        if (action === 'delete') {
+            // Remove field from site object
+            const updatedSite = { ...currentSite };
+            delete updatedSite[fieldName];
+            
+            // Update XState context
+            const currentData = currentState.context?.data || {};
+            const currentSites = currentData.site || [];
+            const updatedSites = currentSites.map(s => 
+                s.siteId === siteId ? updatedSite : s
+            );
+            const updatedData = {
+                ...currentData,
+                site: updatedSites
+            };
+            
+            send({
+                type: 'UPDATE_DATA',
+                data: updatedData
+            });
+            
+            console.log('Field removed:', { fieldName, updatedSite });
+        } else if (action === 'rename' && newFieldName) {
+            // Rename field in site object
+            const updatedSite = { ...currentSite };
+            updatedSite[newFieldName] = value;
+            delete updatedSite[fieldName];
+            console.log("RENAMING", {fieldName, updatedSite});
+
+            
+            // Update XState context
+            const currentData = currentState.context?.data || {};
+            const currentSites = currentData.site || [];
+            const updatedSites = currentSites.map(s => 
+                s.siteId === siteId ? updatedSite : s
+            );
+            const updatedData = {
+                ...currentData,
+                site: updatedSites
+            };
+            
+            send({
+                type: 'UPDATE_DATA',
+                data: updatedData
+            });
+            
+            console.log('Field renamed:', { oldName: fieldName, newName: newFieldName, updatedSite });
+        }
+    };
+
+    // Handle adding new site info field
+    const handleAddSiteInfo = () => {
+        if (!currentSite) return;
+        
+        // Add a new field called 'newField' to the site object
+        const updatedSite = {
+            ...currentSite,
+            newField: ''
+        };
+        
+        // Update XState context
+        const currentData = currentState.context?.data || {};
+        const currentSites = currentData.site || [];
+        const updatedSites = currentSites.map(s => 
+            s.siteId === siteId ? updatedSite : s
+        );
+        const updatedData = {
+            ...currentData,
+            site: updatedSites
+        };
+        
+        // Send event to update XState context
+        send({
+            type: 'UPDATE_DATA',
+            data: updatedData
+        });
+        
+        console.log('New field added to site:', { fieldName: 'newField', updatedSite });
+    };
+
     useEffect(() => {
         if (!mapInstance || !isDrawingMode) return;
 
@@ -370,7 +506,7 @@ export default function SiteDetails({ context }) {
                 source: 'drawing-pins',
                 paint: {
                     'circle-radius': 6,
-                    'circle-color': '#ff0000',
+                    'circle-color': '#DF158C',
                     'circle-stroke-width': 2,
                     'circle-stroke-color': '#ffffff'
                 }
@@ -383,7 +519,7 @@ export default function SiteDetails({ context }) {
                 type: 'line',
                 source: 'drawing-lines',
                 paint: {
-                    'line-color': '#ff0000',
+                    'line-color': '#DF158C',
                     'line-width': 2,
                     'line-dasharray': [2, 2]
                 }
@@ -643,43 +779,69 @@ export default function SiteDetails({ context }) {
         }
     };
 
-    const debouncedHandleSiteChange = useDebounce(handleSiteChange, 700)
-
     return (
         <div>
             <Typography variant="h6">Site: {plantName}</Typography>
-            <Typography variant="body2">Buildings: {buildings.length}</Typography>
 
-            {!isInEditMode && <div style={{marginTop: 12}}>
-                <CustomButton 
-                    variant="contained" 
-                    color="primary"
-                    onClick={setSiteForEdition}
-                    style={{ flex: 1 }}
-                    disabled={isDrawingMode}
-                >
-                    Edit Site
-                </CustomButton>    
-            </div>}
+            {/* Site Info - Always displayed */}
+            <Box sx={{ my: 2 }} style={{marginTop: 30}}>
+                <div style={{display: "flex", marginBottom: 30, justifyContent: "space-between", alignItems: "center"}}>
+                    <div style={{display: "flex", alignItems: "center", gap: 8}}>
+
+                        <img style={{width: 30, height: 30}} src='/icons/file-info.svg'/>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }} style={{fontSize: 18}}>
+                            Site Info
+                        </Typography>
+                    </div>
+                    {!isInEditMode && (
+                        <CustomButton 
+                            variant="contained" 
+                            color="primary"
+                            onClick={setSiteForEdition}
+                            size="small"
+                            disabled={isDrawingMode}
+                        >
+                            Edit Site
+                        </CustomButton>
+                    )}
+                </div>
+                <InfoComponent
+                    entity={currentSite}
+                    handleChange={handleSiteChange}
+                    type={siteEditingConfig}
+                    entityType="Site"
+                    originalEntity={currentSite}
+                    disabled={!isInEditMode}
+                    onFieldRemove={handleFieldRemove}
+                />
+                <Divider style={{ margin: '16px 0'}} />
+                    <Box style={{ marginTop: 12, display: 'flex', justifyContent: "right", gap: 14}}>
+                        <CustomButton 
+                            variant="outlined" 
+                            color="primary"
+                            onClick={handleAddSiteInfo}
+                            style={{ color: !isInEditMode ? "lightgray" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
+                            startIcon={<Add/>}
+                            disabled={!isInEditMode}
+                        >
+                            Add Site Info
+                        </CustomButton>
+                        <CustomButton 
+                            variant="contained" 
+                            color="primary"
+                            onClick={() => {}}
+                            style={{ color: "lightgray", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
+                            startIcon={<Dashboard/>}
+                            disabled={true}
+                        >
+                            Add Structure
+                        </CustomButton>
+                    </Box>
+            </Box>
             
             {isInEditMode && (
-                <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between", height: "calc(100vh - 230px)"}}>
-                    <div style={{marginTop: 30}}>
-                        <Box sx={{ my: 2 }}>
-                            <div style={{display: "flex", gap: 8}}>
-                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }} style={{marginBottom: 10}}>
-                                    Site Info
-                                </Typography>
-                            </div>
-                            <InfoComponent
-                                entity={currentSite}
-                                handleChange={debouncedHandleSiteChange}
-                                type={siteEditingConfig}
-                                entityType="Site"
-                                originalEntity={currentSite}
-                            />
-                        </Box>
-                        
+                <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between", marginTop: 25, gap: 25}}>
+                    <div>
                         <CustomButton 
                             variant="contained" 
                             color="primary"
@@ -714,7 +876,9 @@ export default function SiteDetails({ context }) {
                 </div>
             )}
             
-            <Divider style={{ margin: '16px 0' }} />
+            <Divider style={{ margin: '16px 0px', marginTop: 25}} />
+            <Typography variant="body2">Buildings: {buildings.length}</Typography>
+
             {buildings.map((unit, i) => (
                 <Typography key={i} variant="body2">
                     {unit.name}
