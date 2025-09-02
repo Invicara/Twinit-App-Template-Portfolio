@@ -5,6 +5,7 @@ import {Link, Tooltip, Typography} from "@material-ui/core";
 import HomeIcon from '@material-ui/icons/Home';
 import _ from "lodash";
 import AddSiteSection from './AddSiteSection';
+import { getActiveLevels } from '../../../../../services/utils';
 
 
 const useStyles = makeStyles((theme) => ({
@@ -142,13 +143,9 @@ const PortfolioBreadCrumbs = ({namedPath, getLabel}) => {
     const { currentState, send } = useContext(PortfolioActorContext);
 
     const context = currentState?.context ?? {};
-    const chain = getActiveChain(currentState?.value ?? {});
-    // chain is like ['portfolio','site','building','modelElement'] depending on where we are
 
     // map chain to level defs (from namedPath)
-    const levels = chain
-        .map(stateName => namedPath.find(l => l.state === stateName))
-        .filter(Boolean); // only those defined in namedPath
+    const levels = getActiveLevels(currentState);
 
     if (levels.length === 0) {
         return (

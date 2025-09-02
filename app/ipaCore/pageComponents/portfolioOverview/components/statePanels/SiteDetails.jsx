@@ -3,14 +3,15 @@ import { Typography, Divider, Button, Box } from '@material-ui/core';
 import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
 import { PortfolioActorContext, MapContext } from '../../PortfolioOverview';
-import { getClickEvent } from '../../../../redux/pageComponentState';
+import { getClickEvent, getMapTypes, setMapTypes } from '../../../../redux/pageComponentState';
 import { addFeatureToMapLayer, removeFeatureFromMapLayer } from '../../../../../client/scripts/mapEntryActions.mjs';
-import { usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
+import { ScriptCache, usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
 import { InfoComponent } from '../../../../components/InfoComponent/InfoComponent';
 import { setIsSelectingPosition, setSelectedCoordinate } from '../../../../redux/siteSetup';
 import { IafItemSvc } from '@dtplatform/platform-api';
 import _ from 'lodash';
 import { Add, Dashboard } from '@material-ui/icons';
+import { getActiveLevels } from '../../../../../services/utils';
 
 export const defaultNewSiteId = "<newSite>";
 
@@ -28,6 +29,12 @@ export default function SiteDetails({ context }) {
     const clickEvent = useSelector(getClickEvent);
 
     const namedPath = currentState.context.namedPaths[0];
+
+    const levels = getActiveLevels(currentState);
+
+    const types = useSelector(getMapTypes);
+    const entityType = levels.slice(-1)[0]?.state
+    const type = (types || {})[entityType];
 
     // Drawing state
     const [isDrawingMode, setIsDrawingMode] = useState(false);
@@ -50,70 +57,6 @@ export default function SiteDetails({ context }) {
     const isInEditMode = isDraftSite || isEditingSite;
 
     const prevIsDrawingMode = usePrevious(isDrawingMode);
-
-    // Define core fields that cannot be removed
-    const coreFields = ['_id', '_metadata', 'coordinates', 'name', 'siteId', 'address', 'siteType', "requestId", "buildings"];
-    
-    // Site editing configuration for InfoComponent
-    const siteEditingConfig = useMemo(() => {
-        const baseConfig = [
-            ['name', { 
-                title: 'Site Name', 
-                readOnly: false, 
-                description: 'Name of the site',
-                isKeyEditable: false,
-                isDeletable: false
-            }],
-            ['address', { 
-                title: 'Site Address', 
-                readOnly: false, 
-                description: 'Address of the site',
-                isKeyEditable: false,
-                isDeletable: false
-            }],
-            ['siteType', { 
-                title: 'Site Type', 
-                readOnly: false, 
-                description: 'Type of the site based on power generation',
-                type: 'dropdown',
-                options: ['900MW', '1300MW', '1450MW'],
-                isKeyEditable: false,
-                isDeletable: false
-            }]
-        ];
-        
-        // Only include Site ID field for draft sites
-        if (isDraftSite) {
-            baseConfig.splice(1, 0, ['siteId', { 
-                title: 'Site ID', 
-                readOnly: false, 
-                description: 'Unique identifier for the site',
-                isKeyEditable: false,
-                isDeletable: false
-            }]);
-        }
-        
-        // Add dynamic custom fields from the site object (extra fields from coreFields)
-        if (currentSite) {
-            const extraFields = Object.keys(currentSite).filter(key => 
-                !coreFields.includes(key) && 
-                !['isDraft', 'isEditing'].includes(key)
-            );
-            
-            extraFields.forEach(fieldKey => {
-                baseConfig.push([fieldKey, { 
-                    title: fieldKey.charAt(0).toUpperCase() + fieldKey.slice(1).replace(/([A-Z])/g, ' $1'),
-                    readOnly: false, 
-                    description: 'Custom site field',
-                    isKeyEditable: true,
-                    isDeletable: true,
-                    isCustom: true
-                }]);
-            });
-        }
-        
-        return baseConfig;
-    }, [isDraftSite, currentSite]);
 
     // Handle site property changes
     const handleSiteChange = (newValue, propertyName, metadata) => {
@@ -389,90 +332,40 @@ export default function SiteDetails({ context }) {
         console.log('Site edit completed:', { finalizedSite, hasChanges });
     };
 
-    // Handle field removal/renaming
-    const handleFieldRemove = (fieldName, options = {}) => {
-        if (!currentSite) return;
+    // Handle type modifications from InfoComponent
+    const handleTypeModification = async (updatedType, changeInfo) => {
+        // if (!currentSite) return;
+        // const { action, fieldName, oldFieldName, newFieldName, value } = changeInfo;
         
-        const { action, newFieldName, newFieldTitle, value } = options;
-        
-        if (action === 'delete') {
-            // Remove field from site object
-            const updatedSite = { ...currentSite };
-            delete updatedSite[fieldName];
-            
-            // Update XState context
-            const currentData = currentState.context?.data || {};
-            const currentSites = currentData.site || [];
-            const updatedSites = currentSites.map(s => 
-                s.siteId === siteId ? updatedSite : s
-            );
-            const updatedData = {
-                ...currentData,
-                site: updatedSites
-            };
-            
-            send({
-                type: 'UPDATE_DATA',
-                data: updatedData
-            });
-            
-            console.log('Field removed:', { fieldName, updatedSite });
-        } else if (action === 'rename' && newFieldName) {
-            // Rename field in site object
-            const updatedSite = { ...currentSite };
-            updatedSite[newFieldName] = value;
-            delete updatedSite[fieldName];
-            console.log("RENAMING", {fieldName, updatedSite});
-
-            
-            // Update XState context
-            const currentData = currentState.context?.data || {};
-            const currentSites = currentData.site || [];
-            const updatedSites = currentSites.map(s => 
-                s.siteId === siteId ? updatedSite : s
-            );
-            const updatedData = {
-                ...currentData,
-                site: updatedSites
-            };
-            
-            send({
-                type: 'UPDATE_DATA',
-                data: updatedData
-            });
-            
-            console.log('Field renamed:', { oldName: fieldName, newName: newFieldName, updatedSite });
-        }
+        dispatch(setMapTypes({...types, [entityType]: updatedType}));
+        await ScriptCache.runScript("updateMapType", {updatedType});
     };
 
     // Handle adding new site info field
     const handleAddSiteInfo = () => {
-        if (!currentSite) return;
         
-        // Add a new field called 'newField' to the site object
-        const updatedSite = {
-            ...currentSite,
-            newField: ''
+        // Generate a unique field name
+        const newFieldName = `newField${Date.now()}`;
+        
+        // Create updated type schema with the new property
+        const updatedType = {
+            ...type,
+            properties: {
+                ...type.properties,
+                [newFieldName]: {
+                    type: 'string',
+                    title: 'New Field',
+                    description: 'Custom site field',
+                    propertyOrder: Object.keys(type.properties).length + 1
+                }
+            }
         };
+
+        dispatch(setMapTypes({...types, [entityType]: updatedType}));
         
-        // Update XState context
-        const currentData = currentState.context?.data || {};
-        const currentSites = currentData.site || [];
-        const updatedSites = currentSites.map(s => 
-            s.siteId === siteId ? updatedSite : s
-        );
-        const updatedData = {
-            ...currentData,
-            site: updatedSites
-        };
-        
-        // Send event to update XState context
-        send({
-            type: 'UPDATE_DATA',
-            data: updatedData
-        });
-        
-        console.log('New field added to site:', { fieldName: 'newField', updatedSite });
+        // Update the type (this would normally go through a type management system)
+        // For now, we'll trigger a re-render by updating the types
+        console.log('New field added to site:', { fieldName: newFieldName, updatedSite, updatedType });
     };
 
     useEffect(() => {
@@ -808,11 +701,11 @@ export default function SiteDetails({ context }) {
                 <InfoComponent
                     entity={currentSite}
                     handleChange={handleSiteChange}
-                    type={siteEditingConfig}
-                    entityType="Site"
+                    type={type}
+                    entityType={entityType}
                     originalEntity={currentSite}
                     disabled={!isInEditMode}
-                    onFieldRemove={handleFieldRemove}
+                    modifyTypeCallback={handleTypeModification}
                 />
                 <Divider style={{ margin: '16px 0'}} />
                     <Box style={{ marginTop: 12, display: 'flex', justifyContent: "right", gap: 14}}>
@@ -820,7 +713,7 @@ export default function SiteDetails({ context }) {
                             variant="outlined" 
                             color="primary"
                             onClick={handleAddSiteInfo}
-                            style={{ color: !isInEditMode ? "lightgray" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
+                            style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
                             startIcon={<Add/>}
                             disabled={!isInEditMode}
                         >
@@ -830,7 +723,7 @@ export default function SiteDetails({ context }) {
                             variant="contained" 
                             color="primary"
                             onClick={() => {}}
-                            style={{ color: "lightgray", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
+                            style={{ color: "grey", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
                             startIcon={<Dashboard/>}
                             disabled={true}
                         >

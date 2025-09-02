@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toTitleCase } from "../../../services/utils";
-import { Divider, Grid, TextField, Tooltip, Typography, IconButton, makeStyles, Select, MenuItem, FormControl } from "@material-ui/core";
-import { CancelOutlined, EditOutlined, InfoOutlined, DeleteForeverOutlined } from "@material-ui/icons";
+import { 
+    Divider, Grid, TextField, Tooltip, Typography, IconButton, makeStyles, Select, MenuItem, FormControl,
+    Dialog, DialogTitle, DialogContent, DialogActions, Button, FormControlLabel, Checkbox,
+    InputLabel
+} from "@material-ui/core";
+import { CancelOutlined, EditOutlined, InfoOutlined, DeleteForeverOutlined, SettingsOutlined } from "@material-ui/icons";
 import { useDebounce } from "../../hooks/useDebounce";
 import _ from "lodash";
 
@@ -47,73 +51,182 @@ const useStyles = makeStyles(() => ({
     },
 }));
 
-export const InfoComponent = ({ entity, handleChange, type, entityType, originalEntity, disabled = false, onFieldRemove, debounceTime=700 }) => {
+export const InfoComponent = ({ entity, handleChange, type, entityType, originalEntity, disabled = false, onFieldRemove, modifyTypeCallback, debounceTime=700 }) => {
+
+    console.log("InfoComponent", {entity, handleChange, type, entityType, originalEntity, disabled, onFieldRemove, modifyTypeCallback, debounceTime})
+
     const [openEdit, setIsEdit] = useState(false);
-    const [editingFieldName, setEditingFieldName] = useState(false);
-    const [fieldNameValue, setFieldNameValue] = useState('');
-    const initialLocalValue = useMemo(() => {
-        if (entityType === "Site") {
-            return entity || {};
-        } else {
-            // For custom objects with attributes
-            return entity?.attributes || entity || {};
-        }
-    }, [entity, entityType]);
     
-    const [localValue, setLocalValue] = useState(initialLocalValue);
+    // Modal states
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [modifyModalOpen, setModifyModalOpen] = useState(false);
+    const [currentField, setCurrentField] = useState(null);
+    const [modifyForm, setModifyForm] = useState({
+        key: '',
+        title: '',
+        description: '',
+        type: 'string',
+        enum: '',
+        format: '',
+        readOnly: false
+    });
+    
+    const [localValue, setLocalValue] = useState(entity || {});
     const classes = useStyles();
 
-    const toCamelCase = (str) => {
-        return str
-            .replace(/(?:^\w|[A-Z]|\b\w)/g, (word, index) => {
-                return index === 0 ? word.toLowerCase() : word.toUpperCase();
-            })
-            .replace(/\s+/g, '');
+    // Helper functions for JSON Schema
+    const isRequired = (fieldName) => {
+        return type?.required?.includes(fieldName) || false;
+    };
+
+    const isKeyEditable = (fieldName) => {
+        return !isRequired(fieldName);
+    };
+
+    const isDeletable = (fieldName) => {
+        return !isRequired(fieldName);
+    };
+
+    const getFieldProperties = () => {
+        if (!type?.properties) return [];
+        
+        // Sort properties by propertyOrder if available, otherwise alphabetically
+        return Object.entries(type.properties).sort(([aKey, aValue], [bKey, bValue]) => {
+            const aOrder = aValue.propertyOrder || 999;
+            const bOrder = bValue.propertyOrder || 999;
+            if (aOrder !== bOrder) return aOrder - bOrder;
+            return aKey.localeCompare(bKey);
+        });
     };
 
     const handleUpdate = (newValue, name) => {
-        console.log("handleUpdate", {newValue, name})
         setLocalValue({ ...localValue, [name]: newValue });
         
         // Call the onChange handler with the new value
-        if (entityType === "Site") {
-            handleChange && handleChange(newValue, name, { name, entityType, entity, originalEntity });
-        } else {
-            handleChange && handleChange(newValue, `attributes.${name}`, { name, entityType, entity, originalEntity });
+        handleChange && handleChange(newValue, name, { name, entityType, entity, originalEntity });
+    };
+
+
+
+    // Modal handlers
+    const handleOpenDeleteModal = (fieldName) => {
+        setCurrentField(fieldName);
+        setDeleteModalOpen(true);
+    };
+
+    const handleOpenModifyModal = (fieldName) => {
+        const fieldSchema = type.properties[fieldName];
+        setCurrentField(fieldName);
+        setModifyForm({
+            key: fieldName,
+            title: fieldSchema.title || fieldName,
+            description: fieldSchema.description || '',
+            type: fieldSchema.type || 'string',
+            enum: Array.isArray(fieldSchema.enum) ? fieldSchema.enum.join(', ') : '',
+            format: fieldSchema.format || '',
+            readOnly: fieldSchema.readOnly || false
+        });
+        setModifyModalOpen(true);
+    };
+
+    const handleDeleteConfirm = () => {
+        if (modifyTypeCallback && currentField && !isRequired(currentField)) {
+            // Create updated type schema
+            const updatedType = _.cloneDeep(type);
+            delete updatedType.properties[currentField];
+            
+            // Call the modify callback with the updated type
+            modifyTypeCallback(updatedType, {
+                action: 'delete',
+                fieldName: currentField
+            });
         }
+        setDeleteModalOpen(false);
+        setCurrentField(null);
     };
 
-    const handleFieldNameChange = (e) => {
-        setFieldNameValue(e.target.value);
-    };
-
-    const handleFieldNameUpdate = (oldFieldName) => {
-        const newFieldTitle = fieldNameValue;
-        const newFieldName = toCamelCase(newFieldTitle);
+    const validateModifyForm = () => {
+        const errors = {};
         
-        if (newFieldName && newFieldName !== oldFieldName && onFieldRemove) {
-            // Remove the old field and add the new one
-            onFieldRemove(oldFieldName, { 
-                action: 'rename', 
-                newFieldName, 
-                newFieldTitle,
+        if (!modifyForm.key.trim()) {
+            errors.key = 'Property key is required';
+        } else if (modifyForm.key !== currentField && type.properties[modifyForm.key]) {
+            errors.key = 'Property key already exists';
+        } else if (!/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(modifyForm.key)) {
+            errors.key = 'Property key must be a valid identifier';
+        }
+        
+        if (!modifyForm.title.trim()) {
+            errors.title = 'Title is required';
+        }
+        
+        if (!['string', 'number', 'boolean', 'array', 'object'].includes(modifyForm.type)) {
+            errors.type = 'Invalid type selected';
+        }
+        
+        return errors;
+    };
+
+    const handleModifyConfirm = () => {
+        const errors = validateModifyForm();
+        if (Object.keys(errors).length > 0) {
+            console.warn('Form validation errors:', errors);
+            // You could show these errors in the UI
+            return;
+        }
+        
+        if (modifyTypeCallback && currentField) {
+            const updatedType = _.cloneDeep(type);
+            const oldFieldName = currentField;
+            const newFieldName = modifyForm.key.trim();
+            
+            // Remove old property
+            const oldProperty = updatedType.properties[oldFieldName];
+            delete updatedType.properties[oldFieldName];
+            
+            // Create new property with updated values
+            updatedType.properties[newFieldName] = {
+                ...oldProperty,
+                title: modifyForm.title.trim(),
+                description: modifyForm.description.trim(),
+                type: modifyForm.type,
+                readOnly: modifyForm.readOnly,
+                ...(modifyForm.enum.trim() && { enum: modifyForm.enum.split(',').map(s => s.trim()).filter(s => s) }),
+                ...(modifyForm.format.trim() && { format: modifyForm.format.trim() })
+            };
+            
+            // Update required array if field name changed
+            if (updatedType.required && updatedType.required.includes(oldFieldName) && oldFieldName !== newFieldName) {
+                const requiredIndex = updatedType.required.indexOf(oldFieldName);
+                updatedType.required[requiredIndex] = newFieldName;
+            }
+            
+            // Call the modify callback
+            modifyTypeCallback(updatedType, {
+                action: oldFieldName === newFieldName ? 'modify' : 'rename',
+                oldFieldName,
+                newFieldName,
                 value: localValue[oldFieldName] || ''
             });
         }
-        setEditingFieldName(false);
-        setFieldNameValue('');
+        setModifyModalOpen(false);
+        setCurrentField(null);
     };
 
-    const debouncedFieldNameUpdate = useDebounce(handleFieldNameUpdate, debounceTime);
+    const handleModalClose = () => {
+        setDeleteModalOpen(false);
+        setModifyModalOpen(false);
+        setCurrentField(null);
+    };
+
     const debouncedHandleUpdate = useDebounce(handleUpdate, debounceTime)
 
-    const renderInputField = (prop) => {
-        const fieldConfig = prop[1];
-        const fieldName = prop[0];
+    const renderInputField = (fieldName, fieldSchema) => {
         const isEditable = openEdit === fieldName && !disabled;
+        const fieldValue = localValue && localValue[fieldName] || '';
         
-        // Check if this is a dropdown field
-        if (fieldConfig.type === 'dropdown' && fieldConfig.options) {
+        // Handle enum fields (dropdown)
+        if (fieldSchema.enum && Array.isArray(fieldSchema.enum)) {
             return (
                 <FormControl 
                     className={isEditable ? classes.selectInputEdit : classes.selectInput}
@@ -121,15 +234,15 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
                     disabled={!isEditable}
                 >
                     <Select
-                        value={localValue && localValue[fieldName] || ''}
+                        value={fieldValue}
                         onChange={(e) => debouncedHandleUpdate(e.target.value, fieldName)}
                         onBlur={() => setIsEdit(false)}
                         displayEmpty
                     >
                         <MenuItem value="" disabled>
-                            <em>Select {fieldConfig.title || fieldName}</em>
+                            <em>Select {fieldSchema.title || fieldName}</em>
                         </MenuItem>
-                        {fieldConfig.options.map((option) => (
+                        {fieldSchema.enum.map((option) => (
                             <MenuItem key={option} value={option}>
                                 {option}
                             </MenuItem>
@@ -139,17 +252,40 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
             );
         }
         
-        // Default text field
+        // Handle different input types based on schema type
+        const getInputType = () => {
+            switch (fieldSchema.type) {
+                case 'number':
+                    return 'number';
+                case 'string':
+                    if (fieldSchema.format === 'date') return 'date';
+                    if (fieldSchema.format === 'date-time') return 'datetime-local';
+                    return 'text';
+                default:
+                    return 'text';
+            }
+        };
+        
+        // Default input field
         return (
             <TextField
+                type={getInputType()}
                 inputProps={{
-                    maxLength: 50,
-                    readOnly: !isEditable
+                    maxLength: fieldSchema.type === 'string' ? 500 : undefined,
+                    readOnly: !isEditable || fieldSchema.readOnly,
+                    step: fieldSchema.type === 'number' ? 'any' : undefined
                 }}
                 className={isEditable ? classes.inputEdit : classes.input}
-                defaultValue={localValue && localValue[fieldName] || ''}
-                onChange={(e) => debouncedHandleUpdate(e.target.value, fieldName)}
+                defaultValue={fieldValue}
+                onChange={(e) => {
+                    let value = e.target.value;
+                    if (fieldSchema.type === 'number' && value !== '') {
+                        value = parseFloat(value);
+                    }
+                    debouncedHandleUpdate(value, fieldName);
+                }}
                 onBlur={() => setIsEdit(false)}
+                placeholder={fieldSchema.description}
             />
         );
     };
@@ -160,100 +296,90 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
         if (_.isEqual(entityRef.current, entity)) {
             return;
         }
-        if (entityType === "Site") {
-            setLocalValue(entity || {});
-        } else {
-            // For custom objects with attributes
-            setLocalValue(entity?.attributes || {});
-        }
+        setLocalValue(entity || {});
         entityRef.current = entity;
-    }, [entity, entityType]);
+    }, [entity]);
+
+    const fieldProperties = getFieldProperties();
 
     return (
         <>
-            {!type?.length || !entity ? (
+            {!type?.properties || !entity ? (
                 <div>No data to edit.</div>
             ) : (
-                type?.map((prop, i) => {
-                    return <React.Fragment key={prop[0]}>
+                fieldProperties.map(([fieldName, fieldSchema], i) => {
+                    const isFieldKeyEditable = isKeyEditable(fieldName);
+                    const isFieldDeletable = isDeletable(fieldName);
+                    
+                    return <React.Fragment key={fieldName}>
                         <Grid style={{justifyContent: "space-between", alignItems: "center"}} container>
                             <Grid item xs={4}>
-                                {prop[1].isKeyEditable && editingFieldName === prop[0] ? (
-                                    <TextField
-                                        defaultValue={prop[1].title || prop[0]}
-                                        onChange={handleFieldNameChange}
-                                        onBlur={() => debouncedFieldNameUpdate(prop[0])}
-                                        onKeyPress={(e) => {
-                                            if (e.key === 'Enter') {
-                                                debouncedFieldNameUpdate(prop[0]);
-                                            }
-                                        }}
-                                        variant="outlined"
-                                        size="small"
-                                        autoFocus
-                                        style={{ minWidth: '120px' }}
-                                    />
-                                ) : (
-                                    <Typography
-                                        variant="body2"
-                                        className={classes.title}
-                                        onClick={prop[1].isKeyEditable && !disabled ? () => {
-                                            setEditingFieldName(prop[0]);
-                                            setFieldNameValue(prop[1].title || prop[0]);
-                                        } : null}
-                                        style={{ 
-                                            cursor: prop[1].isKeyEditable && !disabled ? 'pointer' : 'default',
-                                            textDecoration: prop[1].isKeyEditable && !disabled ? 'underline dotted' : 'none'
-                                        }}
-                                    >
-                                        {toTitleCase(prop[1].title || prop[0])}:
-                                    </Typography>
-                                )}
+                                <Typography
+                                    variant="body2"
+                                    className={classes.title}
+                                    style={{ 
+                                        fontWeight: isRequired(fieldName) ? 'bold' : 'normal'
+                                    }}
+                                >
+                                    {fieldSchema.title || fieldName}:
+                                    {isRequired(fieldName) && <span style={{color: 'red'}}> *</span>}
+                                </Typography>
                             </Grid>
                             <Grid item xs={6}>
-                                {renderInputField(prop)}
+                                {renderInputField(fieldName, fieldSchema)}
                             </Grid>
                             <Grid item xs={2} style={{ display: 'flex', gap: 4 }}>
                                 <Tooltip
                                     title={
-                                        openEdit === prop[0]
+                                        openEdit === fieldName
                                             ? 'Close Edit'
                                             : disabled
                                                 ? 'Editing is disabled'
-                                                : prop[1].readOnly
-                                                    ? prop[1].description || 'This property is not editable'
-                                                    : 'Edit'
+                                                : fieldSchema.readOnly
+                                                    ? fieldSchema.description || 'This property is not editable'
+                                                    : 'Edit Value'
                                     }
                                     placement="bottom"
                                 >
                                     <IconButton
                                         onClick={
-                                            openEdit === prop[0]
+                                            openEdit === fieldName
                                                 ? () => setIsEdit(false)
-                                                : (disabled || prop[1].readOnly)
+                                                : (disabled || fieldSchema.readOnly)
                                                     ? null
-                                                    : () => setIsEdit(prop[0])
+                                                    : () => setIsEdit(fieldName)
                                         }
                                         size="small"
-                                        disabled={disabled && openEdit !== prop[0]}
+                                        disabled={disabled && openEdit !== fieldName}
                                     >
-                                        {openEdit === prop[0] ? (
+                                        {openEdit === fieldName ? (
                                             <CancelOutlined className={classes.iconButton} />
-                                        ) : (disabled || prop[1].readOnly) ? (
+                                        ) : (disabled || fieldSchema.readOnly) ? (
                                             <InfoOutlined className={classes.iconButton} />
                                         ) : (
                                             <EditOutlined className={classes.iconButton} />
                                         )}
                                     </IconButton>
                                 </Tooltip>
-                                {prop[1].isDeletable && (
-                                    // <div>HW!</div>
-                                    <Tooltip
-                                        title="Remove field"
-                                        placement="bottom"
-                                    >
+                                
+                                {/* Property Settings Button */}
+                                {!isRequired(fieldName) && (
+                                    <Tooltip title="Modify Property" placement="bottom">
                                         <IconButton
-                                            onClick={() => onFieldRemove && onFieldRemove(prop[0], { action: 'delete' })}
+                                            onClick={() => handleOpenModifyModal(fieldName)}
+                                            size="small"
+                                            disabled={disabled}
+                                        >
+                                            <SettingsOutlined className={classes.iconButton} />
+                                        </IconButton>
+                                    </Tooltip>
+                                )}
+                                
+                                {/* Delete Button */}
+                                {isFieldDeletable && (
+                                    <Tooltip title="Delete Property" placement="bottom">
+                                        <IconButton
+                                            onClick={() => handleOpenDeleteModal(fieldName)}
                                             size="small"
                                             disabled={disabled}
                                         >
@@ -263,10 +389,117 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
                                 )}
                             </Grid>
                         </Grid>
-                        {type.length !== i + 1 && <Divider />}
+                        {fieldProperties.length !== i + 1 && <Divider />}
                     </React.Fragment>
                 })
             )}
+            
+            {/* Delete Confirmation Modal */}
+            <Dialog open={deleteModalOpen} onClose={handleModalClose} maxWidth="sm" fullWidth>
+                <DialogTitle>Delete Property</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Are you sure you want to remove the property <strong>"{currentField}"</strong>? 
+                        This action cannot be undone.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleModalClose} color="primary">
+                        Cancel
+                    </Button>
+                    <Button onClick={handleDeleteConfirm} color="secondary" variant="contained">
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Property Modification Modal */}
+            <Dialog open={modifyModalOpen} onClose={handleModalClose} maxWidth="md" fullWidth>
+                <DialogTitle>Modify Property</DialogTitle>
+                <DialogContent>
+                    <Grid container spacing={2} style={{ marginTop: 8 }}>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                label="Property Key"
+                                fullWidth
+                                value={modifyForm.key}
+                                onChange={(e) => setModifyForm({ ...modifyForm, key: e.target.value })}
+                                disabled={isRequired(currentField)}
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                label="Title"
+                                fullWidth
+                                value={modifyForm.title}
+                                onChange={(e) => setModifyForm({ ...modifyForm, title: e.target.value })}
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField
+                                label="Description"
+                                fullWidth
+                                multiline
+                                rows={2}
+                                value={modifyForm.description}
+                                onChange={(e) => setModifyForm({ ...modifyForm, description: e.target.value })}
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <FormControl fullWidth>
+                                <InputLabel>Field Type</InputLabel>
+                                    <Select
+                                        value={modifyForm.type}
+                                        onChange={(e) => setModifyForm({ ...modifyForm, type: e.target.value })}
+                                        displayEmpty
+                                    >
+                                        <MenuItem value="string">String</MenuItem>
+                                        <MenuItem value="number">Number</MenuItem>
+                                        <MenuItem value="boolean">Boolean</MenuItem>
+                                        <MenuItem value="array">Array</MenuItem>
+                                        <MenuItem value="object">Object</MenuItem>
+                                    </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                label="Format"
+                                fullWidth
+                                value={modifyForm.format}
+                                onChange={(e) => setModifyForm({ ...modifyForm, format: e.target.value })}
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField
+                                label="Enum Values"
+                                fullWidth
+                                value={modifyForm.enum}
+                                onChange={(e) => setModifyForm({ ...modifyForm, enum: e.target.value })}
+                                placeholder="option1, option2, option3"
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={modifyForm.readOnly}
+                                        onChange={(e) => setModifyForm({ ...modifyForm, readOnly: e.target.checked })}
+                                    />
+                                }
+                                label="Read Only"
+                            />
+                        </Grid>
+                    </Grid>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleModalClose} color="primary">
+                        Cancel
+                    </Button>
+                    <Button onClick={handleModifyConfirm} color="primary" variant="contained">
+                        Save Changes
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </>
     );
 };

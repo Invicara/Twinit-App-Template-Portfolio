@@ -10,11 +10,13 @@ import './PortfolioOverview.css'
 import './components/map/darkMap.scss'
 import {createMachine} from "./machines/hierarchicalMapMachine";
 import ipaConfig from "../../ipaConfig.js";
-import { useSelector as useReduxSelector } from 'react-redux';
+import { useDispatch, useSelector as useReduxSelector } from 'react-redux';
 import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
 import clsx from "clsx";
 import {Custom2D3DToggle} from "./components/map/Custom2D3DToggle";
+import { IafItemSvc } from '@dtplatform/platform-api';
+import { setMapTypes } from '../../redux/pageComponentState.js';
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -85,6 +87,8 @@ const DEFAULT_PATHS = [
 
 export default function PortfolioOverview({handler, userConfig, selectedItems}) {
     const classes = useStyles();
+    const dispatch = useDispatch();
+
     const namedPathsConfig = handler?.componentConfig;
     const namedPaths = useMemo(()=>namedPathsConfig?.namedPaths || DEFAULT_PATHS,[]);
     const machineDef = useMemo(()=>createMachine("mapMachine",namedPaths),[namedPaths]);
@@ -112,7 +116,14 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             }
             setMmvConfig(config);
         }
+
+        const fetchMapTypes = async () => {
+            const types = await ScriptCache.runScript("getMapTypes", {namedPaths});
+            dispatch(setMapTypes(types));
+        }
+
         fetchGisConfig();
+        fetchMapTypes();
     },[namedPaths])
 
     const isSelectingPosition = useReduxSelector(selectIsSelectingPosition);
@@ -184,8 +195,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             }, 100);
         }
     }, [showSimpleViewer, mapInstance]);
-    window.currentState = currentState;
-    window.mapInstance = mapInstance;
 
     const handleMMVEvent = (event) => {
         //console.log('PortfolioOverview MMV Event:', event);
