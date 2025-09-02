@@ -7,10 +7,10 @@ import './ElementDetails.scss'
 
 // displays a list of element type and instance properties in a row of the table
 // when a row is expanded
-const ElementDetails = ({ element, horizontal = true, readOnly, onView }) => {
+const ElementDetails = ({ element, horizontal = true, readOnly, onView, displayFiles = true }) => {
    const { setSelectedElement, setSliceElements } = useContext(ModelContext)
 
-   if (element.RelatedFiles._list.length > 0) {
+   if (displayFiles && element.RelatedFiles._list.length > 0) {
       element.files = [];
 
       for (const item of element.RelatedFiles._list) {
@@ -26,25 +26,27 @@ const ElementDetails = ({ element, horizontal = true, readOnly, onView }) => {
    }
 
    return <>
-      <table className='file-details-table'>
-         <thead>
-            <tr>
-               <th>Files</th>
-            </tr>
-         </thead>
-         <tbody>
-            {element?.files?.map(f => <FileRow
-               key={f._id}
-               file={f}
-               onChange={() => {
-                  setSelectedElement(null)
-                  setSliceElements([])
-               }}
-               onView={onView}
-               readOnly={readOnly}
-            />)}
-         </tbody>
-      </table>
+      {displayFiles &&
+         <table className='file-details-table'>
+            <thead>
+               <tr>
+                  <th>Files</th>
+               </tr>
+            </thead>
+            <tbody>
+               {element?.files?.map(f => <FileRow
+                  key={f._id}
+                  file={f}
+                  onChange={() => {
+                     setSelectedElement(null)
+                     setSliceElements([])
+                  }}
+                  onView={onView}
+                  readOnly={readOnly}
+               />)}
+            </tbody>
+         </table>
+      }
       <tr className='element-details-row'>
          <td className='element-details-cell'>
             <table className='element-details-table'>
