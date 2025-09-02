@@ -22,6 +22,11 @@
                 width: 100%;
                 padding: 20px;
 
+                .elementDetails {
+                    display: flex;
+                    overflow-x: scroll;
+                }
+
                 label.model-select-label {
                     display: block;
                     font-weight: bold;
