@@ -107,7 +107,7 @@ export default function SearchPanel({ currentState, context }) {
 
   const [filters, setFilters] = useState({
     search: '',
-    palierGroup: '',
+    group: '',
     plant: '',
     department: '',
     deployStatus: '',
@@ -150,14 +150,14 @@ export default function SearchPanel({ currentState, context }) {
             </Grid>
 
             <Grid item>
-              <Typography variant="body1" className={classes.label}>Palier Group</Typography>
+              <Typography variant="body1" className={classes.label}>Group</Typography>
               <FormControl
                 variant="outlined"
                 className={classes.formControl}
               >
                 <Select
-                  name="palierGroup"
-                  value={filters.palierGroup}
+                  name="group"
+                  value={filters.group}
                   onChange={handleChange}
                   displayEmpty
                   IconComponent={KeyboardArrowDownIcon} 
