@@ -15,14 +15,14 @@ import {
 import clsx from 'clsx';
 import SearchIcon from '@material-ui/icons/Search';
 import KeyboardArrowDownIcon from '@material-ui/icons/KeyboardArrowDown';
+import DeployStatusChart from './DeployStatusBarChart';
 
 const useStyles = makeStyles((theme) => ({
     sidebarPaper: {
         width: 580,
-        height: '100%',
-        overflowY: 'auto',
+        maxHeight: '100vh',   
+        overflowY: 'auto',   
         flexShrink: 0,
-        position: 'fixed', 
         '& .MuiSelect-outlined.MuiSelect-select': {
             display: 'flex',
             alignItems: 'center',      
@@ -89,6 +89,16 @@ const useStyles = makeStyles((theme) => ({
         transform: 'rotate(0deg)', 
         opacity: 1,
         color: '#5D5D5D',    
+      },
+      divider: {
+        border: 'none',
+        height: '1px',
+        borderTop: '1px solid #EBEBEB',
+        marginBottom: 24,
+        width: 532,
+        marginTop: 0,
+        marginLeft: 'auto',
+        marginRight: 'auto',
       },
 }));
 
@@ -260,6 +270,8 @@ export default function SearchPanel({ currentState, context }) {
           </Grid>
         </form>
       </Box>
+      <Box className={classes.divider} />
+      <DeployStatusChart />
     </Paper>
   );
 };
