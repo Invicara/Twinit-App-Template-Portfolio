@@ -457,8 +457,8 @@ export default function SiteDetails({ context }) {
                 Math.pow(newPin[1] - firstPin[1], 2)
             );
             
-            // Close shape if clicked within ~50 meters of first pin (approximate)
-            if (distance < 0.0005) {
+            // Close shape if clicked within ~25 meters of first pin (approximate)
+            if (distance < 0.00025) {
                 completeShape(newPins);
                 return;
             }
