@@ -1,3 +1,11 @@
+function randomGuid() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+        return v.toString(16);
+    });
+}
+
+
 let scriptModule = {
     async getGISConfig(input, libraries, ctx, callback) {
         return {
@@ -117,6 +125,36 @@ let scriptModule = {
             default:
                 return {};
         }
+    }, 
+
+    async afterLayerSetupCommands(input){
+
+        const {groupedFeatures} = input;
+
+        const commands  = [
+            {
+                "commandName": "theme_elements",
+                "commandRef": randomGuid(),
+                "params": {
+                    "groups": {
+                        "sites_default": {
+                            "color": [ 223, 21, 140 ],
+                            ids: groupedFeatures.site.map(el => el.siteId)
+                        }
+                    },
+                    "clear": false,
+                    "extra": {
+                        "field": "siteId",
+                        "fieldType": "string",
+                        "layerNames": [
+                            "site-features-layer"
+                        ]
+                    }
+                }
+            }
+        ]
+
+        return commands;
     }
 }
 
