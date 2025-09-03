@@ -213,12 +213,12 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                     
                     <Grid container className={classes.mainContent}> 
                         {/* TODO: remove here later, test search panel UI for now by uncommenting SearchPanel here and commenting out StatePanel grid item below */}
-                        {/* <Grid item className={classes.searchPanel}>
+                        <Grid item className={classes.searchPanel}>
                             <SearchPanel />
-                        </Grid> */}
-                        <Grid item className={classes.statePanel}>
-                            <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
                         </Grid>
+                        {/* <Grid item className={classes.statePanel}>
+                            <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
+                        </Grid> */}
                         <Grid item xs className={classes.viewerContainer}>
                             <div
                                 className={clsx(classes.mmvContainer, "dark-map", {'map-selecting-position' : isSelectingPosition})}
