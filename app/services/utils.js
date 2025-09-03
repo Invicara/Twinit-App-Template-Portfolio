@@ -53,3 +53,34 @@ export const getFileUrlFromFilename = async ({ filename, container }) => {
 
     return result._url
 }
+
+/**
+ * Extract full hierarchical path keys from XState v5 snapshot.value
+ * e.g. { portfolio: { site: { building: 'idle' } } } -> ['portfolio','site','building']
+ */
+export function getActiveChain(snapshotValue) {
+    const chain = [];
+    let node = snapshotValue;
+    while (node && typeof node === 'object') {
+        const [k] = Object.keys(node);
+        if (!k) break;
+        chain.push(k);
+        node = node[k];
+    }
+    return chain;
+}
+
+export function getActiveLevels(currentState){
+
+    const namedPath = currentState.context.namedPaths[0];
+
+    const chain = getActiveChain(currentState.value);
+
+    // map chain to level defs (from namedPath)
+    const levels = chain
+        .map(stateName => namedPath.find(l => l.state === stateName))
+        .filter(Boolean); // only those defined in namedPath
+
+    return levels;
+}
+

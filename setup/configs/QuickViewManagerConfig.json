@@ -1,20 +1,43 @@
 {
   "handlers": {
-    "projectMaker": {
-      "title": "QMV Manager",
-      "icon": "fas fa-folder-plus fa-2x",
-      "shortName": "projmk",
-      "description": "Create New Quick Model View Projects",
-      "pageComponent": "projectMaker/projectMakerView",
-      "path": "/projectmaker",
-      "scriptTypes": [
-        "project-maker"
-      ],
+    "modelComparison": {
+      "title": "Model Comparison",
+      "icon": "fa fa-clone fa-2x",
+      "shortName": "modelComparison",
+      "description": "Model Comparison",
+      "pageComponent": "modelComparison/ModelComparisonView",
+      "path": "/modelcomparison",
+      "config": {}
+    },
+    "modelImport": {
+      "title": "Model Import",
+      "icon": "fas fa-file-import fa-2x",
+      "shortName": "modelimp",
+      "description": "Model Import",
+      "pageComponent": "modelImport/SimpleModelImportView",
+      "path": "/modelimp",
       "config": {
-        "currentVersionScript": "getCurrentMakerVersion",
-        "projectCreateScript": "createNewQuickModelViewProject",
-        "projectUpdateScript": "updateQuickModelViewProject"
+        "bimpkUserType": "bimpk_importer",
+        "sgpkUserType": "sgpk_importer"
       }
+    },
+    "modelView": {
+      "title": "Model View",
+      "icon": "fas fa-building fa-2x",
+      "shortName": "modelview",
+      "description": "Model View",
+      "pageComponent": "simpleViewer/SimpleViewerView",
+      "path": "/modelview",
+      "config": {
+        "manageFiles": true
+      }
+    },
+    "mapboxSettings": {
+      "title": "Mapbox Settings",
+      "icon": "fas fa-map-marked-alt fa-2x",
+      "pageComponent": "mapboxSettings/MapboxSettingsView",
+      "path": "/mapboxsettings",
+      "config": {}
     },
     "userGroups": {
       "title": "User Group",
@@ -29,19 +52,58 @@
         "allowManageInvites": true,
         "allowManageUsers": true
       }
+    },
+    "portfolioOverview": {
+      "title": "Portfolio Overview",
+      "icon": "fas fa-map-marked-alt fa-2x",
+      "pageComponent": "portfolioOverview/PortfolioOverview",
+      "path": "/portfoliomap",
+      "config": {},
+      "scriptTypes": [
+        "mmv_config",
+        "mapTypeActions"
+      ]
     }
   },
   "homepage": {
-    "handler": "projectMaker"
+    "handler": "portfolioOverview"
   },
   "groupedPages": {
-    "projects": {
-      "icon": "fas fa-folder-plus fa-2x",
+    "home": {
+      "icon": "fas fa-home fa-2x",
       "position": 1,
       "pages": [
         {
-          "page": "QMV Project Maker",
-          "handler": "projectMaker"
+          "page": "Portfolio Overview",
+          "handler": "portfolioOverview"
+        }
+      ]
+    },
+    "model": {
+      "icon": "fas fa-building fa-2x",
+      "position": 2,
+      "pages": [
+        {
+          "page": "Model View",
+          "handler": "modelView"
+        },
+        {
+          "page": "Model Comparison",
+          "handler": "modelComparison"
+        },
+        {
+          "page": "Model Import",
+          "handler": "modelImport"
+        }
+      ]
+    },
+    "settings": {
+      "icon": "fas fa-tools fa-2x",
+      "position": 3,
+      "pages": [
+        {
+          "page": "Mapbox Settings",
+          "handler": "mapboxSettings"
         }
       ]
     }
@@ -65,7 +127,12 @@
       "--fancytree-two-color": "#f26827",
       "--fancytree-two-channel-color": "#fde0d7",
       "--fancytree-three-color": "#00a693",
-      "--fancytree-three-channel-color": "#cdebe8"
+      "--fancytree-three-channel-color": "#cdebe8",
+      "--element-table-font-primary": "#141414",
+      "--element-table-font-secondary": "#757575",
+      "--element-table-font-disabled": "#9e9e9e",
+      "--element-table-border": "#9e9e9e",
+      "--element-table-selected-row-color": "lightcyan"
     }
   }
 }
