@@ -772,7 +772,7 @@ export async function getEntryAction({mapMachineInput }) {
         case 'portfolio.site.building': {
             const siteId = event.siteId ?? context.siteId;
             const buildingId = event.buildingId ?? context.buildingId;
-            let { commands, theme = {}, singleMarkers, legend } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});\
+            let { commands, theme = {}, singleMarkers, legend } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
             zoomToFeature({map: context.map, context, state: 'building', featureId: buildingId});
             return { commands: null, legend };
         }
