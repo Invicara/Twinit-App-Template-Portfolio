@@ -14,8 +14,11 @@ import {
     makePieCanvas,
     renderAllMarkers,
     zoomIntoClusterByExpansion
-} from "./clusteredMarkers.mjs";
+} from "./mapMarkers.mjs";
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils/index.js";
+import {isColorProp, normalizeColorRGB} from "./colorNormalization.mjs";
+
+const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
 
 function makeBinColorExpression(config) {
     const expr = ["case"];
@@ -36,9 +39,105 @@ function makeBinColorExpression(config) {
 
     // fallback color
     expr.push("#e30f0f");
-    console.log("makeBinColorExpression",expr);
     return expr;
 }
+
+/**
+ * Build theming groups from a numeric bin config, supporting extra paint props
+ * at the top level and per-bin.
+ *
+ * @param {mapboxgl.Map} map
+ * @param {string} layerId                    // target layer id
+ * @param {string} idKey                      // property holding feature id
+ * @param {{
+ *   property: string,
+ *   bins: Array<{
+ *     id: string,
+ *     min: number|null,
+ *     max: number|null,
+ *     color?: any,
+ *     label?: string,
+ *     // ...any extra paint props, e.g. "circle-radius", "line-width", etc.
+ *   }>,
+ *   // Optional top-level defaults for all groups (e.g., "circle-radius": 7)
+ *   [extraProp: string]: any
+ * }} binConfig
+ * @returns {{
+ *   groupsObject: Record<string, { ids: string[], [prop:string]: any }>
+ * }}
+ */
+function buildGroupsFromBins(map, layerId, idKey, binConfig) {
+    const layer = map.getLayer(layerId);
+    if (!layer) throw new Error(`Layer "${layerId}" not found`);
+
+    const sourceId = layer.source;
+    const src = map.getSource(sourceId);
+    if (!src) throw new Error(`Source "${sourceId}" not found for layer "${layerId}"`);
+
+    // Collect features we can access
+    let features = [];
+    if (src.type === 'geojson') {
+        const data = src._data;
+        features = Array.isArray(data?.features) ? data.features : [];
+    } else if (src.type === 'vector') {
+        const sourceLayer = layer['source-layer'];
+        if (!sourceLayer) throw new Error(`Layer "${layerId}" is vector-backed but missing "source-layer"`);
+        features = map.querySourceFeatures(sourceId, { sourceLayer });
+    } else {
+        throw new Error(`Unsupported source type for binning: ${src.type}`);
+    }
+
+    const propName = binConfig.property;
+    const bins = binConfig.bins || [];
+
+    // Determine which keys are "control" keys we shouldn't copy as paint props
+    const CONTROL_KEYS = new Set(['id', 'min', 'max', 'label', 'ids']);
+
+    // Extract top-level extra props to apply to every group (unless overridden)
+    const topLevelExtras = Object.fromEntries(
+        Object.entries(binConfig).filter(([k]) => !['property', 'bins'].includes(k))
+    );
+
+    // Prepare groups keyed by bin id, prefilled with top-level extras
+    const groupsObject = {};
+    for (const bin of bins) {
+        const base = { ids: [] };
+
+        // Start with top-level extras…
+        for (const [k, v] of Object.entries(topLevelExtras)) {
+            base[k] = isColorProp(k) ? normalizeColorRGB(v) : v;
+        }
+        // …then apply per-bin props (these override top-level extras)
+        for (const [k, v] of Object.entries(bin)) {
+            if (!CONTROL_KEYS.has(k)) {
+                base[k] = isColorProp(k) ? normalizeColorRGB(v) : v; // includes 'color' and any explicit paint prop like 'circle-radius'
+            }
+        }
+        groupsObject[bin.id] = base;
+    }
+
+    // Assign features to bins
+    for (const f of features) {
+        const props = f?.properties || {};
+        const id = props?.[idKey];
+        if (id == null) continue;
+
+        const rawVal = props?.[propName];
+        const val = typeof rawVal === 'number' ? rawVal : Number(rawVal);
+        if (Number.isNaN(val)) continue;
+
+        const bin = bins.find(b =>
+            (b.min == null || val >= b.min) &&
+            (b.max == null || val <  b.max)
+        );
+        if (bin) {
+            groupsObject[bin.id].ids.push(String(id));
+        }
+    }
+
+    return { groupsObject };
+}
+
 
 function extendBoundsFromCoords(bounds, coords) {
     if (typeof coords[0] === 'number') {
@@ -85,14 +184,12 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
     if (!map || !context || !context.namedPaths) return;
     const namedPath = context.namedPaths[0];//TODO, select correct namedPath index
 
-    // Helper to get level def from state name
-    const getLevel = (stateName) => namedPath.find(lvl => lvl.state === stateName);
-
+    let commands;
     if (state && featureId) {
-        const level = getLevel(state);
+        const level = getLevel(state, namedPath);
         if (!level || !level.idKey) return;
 
-        context.mmvSend([{
+        commands = [{
             commandName: MMV_COMMANDS.ZOOM_TO,
             commandRef: uuid(),
             params: {
@@ -107,9 +204,11 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
                     }
                 }
             }
-        }]);
+        }]
 
-        return;
+        context.mmvSend(commands);
+
+        return {/*commands - soon we will be sending commands to queue them and schedule react and mapbox requests for main thread execution*/};
     }
 
     zoomToAllFeatures(map, namedPath.map(lvl => `${lvl.state}-features`));
@@ -532,7 +631,51 @@ export async function addLayers({ context, sendBack, self }) {
         sendBack,
         getContext: self ? () => self.getSnapshot().context : () => context
     });
+
+    const afterLayerSetupCommands = await ScriptCache.runScript("afterLayerSetupCommands", {groupedFeatures: allFeatureLayers});
+    context.mmvSend(afterLayerSetupCommands || []);
+
     return {data: allFeatureLayers};
+}
+
+async function handleMarkers(stateValue, markersConfig, {context, self}) {
+
+    let manageMarkers;
+
+    if(context.manageMarkers[stateValue]){
+        context.map.off('moveend', context.manageMarkers[stateValue]);
+        context.map.off('idle', context.manageMarkers[stateValue]);
+        context.map.off('sourcedata', context.manageMarkers[stateValue])
+    }
+
+    if(markersConfig){
+        manageMarkers = async (e) => {
+            const {graphics} = await renderAllMarkers(e, {context, self}, markersConfig);
+
+            if (graphics && graphics.length > 0) {
+                const commands = [{
+                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                    commandRef: uuid(),
+                    params: {
+                        ids: graphics.map(g => g.id),//remove stale
+                    }
+                }, {
+                    commandName: MMV_COMMANDS.ADD_GRAPHICS,
+                    commandRef: uuid(),
+                    params: {
+                        graphics: graphics
+                    }
+                }]
+                context.mmvSend(commands);
+            };
+        }
+        context.map.on('moveend', manageMarkers);
+        context.map.on('idle', manageMarkers);
+        context.map.on('sourcedata', manageMarkers);
+        manageMarkers();
+    }
+
+    return {manageMarkers}
 }
 
 export async function getInitAction({mapMachineInput }) {
@@ -552,68 +695,86 @@ export async function getEntryAction({mapMachineInput }) {
 
             //we are calling the mapbox API imperatively here, we will replace that with commands in next task
 
-            let { commands, theme = {}, singleMarkers, clustersMarkers } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
+            let { commands, theme = {}, singleMarkers, legend } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
             //zoom out to all features
             zoomToFeature({map: context.map, context});
-
+            const namedPath = context.namedPaths[0];//TODO, select correct namedPath index
 
             for(const layerId of Object.keys(theme)) {
                 const themeConfig = theme[layerId];
-                context.map.setPaintProperty(
-                    layerId,
-                    "circle-color",
-                    makeBinColorExpression(themeConfig)
-                );
-                if(themeConfig["circle-radius"]){
-                    context.map.setPaintProperty(
-                        layerId,
-                        "circle-radius",
-                        themeConfig["circle-radius"]);
+                const state = layerId.split("-")[0];
+                const level = getLevel(state, namedPath);
+                if(level){
+                    const { groupsObject } =
+                        buildGroupsFromBins(context.map, layerId, level.idKey, themeConfig);
+
+                    const mmvThemeCommands = [{
+                        commandName: MMV_COMMANDS.THEME_ELEMENTS,
+                        commandRef: uuid(),
+                        params: {
+                            groups: groupsObject,
+                            clear: false,
+                            extra: {
+                                field: level.idKey,
+                                fieldType: level.idType || "string",
+                                layerNames: [layerId]
+                            }
+                        }
+                    }];
+                    console.log("Theming command",{stateValue, mmvThemeCommands});
+                    context.mmvSend(mmvThemeCommands)
                 }
             }
 
-            for(const path of Object.keys(singleMarkers)) {
-                const markersConfig = singleMarkers[path];
-                markersConfig.forEach(markerConfig => {
-                    try {
-                        const src = context.map.getSource(markerConfig.sourceId);
-                        const data = src._data || src.serialize().data; // raw GeoJSON
-                        const features = data?.features;
-                        markerConfig.features = features;
-                    } catch(e){
-                        console.error(e);
-                        markerConfig.features = [];
-                    }
-                })
-            }
+            const markersConfig = singleMarkers;
+            const {manageMarkers} = await handleMarkers(stateValue, markersConfig, {context, self});
 
-            let manageMarkers;
-            manageMarkers = (e) => renderAllMarkers(e, {context, self}, clustersMarkers, singleMarkers);
-            if(context.manageMarkers){
-                context.map.off('moveend', context.manageMarkers);
-                context.map.off('idle', context.manageMarkers);
-                context.map.off('sourcedata', context.manageMarkers)
-            }
-            context.map.on('moveend', manageMarkers);
-            context.map.on('idle', manageMarkers);
-            context.map.on('sourcedata', manageMarkers);
-            manageMarkers();
-
-
-            return { commands: null, manageMarkers };
+            return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme, legend };
         }
 
         case 'portfolio.site': {
             const siteId = event.siteId ?? context.siteId;
             zoomToFeature({map: context.map, context, state: 'site', featureId: siteId});
-            return { commands: null };
+            const namedPath = context.namedPaths[0];//TODO, select correct namedPath index
+            let { commands, theme = {}, singleMarkers, legend } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
+            const markersConfig = singleMarkers;
+            const {manageMarkers} = await handleMarkers(stateValue, markersConfig, {context, self});
+
+            for(const layerId of Object.keys(theme)) {
+                const themeConfig = theme[layerId];
+                const state = layerId.split("-")[0];
+                const level = getLevel(state, namedPath);
+                if(level){
+                    const { groupsObject } =
+                        buildGroupsFromBins(context.map, layerId, level.idKey, themeConfig);
+
+                    const mmvThemeCommands = [{
+                        commandName: MMV_COMMANDS.THEME_ELEMENTS,
+                        commandRef: uuid(),
+                        params: {
+                            groups: groupsObject,
+                            clear: false,
+                            extra: {
+                                field: level.idKey,
+                                fieldType: level.idType || "string",
+                                layerNames: [layerId]
+                            }
+                        }
+                    }];
+                    console.log("Theming command",{stateValue, mmvThemeCommands});
+                    context.mmvSend(mmvThemeCommands)
+                }
+            }
+
+            return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme, legend };
         }
 
         case 'portfolio.site.building': {
             const siteId = event.siteId ?? context.siteId;
             const buildingId = event.buildingId ?? context.buildingId;
+            let { commands, theme = {}, singleMarkers, legend } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
             zoomToFeature({map: context.map, context, state: 'building', featureId: buildingId});
-            return { commands: null };
+            return { commands: null, legend };
         }
 
         default:
@@ -623,20 +784,48 @@ export async function getEntryAction({mapMachineInput }) {
 
 export async function getExitAction({mapMachineInput }) {
     const {stateValue, context, event, self} = mapMachineInput;
-
-    if (context.suppressEntryActions) {
-        return { suppressEntryActions: false };
+    console.log("getExitAction", {mapMachineInput});
+    if (context.suppressExitActions) {
+        return { suppressExitActions: false };
     }
     switch (stateValue) {
         case 'portfolio': {
 
-            context.manageMarkers && context.map.off('moveend', context.manageMarkers);
-            context.manageMarkers && context.map.off('idle', context.manageMarkers);
-            context.manageMarkers && context.map.off('sourcedata', context.manageMarkers);
-            console.log("leaving state portfolio", {stateValue, context})
-            clearStaleMarkersByPath("site")
+            if(context.manageMarkers[stateValue]){
+                context.map.off('moveend', context.manageMarkers[stateValue]);
+                context.map.off('idle', context.manageMarkers[stateValue]);
+                context.map.off('sourcedata', context.manageMarkers[stateValue]);
+            }
+            const markerIds = clearStaleMarkersByPath("site")
+            const commands = [{
+                commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                commandRef: uuid(),
+                params: {
+                    ids: [...markerIds],
+                }
+            }]
+            context.mmvSend(commands);
 
-            return { manageMarkers: null };
+            return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
+        }
+        case 'portfolio.site': {
+
+            if(context.manageMarkers[stateValue]){
+                context.map.off('moveend', context.manageMarkers[stateValue]);
+                context.map.off('idle', context.manageMarkers[stateValue]);
+                context.map.off('sourcedata', context.manageMarkers[stateValue]);
+            }
+            const markerIds = clearStaleMarkersByPath("building")
+            const commands = [{
+                commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                commandRef: uuid(),
+                params: {
+                    ids: [...markerIds],
+                }
+            }]
+            context.mmvSend(commands);
+
+            return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
         }
 
         default:

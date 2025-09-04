@@ -7,12 +7,13 @@ const fallback = <div>Loading details…</div>;
 
 export default function StatePanel({ currentState, context, send }) {
 
+    const states = Object.keys(ipaConfig.mapPortfolio.statePanel.componentPaths || {});
+    const stateKey = useMemo(()=>states.reverse().find(state=>currentState.matches(state)),[currentState]);
+
     const LazyComponent = useMemo(() => {
-        const states = Object.keys(ipaConfig.mapPortfolio.statePanel.componentPaths || {});
-        const stateKey = states.reverse().find(state=>currentState.matches(state));
         const importer = ipaConfig.mapPortfolio.statePanel.componentPaths[stateKey];
         return importer ? lazy(()=>import(`./statePanels/${importer}`)) : null;
-    }, [currentState.value]);
+    }, [stateKey]);
 
     if (!LazyComponent) return null;
 

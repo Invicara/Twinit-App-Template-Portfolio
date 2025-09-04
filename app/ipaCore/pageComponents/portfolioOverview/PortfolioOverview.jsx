@@ -1,5 +1,5 @@
-import React, {useEffect, useMemo, useState, createContext} from 'react';
-import { useActor, useSelector, useMachine } from '@xstate/react';
+import React, {useEffect, useMemo, useState, createContext, useCallback, useRef} from 'react';
+import { useActor, useSelector as useXstateSelector, useMachine } from '@xstate/react';
 import { makeStyles } from '@material-ui/core';
 import MMVIntegratedMap from './components/MMVIntegratedMap';
 import StatePanel from './components/StatePanel';
@@ -12,11 +12,18 @@ import {createMachine} from "./machines/hierarchicalMapMachine";
 import ipaConfig from "../../ipaConfig.js";
 import { useDispatch, useSelector as useReduxSelector } from 'react-redux';
 import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
+import SearchPanel from './components/SearchPanel';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
 import clsx from "clsx";
-import {Custom2D3DToggle} from "./components/map/Custom2D3DToggle";
+import {Custom2D3DToggle} from "./components/map/control/Custom2D3DToggle";
 import { IafItemSvc } from '@dtplatform/platform-api';
 import { setMapTypes } from '../../redux/pageComponentState.js';
+import {useSelector} from "react-redux";
+import {Legend} from "./components/map/control/Legend.jsx";
+import {flushSync} from "react-dom";
+import PopupPortal from "./components/map/popup/PopupPortal.jsx";
+import StatusPopup from "./components/map/popup/StatusPopup.jsx";
+import {usePopupState} from "./components/map/popup/usePopupState.jsx";
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -53,6 +60,10 @@ const useStyles = makeStyles((theme) => ({
         width: 400,
         height: '100%'
     },
+    searchPanel: {
+        width: 580,
+        height: '100%'
+    },
     viewerContainer: {
         height: "100%",
         position: "relative"
@@ -74,7 +85,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 // Create context for the actor
-export const PortfolioActorContext = createContext();
+export const MapMachineContext = createContext();
 export const MapContext = createContext();
 const DEFAULT_PATHS = [
     [
@@ -89,8 +100,9 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     const classes = useStyles();
     const dispatch = useDispatch();
 
-    const namedPathsConfig = handler?.componentConfig;
-    const namedPaths = useMemo(()=>namedPathsConfig?.namedPaths || DEFAULT_PATHS,[]);
+    const componentConfig = handler?.componentConfig;
+    const namedPaths = useMemo(()=>componentConfig?.namedPaths || DEFAULT_PATHS,[]);
+    const legendPath = useMemo(()=>componentConfig?.legendPath || "building",[]);
     const machineDef = useMemo(()=>createMachine("mapMachine",namedPaths),[namedPaths]);
     const [snapshot, send, actor] = useMachine(machineDef);
 
@@ -126,11 +138,19 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         fetchMapTypes();
     },[namedPaths])
 
-    const isSelectingPosition = useReduxSelector(selectIsSelectingPosition);
+    const isSelectingPosition = useSelector(selectIsSelectingPosition);
     const [mmvMode, setMmvMode] = useState("");
 
     // Command state for MMV communication
-    const [command, setCommand] = useState([]);
+    const [command, setCommandWithoutFlush] = useState([]);
+
+    const setCommand = useCallback((command)=>{
+        setTimeout(() => {
+            flushSync(() => {
+                setCommandWithoutFlush(command);
+            })
+        })
+    },[setCommandWithoutFlush])
 
     // Read MMV config from project or user config
     const readMMVConfigFromProject = () => {
@@ -163,7 +183,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         return ()=> subscription.unsubscribe();
     },[actor])
 
-    const currentState = useSelector(actor, state => state);
+    const currentState = useXstateSelector(actor, state => state);
 
     // Extract modelElementId from current state context
     const modelElementId = currentState?.context?.modelElementId;
@@ -196,14 +216,29 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         }
     }, [showSimpleViewer, mapInstance]);
 
-    const handleMMVEvent = (event) => {
+    const handleMMVEvent = useCallback((event) => {
         //console.log('PortfolioOverview MMV Event:', event);
         // Handle MMV events as needed
-    };
+    },[]);
+
+    const onMapReady = useCallback((map) => {
+        setMapInstance(map); // Store map instance for refresh
+        actor.send({ type: 'MAP_READY', map, mmvSend: setCommand, setPopupState });
+    },[actor, setCommand])
+
+    const mapMachineContextValue = useMemo(() => {
+        return { actor, send: actor.send }
+    }, [actor]);
+
+    const mapContextValue = useMemo(() => {
+        return {setCommand, mapInstance }
+    }, [setCommand, mapInstance]);
+
+    const [popupState, setPopupState] = usePopupState({ open:false });
 
     return (
-        <MapContext.Provider value={{ command, setCommand, mapInstance }}>
-            <PortfolioActorContext.Provider value={{ actor, send: actor.send, currentState }}>
+        <MapContext.Provider value={mapContextValue}>
+            <MapMachineContext.Provider value={mapMachineContextValue}>
                 <div className={classes.container}>
                     <div className={classes.secondaryHeader}>
                         <div className={classes.headerInner}>
@@ -214,8 +249,11 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                             </div>
                         </div>
                     </div>
-
-                    <Grid container className={classes.mainContent}>
+                    <Grid container className={classes.mainContent}> 
+                        {/* TODO: remove here later, test search panel UI for now by uncommenting SearchPanel here and commenting out StatePanel grid item below */}
+                        {/* <Grid item className={classes.searchPanel}>
+                            <SearchPanel userConfig={userConfig} />
+                        </Grid> */}
                         <Grid item className={classes.statePanel}>
                             <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
                         </Grid>
@@ -230,10 +268,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                                 }}
                             >
                                 <MMVIntegratedMap
-                                    onMapReady={(map) => {
-                                        setMapInstance(map); // Store map instance for refresh
-                                        actor.send({ type: 'MAP_READY', map, mmvSend: setCommand });
-                                    }}
+                                    onMapReady={onMapReady}
                                     mmvConfig={mmvConfig}
                                     mmvMode={mmvMode}
                                     appId={ipaConfig.applicationId}
@@ -241,6 +276,29 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                                     command={command}
                                 />
                                 {/* <GraphicPortal/> */}
+                                <Legend map={mapInstance} path={legendPath}/>
+
+                                {popupState.config && <PopupPortal
+                                    map={mapInstance}
+                                    open={popupState.open}
+                                    lngLat={popupState.lngLat}
+                                    popupOptions={{
+                                        className: "popup--dark",
+                                        closeButton: false,
+                                        //anchor: "auto",
+                                        //offset: { bottom: [0, -(24 + 8)], "bottom-left": [0, -(24 + 8)], "bottom-right": [0, -(24 + 8)] }
+                                        anchor: 'bottom',
+                                        offset: [0, -(24 + 8)]
+                                    }}
+                                    onClose={() => setPopupState((s) => ({ ...s, open: false }))}
+                                >
+                                    {/* This subtree has full app context */}
+                                    <StatusPopup
+                                        data={popupState.data}
+                                        config={popupState.config}
+                                        actor={actor}
+                                    />
+                                </PopupPortal>}
                             </div>
 
                             <div
@@ -260,7 +318,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                         </Grid>
                     </Grid>
                 </div>
-            </PortfolioActorContext.Provider>
+            </MapMachineContext.Provider>
         </MapContext.Provider>
     );
 }
