@@ -1,7 +1,7 @@
 // components/UnitDetails.js
 import React, { useContext } from 'react';
 import { Typography, Divider, Button, Box } from '@mui/material';
-import { PortfolioActorContext } from '../../PortfolioOverview';
+import { MapMachineContext } from '../../PortfolioOverview';
 import { ModelContext } from '../../../../contexts/ModelContext';
 import CustomButton from '../../../../components/atoms/CustomButton';
 
@@ -11,7 +11,7 @@ export default function BuildingDetails({ context }) {
     const unit = buildings.find(b => b.buildingId == buildingId);
 
     // Get actor context from PortfolioOverview
-    const portfolioContext = useContext(PortfolioActorContext);
+    const portfolioContext = useContext(MapMachineContext);
     const { send } = portfolioContext || {};
 
     // Get ModelContext
