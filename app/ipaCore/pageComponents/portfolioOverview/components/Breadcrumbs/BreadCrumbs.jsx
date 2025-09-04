@@ -1,4 +1,4 @@
-import React, { useMemo, useContext, useEffect } from 'react';
+import React, { useContext } from 'react';
 import { makeStyles } from '@material-ui/core';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSelector as useXstateSelector } from '@xstate/react';
@@ -12,10 +12,9 @@ import { PinDrop } from '@material-ui/icons';
 import {Link, Tooltip, Typography} from "@material-ui/core";
 import HomeIcon from '@material-ui/icons/Home';
 import _ from "lodash";
-import { defaultNewSiteId } from './statePanels/SiteDetails';
+import AddSiteSection from './AddSiteSection';
+import { getActiveLevels } from '../../../../../services/utils';
 
-const AddSiteSection = ({classes}) => {
-    const dispatch = useDispatch();
 
     // Function to generate square coordinates around a centroid
     // widthInMeters: width of the square in meters (default 500m)
@@ -270,13 +269,9 @@ const PortfolioBreadCrumbs = ({namedPath, getLabel}) => {
     const currentState = useXstateSelector(actor, state => state);
 
     const context = currentState?.context ?? {};
-    const chain = getActiveChain(currentState?.value ?? {});
-    // chain is like ['portfolio','site','building','modelElement'] depending on where we are
 
     // map chain to level defs (from namedPath)
-    const levels = chain
-        .map(stateName => namedPath.find(l => l.state === stateName))
-        .filter(Boolean); // only those defined in namedPath
+    const levels = getActiveLevels(currentState);
 
     if (levels.length === 0) {
         return (
@@ -345,7 +340,7 @@ const PortfolioBreadCrumbs = ({namedPath, getLabel}) => {
                     );
                 })}
             </div>
-            <AddSiteSection {...{classes}}/>
+            <AddSiteSection {...{classes, levels}}/>
         </div>
     );
 };
