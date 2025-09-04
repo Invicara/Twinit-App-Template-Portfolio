@@ -18,6 +18,8 @@ const ModelComparisonView = (props) => {
 };
 
 const ModelComparisonPage = () => {
+    const [viewerMode, setViewerMode] = useState('overlay');
+
     const viewerOne = useRef();
     const viewerTwo = useRef();
 
@@ -164,6 +166,26 @@ const ModelComparisonPage = () => {
                                         onChange={() => setCameraSyncEnabled(prev => !prev)}
                                     />
                                 </div>
+                                <div className="viewerMode">
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            value="parallel"
+                                            checked={viewerMode === 'parallel'}
+                                            onChange={() => setViewerMode('parallel')}
+                                        />
+                                        Parallel Mode
+                                    </label>
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            value="overlay"
+                                            checked={viewerMode === 'overlay'}
+                                            onChange={() => setViewerMode('overlay')}
+                                        />
+                                        Overlay Mode
+                                    </label>
+                                </div>
                                 <div className="viewer-sidebar">
                                     {
                                         modelOneWithVersions &&
@@ -195,7 +217,7 @@ const ModelComparisonPage = () => {
                             </StackableDrawer>
                             {modelOneWithVersions && modelTwoWithVersions && selectModelOneVersion !== "" && selectModelTwoVersion !== "" &&
                                 <div className="viewers">
-                                    <CompareView>
+                                    <CompareView mode={viewerMode}>
                                         <IafViewerDBM
                                             ref={viewerOne}
                                             serverUri={endPointConfig.graphicsServiceOrigin}
