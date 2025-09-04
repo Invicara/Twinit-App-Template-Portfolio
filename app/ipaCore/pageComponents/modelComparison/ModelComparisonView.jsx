@@ -1,12 +1,13 @@
 import React, { useRef, useContext, useState, useCallback, useMemo, useEffect } from "react";
 import _ from 'lodash';
 
-import { ModelContext, ModelContextProvider } from "../../contexts/ModelContext";
+import { ModelContext } from "../../contexts/ModelContext";
 import { IafViewerDBM } from "@dtplatform/iaf-viewer";
 import { IafItemSvc } from "@dtplatform/platform-api";
 import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls';
 
 import CompareView from "./CompareView";
+import ElementDetails from "../../components/ElementDetails/ElementDetails";
 import ElementSearch from "./ElementSearch";
 import { Panel, PanelGroup } from "react-resizable-panels";
 
@@ -36,6 +37,9 @@ const ModelComparisonPage = () => {
     const [modelOneSliceIDs, setModelOneSliceIDs] = useState([]);
     const [modelTwoSliceIDs, setModelTwoSliceIDs] = useState([]);
 
+    const [modelOneSelectedElement, setModelOneSelectedElement] = useState(null);
+    const [modelTwoSelectedElement, setModelTwoSelectedElement] = useState(null);
+
     const handleCameraUpdate = useCallback((camera) => {
         setCameraState(prev => {
             const isChanged = JSON.stringify(camera) !== JSON.stringify(prev);
@@ -61,7 +65,7 @@ const ModelComparisonPage = () => {
         }
     };
 
-    const { availableModelComposites } = useContext(ModelContext);
+    const { availableModelComposites, getSelectedElement, loadModelCollections } = useContext(ModelContext);
 
     useEffect(() => {
         if (Array.isArray(availableModelComposites) && availableModelComposites.length > 0 && selectModelOne !== "") {
@@ -181,6 +185,14 @@ const ModelComparisonPage = () => {
                                     }
                                 </div>
                             </StackableDrawer>
+                            <StackableDrawer level={2} iconKey='fa-info' tooltip='Element' isOpen={false}>
+                                <div className='viewer-sidebar'>
+                                    <div className="elementDetails">
+                                        {modelOneSelectedElement && <ElementDetails element={modelOneSelectedElement} horizontal={false} displayFiles={false} />}
+                                        {modelTwoSelectedElement && <ElementDetails element={modelTwoSelectedElement} horizontal={false} displayFiles={false} />}
+                                    </div>
+                                </div>
+                            </StackableDrawer>
                             {modelOneWithVersions && modelTwoWithVersions && selectModelOneVersion !== "" && selectModelTwoVersion !== "" &&
                                 <div className="viewers">
                                     <CompareView>
@@ -194,7 +206,16 @@ const ModelComparisonPage = () => {
                                             isolatedElementIds={[]}
                                             spaceElementIds={[]}
                                             selection={[]}
-                                            OnSelectedElementChangeCallback={(e) => { console.log(e) }}
+                                            OnSelectedElementChangeCallback={async (pkgids) => {
+                                                const modelColls = await loadModelCollections(null, {
+                                                    ...modelOneWithVersions,
+                                                    selectedVersion: modelOneWithVersions.fetchedVersions._list.find(({ _version }) => _version == selectModelOneVersion)
+                                                });
+
+                                                const element = await getSelectedElement(pkgids, modelColls);
+
+                                                setModelOneSelectedElement(element);
+                                            }}
                                             title={"Left Model"}
                                             view3d={viewerCamera}
                                             view2d={{
@@ -211,7 +232,16 @@ const ModelComparisonPage = () => {
                                             isolatedElementIds={[]}
                                             spaceElementIds={[]}
                                             selection={[]}
-                                            OnSelectedElementChangeCallback={(e) => { console.log(e) }}
+                                            OnSelectedElementChangeCallback={async (pkgids) => {
+                                                const modelColls = await loadModelCollections(null, {
+                                                    ...modelTwoWithVersions,
+                                                    selectedVersion: modelTwoWithVersions.fetchedVersions._list.find(({ _version }) => _version == selectModelTwoVersion)
+                                                });
+
+                                                const element = await getSelectedElement(pkgids, modelColls);
+
+                                                setModelTwoSelectedElement(element);
+                                            }}
                                             title={"Right Model"}
                                             view3d={viewerCamera}
                                             view2d={{
