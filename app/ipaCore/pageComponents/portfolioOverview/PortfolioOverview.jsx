@@ -3,17 +3,20 @@ import { useActor, useSelector as useXstateSelector, useMachine } from '@xstate/
 import { makeStyles } from '@material-ui/core';
 import MMVIntegratedMap from './components/MMVIntegratedMap';
 import StatePanel from './components/StatePanel';
-import PortfolioBreadCrumbs from './components/BreadCrumbs';
+import PortfolioBreadCrumbs from './components/Breadcrumbs/BreadCrumbs.jsx';
 import SimpleViewerView from '../simpleViewer/SimpleViewerView';
 import { Grid } from '@mui/material';
 import './PortfolioOverview.css'
 import './components/map/darkMap.scss'
 import {createMachine} from "./machines/hierarchicalMapMachine";
 import ipaConfig from "../../ipaConfig.js";
+import { useDispatch, useSelector as useReduxSelector } from 'react-redux';
 import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
 import clsx from "clsx";
-import {Custom2D3DToggle} from "./components/map/control/Custom2D3DToggle.js";
+import {Custom2D3DToggle} from "./components/map/control/Custom2D3DToggle";
+import { IafItemSvc } from '@dtplatform/platform-api';
+import { setMapTypes } from '../../redux/pageComponentState.js';
 import {useSelector} from "react-redux";
 import {Legend} from "./components/map/control/Legend.jsx";
 import {flushSync} from "react-dom";
@@ -90,6 +93,8 @@ const DEFAULT_PATHS = [
 
 export default function PortfolioOverview({handler, userConfig, selectedItems}) {
     const classes = useStyles();
+    const dispatch = useDispatch();
+
     const componentConfig = handler?.componentConfig;
     const namedPaths = useMemo(()=>componentConfig?.namedPaths || DEFAULT_PATHS,[]);
     const legendPath = useMemo(()=>componentConfig?.legendPath || "building",[]);
@@ -118,7 +123,14 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             }
             setMmvConfig(config);
         }
+
+        const fetchMapTypes = async () => {
+            const types = await ScriptCache.runScript("getMapTypes", {namedPaths});
+            dispatch(setMapTypes(types));
+        }
+
         fetchGisConfig();
+        fetchMapTypes();
     },[namedPaths])
 
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
@@ -198,8 +210,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             }, 100);
         }
     }, [showSimpleViewer, mapInstance]);
-    window.currentState = currentState;
-    window.mapInstance = mapInstance;
 
     const handleMMVEvent = useCallback((event) => {
         //console.log('PortfolioOverview MMV Event:', event);
