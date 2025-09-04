@@ -107,7 +107,9 @@ function wrapToView(lng, centerLng) {
     return lng;
 }
 
-function createSingleMarker(map, feature, {bins, property, showLabel = true, pieAlpha=true, getCounts = getBinCounts, popupConfig, send, featureDef, setPopupState}){
+function createSingleMarker(context, feature, {bins, property, showLabel = true, pieAlpha=true, getCounts = getBinCounts, popupConfig, send, featureDef, setPopupState}){
+    const {map, namedPaths} = context;
+    const namedPath = namedPaths[0]
     const {idKey, path} = featureDef;
     const id = feature.id ?? feature.properties._id ?? JSON.stringify(feature.geometry.coordinates);
     const keyVal = feature?.properties?.[idKey] ?? id;
@@ -134,7 +136,25 @@ function createSingleMarker(map, feature, {bins, property, showLabel = true, pie
             // Payload carries the actual property name as a key
             // e.g. if idKey === 'siteId' -> { type:'GO_TO', siteId: 'ABC123', path }
             markHandled(e);
-            send({ type: 'GO_TO', [idKey]: keyVal });
+            const targetIdx = namedPath.map(p=>p.state).indexOf(path);
+            const evt = { type: 'GO_TO' };
+            namedPath.forEach((lvl, idx) => {
+                debugger;
+                const { idKey } = lvl;
+                if (!idKey) return; // top-most usually has no idKey
+                if (idx < targetIdx) {
+                    // Keep current value if present; if you want to force re-entry, you can set it explicitly
+                    evt[idKey] = context[idKey] ?? undefined;
+                } else if (idx == targetIdx) {
+                    // Keep current value if present; if you want to force re-entry, you can set it explicitly
+                    evt[idKey] = feature?.properties?.[idKey] ?? undefined;
+                } else {
+                    // Null deeper ids to bubble up
+                    evt[idKey] = null;
+                }
+            });
+            console.log("evt",evt)
+            send(evt);
         }
     });
     function show() {
@@ -222,7 +242,7 @@ export async function renderAllMarkers(e, {context, self}, singleMarkers) {
             continue;
         }
         let markerGraphics = await Promise.all(markersInfo.features.map(async f => {
-            return  createSingleMarker(map, f, {...config, ...restMarkerInfo, featureDef, send: self.send, setPopupState: context.setPopupState});
+            return  createSingleMarker(context, f,{...config, ...restMarkerInfo, featureDef, send: self.send, setPopupState: context.setPopupState});
         }));
         graphics.push(...markerGraphics.filter(m=>!!m));
     }
