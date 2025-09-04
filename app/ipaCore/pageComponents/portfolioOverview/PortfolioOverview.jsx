@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState, createContext, useCallback} from 'react';
+import React, {useEffect, useMemo, useState, createContext, useCallback, useRef} from 'react';
 import { useActor, useSelector as useXstateSelector, useMachine } from '@xstate/react';
 import { makeStyles } from '@material-ui/core';
 import MMVIntegratedMap from './components/MMVIntegratedMap';
@@ -13,9 +13,13 @@ import ipaConfig from "../../ipaConfig.js";
 import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
 import clsx from "clsx";
-import {Custom2D3DToggle} from "./components/map/Custom2D3DToggle";
+import {Custom2D3DToggle} from "./components/map/control/Custom2D3DToggle.js";
 import {useSelector} from "react-redux";
-import {Legend} from "./components/map/Legend.jsx";
+import {Legend} from "./components/map/control/Legend.jsx";
+import {flushSync} from "react-dom";
+import PopupPortal from "./components/map/popup/PopupPortal.jsx";
+import StatusPopup from "./components/map/popup/StatusPopup.jsx";
+import {usePopupState} from "./components/map/popup/usePopupState.jsx";
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -121,7 +125,15 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     const [mmvMode, setMmvMode] = useState("");
 
     // Command state for MMV communication
-    const [command, setCommand] = useState([]);
+    const [command, setCommandWithoutFlush] = useState([]);
+
+    const setCommand = useCallback((command)=>{
+        setTimeout(() => {
+            flushSync(() => {
+                setCommandWithoutFlush(command);
+            })
+        })
+    },[setCommandWithoutFlush])
 
     // Read MMV config from project or user config
     const readMMVConfigFromProject = () => {
@@ -196,7 +208,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
 
     const onMapReady = useCallback((map) => {
         setMapInstance(map); // Store map instance for refresh
-        actor.send({ type: 'MAP_READY', map, mmvSend: setCommand });
+        actor.send({ type: 'MAP_READY', map, mmvSend: setCommand, setPopupState });
     },[actor, setCommand])
 
     const mapMachineContextValue = useMemo(() => {
@@ -206,6 +218,8 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     const mapContextValue = useMemo(() => {
         return {setCommand, mapInstance }
     }, [setCommand, mapInstance]);
+
+    const [popupState, setPopupState] = usePopupState({ open:false });
 
     return (
         <MapContext.Provider value={mapContextValue}>
@@ -245,6 +259,28 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                                 />
                                 {/* <GraphicPortal/> */}
                                 <Legend map={mapInstance} path={legendPath}/>
+
+                                {popupState.config && <PopupPortal
+                                    map={mapInstance}
+                                    open={popupState.open}
+                                    lngLat={popupState.lngLat}
+                                    popupOptions={{
+                                        className: "popup--dark",
+                                        closeButton: false,
+                                        //anchor: "auto",
+                                        //offset: { bottom: [0, -(24 + 8)], "bottom-left": [0, -(24 + 8)], "bottom-right": [0, -(24 + 8)] }
+                                        anchor: 'bottom',
+                                        offset: [0, -(24 + 8)]
+                                    }}
+                                    onClose={() => setPopupState((s) => ({ ...s, open: false }))}
+                                >
+                                    {/* This subtree has full app context */}
+                                    <StatusPopup
+                                        data={popupState.data}
+                                        config={popupState.config}
+                                        actor={actor}
+                                    />
+                                </PopupPortal>}
                             </div>
 
                             <div

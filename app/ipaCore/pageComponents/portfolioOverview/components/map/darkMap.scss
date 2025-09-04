@@ -73,6 +73,41 @@
   .mapboxgl-ctrl-group > button { border-right-width: 1px !important; }
   .mapboxgl-ctrl-group > button + button { border-left-width: 1px !important; }
 
+  /* Dark popup theme */
+  .popup--dark.mapboxgl-popup { z-index: 10; }
+
+  .popup--dark .mapboxgl-popup-content {
+    background: #0f1115;       /* near-black */
+    color: #fff;
+    border: 1px solid #24262b; /* subtle border */
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    pointer-events: auto;      /* keep popup interactive */
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  /* Optional close button if you enable it */
+  .popup--dark .mapboxgl-popup-close-button {
+    color: #a3a3a3;
+  }
+  .popup--dark .mapboxgl-popup-close-button:hover {
+    color: #fff;
+  }
+
+  /* Make the triangle tip match the dark background */
+  .popup--dark .mapboxgl-popup-tip { border-width: 8px; }
+
+  /* Tip color per anchor orientation */
+  .popup--dark.mapboxgl-popup-anchor-top    .mapboxgl-popup-tip { border-bottom-color: #0f1115; }
+  .popup--dark.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color:    #0f1115; }
+  .popup--dark.mapboxgl-popup-anchor-left   .mapboxgl-popup-tip { border-right-color:  #0f1115; }
+  .popup--dark.mapboxgl-popup-anchor-right  .mapboxgl-popup-tip { border-left-color:   #0f1115; }
+
+  /* (Optional) tighten the default gap under/over the tip */
+  .popup--dark.mapboxgl-popup-anchor-bottom { transform: translateY(-2px); }
+  .popup--dark.mapboxgl-popup-anchor-top    { transform: translateY( 2px); }
 
 
 }

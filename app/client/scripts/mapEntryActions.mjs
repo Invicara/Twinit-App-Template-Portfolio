@@ -14,9 +14,11 @@ import {
     makePieCanvas,
     renderAllMarkers,
     zoomIntoClusterByExpansion
-} from "./clusteredMarkers.mjs";
+} from "./mapMarkers.mjs";
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils/index.js";
 import {isColorProp, normalizeColorRGB} from "./colorNormalization.mjs";
+
+const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
 
 function makeBinColorExpression(config) {
     const expr = ["case"];
@@ -37,7 +39,6 @@ function makeBinColorExpression(config) {
 
     // fallback color
     expr.push("#e30f0f");
-    console.log("makeBinColorExpression",expr);
     return expr;
 }
 
@@ -183,12 +184,9 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
     if (!map || !context || !context.namedPaths) return;
     const namedPath = context.namedPaths[0];//TODO, select correct namedPath index
 
-    // Helper to get level def from state name
-    const getLevel = (stateName) => namedPath.find(lvl => lvl.state === stateName);
-
     let commands;
     if (state && featureId) {
-        const level = getLevel(state);
+        const level = getLevel(state, namedPath);
         if (!level || !level.idKey) return;
 
         commands = [{
@@ -636,6 +634,46 @@ export async function addLayers({ context, sendBack, self }) {
     return {data: allFeatureLayers};
 }
 
+async function handleMarkers(stateValue, markersConfig, {context, self}) {
+
+    let manageMarkers;
+
+    if(context.manageMarkers[stateValue]){
+        context.map.off('moveend', context.manageMarkers[stateValue]);
+        context.map.off('idle', context.manageMarkers[stateValue]);
+        context.map.off('sourcedata', context.manageMarkers[stateValue])
+    }
+
+    if(markersConfig){
+        manageMarkers = async (e) => {
+            const {graphics} = await renderAllMarkers(e, {context, self}, markersConfig);
+
+            if (graphics && graphics.length > 0) {
+                const commands = [{
+                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                    commandRef: uuid(),
+                    params: {
+                        ids: graphics.map(g => g.id),//remove stale
+                    }
+                }, {
+                    commandName: MMV_COMMANDS.ADD_GRAPHICS,
+                    commandRef: uuid(),
+                    params: {
+                        graphics: graphics
+                    }
+                }]
+                context.mmvSend(commands);
+            };
+        }
+        context.map.on('moveend', manageMarkers);
+        context.map.on('idle', manageMarkers);
+        context.map.on('sourcedata', manageMarkers);
+        manageMarkers();
+    }
+
+    return {manageMarkers}
+}
+
 export async function getInitAction({mapMachineInput }) {
     return addLayers(mapMachineInput)
 }
@@ -653,16 +691,15 @@ export async function getEntryAction({mapMachineInput }) {
 
             //we are calling the mapbox API imperatively here, we will replace that with commands in next task
 
-            let { commands, theme = {}, singleMarkers, clustersMarkers } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
+            let { commands, theme = {}, singleMarkers } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
             //zoom out to all features
             zoomToFeature({map: context.map, context});
             const namedPath = context.namedPaths[0];//TODO, select correct namedPath index
-            const getLevel = (stateName) => namedPath.find(lvl => lvl.state === stateName);
 
             for(const layerId of Object.keys(theme)) {
                 const themeConfig = theme[layerId];
                 const state = layerId.split("-")[0];
-                const level = getLevel(state);
+                const level = getLevel(state, namedPath);
                 if(level){
                     const { groupsObject } =
                         buildGroupsFromBins(context.map, layerId, level.idKey, themeConfig);
@@ -680,46 +717,52 @@ export async function getEntryAction({mapMachineInput }) {
                             }
                         }
                     }];
-                    console.log("Theming command",mmvThemeCommands)
+                    console.log("Theming command",{stateValue, mmvThemeCommands});
                     context.mmvSend(mmvThemeCommands)
                 }
             }
 
-            for(const path of Object.keys(singleMarkers)) {
-                const markersConfig = singleMarkers[path];
-                markersConfig.forEach(markerConfig => {
-                    try {
-                        const src = context.map.getSource(markerConfig.sourceId);
-                        const data = src._data || src.serialize().data; // raw GeoJSON
-                        const features = data?.features;
-                        markerConfig.features = features;
-                    } catch(e){
-                        console.error(e);
-                        markerConfig.features = [];
-                    }
-                })
-            }
+            const markersConfig = singleMarkers;
+            const {manageMarkers} = await handleMarkers(stateValue, markersConfig, {context, self});
 
-            let manageMarkers;
-            manageMarkers = (e) => renderAllMarkers(e, {context, self}, clustersMarkers, singleMarkers);
-            if(context.manageMarkers){
-                context.map.off('moveend', context.manageMarkers);
-                context.map.off('idle', context.manageMarkers);
-                context.map.off('sourcedata', context.manageMarkers)
-            }
-            context.map.on('moveend', manageMarkers);
-            context.map.on('idle', manageMarkers);
-            context.map.on('sourcedata', manageMarkers);
-            manageMarkers();
-
-
-            return { commands: null, manageMarkers, theme };
+            return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme };
         }
 
         case 'portfolio.site': {
             const siteId = event.siteId ?? context.siteId;
             zoomToFeature({map: context.map, context, state: 'site', featureId: siteId});
-            return { commands: null };
+            const namedPath = context.namedPaths[0];//TODO, select correct namedPath index
+            let { commands, theme = {}, singleMarkers } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
+            const markersConfig = singleMarkers;
+            const {manageMarkers} = await handleMarkers(stateValue, markersConfig, {context, self});
+
+            for(const layerId of Object.keys(theme)) {
+                const themeConfig = theme[layerId];
+                const state = layerId.split("-")[0];
+                const level = getLevel(state, namedPath);
+                if(level){
+                    const { groupsObject } =
+                        buildGroupsFromBins(context.map, layerId, level.idKey, themeConfig);
+
+                    const mmvThemeCommands = [{
+                        commandName: MMV_COMMANDS.THEME_ELEMENTS,
+                        commandRef: uuid(),
+                        params: {
+                            groups: groupsObject,
+                            clear: false,
+                            extra: {
+                                field: level.idKey,
+                                fieldType: level.idType || "string",
+                                layerNames: [layerId]
+                            }
+                        }
+                    }];
+                    console.log("Theming command",{stateValue, mmvThemeCommands});
+                    context.mmvSend(mmvThemeCommands)
+                }
+            }
+
+            return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme };
         }
 
         case 'portfolio.site.building': {
@@ -736,20 +779,48 @@ export async function getEntryAction({mapMachineInput }) {
 
 export async function getExitAction({mapMachineInput }) {
     const {stateValue, context, event, self} = mapMachineInput;
-
-    if (context.suppressEntryActions) {
-        return { suppressEntryActions: false };
+    console.log("getExitAction", {mapMachineInput});
+    if (context.suppressExitActions) {
+        return { suppressExitActions: false };
     }
     switch (stateValue) {
         case 'portfolio': {
 
-            context.manageMarkers && context.map.off('moveend', context.manageMarkers);
-            context.manageMarkers && context.map.off('idle', context.manageMarkers);
-            context.manageMarkers && context.map.off('sourcedata', context.manageMarkers);
-            console.log("leaving state portfolio", {stateValue, context})
-            clearStaleMarkersByPath("site")
+            if(context.manageMarkers[stateValue]){
+                context.map.off('moveend', context.manageMarkers[stateValue]);
+                context.map.off('idle', context.manageMarkers[stateValue]);
+                context.map.off('sourcedata', context.manageMarkers[stateValue]);
+            }
+            const markerIds = clearStaleMarkersByPath("site")
+            const commands = [{
+                commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                commandRef: uuid(),
+                params: {
+                    ids: [...markerIds],
+                }
+            }]
+            context.mmvSend(commands);
 
-            return { manageMarkers: null };
+            return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
+        }
+        case 'portfolio.site': {
+
+            if(context.manageMarkers[stateValue]){
+                context.map.off('moveend', context.manageMarkers[stateValue]);
+                context.map.off('idle', context.manageMarkers[stateValue]);
+                context.map.off('sourcedata', context.manageMarkers[stateValue]);
+            }
+            const markerIds = clearStaleMarkersByPath("building")
+            const commands = [{
+                commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                commandRef: uuid(),
+                params: {
+                    ids: [...markerIds],
+                }
+            }]
+            context.mmvSend(commands);
+
+            return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
         }
 
         default:

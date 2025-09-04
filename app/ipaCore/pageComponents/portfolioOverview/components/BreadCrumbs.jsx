@@ -126,9 +126,6 @@ const AddSiteSection = ({classes}) => {
         }
     }, [previousIsSelectingPosition, isSelectingPosition, selectedCoordinate, clickEvent, currentState, send, dispatch, mapInstance])
 
-
-    console.log("clickEvent", clickEvent)
-
     return <div className={isSelectingPosition ? classes.addSiteSectionActive : classes.addSiteSection} onClick={handleAddSite} >
         <PinDrop/>
     </div>
