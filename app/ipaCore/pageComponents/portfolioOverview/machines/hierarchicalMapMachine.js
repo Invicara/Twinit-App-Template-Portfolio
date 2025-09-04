@@ -197,6 +197,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                         CONFIRM_YES: "exiting",
                         CONFIRM_NO: {
                             target: `idle`,
+                            reenter: false,
                             actions: assign(() => ({
                                 pendingEvent: null,
                                 suppressEntryActions: true
@@ -374,8 +375,8 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                 actions: assign(({ event }) => ({ pendingEvent: event }))
             },
             UPDATE_DATA: {
-                actions: assign(({ event }) => ({ 
-                    data: event.data 
+                actions: assign(({ event }) => ({
+                    data: event.data
                 }))
             }
         }
