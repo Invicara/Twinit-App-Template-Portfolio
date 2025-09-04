@@ -1,3 +1,58 @@
+function randomGuid() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+        return v.toString(16);
+    });
+}
+
+/** Safely read a dot-path from an object. */
+function get(obj, path, defaultValue = "") {
+    if (!obj || !path) return defaultValue;
+    return path.split(".").reduce((acc, key) => (acc == null ? acc : acc[key]), obj) ?? defaultValue;
+}
+
+function countsForSiteBuildings(map, feature, config) {
+    const bins = config.bins;
+    const counts = new Array(bins.length).fill(0);
+    const buildings = feature.properties?.buildings || [];
+    for (const b of buildings) {
+        const val = b[config.property];
+        for (let i = 0; i < bins.length; i++) {
+            const bin = bins[i];
+            const minOk = bin.min == null || val >= bin.min;
+            const maxOk = bin.max == null || val <  bin.max;
+            if (minOk && maxOk) {
+                counts[i] += 1;
+                break;
+            }
+        }
+    }
+    return counts;
+}
+
+
+
+const statusConfig = {
+    colorMap: {
+        "1": "#f50be9ff",// Planned
+        "2": "#0b84f5", // Construction
+        "3": "#10B981", // Operating
+        "4": "#EF4444", // Suspended
+        "5": "#6B7280", // Permanent Shutdown (gray-ish)
+        "unknown": "#CCCCCC",
+    },
+    labelMap: {
+        "1": "Planned",
+        "2": "Construction",
+        "3": "Operating",
+        "4": "Suspended Operation",
+        "5": "Permanent Shutdown",
+        "unknown": "Unknown",
+    },
+}
+
+
+
 let scriptModule = {
     async getGISConfig(input, libraries, ctx, callback) {
         return {
@@ -62,6 +117,8 @@ let scriptModule = {
             case 'portfolio': {
 
                 const theme = {
+                    ////we will kepp site invisible by default and only show marker instead
+                    /*
                     "building-features-layer": {
                         property: "Capacity",
                         bins: [
@@ -72,6 +129,8 @@ let scriptModule = {
                         ],
                         "circle-radius": 7
                     },
+                    */
+                    //we will kepp site invisible by default and only show marker instead
                     /*"site-features-layer": {
                         property: "buildings_count",
                         bins: [
@@ -83,40 +142,155 @@ let scriptModule = {
                     }*/
                 }
 
-                function countsForSiteBuildings(map, feature, config) {
-                    const bins = config.bins;
-                    const counts = new Array(bins.length).fill(0);
-                    const buildings = feature.properties?.buildings || [];
-                    for (const b of buildings) {
-                        const val = b[config.property];
-                        for (let i = 0; i < bins.length; i++) {
-                            const bin = bins[i];
-                            const minOk = bin.min == null || val >= bin.min;
-                            const maxOk = bin.max == null || val <  bin.max;
-                            if (minOk && maxOk) {
-                                counts[i] += 1;
-                                break;
-                            }
+
+                const singleMarkers = [{
+                    featureDef: {
+                        //this is used to generate graphic ID
+                        path: "site",
+                        idKey: "siteId"
+                    },
+                    sourceId: "site-features-centroids",
+                    getCounts: countsForSiteBuildings,//this will overwrite the default bin assignment to feature
+                    config: {
+                        property: "Capacity",//this is used to as a property to match agains the bin (unless getCounts is overwritten)
+                        bins: [
+                            { id: "low",   min: 0,    max: 900,  color: "#8ecbff", label: "< 900" },
+                            { id: "mid",   min: 900,  max: 1300, color: "#1DC0F7", label: "900–1299" },
+                            { id: "high",  min: 1300, max: 1450, color: "#0072BC", label: "1300–1449" },
+                            { id: "ultra", min: 1450, max: null, color: "#1D1D1D", label: "≥1450" }
+                        ],
+                        "circle-radius": 7
+                    },
+                    "popupConfig": {
+                        "statusPopup": {
+                            titleProp: "properties.name",
+                            descriptionProp: "properties.region",
+                            statusProp: (feature, ctx) => {
+                                // feature.properties.buildings is an array of building features or plain objects
+                                const buildings = get(feature, "properties.buildings", []) || [];
+                                // Extract each building's StatusId (stringify for map keys)
+                                const ids = buildings
+                                    .map(b => String(get(b, "StatusId", "unknown")))
+                                    .filter(Boolean);
+
+                                if (!ids.length) return "unknown";
+
+                                const mode = ctx.aggregation?.mode ?? "priority";
+                                const order = ctx.aggregation?.priorityOrder ?? ["4","2","1","3","5"];
+
+                                if (mode === "multi") {
+                                    // return counts for multi-status rendering
+                                    const counts = ids.reduce((acc, id) => {
+                                        acc[id] = (acc[id] || 0) + 1;
+                                        return acc;
+                                    }, {});
+                                    return { mode: "multi", counts };
+                                }
+
+                                // "mostActive": if at least one OP (4) → 4, else if at least one UC (2) → 2, else fallback...
+                                // "priority": walk the order and pick the first present
+                                for (const id of order) {
+                                    if (ids.includes(id)) return id;
+                                }
+                                // if we got here, pick the first concrete id or 'unknown'
+                                return ids[0] ?? "unknown";
+                            },
+                            statusAggregation: {
+                                //mode: "priority",
+                                mode: "multi",                  // "mostActive" | "priority" | "multi"
+                                priorityOrder: ["3","2","1","4","5"]
+                            },
+                            statusConfig: statusConfig,
+                            maxWidth: 280,
                         }
                     }
-                    return counts;
+                }]
+
+
+                return { commands: null, theme, singleMarkers };
+            }
+            case 'portfolio.site': {
+
+                const theme = {
+                    //theme building features by Capacity property
+                    "building-features-layer": {
+                        property: "Capacity",
+                        bins: [
+                            { id: "low",   min: 0,    max: 900,  color: "#8ecbff", label: "< 900" },
+                            { id: "mid",   min: 900,  max: 1300, color: "#1DC0F7", label: "900–1299" },
+                            { id: "high",  min: 1300, max: 1450, color: "#0072BC", label: "1300–1449" },
+                            { id: "ultra", min: 1450, max: null, color: "#1D1D1D", label: "≥1450" }
+                        ],
+                        "circle-radius": 7
+                    },
+                    //we will keep site features invisible by default
+                    /*"site-features-layer": {
+                        property: "buildings_count",//TODO: addept property to be a function
+                        bins: [
+                            { id: "few",   min: 0,   max: 5,  color: "#8ecbff", label: "1–4 buildings" },
+                            { id: "mid",   min: 5,   max: 10, color: "#3aa7ff", label: "5–9 buildings" },
+                            { id: "large", min: 10,  max: 20, color: "#7fb2c8", label: "10–19 buildings" },
+                            { id: "mega",  min: 20,  max: null, color: "#2b2b2b", label: "20+" }
+                        ]
+                    }*/
                 }
+                const singleMarkers = [{
+                    featureDef: {
+                        path: "building",
+                        idKey: "buildingId"
+                    },
+                    sourceId: "building-features" ,
+                    config: theme["building-features-layer"],
+                    showLabel: false,
+                    pieAlpha: 0.3,
+                    "popupConfig": {
+                        statusPopup: {
+                            titleProp: "properties.name",
+                            descriptionProp: "properties.region",
+                            statusProp: "properties.StatusId",
+                            statusConfig: statusConfig,
+                            maxWidth: 280,
+                        }
+                    }
+                }]
 
 
-                const clustersMarkers = {
-                    "building": []////[{ config: theme["building-features-layer"]}]
-                }
-                const singleMarkers = {
-                    "site": [{sourceId: "site-features-centroids" ,config: theme["building-features-layer"], getCounts: countsForSiteBuildings}]
-                }
-
-
-                return { commands: null, theme, singleMarkers, clustersMarkers };
+                return { commands: null, theme, singleMarkers };
             }
 
             default:
                 return {};
         }
+    },
+
+    async afterLayerSetupCommands(input){
+
+        const {groupedFeatures} = input;
+
+        const commands  = [
+            {
+                "commandName": "theme_elements",
+                "commandRef": randomGuid(),
+                "params": {
+                    "groups": {
+                        "sites_default": {
+                            "color": [ 223, 21, 140 ],
+                            ids: groupedFeatures.site.map(el => el.siteId)
+                        }
+                    },
+                    "clear": false,
+                    "extra": {
+                        "field": "siteId",
+                        "fieldType": "string",
+                        "layerNames": [
+                            "site-features-layer"
+                        ]
+                    }
+                }
+            }
+        ]
+
+        return commands;
     }
 }
 

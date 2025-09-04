@@ -22,7 +22,7 @@
       "@emotion/styled": "^11.14.1",
       "@invicara/ipa-core": "3.0.32",
       "@invicara/ipa-core-ct": "^1.0.19",
-      "@invicara/ipa-core-mmv": "^0.2.101-mapbox-alpha-2.1",
+      "@invicara/ipa-core-mmv": "^0.2.101-mapbox-alpha-2.2",
       "@material-ui/core": "^4.8.0",
       "@material-ui/icons": "^4.9.1",
       "@material-ui/lab": "^4.0.0-alpha.36",

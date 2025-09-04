@@ -1,7 +1,7 @@
 import React, {useContext, useEffect, useState} from "react";
 import {LegendControl} from "./LegendControl.js";
 import './Legend.scss'
-import {MapMachineContext} from "../../PortfolioOverview.jsx";
+import {MapMachineContext} from "../../../PortfolioOverview.jsx";
 import {useSelector as useXstateSelector} from "@xstate/react";
 import {createPortal} from "react-dom";
 
