@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Grid,
   Button,
@@ -102,15 +102,37 @@ const useStyles = makeStyles((theme) => ({
       },
 }));
 
-export default function SearchPanel({ currentState, context }) {
+export default function SearchPanel({ currentState, context, userConfig }) {
   const classes = useStyles();
+
+ const [labels, setLabels] = useState({
+    search: 'Search',
+    group: 'Group',
+    structure: 'Choose structure name / location',
+    location: 'Choose locations / regions',
+    status: 'Status'
+  })
+
+  useEffect(() => {
+    if (userConfig?.handlers?.portfolioOverview?.config?.labels) {
+      const {
+        search = 'Search',
+        group = 'Group',
+        structure = 'Choose structure name / location',
+        location = 'Choose locations / regions',
+        status = 'Status'
+      } = userConfig.handlers.portfolioOverview.config.labels
+
+      setLabels({ search, group, structure, location, status })
+    }
+  }, [userConfig]) // run effect when userConfig changes
 
   const [filters, setFilters] = useState({
     search: '',
     group: '',
-    plant: '',
-    department: '',
-    deployStatus: '',
+    structure: '',
+    location: '',
+    status: '',
   });
 
   const handleChange = (e) => {
@@ -134,7 +156,7 @@ export default function SearchPanel({ currentState, context }) {
                 fullWidth
                 variant="outlined"
                 name="search"
-                placeholder="Search nuclear power plant..."
+                placeholder={labels.search}
                 value={filters.search}
                 onChange={handleChange}
                 className={classes.textField}
@@ -150,7 +172,7 @@ export default function SearchPanel({ currentState, context }) {
             </Grid>
 
             <Grid item>
-              <Typography variant="body1" className={classes.label}>Group</Typography>
+              <Typography variant="body1" className={classes.label}>{labels.group}</Typography>
               <FormControl
                 variant="outlined"
                 className={classes.formControl}
@@ -176,14 +198,14 @@ export default function SearchPanel({ currentState, context }) {
             </Grid>
 
             <Grid item>
-              <Typography variant="body1" className={classes.label}>Choose plant name / location</Typography>
+              <Typography variant="body1" className={classes.label}>{labels.structure}</Typography>
               <FormControl
                 variant="outlined"
                 className={classes.formControl}
               >
                 <Select
-                  name="plant"
-                  value={filters.plant}
+                  name="structure"
+                  value={filters.structure}
                   onChange={handleChange}
                   displayEmpty
                   IconComponent={KeyboardArrowDownIcon} 
@@ -196,21 +218,21 @@ export default function SearchPanel({ currentState, context }) {
                   classes={{ root: classes.selectInput }}
                 >
                 {/* TODO: hook real data into the menu items selection */}
-                  <MenuItem value="plantA">Plant A</MenuItem>
-                  <MenuItem value="plantB">Plant B</MenuItem>
+                  <MenuItem value="structureA">Sturcture A</MenuItem>
+                  <MenuItem value="structureB">Structure B</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
 
             <Grid item>
-              <Typography variant="body1" className={classes.label}>Choose departments / regions</Typography>
+              <Typography variant="body1" className={classes.label}>{labels.location}</Typography>
               <FormControl
                 variant="outlined"
                 className={classes.formControl}
               >
                 <Select
-                  name="department"
-                  value={filters.department}
+                  name="location"
+                  value={filters.location}
                   onChange={handleChange}
                   displayEmpty
                   IconComponent={KeyboardArrowDownIcon} 
@@ -223,21 +245,21 @@ export default function SearchPanel({ currentState, context }) {
                   classes={{ root: classes.selectInput }}
                 >
                 {/* TODO: hook real data into the menu items selection */}
-                  <MenuItem value="region1">Region 1</MenuItem>
-                  <MenuItem value="region2">Region 2</MenuItem>
+                  <MenuItem value="location1">Location 1</MenuItem>
+                  <MenuItem value="location2">Location 2</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
 
             <Grid item>
-              <Typography variant="body1" className={classes.label}>Deploy Status</Typography>
+              <Typography variant="body1" className={classes.label}>{labels.status}</Typography>
               <FormControl
                 variant="outlined"
                 className={classes.formControl}
               >
                 <Select
                   name="deployStatus"
-                  value={filters.deployStatus}
+                  value={filters.status}
                   onChange={handleChange}
                   displayEmpty
                   IconComponent={KeyboardArrowDownIcon} 
