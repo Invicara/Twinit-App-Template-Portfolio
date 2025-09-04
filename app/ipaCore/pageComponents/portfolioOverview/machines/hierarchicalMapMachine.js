@@ -210,11 +210,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                         id: "exitService",
                         src: "exitService",
                         input: ({ context, event, self }) => {
-                            const snapshot = self.getSnapshot();
-                            const stateValue = typeof snapshot.value === 'string'
-                                ? snapshot.value
-                                : Object.keys(snapshot.value)[0]; // for top-level compound states
-                            return { stateValue, context, event, self, sendBack: self.send }
+                            return { stateValue: stateKey, context, event, self, sendBack: self.send }
                         },
                     },
                     on: {
@@ -223,7 +219,11 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                                 assign(() => ({
                                     pendingEvent: null,
                                     suppressEntryActions: false
-                                }))
+                                })),
+                                assign(({ event }) => {
+                                    //console.log("exitService output", {event,stateKey})
+                                    return event.output || {}
+                                })
                         ]}))
                     }
                 },
@@ -257,7 +257,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                 on: {
                     MAP_READY: {
                         target: 'initialize',
-                        actions: assign(({ event }) => ({ map: event.map, mmvSend: event.mmvSend }))
+                        actions: assign(({ event }) => ({ map: event.map, mmvSend: event.mmvSend, setPopupState: event.setPopupState }))
                     }
                 }
             },
@@ -272,7 +272,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                     onError: {
                         target: `#${MACHINE_ID}.error`,
                         actions: assign(({ event }) => {
-                            console.log("Error", event);
+                            console.error("Error", event);
                             return {
                                 error: event.error?.message || 'Failed to load layers'
                             };
@@ -340,7 +340,11 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                             assign(() => ({
                                 pendingEvent: null,
                                 suppressEntryActions: false
-                            }))
+                            })),
+                            assign(({ event }) => {
+                                //console.log("exitService output", event)
+                                return event.output || {}
+                            })
                         ]
                     }))
                 }
@@ -356,7 +360,8 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
         context: {
             namedPaths: paths,
             pendingEvent: null,
-            suppressEntryActions: false
+            suppressEntryActions: false,
+            manageMarkers: {}
         },
         states: {
             ...topLevelStates,
@@ -401,11 +406,12 @@ export const createMachine = (id = 'mapMachine', paths, machineSetup = {}) => {
                 const {context, event, self, stateValue} = input;
                 if (context.suppressEntryActions) return {};
                 return getEntryAction({ stateValue, context, event, self });
+
             }),
             exitService: fromPromise(async ({ input }) => {
                 //console.log(`Exit Args`, {input});
                 const {context, event, self, stateValue} = input;
-                if (context.suppressEntryActions) return {};
+                if (context.suppressExitActions) return {};
                 return getExitAction({ stateValue, context, event, self });
             })
         }
