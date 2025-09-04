@@ -691,7 +691,7 @@ export async function getEntryAction({mapMachineInput }) {
 
             //we are calling the mapbox API imperatively here, we will replace that with commands in next task
 
-            let { commands, theme = {}, singleMarkers } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
+            let { commands, theme = {}, singleMarkers, legend } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
             //zoom out to all features
             zoomToFeature({map: context.map, context});
             const namedPath = context.namedPaths[0];//TODO, select correct namedPath index
@@ -725,14 +725,14 @@ export async function getEntryAction({mapMachineInput }) {
             const markersConfig = singleMarkers;
             const {manageMarkers} = await handleMarkers(stateValue, markersConfig, {context, self});
 
-            return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme };
+            return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme, legend };
         }
 
         case 'portfolio.site': {
             const siteId = event.siteId ?? context.siteId;
             zoomToFeature({map: context.map, context, state: 'site', featureId: siteId});
             const namedPath = context.namedPaths[0];//TODO, select correct namedPath index
-            let { commands, theme = {}, singleMarkers } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
+            let { commands, theme = {}, singleMarkers, legend } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
             const markersConfig = singleMarkers;
             const {manageMarkers} = await handleMarkers(stateValue, markersConfig, {context, self});
 
@@ -762,14 +762,15 @@ export async function getEntryAction({mapMachineInput }) {
                 }
             }
 
-            return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme };
+            return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme, legend };
         }
 
         case 'portfolio.site.building': {
             const siteId = event.siteId ?? context.siteId;
             const buildingId = event.buildingId ?? context.buildingId;
+            let { commands, theme = {}, singleMarkers, legend } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});\
             zoomToFeature({map: context.map, context, state: 'building', featureId: buildingId});
-            return { commands: null };
+            return { commands: null, legend };
         }
 
         default:
