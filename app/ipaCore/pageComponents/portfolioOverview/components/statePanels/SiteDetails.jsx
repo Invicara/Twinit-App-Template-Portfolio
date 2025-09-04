@@ -1,17 +1,18 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
 import { Typography, Divider, Button, Box } from '@material-ui/core';
 import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
+import { getClickEvent, getMapTypes, setMapTypes } from '../../../../redux/pageComponentState';
 import { MapMachineContext, MapContext } from '../../PortfolioOverview';
-import { getClickEvent } from '../../../../redux/pageComponentState';
 import { addFeatureToMapLayer, removeFeatureFromMapLayer } from '../../../../../client/scripts/mapEntryActions.mjs';
-import { usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
+import { ScriptCache, usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
 import { InfoComponent } from '../../../../components/InfoComponent/InfoComponent';
-import { useDebounce } from '../../../../hooks/useDebounce';
 import { setIsSelectingPosition, setSelectedCoordinate } from '../../../../redux/siteSetup';
 import { IafItemSvc } from '@dtplatform/platform-api';
 import {useSelector as useXstateSelector} from "@xstate/react";
 import _ from 'lodash';
+import { Add, Dashboard } from '@material-ui/icons';
+import { getActiveLevels } from '../../../../../services/utils';
 
 export const defaultNewSiteId = "<newSite>";
 
@@ -30,6 +31,12 @@ export default function SiteDetails({ context }) {
     const clickEvent = useSelector(getClickEvent);
 
     const namedPath = currentState.context.namedPaths[0];
+
+    const levels = getActiveLevels(currentState);
+
+    const types = useSelector(getMapTypes);
+    const entityType = levels.slice(-1)[0]?.state
+    const type = (types || {})[entityType];
 
     // Drawing state
     const [isDrawingMode, setIsDrawingMode] = useState(false);
@@ -52,20 +59,6 @@ export default function SiteDetails({ context }) {
     const isInEditMode = isDraftSite || isEditingSite;
 
     const prevIsDrawingMode = usePrevious(isDrawingMode);
-
-    // Site editing configuration for InfoComponent
-    const siteEditingConfig = [
-        ['name', { title: 'Site Name', readOnly: false, description: 'Name of the site' }],
-        ['siteId', { title: 'Site ID', readOnly: false, description: 'Unique identifier for the site' }]
-    ];
-
-    // useEffect(() => {
-    //     return () => {
-    //         if(currentSite.isDraft){
-    //             handleCancelSite()
-    //         }
-    //     }
-    // }, [currentSite])
 
     // Handle site property changes
     const handleSiteChange = (newValue, propertyName, metadata) => {
@@ -341,6 +334,42 @@ export default function SiteDetails({ context }) {
         console.log('Site edit completed:', { finalizedSite, hasChanges });
     };
 
+    // Handle type modifications from InfoComponent
+    const handleTypeModification = async (updatedType, changeInfo) => {
+        // if (!currentSite) return;
+        // const { action, fieldName, oldFieldName, newFieldName, value } = changeInfo;
+        
+        dispatch(setMapTypes({...types, [entityType]: updatedType}));
+        await ScriptCache.runScript("updateMapType", {updatedType});
+    };
+
+    // Handle adding new site info field
+    const handleAddSiteInfo = () => {
+        
+        // Generate a unique field name
+        const newFieldName = `newField${Date.now()}`;
+        
+        // Create updated type schema with the new property
+        const updatedType = {
+            ...type,
+            properties: {
+                ...type.properties,
+                [newFieldName]: {
+                    type: 'string',
+                    title: 'New Field',
+                    description: 'Custom site field',
+                    propertyOrder: Object.keys(type.properties).length + 1
+                }
+            }
+        };
+
+        dispatch(setMapTypes({...types, [entityType]: updatedType}));
+        
+        // Update the type (this would normally go through a type management system)
+        // For now, we'll trigger a re-render by updating the types
+        console.log('New field added to site:', { fieldName: newFieldName, updatedSite, updatedType });
+    };
+
     useEffect(() => {
         if (!mapInstance || !isDrawingMode) return;
 
@@ -372,7 +401,7 @@ export default function SiteDetails({ context }) {
                 source: 'drawing-pins',
                 paint: {
                     'circle-radius': 6,
-                    'circle-color': '#ff0000',
+                    'circle-color': '#DF158C',
                     'circle-stroke-width': 2,
                     'circle-stroke-color': '#ffffff'
                 }
@@ -385,7 +414,7 @@ export default function SiteDetails({ context }) {
                 type: 'line',
                 source: 'drawing-lines',
                 paint: {
-                    'line-color': '#ff0000',
+                    'line-color': '#DF158C',
                     'line-width': 2,
                     'line-dasharray': [2, 2]
                 }
@@ -645,45 +674,71 @@ export default function SiteDetails({ context }) {
         }
     };
 
-    const debouncedHandleSiteChange = useDebounce(handleSiteChange, 700)
-
     return (
         <div>
             <Typography variant="h6">Site: {plantName}</Typography>
-            <Typography variant="body2">Buildings: {buildings.length}</Typography>
 
-            {!isInEditMode && <div style={{marginTop: 12}}>
-                <CustomButton 
-                    variant="contained" 
-                    color="primary"
-                    onClick={setSiteForEdition}
-                    style={{ flex: 1 }}
-                    disabled={isDrawingMode}
-                >
-                    Edit Site
-                </CustomButton>    
-            </div>}
+            {/* Site Info - Always displayed */}
+            <Box sx={{ my: 2 }} style={{marginTop: 30}}>
+                <div style={{display: "flex", marginBottom: 30, justifyContent: "space-between", alignItems: "center"}}>
+                    <div style={{display: "flex", alignItems: "center", gap: 8}}>
+
+                        <img style={{width: 30, height: 30}} src='/icons/file-info.svg'/>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }} style={{fontSize: 18}}>
+                            Site Info
+                        </Typography>
+                    </div>
+                    {!isInEditMode && (
+                        <CustomButton 
+                            variant="contained" 
+                            color="primary"
+                            onClick={setSiteForEdition}
+                            size="small"
+                            disabled={isDrawingMode}
+                        >
+                            Edit Site
+                        </CustomButton>
+                    )}
+                </div>
+                <InfoComponent
+                    entity={currentSite}
+                    handleChange={handleSiteChange}
+                    type={type}
+                    entityType={entityType}
+                    originalEntity={currentSite}
+                    disabled={!isInEditMode}
+                    modifyTypeCallback={handleTypeModification}
+                />
+                <Divider style={{ margin: '16px 0'}} />
+                    <Box style={{ marginTop: 12, display: 'flex', justifyContent: "right", gap: 14}}>
+                        <CustomButton 
+                            variant="outlined" 
+                            color="primary"
+                            onClick={handleAddSiteInfo}
+                            style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
+                            startIcon={<Add/>}
+                            disabled={!isInEditMode}
+                        >
+                            Add Site Info
+                        </CustomButton>
+                        <CustomButton 
+                            variant="contained" 
+                            color="primary"
+                            onClick={() => {}}
+                            style={{ color: "grey", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
+                            startIcon={<Dashboard/>}
+                            disabled={true}
+                        >
+                            Add Structure
+                        </CustomButton>
+                    </Box>
+            </Box>
             
             {isInEditMode && (
-                <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between", height: "calc(100vh - 230px)"}}>
-                    <div style={{marginTop: 30}}>
-                        <Box sx={{ my: 2 }}>
-                            <div style={{display: "flex", gap: 8}}>
-                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }} style={{marginBottom: 10}}>
-                                    Site Info
-                                </Typography>
-                            </div>
-                            <InfoComponent
-                                entity={currentSite}
-                                handleChange={debouncedHandleSiteChange}
-                                type={siteEditingConfig}
-                                entityType="Site"
-                                originalEntity={currentSite}
-                            />
-                        </Box>
-
-                        <CustomButton
-                            variant="contained"
+                <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between", marginTop: 25, gap: 25}}>
+                    <div>
+                        <CustomButton 
+                            variant="contained" 
                             color="primary"
                             onClick={toggleDrawingMode}
                             style={{ marginBottom: 16 }}
@@ -715,8 +770,10 @@ export default function SiteDetails({ context }) {
                     </Box>
                 </div>
             )}
+            
+            <Divider style={{ margin: '16px 0px', marginTop: 25}} />
+            <Typography variant="body2">Buildings: {buildings.length}</Typography>
 
-            <Divider style={{ margin: '16px 0' }} />
             {buildings.map((unit, i) => (
                 <Typography key={i} variant="body2">
                     {unit.name}

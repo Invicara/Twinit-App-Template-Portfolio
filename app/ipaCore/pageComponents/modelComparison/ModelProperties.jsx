@@ -140,12 +140,7 @@ const ModelProperties = ({ modelOne, modelTwo, selectedPropRefs, setSelectedProp
     }, [modelTwoCollections]);
 
     useEffect(() => {
-        if (
-            Array.isArray(modelOnePropertyReferences) &&
-            modelOnePropertyReferences.length > 0 &&
-            Array.isArray(modelTwoPropertyReferences) &&
-            modelTwoPropertyReferences.length > 0
-        ) {
+        if (Array.isArray(modelOnePropertyReferences) && Array.isArray(modelTwoPropertyReferences)) {
             processProperties();
         }
     }, [modelOnePropertyReferences, modelTwoPropertyReferences]);
