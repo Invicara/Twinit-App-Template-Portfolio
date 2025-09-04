@@ -58,7 +58,15 @@
       "icon": "fas fa-map-marked-alt fa-2x",
       "pageComponent": "portfolioOverview/PortfolioOverview",
       "path": "/portfoliomap",
-      "config": {}
+      "config": {
+        "labels": {
+          "search": "Search nuclear power plant...",
+          "group": "Palier Group",
+          "structure": "Choose plant name / location",
+          "location": "Choose departments / regions",
+          "status": "Deploy Status"
+        }
+      }
     }
   },
   "portfolioOverview": {
