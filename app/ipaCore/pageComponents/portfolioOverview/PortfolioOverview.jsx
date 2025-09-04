@@ -12,6 +12,7 @@ import {createMachine} from "./machines/hierarchicalMapMachine";
 import ipaConfig from "../../ipaConfig.js";
 import { useDispatch, useSelector as useReduxSelector } from 'react-redux';
 import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
+import SearchPanel from './components/SearchPanel';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
 import clsx from "clsx";
 import {Custom2D3DToggle} from "./components/map/control/Custom2D3DToggle";
@@ -57,6 +58,10 @@ const useStyles = makeStyles((theme) => ({
     },
     statePanel: {
         width: 400,
+        height: '100%'
+    },
+    searchPanel: {
+        width: 580,
         height: '100%'
     },
     viewerContainer: {
@@ -244,8 +249,11 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                             </div>
                         </div>
                     </div>
-
-                    <Grid container className={classes.mainContent}>
+                    <Grid container className={classes.mainContent}> 
+                        {/* TODO: remove here later, test search panel UI for now by uncommenting SearchPanel here and commenting out StatePanel grid item below */}
+                        {/* <Grid item className={classes.searchPanel}>
+                            <SearchPanel userConfig={userConfig} />
+                        </Grid> */}
                         <Grid item className={classes.statePanel}>
                             <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
                         </Grid>
