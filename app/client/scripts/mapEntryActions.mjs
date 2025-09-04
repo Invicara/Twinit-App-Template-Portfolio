@@ -631,6 +631,10 @@ export async function addLayers({ context, sendBack, self }) {
         sendBack,
         getContext: self ? () => self.getSnapshot().context : () => context
     });
+
+    const afterLayerSetupCommands = await ScriptCache.runScript("afterLayerSetupCommands", {groupedFeatures: allFeatureLayers});
+    context.mmvSend(afterLayerSetupCommands || []);
+
     return {data: allFeatureLayers};
 }
 
