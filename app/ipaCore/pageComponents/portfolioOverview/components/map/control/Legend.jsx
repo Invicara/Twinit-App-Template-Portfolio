@@ -1,13 +1,12 @@
 import React, {useContext, useEffect, useState} from "react";
 import {LegendControl} from "./LegendControl.js";
 import './Legend.scss'
-import {MapMachineContext} from "../../PortfolioOverview.jsx";
+import {MapMachineContext} from "../../../PortfolioOverview.jsx";
 import {useSelector as useXstateSelector} from "@xstate/react";
 import {createPortal} from "react-dom";
 
-function LegendUI({ theme = {}, path, title = "Legend" }) {
-    const layerId = `${path}-features-layer`;
-    const bins = theme[layerId]?.bins || [];
+function LegendUI({ legend = {}, path, title = "Legend" }) {
+    const {bins = []} = legend;
     if(bins.length === 0) return null;
     return (
         <div style={{minWidth: 210 }} className={"overview-legend"}>
@@ -32,9 +31,9 @@ function LegendUI({ theme = {}, path, title = "Legend" }) {
 
 function LegendPortal({ path, target }) {
     const { actor } = useContext(MapMachineContext);
-    const { theme } = useXstateSelector(actor, state => state.context);
+    const { legend } = useXstateSelector(actor, state => state.context);
     if (!target) return null;
-    return createPortal(<LegendUI theme={theme} path={path} />, target);
+    return createPortal(<LegendUI legend={legend} path={path} />, target);
 }
 
 export function Legend({map, path}) {
