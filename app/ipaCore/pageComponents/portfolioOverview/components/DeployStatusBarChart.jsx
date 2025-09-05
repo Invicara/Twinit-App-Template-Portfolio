@@ -44,49 +44,6 @@ const useStyles = makeStyles({
     width: '100%',
     height: (props) => props.chartHeight,
   },
-  blackBox: {
-    width: 532,
-    height: 83,
-    backgroundColor: '#000000A6',
-    borderRadius: 4,
-    padding: 16,
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    gap: 12,
-    fontFamily: 'Inter, sans-serif',
-    marginTop: 125, 
-    marginBottom: 24,
-    alignSelf: 'center',
-    marginLeft: 'auto',
-    marginRight: 'auto',
-  },
-  blackBoxTitle: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 13,
-  },
-  blackBoxContent: {
-    display: 'flex',
-    gap: 24,
-    alignItems: 'center',
-  },
-  mwItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-  },
-  mwCircle: {
-    width: 12,
-    height: 12,
-    borderRadius: '50%',
-    display: 'inline-block',
-  },
-  mwText: {
-    color: '#FFFFFF',
-    fontWeight: 500,
-    fontSize: 13,
-  },
 });
 
 const groupLabelPlugin = {
@@ -135,10 +92,10 @@ const hideLastXGridLinePlugin = {
 
     ctx.save();
     ctx.strokeStyle = chart.options.plugins?.background?.color || '#fff';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(lastPixel, chart.chartArea.top);
-    ctx.lineTo(lastPixel, chart.chartArea.bottom);
+    ctx.lineTo(lastPixel, chart.chartArea.bottom + 5);
     ctx.stroke();
     ctx.restore();
   },
@@ -247,31 +204,6 @@ export default function DeployStatusChart() {
       {/* Chart */}
       <div className={classes.chartWrapper}>
         <Bar data={chartData} options={options} plugins={[ChartDataLabels, groupLabelPlugin, hideLastXGridLinePlugin]} />
-      </div>
-
-      {/* Black box */}
-      <div className={classes.blackBox}>
-        <span className={classes.blackBoxTitle}>Nuclear power plants</span>
-
-        <div className={classes.blackBoxContent}>
-          {/* 900 MW */}
-          <div className={classes.mwItem}>
-            <span className={classes.mwCircle} style={{ backgroundColor: '#1DC0F7' }} />
-            <span className={classes.mwText}>900 MW</span>
-          </div>
-
-          {/* 1300 MW */}
-          <div className={classes.mwItem}>
-            <span className={classes.mwCircle} style={{ backgroundColor: '#0072BC' }} />
-            <span className={classes.mwText}>1300 MW</span>
-          </div>
-
-          {/* 1450 MW */}
-          <div className={classes.mwItem}>
-            <span className={classes.mwCircle} style={{ backgroundColor: '#1D1D1D', border: '1px solid #FFFFFF' }} />
-            <span className={classes.mwText}>1450 MW</span>
-          </div>
-        </div>
       </div>
     </div>
   );
