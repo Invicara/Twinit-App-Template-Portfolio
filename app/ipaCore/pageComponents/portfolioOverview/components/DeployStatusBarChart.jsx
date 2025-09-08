@@ -119,20 +119,15 @@ const mockDeployData = [
   { group: 'N4 Palier', capacityMW: 1450, status: { notStarted: 4, inProgress: 1, atRisk: 0, completed: 0 } },
 ];
 
-const STATUS_CONFIG = {
-  notStarted: { label: 'Not started', color: '#d3d3d3' },
-  inProgress: { label: 'In Progress', color: '#f4b740' },
-  atRisk: { label: 'At risk', color: '#e53935' },
-  completed: { label: 'Completed', color: '#66bb6a' },
-};
-
-export default function DeployStatusChart() {
+export default function DeployStatusChart({ userConfig }) {
   const chartHeight = mockDeployData.length * 120;
   const classes = useStyles({ chartHeight });
+  const chartTitle = userConfig.handlers.portfolioOverview.config.labels?.chartTitle || 'Status';
+  const statusConfig = userConfig.handlers.portfolioOverview.config.statusConfig || {}
 
   const chartData = useMemo(() => {
     const labels = mockDeployData.map(d => `${d.group} (${d.capacityMW} MW)`);
-    const datasets = Object.entries(STATUS_CONFIG).map(([key, { label, color }]) => ({
+    const datasets = Object.entries(statusConfig).map(([key, { label, color }]) => ({
       label,
       data: mockDeployData.map(d => d.status[key]),
       backgroundColor: color,
@@ -183,26 +178,26 @@ export default function DeployStatusChart() {
           },
         },
       },
-     tooltip: {
-    position: 'centerBar', // use our custom positioner
-    yAlign: 'bottom',
-    xAlign: 'center',
-      position: 'centerBar', // your custom positioner
-    displayColors: false,
-    padding: 12,
-    backgroundColor: '#000',
-    titleColor: '#fff',
-    bodyColor: '#fff',
-    bodyFont: { family: 'Inter', size: 12 },
-    callbacks: {
-      title: () => null,
-      label: (context) => {
-        const datasetLabel = context.dataset.label || '';
-        const value = context.parsed.x;
-        return `${datasetLabel}: ${value}`;
+      tooltip: {
+        position: 'centerBar', 
+        yAlign: 'bottom',
+        xAlign: 'center',
+        position: 'centerBar', 
+        displayColors: false,
+        padding: 12,
+        backgroundColor: '#000',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        bodyFont: { family: 'Inter', size: 12 },
+        callbacks: {
+          title: () => null,
+          label: (context) => {
+            const datasetLabel = context.dataset.label || '';
+            const value = context.parsed.x;
+            return `${datasetLabel}: ${value}`;
+          },
+        },
       },
-    },
-  },
       datalabels: false,
     },
     scales: {
@@ -238,7 +233,7 @@ export default function DeployStatusChart() {
       <div className={classes.header}>
         <BarChartOutlinedIcon className={classes.icon} />
         <span className={classes.headerText}>
-          Deploy Status by Palier Group
+          {chartTitle}
         </span>
       </div>
 
