@@ -19,10 +19,18 @@ async function executeScriptedEntryAction(mapMachineInput) {
     const {context} = mapMachineInput;
     const {mmvSend} = context;
 
-    const {commands, ...result} = await getScriptedEntryAction({mapMachineInput});
+    let result = {}
+    let mmvCommands = [];
+    try {
+        const {commands, ...rest} = await getScriptedEntryAction({mapMachineInput});
+        result = {...result, ...rest};
+        mmvCommands = commands;
+    } catch(err) {
+        console.error(err);
+    }
 
-    if(commands && mmvSend) {
-        mmvSend(commands);
+    if(mmvCommands && mmvSend) {
+        mmvSend(mmvCommands);
     }
 
     return result;
@@ -33,10 +41,17 @@ async function executeScriptedExitAction(mapMachineInput) {
     const {context} = mapMachineInput;
     const {mmvSend} = context;
 
-    const {commands, ...result} = await getScriptedExitAction({mapMachineInput});
-
-    if(commands && mmvSend) {
-        mmvSend(commands);
+    let result = {}
+    let mmvCommands = [];
+    try {
+        const {commands, ...rest} = await getScriptedExitAction({mapMachineInput});
+        result = {...result, ...rest};
+        mmvCommands = commands;
+    } catch(err) {
+        console.error(err);
+    }
+    if(mmvCommands && mmvSend) {
+        mmvSend(mmvCommands);
     }
 
     return result;

@@ -1,12 +1,12 @@
 import React, { useContext } from 'react';
 import { makeStyles } from '@material-ui/core';
-import { PortfolioActorContext } from '../../PortfolioOverview';
+import { useSelector as useXstateSelector } from '@xstate/react';
+import { MapContext, MapMachineContext } from '../../PortfolioOverview';
 import {Link, Tooltip, Typography} from "@material-ui/core";
 import HomeIcon from '@material-ui/icons/Home';
 import _ from "lodash";
 import AddSiteSection from './AddSiteSection';
 import { getActiveLevels } from '../../../../../services/utils';
-
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -82,11 +82,11 @@ const useStyles = makeStyles((theme) => ({
         fontSize: 13,
         fontWeight: 500
     },
-    homeLink: { 
-        display: 'inline-flex', 
-        alignItems: 'center', 
-        cursor: 'pointer', 
-        padding: '4px' 
+    homeLink: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        cursor: 'pointer',
+        padding: '4px'
     }
 }));
 
@@ -140,7 +140,8 @@ function buildGoToHome(namedPath) {
 
 const PortfolioBreadCrumbs = ({namedPath, getLabel}) => {
     const classes = useStyles();
-    const { currentState, send } = useContext(PortfolioActorContext);
+    const { send, actor } = useContext(MapMachineContext);
+    const currentState = useXstateSelector(actor, state => state);
 
     const context = currentState?.context ?? {};
 

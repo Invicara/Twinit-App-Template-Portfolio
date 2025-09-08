@@ -19,14 +19,14 @@ const useStyles = makeStyles({
   container: {
     width: '100%',
     overflowY: 'auto',
-    minHeight: '125vh',
+    minHeight: (props) => props.chartHeight + 300,
     display: 'flex',
     flexDirection: 'column',
   },
   header: {
     display: 'flex',
     alignItems: 'flex-start',
-    marginBottom: 24,
+    marginBottom: -20,
   },
   icon: {
     color: '#5D5D5D',
@@ -42,52 +42,21 @@ const useStyles = makeStyles({
   },
   chartWrapper: {
     width: '100%',
-    height: (props) => props.chartHeight,
-  },
-  blackBox: {
-    width: 532,
-    height: 83,
-    backgroundColor: '#000000A6',
-    borderRadius: 4,
-    padding: 16,
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    gap: 12,
-    fontFamily: 'Inter, sans-serif',
-    marginTop: 125, 
-    marginBottom: 24,
-    alignSelf: 'center',
-    marginLeft: 'auto',
-    marginRight: 'auto',
-  },
-  blackBoxTitle: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 13,
-  },
-  blackBoxContent: {
-    display: 'flex',
-    gap: 24,
-    alignItems: 'center',
-  },
-  mwItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-  },
-  mwCircle: {
-    width: 12,
-    height: 12,
-    borderRadius: '50%',
-    display: 'inline-block',
-  },
-  mwText: {
-    color: '#FFFFFF',
-    fontWeight: 500,
-    fontSize: 13,
+    height: (props) => props.chartHeight + 40,
+    overflow: 'visible'
   },
 });
+
+Tooltip.positioners.centerBar = function (items, eventPosition) {
+  if (!items.length) {
+    return false;
+  }
+  const element = items[0].element;
+  return {
+    x: (element.base + element.x) / 2, 
+    y: element.y - element.height / 2.3
+  };
+};
 
 const groupLabelPlugin = {
   id: 'groupLabelPlugin',
@@ -177,7 +146,15 @@ export default function DeployStatusChart() {
     indexAxis: 'y',
     responsive: true,
     maintainAspectRatio: false,
-    layout: { padding: { left: 10, right: 10, top: 0, bottom: 0 } },
+    layout: { 
+      padding: { 
+        left: 10, 
+        right: 10, 
+        top: 28, 
+        bottom: 0 
+      } 
+    },
+    clip: false,
     plugins: {
       legend: {
         display: true,
@@ -206,7 +183,26 @@ export default function DeployStatusChart() {
           },
         },
       },
-      tooltip: { enabled: false },
+     tooltip: {
+    position: 'centerBar', // use our custom positioner
+    yAlign: 'bottom',
+    xAlign: 'center',
+      position: 'centerBar', // your custom positioner
+    displayColors: false,
+    padding: 12,
+    backgroundColor: '#000',
+    titleColor: '#fff',
+    bodyColor: '#fff',
+    bodyFont: { family: 'Inter', size: 12 },
+    callbacks: {
+      title: () => null,
+      label: (context) => {
+        const datasetLabel = context.dataset.label || '';
+        const value = context.parsed.x;
+        return `${datasetLabel}: ${value}`;
+      },
+    },
+  },
       datalabels: false,
     },
     scales: {
@@ -222,6 +218,7 @@ export default function DeployStatusChart() {
           },
         },
         border: { display: false },
+        clip: false,
       },
       y: {
         stacked: true,
@@ -230,6 +227,7 @@ export default function DeployStatusChart() {
         grid: { display: false, drawBorder: false },
         border: { display: false },
         ticks: { display: false },
+        clip: false,
       },
     },
   };
@@ -247,31 +245,6 @@ export default function DeployStatusChart() {
       {/* Chart */}
       <div className={classes.chartWrapper}>
         <Bar data={chartData} options={options} plugins={[ChartDataLabels, groupLabelPlugin, hideLastXGridLinePlugin]} />
-      </div>
-
-      {/* Black box */}
-      <div className={classes.blackBox}>
-        <span className={classes.blackBoxTitle}>Nuclear power plants</span>
-
-        <div className={classes.blackBoxContent}>
-          {/* 900 MW */}
-          <div className={classes.mwItem}>
-            <span className={classes.mwCircle} style={{ backgroundColor: '#1DC0F7' }} />
-            <span className={classes.mwText}>900 MW</span>
-          </div>
-
-          {/* 1300 MW */}
-          <div className={classes.mwItem}>
-            <span className={classes.mwCircle} style={{ backgroundColor: '#0072BC' }} />
-            <span className={classes.mwText}>1300 MW</span>
-          </div>
-
-          {/* 1450 MW */}
-          <div className={classes.mwItem}>
-            <span className={classes.mwCircle} style={{ backgroundColor: '#1D1D1D', border: '1px solid #FFFFFF' }} />
-            <span className={classes.mwText}>1450 MW</span>
-          </div>
-        </div>
       </div>
     </div>
   );
