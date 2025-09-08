@@ -293,7 +293,7 @@ export default function SearchPanel({ currentState, context, userConfig }) {
         </form>
       </Box>
       <Box className={classes.divider} />
-      <DeployStatusChart />
+      <DeployStatusChart userConfig={userConfig} />
     </Paper>
   );
 };
