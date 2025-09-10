@@ -50,6 +50,61 @@ export function getLoadedGeometryIds() {
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+/**
+ * Properly dispose of THREE.js resources to prevent memory leaks
+ * @param {THREE.Object3D} obj - The 3D object to dispose
+ */
+function disposeObject3D(obj) {
+    if (!obj) return;
+    
+    obj.traverse((node) => {
+        if (node.isMesh) {
+            // Dispose geometry
+            if (node.geometry) {
+                node.geometry.dispose();
+            }
+            
+            // Dispose materials and their textures
+            if (node.material) {
+                if (Array.isArray(node.material)) {
+                    node.material.forEach(mat => {
+                        disposeMaterial(mat);
+                    });
+                } else {
+                    disposeMaterial(node.material);
+                }
+            }
+        }
+    });
+    
+    // Clear the object's children array
+    if (obj.children) {
+        obj.children.length = 0;
+    }
+}
+
+/**
+ * Dispose of a THREE.js material and its textures
+ * @param {THREE.Material} material - The material to dispose
+ */
+function disposeMaterial(material) {
+    if (!material) return;
+    
+    // Dispose common texture types
+    const textureProperties = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 
+                              'emissiveMap', 'bumpMap', 'displacementMap', 'aoMap',
+                              'lightMap', 'envMap', 'alphaMap'];
+    
+    textureProperties.forEach(prop => {
+        if (material[prop] && material[prop].dispose) {
+            material[prop].dispose();
+        }
+    });
+    
+    // Dispose the material itself
+    material.dispose();
+}
+
 const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
 
 function makeBinColorExpression(config) {
@@ -548,6 +603,7 @@ export async function loadGraphics(graphicReferences) {
                         };
                         
                         globalLoadedGeometries.set(graphicId, geometryInfo);
+                        window.globalLoadedGeometries = globalLoadedGeometries;
                         resolve(geometryInfo);
                     }, 
                     (progress) => {
@@ -580,33 +636,108 @@ export async function loadGraphics(graphicReferences) {
 }
 
 /**
- * Deep clone a THREE.js scene to ensure each instance has independent materials and geometries
- * @param {THREE.Scene} scene - The scene to clone
- * @returns {THREE.Scene} - The cloned scene
+ * Create an optimized instance of a THREE.js scene that shares geometries but clones materials only when needed
+ * This dramatically reduces memory usage by sharing geometry data across instances
+ * @param {THREE.Scene} scene - The scene to instance
+ * @param {boolean} cloneMaterials - Whether to clone materials (default: false for better performance)
+ * @returns {THREE.Scene} - The instanced scene
  */
-export function deepCloneScene(scene) {
-    const clonedScene = scene.clone();
+export function createOptimizedInstance(scene, cloneMaterials = false) {
+    const instancedScene = scene.clone();
     
-    // Deep clone materials and geometries to ensure independence
-    clonedScene.traverse((node) => {
-        if (node.isMesh) {
-            // Clone the geometry
-            if (node.geometry) {
-                node.geometry = node.geometry.clone();
-            }
-            
-            // Clone the material (or materials array)
-            if (node.material) {
+    // Only clone materials if specifically requested (e.g., for different colors/appearances)
+    if (cloneMaterials) {
+        instancedScene.traverse((node) => {
+            if (node.isMesh && node.material) {
                 if (Array.isArray(node.material)) {
                     node.material = node.material.map(mat => mat.clone());
                 } else {
                     node.material = node.material.clone();
                 }
             }
+        });
+    }
+    
+    // Geometries are automatically shared through scene.clone() - no need to clone them!
+    // This saves massive amounts of memory for large models
+    
+    return instancedScene;
+}
+
+/**
+ * Create a themed instance with modified material properties (e.g., different colors)
+ * @param {THREE.Scene} scene - The scene to instance
+ * @param {Object} materialOverrides - Object with material property overrides
+ * @returns {THREE.Scene} - The themed instance
+ */
+export function createThemedInstance(scene, materialOverrides = {}) {
+    const themedScene = createOptimizedInstance(scene, true); // Clone materials for theming
+    
+    if (Object.keys(materialOverrides).length > 0) {
+        themedScene.traverse((node) => {
+            if (node.isMesh && node.material) {
+                const materials = Array.isArray(node.material) ? node.material : [node.material];
+                materials.forEach(material => {
+                    Object.keys(materialOverrides).forEach(prop => {
+                        if (prop === 'color' && materialOverrides[prop]) {
+                            // Handle color specifically - convert to THREE.Color if needed
+                            const color = materialOverrides[prop];
+                            if (typeof color === 'string' || typeof color === 'number') {
+                                material.color = new THREE.Color(color);
+                            } else if (color instanceof THREE.Color) {
+                                material.color = color;
+                            }
+                        } else if (material.hasOwnProperty(prop)) {
+                            material[prop] = materialOverrides[prop];
+                        }
+                    });
+                });
+            }
+        });
+    }
+    
+    return themedScene;
+}
+
+/**
+ * Apply color theming to an existing model instance
+ * @param {THREE.Scene} modelScene - The model scene to apply colors to
+ * @param {string|number|THREE.Color} color - The color to apply
+ * @param {number} opacity - Optional opacity (0-1)
+ */
+export function applyColorToModel(modelScene, color, opacity = null) {
+    if (!modelScene) return;
+    
+    modelScene.traverse((node) => {
+        if (node.isMesh && node.material) {
+            const materials = Array.isArray(node.material) ? node.material : [node.material];
+            materials.forEach(material => {
+                if (color) {
+                    if (typeof color === 'string' || typeof color === 'number') {
+                        material.color = new THREE.Color(color);
+                    } else if (color instanceof THREE.Color) {
+                        material.color = color;
+                    }
+                }
+                
+                if (opacity !== null) {
+                    material.opacity = opacity;
+                    material.transparent = opacity < 1;
+                }
+            });
         }
     });
-    
-    return clonedScene;
+}
+
+/**
+ * @deprecated Use createOptimizedInstance() instead for better memory efficiency
+ * Deep clone a THREE.js scene to ensure each instance has independent materials and geometries
+ * @param {THREE.Scene} scene - The scene to clone
+ * @returns {THREE.Scene} - The cloned scene
+ */
+export function deepCloneScene(scene) {
+    console.warn('deepCloneScene is deprecated and memory-inefficient. Use createOptimizedInstance() instead.');
+    return createOptimizedInstance(scene, true); // Clone materials for backward compatibility
 }
 
 /**
@@ -837,30 +968,46 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             }));
         },
         
-        // Deep clone scene to ensure each model instance has independent materials and geometries
-        deepCloneScene: function(scene) {
-            const clonedScene = scene.clone();
+        // Create optimized instance that shares geometries for better memory efficiency
+        createModelInstance: function(scene, cloneMaterials = false, materialOverrides = null) {
+            if (materialOverrides) {
+                return createThemedInstance(scene, materialOverrides);
+            }
+            return createOptimizedInstance(scene, cloneMaterials);
+        },
+        
+        // Apply theming based on feature properties
+        applyFeatureTheming: function(modelScene, properties) {
+            if (!properties) return;
             
-            // Deep clone materials and geometries to ensure independence
-            clonedScene.traverse((node) => {
-                if (node.isMesh) {
-                    // Clone the geometry
-                    if (node.geometry) {
-                        node.geometry = node.geometry.clone();
-                    }
-                
-                    // Clone the material (or materials array)
-                    if (node.material) {
-                        if (Array.isArray(node.material)) {
-                            node.material = node.material.map(mat => mat.clone());
-                        } else {
-                            node.material = node.material.clone();
-                        }
-                    }
+            // Check for common color properties
+            const colorProps = ['color', 'Color', 'fill-color', 'fillColor', 'material_color'];
+            const opacityProps = ['opacity', 'Opacity', 'alpha', 'transparency'];
+            
+            let color = null;
+            let opacity = null;
+            
+            // Find color from properties
+            for (const prop of colorProps) {
+                if (properties[prop]) {
+                    color = properties[prop];
+                    break;
                 }
-            });
+            }
             
-            return clonedScene;
+            // Find opacity from properties  
+            for (const prop of opacityProps) {
+                if (properties[prop] !== undefined) {
+                    opacity = parseFloat(properties[prop]);
+                    break;
+                }
+            }
+            
+            // Apply theming if found
+            if (color || opacity !== null) {
+                applyColorToModel(modelScene, color, opacity);
+                console.log(`Applied theming: color=${color}, opacity=${opacity}`);
+            }
         },
         
         onAdd: function(map, gl) {
@@ -896,9 +1043,11 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
         updateFeatures: function(newFeatures, graphics, contextGetter) {
             if (!this.scene) return;
             
-            // Clear existing features
+            // Clear existing features and dispose resources properly
             this.features.forEach(feature => {
                 if (feature.model) {
+                    // Properly dispose of THREE.js resources before removing from scene
+                    disposeObject3D(feature.model);
                     this.scene.remove(feature.model);
                 }
             });
@@ -954,7 +1103,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                 // Use addModelInstance to add the feature
                 // const instanceId = feature.properties?.id || `feature-${Date.now()}-${Math.random()}`;
                 const instanceId = feature.properties.buildingId;
-                const success = this.addModelInstance(graphicId, centroid, instanceId, geometryInfo);
+                const success = this.addModelInstance(graphicId, centroid, instanceId, geometryInfo, feature.properties);
                 
                 if (success) {
                     // Update the added feature with original properties
@@ -974,7 +1123,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             console.log(`Updated 3D graphics layer with ${this.features.length} features using addModelInstance`);
         },
         
-        addModelInstance: function(graphicId, centroid, instanceId, geometryInfo) {
+        addModelInstance: function(graphicId, centroid, instanceId, geometryInfo, featureProperties = null) {
             console.log(`Adding new model instance: ${instanceId} at [${centroid}]`);
             
             if (!geometryInfo) {
@@ -984,8 +1133,16 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
 
             const { meshCount, totalVertices, bbox } = geometryInfo;
             
-            // Create a deep clone of the scene for this new instance to ensure independence
-            const featureScene = this.deepCloneScene(geometryInfo.scene);
+            // Create an optimized instance that shares geometries but clones materials to preserve colors
+            // This maintains performance (shared geometry) while allowing individual colors/materials
+            const featureScene = this.createModelInstance(geometryInfo.scene, true);
+            
+            // Apply feature-based theming if properties contain color information
+            if (featureProperties) {
+                this.applyFeatureTheming(featureScene, featureProperties);
+            }
+            
+            console.log(`Created optimized instance for ${instanceId}: sharing geometry (${totalVertices} vertices) with individual materials`);
             
             // Calculate model transform for this instance
             const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
@@ -1105,6 +1262,35 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             });
             
             this.map.triggerRepaint();
+        },
+        
+        // Clean up all resources when layer is removed
+        onRemove: function() {
+            console.log('Cleaning up 3D graphics layer resources');
+            
+            // Dispose of all feature models
+            if (this.features) {
+                this.features.forEach(feature => {
+                    if (feature.model) {
+                        disposeObject3D(feature.model);
+                    }
+                });
+                this.features = [];
+            }
+            
+            // Clean up scene
+            if (this.scene) {
+                this.scene.clear();
+                this.scene = null;
+            }
+            
+            // Clean up renderer
+            if (this.renderer) {
+                this.renderer.dispose();
+                this.renderer = null;
+            }
+            
+            console.log('3D graphics layer cleanup complete');
         }
     };
 }
@@ -1152,8 +1338,6 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
         });
 
         const fc = featureCollection(turfFeatures);
-
-        console.log("FeaturesFOUND",{level: level.state, fc});
 
         const sourceId = `${level.state}-features`;
         // Add or update source
@@ -1630,8 +1814,10 @@ export function removeBuildingFromMap({ map, buildingId, namedPath }) {
         if (featureIndex !== -1) {
             const feature = buildingLayer.features[featureIndex];
             
-            // Remove the model from the scene
+            // Properly dispose of resources and remove the model from the scene
             if (feature.model && buildingLayer.scene) {
+                // Dispose of THREE.js resources before removing from scene
+                disposeObject3D(feature.model);
                 buildingLayer.scene.remove(feature.model);
             }
             
