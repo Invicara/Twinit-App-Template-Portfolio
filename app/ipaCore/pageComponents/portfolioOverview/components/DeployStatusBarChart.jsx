@@ -104,10 +104,10 @@ const hideLastXGridLinePlugin = {
 
     ctx.save();
     ctx.strokeStyle = chart.options.plugins?.background?.color || '#fff';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(lastPixel, chart.chartArea.top);
-    ctx.lineTo(lastPixel, chart.chartArea.bottom);
+    ctx.lineTo(lastPixel, chart.chartArea.bottom + 5);
     ctx.stroke();
     ctx.restore();
   },
