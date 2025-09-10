@@ -55,7 +55,7 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
             }
         }
 
-        if(event.eventName === 'selection_update' && event.payload.action === "click"){
+        if(event.payload.action === "click"){
             dispatch(setClickEvent(event.payload))
         }
 

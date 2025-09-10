@@ -1,21 +1,23 @@
 import React, {useContext, useEffect, useMemo} from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
-import { selectIsSelectingPosition, selectSelectedCoordinate, setDraftSite, setIsSelectingPosition, setSelectedCoordinate } from "../../../../redux/siteSetup";
+import { selectDraftType, selectIsSelectingPosition, selectSelectedCoordinate, setDraftType, setIsSelectingPosition, setSelectedCoordinate } from "../../../../redux/siteSetup";
 import { MapContext, MapMachineContext } from "../../PortfolioOverview";
 import {v4 as uuid} from "uuid";
 import { PinDrop } from '@material-ui/icons';
-import { defaultNewSiteId } from "../statePanels/SiteDetails";
-import { getClickEvent } from "../../../../redux/pageComponentState";
-import { addFeatureToMapLayer, removeFeatureFromMapLayer } from "../../../../../client/scripts/mapEntryActions.mjs";
+import { defaultNewBuildingId, defaultNewSiteId } from "../statePanels/SiteDetails";
+import { getClickEvent, getMapTypes, getSelectedGraphicReference } from "../../../../redux/pageComponentState";
+import { addFeatureToMapLayer, removeFeatureFromMapLayer, addBuildingToMap, getGeometryInfo } from "../../../../../client/scripts/mapEntryActions.mjs";
 import { Tooltip } from "@material-ui/core";
 import {useSelector as useXstateSelector} from "@xstate/react";
 
 const AddSiteSection = ({classes, levels}) => {
     const dispatch = useDispatch();
 
-    const selectionPath = useMemo(() => {
-        return levels.map(el => el.state).join(".")
+    const [selectionPath, currentElementType] = useMemo(() => {
+        const sPath = levels?.map(el => el.state).join(".");
+        const cElementType = sPath?.split(".")?.slice(-1)?.[0];
+        return [sPath, cElementType]
     })
 
     // Function to generate square coordinates around a centroid
@@ -59,48 +61,77 @@ const AddSiteSection = ({classes, levels}) => {
         // Remove the draft site from the data
         const currentData = currentState.context?.data || {};
         const currentSites = currentData.site || [];
-        const filteredSites = currentSites.filter(s => s.siteId !== siteToRemove.siteId);
-        const updatedData = {
-            ...currentData,
-            site: filteredSites
-        };
 
-        const namedPath = currentState.context.namedPaths[0];
+        if(siteToRemove.isDraft){
+            const filteredSites = currentSites.filter(s => s.siteId !== siteToRemove.siteId);
+            const updatedData = {
+                ...currentData,
+                site: filteredSites
+            };
 
-        const removeSuccess = removeFeatureFromMapLayer({
-            map: mapInstance,
-            levelState: 'site',
-            featureId: siteToRemove.siteId,
-            idKey: 'siteId', // explicitly specify the key for site identification
-            namedPath: namedPath
-        });
+            const namedPath = currentState.context.namedPaths[0];
+
+            const removeSuccess = removeFeatureFromMapLayer({
+                map: mapInstance,
+                levelState: 'site',
+                featureId: siteToRemove.siteId,
+                idKey: 'siteId', // explicitly specify the key for site identification
+                namedPath: namedPath
+            });
+
+            if (!removeSuccess) {
+                console.warn('Failed to remove draft site feature from map layer');
+            }
+
+            // Send event to update XState context (removing the site)
+            send({
+                type: 'UPDATE_DATA',
+                data: updatedData
+            });
+        } else {
+            
+            const finalizedSite = {...siteToRemove}
+            delete finalizedSite.isEditing;
+
+            const updatedSites = currentSites.map(s => 
+                s.siteId === siteId ? finalizedSite : s
+            );
+
+            const updatedData = {
+                ...currentData,
+                site: updatedSites
+            };
+
+            send({
+                type: 'UPDATE_DATA',
+                data: updatedData
+            });
+        }
 
         dispatch(setSelectedCoordinate());
         dispatch(setIsSelectingPosition(false));
-
-        if (!removeSuccess) {
-            console.warn('Failed to remove draft site feature from map layer');
-        }
-
-        // Send event to update XState context (removing the site)
-        send({
-            type: 'UPDATE_DATA',
-            data: updatedData
-        });
     };
 
+
     useEffect(() => {
-        if(previousSite?.isDraft && selectionPath === "portfolio"){
+        if((previousSite?.isDraft || previousSite?.isEditing) && currentElementType !== "site"){
             handleCancelSite(previousSite);
         }
-    }, [previousSite, selectionPath])
+    }, [previousSite, currentElementType])
 
     const previousIsSelectingPosition = usePrevious(isSelectingPosition);
 
     const handleAddSite = () => {
         dispatch(setSelectedCoordinate());
         dispatch(setIsSelectingPosition(!isSelectingPosition));
+        dispatch(setDraftType(!isSelectingPosition ? "site" : undefined))
     };
+
+    const draftType = useSelector(selectDraftType);
+    const selectedGraphicReferecen = useSelector(getSelectedGraphicReference);
+    const types = useSelector(getMapTypes);
+
+    const draftTypeSchema = types[draftType];
 
 
     useEffect(() => {
@@ -108,7 +139,86 @@ const AddSiteSection = ({classes, levels}) => {
             dispatch(setSelectedCoordinate([clickEvent.ground.longitude, clickEvent.ground.latitude]));
             dispatch(setIsSelectingPosition(false));
         }
-        if(selectedCoordinate?.length && currentState){
+        if(selectedCoordinate?.length && !isSelectingPosition && draftType === "building"){
+
+            const [centerLng, centerLat] = selectedCoordinate;
+            
+            // Create new building data with mandatory fields
+            const newBuilding = {
+                buildingId: defaultNewBuildingId,
+                name: defaultNewBuildingId, // Use last 8 chars for readable name
+                siteId: currentState.context.siteId, // Get siteId from current context
+                longitude: centerLng,
+                Longitude: centerLng,
+                latitude: centerLat,
+                Latitude: centerLat,
+                graphicRefId: selectedGraphicReferecen._id,
+                isDraft: true
+            };
+
+            // Update XState context by appending to context.data.building
+            const currentData = currentState.context?.data || {};
+            const currentBuildings = currentData.building || [];
+            const updatedData = {
+                ...currentData,
+                building: [...currentBuildings, newBuilding]
+            };
+
+            // Send UPDATE_DATA event to update XState context with new building data
+            send({
+                type: 'UPDATE_DATA',
+                data: updatedData
+            });
+
+            // Get geometry info from selectedGraphicReference for 3D model placement
+            let geometryInfo = null;
+            let graphicId = null;
+            
+            if (selectedGraphicReferecen && selectedGraphicReferecen._id) {
+                graphicId = selectedGraphicReferecen.graphic;
+                geometryInfo = getGeometryInfo(graphicId);
+                console.log('Retrieved geometry info for graphic:', graphicId, geometryInfo);
+            }
+
+            console.log("3D_STUFF", {mapInstance, graphicId, geometryInfo})
+
+            // Add 3D model to map if geometry info is available
+            if (mapInstance && graphicId && geometryInfo) {
+                const success3D = addBuildingToMap({
+                    map: mapInstance,
+                    buildingId: defaultNewBuildingId,
+                    centroid: [centerLng, centerLat],
+                    graphicId: graphicId,
+                    geometryInfo: geometryInfo,
+                    namedPath: currentState.context.namedPaths[0]
+                });
+                 
+                if (success3D) {
+                    console.log('Successfully added new building to 3D map layer');
+                } else {
+                    console.warn('Failed to add new building to 3D map layer');
+                }
+            } else {
+                console.warn('No geometry info available for 3D building placement. GraphicId:', graphicId, 'GeometryInfo:', geometryInfo);
+            }
+
+            // Navigate to the newly created building using GO_TO with buildingId
+            setTimeout(() => {
+                send({
+                    type: 'GO_TO',
+                    siteId: currentState.context.siteId,
+                    buildingId: defaultNewBuildingId
+                });
+            }, 100);
+
+            // Clear the selected coordinate
+            dispatch(setSelectedCoordinate());
+            dispatch(setIsSelectingPosition(false));
+            dispatch(setDraftType());
+            dispatch(setSelectedCoordinate([]));
+      
+        }
+        if(selectedCoordinate?.length && !isSelectingPosition && draftType === "site"){
             const [centerLng, centerLat] = selectedCoordinate;
 
             // Generate square coordinates around the selected point (500m width)
@@ -164,14 +274,13 @@ const AddSiteSection = ({classes, levels}) => {
                 });
             }, 100);
 
-            // Store in Redux as well
-            dispatch(setDraftSite(newSite));
-
             // Clear the selected coordinate
             dispatch(setSelectedCoordinate());
             dispatch(setIsSelectingPosition(false));
+            dispatch(setDraftType());
+            dispatch(setSelectedCoordinate([]));
         }
-    }, [previousIsSelectingPosition, isSelectingPosition, selectedCoordinate, clickEvent, currentState, send, dispatch, mapInstance])
+    }, [previousIsSelectingPosition, isSelectingPosition, selectedCoordinate, clickEvent, draftTypeSchema, draftType, selectedGraphicReferecen, currentState, send, dispatch, mapInstance])
 
 
     return <div className={isSelectingPosition ? classes.addSiteSectionActive : classes.addSiteSection} onClick={handleAddSite} >
