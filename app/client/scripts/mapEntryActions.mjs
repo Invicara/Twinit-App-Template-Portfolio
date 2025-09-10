@@ -17,6 +17,38 @@ import {
 } from "./mapMarkers.mjs";
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils/index.js";
 import {isColorProp, normalizeColorRGB} from "./colorNormalization.mjs";
+import { getCachedFile } from "../../services/utils.js";
+
+// Global Map to store loaded geometries, accessible throughout the application
+const globalLoadedGeometries = new Map();
+
+/**
+ * Get geometry info for a specific graphic ID
+ * @param {string} graphicId - The graphic ID to look up
+ * @returns {Object|null} - The geometry info object or null if not found
+ */
+export function getGeometryInfo(graphicId) {
+    return globalLoadedGeometries.get(graphicId) || null;
+}
+
+/**
+ * Check if a geometry is already loaded
+ * @param {string} graphicId - The graphic ID to check
+ * @returns {boolean} - True if geometry is loaded, false otherwise
+ */
+export function isGeometryLoaded(graphicId) {
+    return globalLoadedGeometries.has(graphicId);
+}
+
+/**
+ * Get all loaded geometry IDs
+ * @returns {Array<string>} - Array of all loaded graphic IDs
+ */
+export function getLoadedGeometryIds() {
+    return Array.from(globalLoadedGeometries.keys());
+}
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
 
@@ -251,6 +283,16 @@ export async function fetchFeaturesForLevel(levelDef, parentFeatures) {
             properties: { ...d }
         }));
     }
+    if (levelDef.feature === 'mesh') {
+        return data.filter(d => d.longitude && d.latitude).map(d => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: [parseFloat(d.longitude), parseFloat(d.latitude)]
+            },
+            properties: { ...d }
+        }));
+    }
     return [];
 }
 
@@ -391,6 +433,10 @@ export function featureFromKnownType(type, coords, properties = {}) {
             if (!isPos(coords)) throw new Error('Point coords must be [lng, lat]');
             return point(coords, properties);
         }
+        case 'mesh': {
+            if (!isPos(coords)) throw new Error('Mesh coords must be [lng, lat]');
+            return point(coords, properties);
+        }
         case 'multipoint': {
             if (!Array.isArray(coords) || !coords.every(isPos))
                 throw new Error('MultiPoint coords must be [[lng,lat], ...]');
@@ -423,10 +469,669 @@ export function featureFromKnownType(type, coords, properties = {}) {
     }
 }
 
+/**
+ * Load and cache all unique graphics (3D models) referenced in Redux state
+ * This function loads each unique graphic model only once and stores them for reuse
+ * 
+ * @param {Array} graphicReferences - Array of graphic references from Redux state
+ * @returns {Promise<Map>} - Map of loaded geometries keyed by graphic ID
+ */
+export async function loadGraphics(graphicReferences) {
+    const geometryLoadPromises = new Map();
+    
+    if (!graphicReferences || !Array.isArray(graphicReferences)) {
+        console.warn('loadGraphics: No graphic references provided');
+        return globalLoadedGeometries;
+    }
+    
+    // Get unique graphic IDs
+    const uniqueGraphicIds = [...new Set(graphicReferences.map(ref => ref.graphic))];
+    console.log(`Loading ${uniqueGraphicIds.length} unique graphics for ${graphicReferences.length} references`);
+    
+    const loader = new GLTFLoader();
+    
+    // Load each unique graphic URL once
+    const loadGeometry = async (graphicId) => {
+        if (geometryLoadPromises.has(graphicId)) {
+            return geometryLoadPromises.get(graphicId);
+        }
+        
+        const promise = (async () => {
+            try {
+                // Get the cached file URL for this graphic
+                const modelUrl = await getCachedFile(graphicId);
+                if (!modelUrl) {
+                    console.warn(`No URL found for graphic ID: ${graphicId}`);
+                    return null;
+                }
+                
+                console.log(`Loading graphic model: ${graphicId} from ${modelUrl}`);
+                
+                return new Promise((resolve, reject) => {
+                    loader.load(modelUrl, (gltf) => {
+                        console.log(`Graphic loaded successfully: ${graphicId}`);
+                        
+                        // Calculate model statistics
+                        let totalVertices = 0;
+                        let meshCount = 0;
+                        let boundingBox = new THREE.Box3();
+                        
+                        gltf.scene.traverse((node) => {
+                            if (node.isMesh) {
+                                meshCount++;
+                                totalVertices += node.geometry.attributes.position.count;
+                                boundingBox.expandByObject(node);
+                            }
+                        });
+                        
+                        // Get the size of the bounding box in model units
+                        const boxSize = new THREE.Vector3();
+                        boundingBox.getSize(boxSize);
+                        
+                        // Convert to meters (approximate)
+                        const modelToMetersScale = 1;
+                        const sizeInMeters = {
+                            width: boxSize.x * modelToMetersScale,
+                            depth: boxSize.z * modelToMetersScale,
+                            height: boxSize.y * modelToMetersScale
+                        };
+                        
+                        const geometryInfo = {
+                            scene: gltf.scene,
+                            sizeInMeters,
+                            boundingBox,
+                            meshCount,
+                            totalVertices,
+                            bbox: boundingBox.min.toArray().concat(boundingBox.max.toArray()),
+                            modelUrl,
+                            graphicId
+                        };
+                        
+                        globalLoadedGeometries.set(graphicId, geometryInfo);
+                        resolve(geometryInfo);
+                    }, 
+                    (progress) => {
+                        console.log(`Loading progress for ${graphicId}: ${(progress.loaded / progress.total * 100).toFixed(2)}%`);
+                    }, 
+                    (error) => {
+                        console.error(`Error loading graphic ${graphicId}:`, error);
+                        reject(error);
+                    });
+                });
+            } catch (error) {
+                console.error(`Error getting URL for graphic ${graphicId}:`, error);
+                return null;
+            }
+        })();
+        
+        geometryLoadPromises.set(graphicId, promise);
+        return promise;
+    };
+    
+    // Load all unique geometries
+    try {
+        const results = await Promise.all(uniqueGraphicIds.map(id => loadGeometry(id)));
+        console.log(`Successfully loaded ${results.filter(r => r !== null).length} graphics`);
+        return globalLoadedGeometries;
+    } catch (error) {
+        console.error('Error loading graphics:', error);
+        return globalLoadedGeometries;
+    }
+}
+
+/**
+ * Deep clone a THREE.js scene to ensure each instance has independent materials and geometries
+ * @param {THREE.Scene} scene - The scene to clone
+ * @returns {THREE.Scene} - The cloned scene
+ */
+export function deepCloneScene(scene) {
+    const clonedScene = scene.clone();
+    
+    // Deep clone materials and geometries to ensure independence
+    clonedScene.traverse((node) => {
+        if (node.isMesh) {
+            // Clone the geometry
+            if (node.geometry) {
+                node.geometry = node.geometry.clone();
+            }
+            
+            // Clone the material (or materials array)
+            if (node.material) {
+                if (Array.isArray(node.material)) {
+                    node.material = node.material.map(mat => mat.clone());
+                } else {
+                    node.material = node.material.clone();
+                }
+            }
+        }
+    });
+    
+    return clonedScene;
+}
+
+/**
+ * Create 3D cube wrapper features for graphics (following npa-mmv pattern)
+ * @param {Array} features - Array of point features
+ * @param {Map} loadedGraphics - Map of loaded graphic geometries
+ * @param {Function} getContext - Function to get Redux context
+ * @returns {Array} Array of polygon features representing 3D cubes
+ */
+async function createCubeWrapperFeatures(features, loadedGraphics, getContext) {
+    const cubeWrapperFeatures = [];
+    
+    // Get graphic references from Redux state
+    const contextData = getContext ? getContext() : {};
+    const { reduxState } = contextData;
+    const graphicReferences = reduxState?.pageComponentState?.mapGraphicReferences || [];
+    
+    // Create lookup map for graphicReferences: graphicRefId -> graphic
+    const graphicReferencesMap = new Map();
+    graphicReferences.forEach(ref => {
+        graphicReferencesMap.set(ref._id, ref.graphic);
+    });
+    
+    // Default cube size and height
+    const defaultCubeSizeMeters = 20; // square footprint side length
+    const defaultHeightMeters = 50;
+    
+    // Helper function to convert meters to degrees
+    const metersToDegrees = (meters, lat) => ({
+        dLat: meters / 111320,
+        dLon: meters / (111320 * Math.cos((lat * Math.PI) / 180))
+    });
+    
+    for (const feature of features) {
+        // Extract centroid from longitude/latitude fields
+        const longitude = feature.properties?.longitude;
+        const latitude = feature.properties?.latitude;
+        
+        if (!longitude || !latitude) {
+            console.warn(`Feature ${feature.properties?.id} missing longitude/latitude for cube wrapper`);
+            continue;
+        }
+        
+        const lng = parseFloat(longitude);
+        const lat = parseFloat(latitude);
+        
+        // Get graphic information for sizing (optional - use defaults if not available)
+        const graphicRefId = feature.properties?.graphicRefId;
+        let height = defaultHeightMeters;
+        let cubeSize = defaultCubeSizeMeters;
+        
+        if (graphicRefId) {
+            const graphicId = graphicReferencesMap.get(graphicRefId);
+            if (graphicId) {
+                const geometryInfo = loadedGraphics.get(graphicId);
+                if (geometryInfo && geometryInfo.sizeInMeters) {
+                    // Use actual model dimensions if available
+                    height = geometryInfo.sizeInMeters.height || defaultHeightMeters;
+                    cubeSize = Math.max(
+                        geometryInfo.sizeInMeters.width || defaultCubeSizeMeters,
+                        geometryInfo.sizeInMeters.depth || defaultCubeSizeMeters
+                    );
+                }
+            }
+        }
+        
+        // Create cube footprint coordinates
+        const { dLat, dLon } = metersToDegrees(cubeSize / 3, lat);
+        const ring = [
+            [lng - dLon, lat - dLat],
+            [lng + dLon, lat - dLat],
+            [lng + dLon, lat + dLat],
+            [lng - dLon, lat + dLat],
+            [lng - dLon, lat - dLat]
+        ];
+        
+        // Create cube wrapper feature
+        const cubeFeature = {
+            type: 'Feature',
+            id: feature.properties?.buildingId || feature.properties?.id,
+            properties: {
+                ...feature.properties,
+                type: '3d_model',
+                height: height,
+                elevation: 0,
+                cube_wrapper: true // Mark as wrapper feature
+            },
+            geometry: {
+                type: 'Polygon',
+                coordinates: [ring]
+            }
+        };
+        
+        cubeWrapperFeatures.push(cubeFeature);
+    }
+    
+    return cubeWrapperFeatures;
+}
+
+/**
+ * Setup graphic layers - creates 3D custom layer and transparent wrapper layer
+ * @param {Object} params - Parameters for setting up graphic layers
+ */
+async function setupGraphicLayers({ map, sourceId, level, features, loadedGraphics, namedPath, sendBack, getContext }) {
+    const customLayerId = `${sourceId}-3d-graphics`;
+    const wrapperLayerId = `${sourceId}-layer`;
+    
+    // Create 3D cube wrapper features
+    const cubeWrapperFeatures = await createCubeWrapperFeatures(features, loadedGraphics, getContext);
+    console.log(`Created ${cubeWrapperFeatures.length} cube wrapper features for 3D graphics`);
+    
+    // Update the source with cube wrapper features
+    const existingSource = map.getSource(sourceId);
+    if (existingSource) {
+        existingSource.setData({
+            type: 'FeatureCollection',
+            features: cubeWrapperFeatures
+        });
+    } else {
+        map.addSource(sourceId, {
+            type: 'geojson',
+            data: {
+                type: 'FeatureCollection',
+                features: cubeWrapperFeatures
+            }
+        });
+    }
+    
+    // Create transparent wrapper layer for click handling
+    if (!map.getLayer(wrapperLayerId)) {
+        map.addLayer({
+            id: wrapperLayerId,
+            type: 'fill-extrusion',
+            source: sourceId,
+            metadata: {
+                custom3DLayerRef: customLayerId,
+                layerType: "feature-wrapper",
+                description: "Feature wrapper for 3D graphics layer"
+            },
+            paint: {
+                'fill-extrusion-color': '#000000',
+                'fill-extrusion-height': ['coalesce', ['get', 'height'], 10],
+                'fill-extrusion-base': ['coalesce', ['get', 'elevation'], 0],
+                'fill-extrusion-opacity': 0.0 // Transparent
+            }
+        });
+        
+        // Add click handler
+        const handler = makeMapOnClickHandler({ map, namedPath, send: sendBack, getContext });
+        map.on('click', handler);
+        map.on('mouseenter', wrapperLayerId, () => { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', wrapperLayerId, () => { map.getCanvas().style.cursor = ''; });
+    }
+    
+    // Create or update 3D custom layer
+    if (!map.getLayer(customLayerId)) {
+        const customLayer = createGraphicsCustomLayer(customLayerId, features, loadedGraphics, level, getContext);
+        map.addLayer(customLayer);
+        console.log(`Created 3D graphics layer: ${customLayerId} with ${features.length} features`);
+    } else {
+        // Update existing layer with new features
+        const existingLayer = map.getLayer(customLayerId);
+        if (existingLayer && existingLayer.updateFeatures) {
+            existingLayer.updateFeatures(features, loadedGraphics, getContext);
+            console.log(`Updated 3D graphics layer: ${customLayerId} with ${features.length} features`);
+        }
+    }
+}
+
+/**
+ * Create a 3D custom layer for graphics rendering
+ * @param {string} layerId - The layer ID
+ * @param {Array} features - Array of GeoJSON features
+ * @param {Map} loadedGraphics - Map of loaded graphic geometries
+ * @param {Object} level - The level definition
+ * @param {Function} getContext - Function to get Redux context and graphic references
+ * @returns {Object} - Mapbox custom layer object
+ */
+function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, getContext) {
+    console.log("createGraphicsCustomLayer", {layerId, features, loadedGraphics, level, getContext})
+    const defaultModelAltitude = 0;
+    const defaultModelRotate = [Math.PI / 2, 0, 0];
+    
+    return {
+        id: layerId,
+        type: 'custom',
+        renderingMode: '3d',
+        metadata: {
+            type: '3d-graphics-layer',
+            description: '3D Graphics Features Layer',
+            featureInfo: {
+                idProperty: level.idKey || 'id',
+                geometryType: '3d-mesh',
+            }
+        },
+        features: [],
+        
+        // Method to query features at a point
+        queryFeatures: function(point) {
+            if (!this.features.length) return [];
+            
+            // Check each feature for proximity to click point
+            return this.features.filter(f => {
+                const featurePoint = f.centroid;
+                
+                // Define click tolerance in pixels
+                const tolerance = 100; // pixels
+                
+                // Simple distance check in pixel space
+                const distance = Math.sqrt(
+                    Math.pow(point.x - featurePoint[0], 2) +
+                    Math.pow(point.y - featurePoint[1], 2)
+                );
+                
+                return distance <= tolerance;
+            }).map(f => ({
+                type: 'Feature',
+                id: f.properties.id,
+                geometry: {
+                    type: 'Point',
+                    coordinates: f.centroid
+                },
+                properties: f.properties,
+                layer: {
+                    id: this.id,
+                    type: this.metadata.type
+                }
+            }));
+        },
+        
+        // Deep clone scene to ensure each model instance has independent materials and geometries
+        deepCloneScene: function(scene) {
+            const clonedScene = scene.clone();
+            
+            // Deep clone materials and geometries to ensure independence
+            clonedScene.traverse((node) => {
+                if (node.isMesh) {
+                    // Clone the geometry
+                    if (node.geometry) {
+                        node.geometry = node.geometry.clone();
+                    }
+                
+                    // Clone the material (or materials array)
+                    if (node.material) {
+                        if (Array.isArray(node.material)) {
+                            node.material = node.material.map(mat => mat.clone());
+                        } else {
+                            node.material = node.material.clone();
+                        }
+                    }
+                }
+            });
+            
+            return clonedScene;
+        },
+        
+        onAdd: function(map, gl) {
+            console.log('Initializing 3D graphics layer');
+            
+            this.camera = new THREE.Camera();
+            this.scene = new THREE.Scene();
+            
+            // Create directional lights for better illumination
+            const directionalLight = new THREE.DirectionalLight(0xffffff);
+            directionalLight.position.set(0, -70, 100).normalize();
+            this.scene.add(directionalLight);
+            
+            const directionalLight2 = new THREE.DirectionalLight(0xffffff);
+            directionalLight2.position.set(0, 70, 100).normalize();
+            this.scene.add(directionalLight2);
+            
+            // Create WebGL renderer
+            this.renderer = new THREE.WebGLRenderer({
+                canvas: map.getCanvas(),
+                context: gl,
+                antialias: true
+            });
+            this.renderer.autoClear = false;
+            this.map = map;
+            
+            // Process features and create 3D models
+            this.updateFeatures(features, loadedGraphics, getContext);
+            
+            console.log('3D graphics layer initialized');
+        },
+        
+        updateFeatures: function(newFeatures, graphics, contextGetter) {
+            if (!this.scene) return;
+            
+            // Clear existing features
+            this.features.forEach(feature => {
+                if (feature.model) {
+                    this.scene.remove(feature.model);
+                }
+            });
+            this.features = [];
+            
+            // Get graphic references from Redux state
+            const contextData = contextGetter ? contextGetter() : {};
+            const { reduxState } = contextData;
+            const graphicReferences = reduxState?.pageComponentState?.mapGraphicReferences || [];
+            
+            // Create lookup map for graphicReferences: graphicRefId -> graphic
+            const graphicReferencesMap = new Map();
+            graphicReferences.forEach(ref => {
+                graphicReferencesMap.set(ref._id, ref.graphic);
+            });
+            
+            console.log(`Processing ${newFeatures.length} features with ${graphicReferences.length} graphic references`);
+            
+            // Process each feature using the new approach
+            newFeatures.forEach(feature => {
+                // Extract centroid from longitude/latitude fields
+                const longitude = feature.properties?.longitude;
+                const latitude = feature.properties?.latitude;
+                
+                if (!longitude || !latitude) {
+                    console.warn(`Feature ${feature.properties?.id} missing longitude/latitude:`, feature.properties);
+                    return;
+                }
+                
+                const centroid = [parseFloat(longitude), parseFloat(latitude)];
+                
+                // Get graphicRefId from feature
+                const graphicRefId = feature.properties?.graphicRefId;
+                if (!graphicRefId) {
+                    console.warn(`Feature ${feature.properties?.id} missing graphicRefId:`, feature.properties);
+                    return;
+                }
+                
+                // Lookup graphic using graphicRefId
+                const graphicId = graphicReferencesMap.get(graphicRefId);
+                if (!graphicId) {
+                    console.warn(`No graphic reference found for graphicRefId ${graphicRefId}`);
+                    return;
+                }
+                
+                // Get cached geometry
+                const geometryInfo = graphics.get(graphicId);
+                if (!geometryInfo) {
+                    console.warn(`No cached geometry found for graphic ${graphicId}`);
+                    return;
+                }
+                
+                // Use addModelInstance to add the feature
+                // const instanceId = feature.properties?.id || `feature-${Date.now()}-${Math.random()}`;
+                const instanceId = feature.properties.buildingId;
+                const success = this.addModelInstance(graphicId, centroid, instanceId, geometryInfo);
+                
+                if (success) {
+                    // Update the added feature with original properties
+                    const addedFeature = this.features[this.features.length - 1];
+                    if (addedFeature) {
+                        addedFeature.properties = {
+                            ...addedFeature.properties,
+                            ...feature.properties,
+                            centroid: centroid,
+                            graphicRefId: graphicRefId,
+                            graphicId: graphicId
+                        };
+                    }
+                }
+            });
+            
+            console.log(`Updated 3D graphics layer with ${this.features.length} features using addModelInstance`);
+        },
+        
+        addModelInstance: function(graphicId, centroid, instanceId, geometryInfo) {
+            console.log(`Adding new model instance: ${instanceId} at [${centroid}]`);
+            
+            if (!geometryInfo) {
+                console.error('No geometry info available for graphic:', graphicId);
+                return false;
+            }
+
+            const { meshCount, totalVertices, bbox } = geometryInfo;
+            
+            // Create a deep clone of the scene for this new instance to ensure independence
+            const featureScene = this.deepCloneScene(geometryInfo.scene);
+            
+            // Calculate model transform for this instance
+            const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
+                centroid,
+                0 // defaultModelAltitude
+            );
+
+            const modelTransform = {
+                translateX: modelAsMercatorCoordinate.x,
+                translateY: modelAsMercatorCoordinate.y,
+                translateZ: modelAsMercatorCoordinate.z,
+                rotateX: Math.PI / 2, // defaultModelRotate[0]
+                rotateY: 0, // defaultModelRotate[1]
+                rotateZ: 0, // defaultModelRotate[2]
+                scale: modelAsMercatorCoordinate.meterInMercatorCoordinateUnits()
+            };
+
+            const keyProperty = this.metadata.featureInfo.idProperty
+
+            // Create feature information for the custom layer
+            const feature = {
+                model: featureScene,
+                centroid: centroid,
+                layer: this,
+                transform: modelTransform,
+                graphicId: graphicId,
+                properties: {
+                    [keyProperty]: instanceId,
+                    name: 'Placed 3D Model',
+                    type: '3d_model',
+                    graphic: graphicId,
+                    attributes: {
+                        mesh_count: meshCount,
+                        total_vertices: totalVertices,
+                        bbox,
+                        shared_geometry: true,
+                        geometry_url: geometryInfo.modelUrl,
+                        placed_instance: true
+                    }
+                }
+            };
+
+            // Add to features array and scene
+            this.features.push(feature);
+            this.scene.add(featureScene);
+
+            console.log('New model instance added successfully:', instanceId);
+            return true;
+        },
+        
+        
+        render: function(gl, matrix) {
+            if (!this.renderer || !this.features.length) return;
+            
+            this.renderer.resetState();
+            
+            // Store original visibility states (following npa-mmv pattern)
+            const originalVisibility = new Map();
+            this.features.forEach(f => {
+                originalVisibility.set(f, f.model.visible);
+            });
+            
+            // Process each feature with its own transform
+            this.features.forEach(feature => {
+                // Skip rendering if this feature's model is set to invisible
+                if (!originalVisibility.get(feature)) {
+                    return;
+                }
+                
+                const transform = feature.transform;
+                
+                const rotationX = new THREE.Matrix4().makeRotationAxis(
+                    new THREE.Vector3(1, 0, 0),
+                    transform.rotateX
+                );
+                const rotationY = new THREE.Matrix4().makeRotationAxis(
+                    new THREE.Vector3(0, 1, 0),
+                    transform.rotateY
+                );
+                const rotationZ = new THREE.Matrix4().makeRotationAxis(
+                    new THREE.Vector3(0, 0, 1),
+                    transform.rotateZ
+                );
+                
+                const m = new THREE.Matrix4().fromArray(matrix);
+                const l = new THREE.Matrix4()
+                    .makeTranslation(
+                        transform.translateX,
+                        transform.translateY,
+                        transform.translateZ
+                    )
+                    .scale(
+                        new THREE.Vector3(
+                            transform.scale,
+                            -transform.scale,
+                            transform.scale
+                        )
+                    )
+                    .multiply(rotationX)
+                    .multiply(rotationY)
+                    .multiply(rotationZ);
+                
+                this.camera.projectionMatrix = m.multiply(l);
+                
+                // Temporarily set visibility for rendering this feature only
+                feature.model.visible = true;
+                this.features.forEach(f => {
+                    if (f !== feature) f.model.visible = false;
+                });
+                
+                this.renderer.render(this.scene, this.camera);
+            });
+            
+            // Restore original visibility states (following npa-mmv pattern)
+            this.features.forEach(f => {
+                f.model.visible = originalVisibility.get(f);
+            });
+            
+            this.map.triggerRepaint();
+        }
+    };
+}
+
 // Main function to add all feature layers from a namedPath
 export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext }) {
     const allFeatureLayers = {}
     let parentFeatures = [];
+    
+    // Access Redux state through getContext if available
+    const contextData = getContext ? getContext() : {};
+    const { reduxState, reduxDispatch } = contextData;
+    
+    // Load graphics if Redux state is available and contains graphic references
+    let loadedGraphics = new Map();
+    if (reduxState?.pageComponentState?.mapGraphicReferences) {
+        console.log('Loading graphics from Redux state...');
+        loadedGraphics = await loadGraphics(reduxState.pageComponentState.mapGraphicReferences);
+        console.log(`Loaded ${loadedGraphics.size} graphics for use in features`);
+        
+        // Keep backward compatibility - create graphicsDict for reference lookup
+        const graphicsDict = Object.fromEntries(
+            reduxState.pageComponentState.mapGraphicReferences.map(g => [g._id, g.graphic])
+        );
+    }
+
+    
     for (const level of namedPath) {
         if (!level.feature) continue;
 
@@ -435,6 +1140,7 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
         const {sourceOptions} = clusterOptions;
 
         const features = await fetchFeaturesForLevel(level, parentFeatures);
+        console.log("featuresLevel", {features, level})
         parentFeatures = features; // propagate if needed
         allFeatureLayers[level.state] = features.map(f=>f.properties);
 
@@ -447,7 +1153,7 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
 
         const fc = featureCollection(turfFeatures);
 
-        console.log("Features",{level: level.state, fc});
+        console.log("FeaturesFOUND",{level: level.state, fc});
 
         const sourceId = `${level.state}-features`;
         // Add or update source
@@ -475,21 +1181,27 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
             map.getSource(sourceId).setData({ type: 'FeatureCollection', features });
         }
 
-        // Always add/update UNCLUSTERED layer
-        if (!map.getLayer(`${sourceId}-layer`)) {
-            map.addLayer({
-                id: `${sourceId}-layer`,
-                type: level.feature === 'point' ? 'circle' : 'fill',
-                source: sourceId,
-                filter: ['!', ['has', 'point_count']],
-                paint: level.feature === 'point'
-                    ? { 'circle-radius': 0.01, 'circle-color': '#fff' }//TODO: or also make invisible by default?
-                    : { 'fill-color': '#fff', 'fill-opacity': 0.18 }//TODO: or also make invisible by default?
-            });
-            const handler = makeMapOnClickHandler({ map, namedPath, send: sendBack, getContext });
-            map.on('click', handler);
-            map.on('mouseenter', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = 'pointer'; });
-            map.on('mouseleave', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = ''; });
+        // Handle different feature types
+        if (level.feature === 'mesh') {
+            // For graphic features, create a 3D custom layer and transparent fill layer
+            await setupGraphicLayers({ map, sourceId, level, features: turfFeatures, loadedGraphics, namedPath, sendBack, getContext });
+        } else {
+            // Always add/update UNCLUSTERED layer for non-graphic features
+            if (!map.getLayer(`${sourceId}-layer`)) {
+                map.addLayer({
+                    id: `${sourceId}-layer`,
+                    type: level.feature === 'point' ? 'circle' : 'fill',
+                    source: sourceId,
+                    filter: ['!', ['has', 'point_count']],
+                    paint: level.feature === 'point'
+                        ? { 'circle-radius': 0.01, 'circle-color': '#fff' }//TODO: or also make invisible by default?
+                        : { 'fill-color': '#fff', 'fill-opacity': 0.18 }//TODO: or also make invisible by default?
+                });
+                const handler = makeMapOnClickHandler({ map, namedPath, send: sendBack, getContext });
+                map.on('click', handler);
+                map.on('mouseenter', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = 'pointer'; });
+                map.on('mouseleave', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = ''; });
+            }
         }
         // Optionally add/update CLUSTERED layer
         if (!map.getLayer(`${sourceId}-layer-clustered`) && level.feature === 'point' && sourceOptions?.cluster) {
@@ -623,16 +1335,36 @@ export function removeFeatureFromMapLayer({ map, levelState, featureId, idKey, n
 export async function addLayers({ context, sendBack, self }) {
     // Choose the correct namedPath for this instance
     // For now, we pick the first path
-    const { map, namedPaths } = context;
+    const { map, namedPaths, reduxStore, reduxDispatch } = context;
     if (!map || !namedPaths) return;
+    
+    // Access Redux state if available
+    let reduxState = null;
+    if (reduxStore && reduxStore.getState) {
+        reduxState = reduxStore.getState();
+        console.log('Redux state accessible in addLayers:', reduxState);
+    }
+    
     const allFeatureLayers = await addAllFeatureLayers({
         map,
         namedPath: namedPaths[0],
         sendBack,
-        getContext: self ? () => self.getSnapshot().context : () => context
+        getContext: self ? () => {
+            const currentContext = self.getSnapshot().context;
+            // Include Redux access in the context
+            return {
+                ...currentContext,
+                reduxState: currentContext.reduxStore ? currentContext.reduxStore.getState() : null,
+                reduxDispatch: currentContext.reduxDispatch
+            };
+        } : () => context
     });
 
-    const afterLayerSetupCommands = await ScriptCache.runScript("afterLayerSetupCommands", {groupedFeatures: allFeatureLayers});
+    const afterLayerSetupCommands = await ScriptCache.runScript("afterLayerSetupCommands", {
+        groupedFeatures: allFeatureLayers,
+        reduxState,
+        reduxDispatch
+    });
     context.mmvSend(afterLayerSetupCommands || []);
 
     return {data: allFeatureLayers};
@@ -779,6 +1511,215 @@ export async function getEntryAction({mapMachineInput }) {
 
         default:
             return {};
+    }
+}
+
+/**
+ * Helper function to add cube wrapper for a single building
+ * @param {Object} params - Parameters for adding cube wrapper
+ * @param {mapboxgl.Map} params.map - Mapbox map instance
+ * @param {string} params.buildingId - Building ID
+ * @param {Array} params.centroid - [longitude, latitude] coordinates
+ * @param {Object} params.geometryInfo - Geometry information from loaded graphics
+ * @param {Function} params.getContext - Function to get Redux context
+ */
+function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, getContext }) {
+    const sourceId = 'building-features';
+    const wrapperLayerId = 'building-features-layer';
+    
+    // Get existing source
+    const existingSource = map.getSource(sourceId);
+    if (!existingSource) {
+        console.warn(`Source not found: ${sourceId}`);
+        return false;
+    }
+
+    // Default cube size and height
+    const defaultCubeSizeMeters = 20; // square footprint side length
+    const defaultHeightMeters = 50;
+    
+    // Helper function to convert meters to degrees
+    const metersToDegrees = (meters, lat) => ({
+        dLat: meters / 111320,
+        dLon: meters / (111320 * Math.cos((lat * Math.PI) / 180))
+    });
+    
+    const lng = parseFloat(centroid[0]);
+    const lat = parseFloat(centroid[1]);
+    
+    // Get sizing information from geometry
+    let height = defaultHeightMeters;
+    let cubeSize = defaultCubeSizeMeters;
+    
+    if (geometryInfo && geometryInfo.sizeInMeters) {
+        // Use actual model dimensions if available
+        height = geometryInfo.sizeInMeters.height || defaultHeightMeters;
+        cubeSize = Math.max(
+            geometryInfo.sizeInMeters.width || defaultCubeSizeMeters,
+            geometryInfo.sizeInMeters.depth || defaultCubeSizeMeters
+        );
+    }
+    
+    // Create cube footprint coordinates
+    const { dLat, dLon } = metersToDegrees(cubeSize / 3, lat);
+    const ring = [
+        [lng - dLon, lat - dLat],
+        [lng + dLon, lat - dLat],
+        [lng + dLon, lat + dLat],
+        [lng - dLon, lat + dLat],
+        [lng - dLon, lat - dLat]
+    ];
+    
+    // Create cube wrapper feature
+    const cubeFeature = {
+        type: 'Feature',
+        id: buildingId,
+        properties: {
+            buildingId: buildingId,
+            longitude: lng,
+            latitude: lat,
+            type: '3d_model',
+            height: height,
+            elevation: 0,
+            cube_wrapper: true // Mark as wrapper feature
+        },
+        geometry: {
+            type: 'Polygon',
+            coordinates: [ring]
+        }
+    };
+    
+    // Get current data and add the new cube wrapper
+    const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
+    const updatedFeatures = [...(currentData.features || []), cubeFeature];
+    const updatedFeatureCollection = {
+        type: 'FeatureCollection',
+        features: updatedFeatures
+    };
+    
+    // Update the source with the new cube wrapper
+    existingSource.setData(updatedFeatureCollection);
+    
+    console.log(`Added cube wrapper for building ${buildingId}`);
+    return true;
+}
+
+/**
+ * Remove both 3D graphic and cube wrapper for a building
+ * @param {Object} params - Parameters for removal
+ * @param {mapboxgl.Map} params.map - Mapbox map instance
+ * @param {string} params.buildingId - Building ID to remove
+ * @param {Array} params.namedPath - Named path configuration
+ * @returns {boolean} - Success status
+ */
+export function removeBuildingFromMap({ map, buildingId, namedPath }) {
+    console.log(`Removing building ${buildingId} from map`);
+    
+    let success = true;
+    
+    // Remove from 3D graphics layer
+    const buildingLayerId = 'building-features-3d-graphics';
+    const buildingLayer = map.getLayer(buildingLayerId);
+    
+    if (buildingLayer && buildingLayer.features) {
+        // Find and remove the feature from the 3D layer
+        const featureIndex = buildingLayer.features.findIndex(
+            feature => feature.properties?.buildingId === buildingId
+        );
+        
+        if (featureIndex !== -1) {
+            const feature = buildingLayer.features[featureIndex];
+            
+            // Remove the model from the scene
+            if (feature.model && buildingLayer.scene) {
+                buildingLayer.scene.remove(feature.model);
+            }
+            
+            // Remove from features array
+            buildingLayer.features.splice(featureIndex, 1);
+            console.log(`Removed building ${buildingId} from 3D graphics layer`);
+        } else {
+            console.warn(`Building ${buildingId} not found in 3D graphics layer`);
+            success = false;
+        }
+    } else {
+        console.warn(`Building 3D layer not found: ${buildingLayerId}`);
+        success = false;
+    }
+    
+    // Remove cube wrapper from building-features source
+    const sourceId = 'building-features';
+    const existingSource = map.getSource(sourceId);
+    
+    if (existingSource) {
+        const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
+        
+        // Filter out the cube wrapper feature
+        const filteredFeatures = (currentData.features || []).filter(feature => {
+            const featureBuildingId = feature.properties?.buildingId || feature.id;
+            return featureBuildingId !== buildingId;
+        });
+        
+        // Update the source with filtered data
+        const updatedFeatureCollection = {
+            type: 'FeatureCollection',
+            features: filteredFeatures
+        };
+        existingSource.setData(updatedFeatureCollection);
+        
+        console.log(`Removed cube wrapper for building ${buildingId}`);
+    } else {
+        console.warn(`Source not found: ${sourceId}`);
+        success = false;
+    }
+    
+    // Trigger map refresh/repaint
+    map.triggerRepaint();
+    
+    if (success) {
+        console.log(`Successfully removed building ${buildingId} from map`);
+    } else {
+        console.error(`Failed to completely remove building ${buildingId} from map`);
+    }
+    
+    return success;
+}
+
+// External function to add a building model instance to the map
+export function addBuildingToMap({ map, buildingId, centroid, graphicId, geometryInfo, namedPath, getContext }) {
+    console.log(`Adding building ${buildingId} to map at [${centroid}]`);
+    
+    if (!geometryInfo) {
+        console.error('No geometry info available for graphic:', graphicId);
+        return false;
+    }
+
+    // Find the 3D graphics layer for buildings
+    const buildingLayerId = 'building-features-3d-graphics';
+    const buildingLayer = map.getLayer(buildingLayerId);
+
+    
+    if (!buildingLayer) {
+        console.warn(`Building 3D layer not found: ${buildingLayerId}`);
+        return false;
+    }
+
+    // Use the layer's addModelInstance method
+    const success = buildingLayer.addModelInstance(graphicId, centroid, buildingId, geometryInfo);
+    
+
+    if (success) {
+        console.log(`Successfully added building ${buildingId} to 3D layer`);
+        
+        // // Add cube wrapper feature for the new building
+        addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, getContext });
+        
+        // // Trigger map refresh/repaint
+        map.triggerRepaint();
+        return true;
+    } else {
+        console.error(`Failed to add building ${buildingId} to 3D layer`);
+        return false;
     }
 }
 

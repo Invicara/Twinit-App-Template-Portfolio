@@ -1,20 +1,145 @@
 import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
-import { Typography, Divider, Button, Box } from '@material-ui/core';
+import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent } from '@material-ui/core';
 import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
-import { getClickEvent, getMapTypes, setMapTypes } from '../../../../redux/pageComponentState';
+import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference } from '../../../../redux/pageComponentState';
 import { MapMachineContext, MapContext } from '../../PortfolioOverview';
 import { addFeatureToMapLayer, removeFeatureFromMapLayer } from '../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache, usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
 import { InfoComponent } from '../../../../components/InfoComponent/InfoComponent';
-import { setIsSelectingPosition, setSelectedCoordinate } from '../../../../redux/siteSetup';
+import { setDraftType, setIsSelectingPosition, setSelectedCoordinate } from '../../../../redux/siteSetup';
 import { IafItemSvc } from '@dtplatform/platform-api';
 import {useSelector as useXstateSelector} from "@xstate/react";
 import _ from 'lodash';
-import { Add, Dashboard } from '@material-ui/icons';
-import { getActiveLevels } from '../../../../../services/utils';
+import { Add, Dashboard, Cancel } from '@material-ui/icons';
+import { getActiveLevels, getCachedFile } from '../../../../../services/utils';
 
 export const defaultNewSiteId = "<newSite>";
+export const defaultNewBuildingId = "<newBuilding>";
+
+
+const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode}) => {
+    const dispatch = useDispatch();
+
+    const [thumbnailUrls, setThumbnailUrls] = useState({});
+    const selectedGraphicReferece = useSelector(getSelectedGraphicReference);
+
+    useEffect(() => {
+        return () => {
+            dispatch(setDraftType());
+            dispatch(setIsSelectingPosition(false));
+            dispatch(setSelectedGraphicReference());
+        }
+    }, [])
+
+    // Handle thumbnail click for building selection
+    const handleThumbnailClick = (graphicReference) => {
+        if(selectedGraphicReferece !== graphicReference){
+            dispatch(setDraftType("building"));
+            dispatch(setIsSelectingPosition(true));
+            dispatch(setSelectedGraphicReference(graphicReference));
+        } else {
+            dispatch(setDraftType());
+            dispatch(setIsSelectingPosition(false));
+            dispatch(setSelectedGraphicReference());
+        }
+    };
+
+
+    useEffect(() => {
+        const loadThumbnails = async () => {
+            const urls = {};
+            for (const ref of mapGraphicReferences) {
+                if (ref.thumbnail) {
+                    try {
+                        const url = await getCachedFile(ref.thumbnail);
+                        if (url) {
+                            urls[ref.thumbnail] = url;
+                        }
+                    } catch (error) {
+                        console.error(`Failed to load thumbnail for ${ref.thumbnail}:`, error);
+                    }
+                }
+            }
+            setThumbnailUrls(urls);
+        };
+
+        if (mapGraphicReferences && mapGraphicReferences.length > 0) {
+            loadThumbnails();
+        }
+    }, [mapGraphicReferences]);
+
+    return (
+        <Box sx={{ mt: 2 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: 16 }}>
+                    Select Building Type
+                </Typography>
+                <CustomButton
+                    variant="outlined"
+                    color="secondary"
+                    onClick={handleCancelNewBuildingMode}
+                    size="small"
+                    startIcon={<Cancel />}
+                >
+                    Cancel
+                </CustomButton>
+            </div>
+            
+            {mapGraphicReferences.length === 0 ? (
+                <Typography variant="body2" color="textSecondary">
+                    No building types available
+                </Typography>
+            ) : (
+                <Grid container spacing={2}>
+                    {mapGraphicReferences.map((ref, index) => (
+                        <Grid item xs={6} sm={4} md={3} key={index}>
+                            <Card 
+                                style={{ 
+                                    cursor: 'pointer',
+                                    backgroundColor: ref === selectedGraphicReferece ? 'rgba(223, 21, 140, 0.1)' : 'transparent',
+                                    border: ref === selectedGraphicReferece ? '2px solid #DF158C' : '2px solid transparent',
+                                    '&:hover': {
+                                        transform: ref === selectedGraphicReferece ? 'scale(1.02) translateY(-2px)' : 'translateY(-2px)',
+                                        boxShadow: ref === selectedGraphicReferece ? '0 6px 16px rgba(223, 21, 140, 0.4)' : '0 4px 8px rgba(0,0,0,0.15)'
+                                    }
+                                }}
+                                onClick={() => handleThumbnailClick(ref)}
+                            >
+                                {ref.thumbnail && thumbnailUrls[ref.thumbnail] ? (
+                                    <CardMedia
+                                        component="img"
+                                        height="80"
+                                        image={thumbnailUrls[ref.thumbnail]}
+                                        alt={ref.name || 'Building thumbnail'}
+                                        sx={{ objectFit: 'cover' }}
+                                    />
+                                ) : (
+                                    <Box
+                                        sx={{
+                                            height: 80,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            backgroundColor: '#f5f5f5'
+                                        }}
+                                    >
+                                        <Dashboard sx={{ fontSize: 32, color: '#ccc' }} />
+                                    </Box>
+                                )}
+                                <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+                                    <Typography variant="caption" display="block" sx={{ textAlign: 'center', fontSize: '0.75rem' }}>
+                                        {ref.name || `Building ${index + 1}`}
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                    ))}
+                </Grid>
+            )}
+        </Box>
+    );
+};
 
 export default function SiteDetails({ context }) {
     const {data = [], siteId} = context;
@@ -29,6 +154,7 @@ export default function SiteDetails({ context }) {
     const { mapInstance } = useContext(MapContext);
     const dispatch = useDispatch();
     const clickEvent = useSelector(getClickEvent);
+    const mapGraphicReferences = useSelector(getMapGraphicReferences);
 
     const namedPath = currentState.context.namedPaths[0];
 
@@ -55,10 +181,20 @@ export default function SiteDetails({ context }) {
     // Check if this site is being edited
     const isEditingSite = currentSite?.isEditing === true;
     
+    // New building placement state
+    const [isNewBuildingMode, setIsNewBuildingMode] = useState(false);
+    
     // Site is in edit mode if it's either draft or being edited
     const isInEditMode = isDraftSite || isEditingSite;
 
     const prevIsDrawingMode = usePrevious(isDrawingMode);
+
+    useEffect(() => {
+        if(!currentSite?.isDraft && !currentSite?.isEditing){
+            // Cache the original site before editing
+            setCachedOriginalSite(_.cloneDeep(currentSite));
+        }
+    }, [currentSite])
 
     // Handle site property changes
     const handleSiteChange = (newValue, propertyName, metadata) => {
@@ -214,8 +350,6 @@ export default function SiteDetails({ context }) {
     };
 
     const setSiteForEdition = () => {
-        // Cache the original site before editing
-        setCachedOriginalSite(_.cloneDeep(currentSite));
         
         const updatedData = _.cloneDeep(currentState.context?.data || {});
         const currentSites = updatedData.site || [];
@@ -243,10 +377,7 @@ export default function SiteDetails({ context }) {
             ...currentData,
             site: restoredSites
         };
-        
-        // Clear the cached original site
-        setCachedOriginalSite(null);
-        
+                
         // Update XState context with restored data
         send({
             type: 'UPDATE_DATA',
@@ -308,10 +439,7 @@ export default function SiteDetails({ context }) {
             ...currentData,
             site: updatedSites
         };
-        
-        // Clear the cached original site
-        setCachedOriginalSite(null);
-        
+
         // Send event to update XState context with finalized site
         send({
             type: 'UPDATE_DATA',
@@ -332,6 +460,18 @@ export default function SiteDetails({ context }) {
         }
         
         console.log('Site edit completed:', { finalizedSite, hasChanges });
+    };
+
+    // Handle starting new building placement mode
+    const handleStartNewBuildingMode = () => {
+        setIsNewBuildingMode(true);
+        console.log('Started new building placement mode');
+    };
+
+    // Handle canceling new building placement mode
+    const handleCancelNewBuildingMode = () => {
+        setIsNewBuildingMode(false);
+        console.log('Cancelled new building placement mode');
     };
 
     // Handle type modifications from InfoComponent
@@ -705,7 +845,7 @@ export default function SiteDetails({ context }) {
                     handleChange={handleSiteChange}
                     type={type}
                     entityType={entityType}
-                    originalEntity={currentSite}
+                    originalEntity={cachedOriginalSite}
                     disabled={!isInEditMode}
                     modifyTypeCallback={handleTypeModification}
                 />
@@ -724,10 +864,10 @@ export default function SiteDetails({ context }) {
                         <CustomButton 
                             variant="contained" 
                             color="primary"
-                            onClick={() => {}}
-                            style={{ color: "grey", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
+                            onClick={handleStartNewBuildingMode}
+                            style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
                             startIcon={<Dashboard/>}
-                            disabled={true}
+                            disabled={!isInEditMode}
                         >
                             Add Structure
                         </CustomButton>
@@ -772,13 +912,19 @@ export default function SiteDetails({ context }) {
             )}
             
             <Divider style={{ margin: '16px 0px', marginTop: 25}} />
-            <Typography variant="body2">Buildings: {buildings.length}</Typography>
-
-            {buildings.map((unit, i) => (
-                <Typography key={i} variant="body2">
-                    {unit.name}
-                </Typography>
-            ))}
+            
+            {isNewBuildingMode ? (
+                <BuildingThumbnails {...{mapGraphicReferences, handleCancelNewBuildingMode}} />
+            ) : (
+                <>
+                    <Typography variant="body2">Buildings: {buildings.length}</Typography>
+                    {buildings.map((unit, i) => (
+                        <Typography key={i} variant="body2">
+                            {unit.name}
+                        </Typography>
+                    ))}
+                </>
+            )}
         </div>
     );
 }
