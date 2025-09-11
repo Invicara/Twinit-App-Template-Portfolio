@@ -284,6 +284,7 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
                     step: fieldSchema.type === 'number' ? 'any' : undefined
                 }}
                 className={isEditable ? classes.inputEdit : classes.input}
+                defaultValue={fieldValue}
                 value={disabled ? fieldValue : undefined}
                 onChange={(e) => {
                     let value = e.target.value;
