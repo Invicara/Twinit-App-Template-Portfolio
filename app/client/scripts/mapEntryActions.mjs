@@ -603,7 +603,6 @@ export async function loadGraphics(graphicReferences) {
                         };
                         
                         globalLoadedGeometries.set(graphicId, geometryInfo);
-                        window.globalLoadedGeometries = globalLoadedGeometries;
                         resolve(geometryInfo);
                     }, 
                     (progress) => {
