@@ -53,6 +53,7 @@ const AddSiteSection = ({classes, levels}) => {
     const {site = [], building = []} = data;
     const currentSite = site.find(s => s.siteId === siteId);
     const previousSite = usePrevious(currentSite);
+    const previousClick = usePrevious(clickEvent);
 
     // Handle site cancellation (remove draft site)
     const handleCancelSite = (siteToRemove) => {
@@ -135,7 +136,7 @@ const AddSiteSection = ({classes, levels}) => {
 
 
     useEffect(() => {
-        if(previousIsSelectingPosition && isSelectingPosition && clickEvent?.ground){
+        if(previousIsSelectingPosition && isSelectingPosition && clickEvent?.ground && !_.isEqual(previousClick, clickEvent)){
             dispatch(setSelectedCoordinate([clickEvent.ground.longitude, clickEvent.ground.latitude]));
             dispatch(setIsSelectingPosition(false));
         }
@@ -280,7 +281,7 @@ const AddSiteSection = ({classes, levels}) => {
             dispatch(setDraftType());
             dispatch(setSelectedCoordinate([]));
         }
-    }, [previousIsSelectingPosition, isSelectingPosition, selectedCoordinate, clickEvent, draftTypeSchema, draftType, selectedGraphicReferecen, currentState, send, dispatch, mapInstance])
+    }, [previousIsSelectingPosition, isSelectingPosition, selectedCoordinate, previousClick, clickEvent, draftTypeSchema, draftType, selectedGraphicReferecen, currentState, send, dispatch, mapInstance])
 
 
     return <div className={isSelectingPosition ? classes.addSiteSectionActive : classes.addSiteSection} onClick={handleAddSite} >
