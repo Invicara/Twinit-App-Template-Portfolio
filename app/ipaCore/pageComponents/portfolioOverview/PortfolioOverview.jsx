@@ -12,7 +12,6 @@ import {createMachine} from "./machines/hierarchicalMapMachine";
 import ipaConfig from "../../ipaConfig.js";
 import { useDispatch, useSelector as useReduxSelector } from 'react-redux';
 import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
-import SearchPanel from './components/SearchPanel';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
 import clsx from "clsx";
 import {Custom2D3DToggle} from "./components/map/control/Custom2D3DToggle";
@@ -56,10 +55,10 @@ const useStyles = makeStyles((theme) => ({
     mainContent: {
         height: "calc(100% - 40px)"
     },
-    statePanel: {
-        width: 400,
+    statePanel: ({stateKey}) => (  {
+        width: stateKey === 'portfolio' ? 580 : 400,
         height: '100%'
-    },
+    }),
     searchPanel: {
         width: 580,
         height: '100%'
@@ -97,14 +96,21 @@ const DEFAULT_PATHS = [
 ]
 
 export default function PortfolioOverview({handler, userConfig, selectedItems}) {
-    const classes = useStyles();
-    const dispatch = useDispatch();
-
     const componentConfig = handler?.componentConfig;
     const namedPaths = useMemo(()=>componentConfig?.namedPaths || DEFAULT_PATHS,[]);
     const legendPath = useMemo(()=>componentConfig?.legendPath || "building",[]);
     const machineDef = useMemo(()=>createMachine("mapMachine",namedPaths),[namedPaths]);
     const [snapshot, send, actor] = useMachine(machineDef);
+
+    const currentState = useXstateSelector(actor, state => state);
+    const states = Object.keys(ipaConfig.mapPortfolio.statePanel.componentPaths || {});
+    const stateKey = useMemo(()=>states.reverse().find(state=>currentState.matches(state)),[currentState]);
+
+    const classes = useStyles({ stateKey });
+    const dispatch = useDispatch();
+
+
+    
 
     // MMV Configuration state -> this should be removed to a user config or a script
     const [mmvConfig, setMmvConfig] = useState();
@@ -183,7 +189,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         return ()=> subscription.unsubscribe();
     },[actor])
 
-    const currentState = useXstateSelector(actor, state => state);
 
     // Extract modelElementId from current state context
     const modelElementId = currentState?.context?.modelElementId;
@@ -250,13 +255,9 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                         </div>
                     </div>
                     <Grid container className={classes.mainContent}> 
-                        {/* TODO: remove here later, test search panel UI for now by uncommenting SearchPanel here and commenting out StatePanel grid item below */}
-                        <Grid item className={classes.searchPanel}>
-                            <SearchPanel userConfig={userConfig} />
+                        <Grid item className={classes.statePanel}>
+                            <StatePanel currentState={currentState} context={currentState.context} send={actor.send} userConfig={userConfig} />
                         </Grid>
-                        {/* <Grid item className={classes.statePanel}>
-                            <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
-                        </Grid> */}
                         <Grid item xs className={classes.viewerContainer}>
                             <div
                                 className={clsx(classes.mmvContainer, "dark-map", {'map-selecting-position' : isSelectingPosition})}
