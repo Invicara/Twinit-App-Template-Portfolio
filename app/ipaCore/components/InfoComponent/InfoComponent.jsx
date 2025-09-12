@@ -53,8 +53,6 @@ const useStyles = makeStyles(() => ({
 
 export const InfoComponent = ({ entity, handleChange, type, entityType, originalEntity, disabled = false, onFieldRemove, modifyTypeCallback, debounceTime=700 }) => {
 
-    console.log("InfoComponent", {entity, handleChange, type, entityType, originalEntity, disabled, onFieldRemove, modifyTypeCallback, debounceTime})
-
     const [openEdit, setIsEdit] = useState(false);
     
     // Modal states
@@ -73,6 +71,16 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
     
     const [localValue, setLocalValue] = useState(entity || {});
     const classes = useStyles();
+
+    // Reset localValue when disabled becomes true (end of editing)
+    useEffect(() => {
+        if (disabled && originalEntity) {
+            console.log("Resetting localValue due to disabled prop change", { originalEntity, currentLocalValue: localValue });
+            setLocalValue(originalEntity);
+            // Also close any open edit fields
+            setIsEdit(false);
+        }
+    }, [disabled, originalEntity])
 
     // Helper functions for JSON Schema
     const isRequired = (fieldName) => {
@@ -277,6 +285,7 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
                 }}
                 className={isEditable ? classes.inputEdit : classes.input}
                 defaultValue={fieldValue}
+                value={disabled ? fieldValue : undefined}
                 onChange={(e) => {
                     let value = e.target.value;
                     if (fieldSchema.type === 'number' && value !== '') {
