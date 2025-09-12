@@ -15,7 +15,7 @@ export const adapter = createEntityAdapter({
 })
 
 export const initialState = adapter.getInitialState({
-    draftSite: undefined,
+    draftType: undefined,
     isSelectingPosition: false,
     selectedCoordinate: undefined,
     siteCoordinates: []
@@ -25,8 +25,8 @@ export const slice = createSlice({
     name: SETUP_SITE_KEY,
     initialState: initialState,
     reducers: {
-        setDraftSite: (state, action) => {
-            state.draftSite = action.payload
+        setDraftType: (state, action) => {
+            state.draftType = action.payload
         },
         setIsSelectingPosition: (state, action) => {
             state.isSelectingPosition = action.payload
@@ -53,7 +53,7 @@ export default reducer
 
 export const siteSetupActions = slice.actions
 export const { 
-    setDraftSite, 
+    setDraftType, 
     setIsSelectingPosition, 
     setSelectedCoordinate, 
     setSiteCoordinates, 
@@ -67,7 +67,7 @@ const getSliceByProp = prop => createSelector(getSlice,
     (slice) => slice[prop]
 );
 
-export const selectDraftSite = getSliceByProp("draftSite")
+export const selectDraftType = getSliceByProp("draftType")
 export const selectIsSelectingPosition = getSliceByProp("isSelectingPosition")
 export const selectSelectedCoordinate = getSliceByProp("selectedCoordinate")
 export const selectSiteCoordinates = getSliceByProp("siteCoordinates")

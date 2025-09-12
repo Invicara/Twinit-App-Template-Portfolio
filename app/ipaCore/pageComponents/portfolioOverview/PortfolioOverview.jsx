@@ -10,14 +10,14 @@ import './PortfolioOverview.css'
 import './components/map/darkMap.scss'
 import {createMachine} from "./machines/hierarchicalMapMachine";
 import ipaConfig from "../../ipaConfig.js";
-import { useDispatch, useSelector as useReduxSelector } from 'react-redux';
+import { useDispatch, useSelector as useReduxSelector, useStore } from 'react-redux';
 import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
 import SearchPanel from './components/SearchPanel';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
 import clsx from "clsx";
 import {Custom2D3DToggle} from "./components/map/control/Custom2D3DToggle";
 import { IafItemSvc } from '@dtplatform/platform-api';
-import { setMapTypes } from '../../redux/pageComponentState.js';
+import { setMapGraphicReferences, setMapTypes } from '../../redux/pageComponentState.js';
 import {useSelector} from "react-redux";
 import {Legend} from "./components/map/control/Legend.jsx";
 import {flushSync} from "react-dom";
@@ -91,7 +91,7 @@ const DEFAULT_PATHS = [
     [
         { state: 'portfolio', idKey: null },
         { state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all" },
-        { state: 'building', idKey: 'buildingId', feature: "point", api: "building/all" },
+        { state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all" },
         { state: 'modelElement', idKey: 'modelElementId' },
     ]
 ]
@@ -99,11 +99,22 @@ const DEFAULT_PATHS = [
 export default function PortfolioOverview({handler, userConfig, selectedItems}) {
     const classes = useStyles();
     const dispatch = useDispatch();
+    const store = useStore();
 
     const componentConfig = handler?.componentConfig;
     const namedPaths = useMemo(()=>componentConfig?.namedPaths || DEFAULT_PATHS,[]);
     const legendPath = useMemo(()=>componentConfig?.legendPath || "building",[]);
-    const machineDef = useMemo(()=>createMachine("mapMachine",namedPaths),[namedPaths]);
+    
+    // Create machine with Redux context
+    const machineDef = useMemo(()=>{
+        return createMachine("mapMachine", namedPaths, {
+            initialContext: {
+                reduxStore: store,
+                reduxDispatch: dispatch
+            }
+        });
+    },[namedPaths, dispatch, store]);
+    
     const [snapshot, send, actor] = useMachine(machineDef);
 
     // MMV Configuration state -> this should be removed to a user config or a script
@@ -134,8 +145,14 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             dispatch(setMapTypes(types));
         }
 
+        const fetchMapRepresentations = async () => {            
+            const mapGraphicReferences = await ScriptCache.runScript("getGraphicReferences", {namedPaths});
+            dispatch(setMapGraphicReferences(mapGraphicReferences));
+        }
+
         fetchGisConfig();
         fetchMapTypes();
+        fetchMapRepresentations();
     },[namedPaths])
 
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
