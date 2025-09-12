@@ -726,6 +726,37 @@ export async function getEntryAction({mapMachineInput }) {
                 }
             }
 
+
+
+
+
+            const mmvThemeCommands2 = [
+                {
+                    "commandName": "theme_elements",
+                    "commandRef": uuid(),
+                    "params": {
+                        "extra": {
+                            "field": "siteId",
+                            "fieldType": "string",
+                            "layerNames": [
+                                "site-features-layer"
+                            ]
+                        },
+                        "groups": {
+                            "Flamanville": {
+                                ids: ["Flamanville"],
+                                color: [0, 0, 255]
+                            }
+                        },
+                        "other": {
+                            "color": [ 0, 128, 0 ]
+                        }
+                    }
+                }
+            ]
+            console.log("Theming command2",{mmvThemeCommands2});
+            context.mmvSend(mmvThemeCommands2)
+
             const markersConfig = singleMarkers;
             const {manageMarkers} = await handleMarkers(stateValue, markersConfig, {context, self});
 
