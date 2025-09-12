@@ -32,12 +32,13 @@ const useStyles = makeStyles({
     color: '#5D5D5D',
     fontSize: 26,
     marginRight: 8,
-    marginLeft: 15,
+    marginLeft: 0,
   },
   headerText: {
     fontFamily: 'Inter',
     fontSize: 15,
     fontWeight: 700,
+    marginTop: 4,
     color: '#000',
   },
   chartWrapper: {
@@ -134,7 +135,7 @@ export default function DeployStatusChart() {
     indexAxis: 'y',
     responsive: true,
     maintainAspectRatio: false,
-    layout: { padding: { left: 10, right: 10, top: 0, bottom: 0 } },
+    layout: { padding: { left: 0, right: 10, top: 0, bottom: 0 } },
     plugins: {
       legend: {
         display: true,
