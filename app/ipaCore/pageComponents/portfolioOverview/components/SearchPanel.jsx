@@ -102,7 +102,7 @@ const useStyles = makeStyles((theme) => ({
       },
 }));
 
-export default function SearchPanel({ currentState, context, userConfig }) {
+export default function SearchPanel({ currentState, context, userConfig, chartConfig, mmvSend, snapshot }) {
   const classes = useStyles();
 
  const [labels, setLabels] = useState({
@@ -293,7 +293,7 @@ export default function SearchPanel({ currentState, context, userConfig }) {
         </form>
       </Box>
       <Box className={classes.divider} />
-      <DeployStatusChart userConfig={userConfig} />
+        <DeployStatusChart userConfig={userConfig} chartConfig={chartConfig} context={context} mmvSend={mmvSend} snapshot={snapshot}/>
     </Paper>
   );
 };
