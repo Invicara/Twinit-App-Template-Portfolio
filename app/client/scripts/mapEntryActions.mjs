@@ -17,9 +17,11 @@ import {
 } from "./mapMarkers.mjs";
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils/index.js";
 import {isColorProp, normalizeColorRGB} from "./colorNormalization.mjs";
+import { useDispatch, useSelector } from "react-redux";
+import { selectIsSelectingPosition, selectSelectedCoordinate, setDraftSite, setIsSelectingPosition, setSelectedCoordinate } from '../../ipaCore/redux/siteSetup';
+import { L } from '@table-library/react-table-library/styles-492c6342';
 
 const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
-
 function makeBinColorExpression(config) {
     const expr = ["case"];
 
@@ -648,8 +650,12 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
         context.map.off('sourcedata', context.manageMarkers[stateValue])
     }
 
+    
+
     if(markersConfig){
         manageMarkers = async (e) => {
+            console.log('renderallmarkers');
+            console.log(markersConfig);
             const {graphics} = await renderAllMarkers(e, {context, self}, markersConfig);
 
             if (graphics && graphics.length > 0) {
@@ -690,6 +696,9 @@ export async function getEntryAction({mapMachineInput }) {
     if (suppressEntryActions) {
         return { suppressEntryActions: false };
     }
+
+    console.log('StateValue');
+    console.log(stateValue);
     switch (stateValue) {
         case 'portfolio': {
 
@@ -727,6 +736,7 @@ export async function getEntryAction({mapMachineInput }) {
             }
 
             const markersConfig = singleMarkers;
+            console.log("markersConfig", {markersConfig});
             const {manageMarkers} = await handleMarkers(stateValue, markersConfig, {context, self});
 
             return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme, legend };
@@ -831,4 +841,180 @@ export async function getExitAction({mapMachineInput }) {
         default:
             return {};
     }
+}
+
+export async function getChartStatus({ mapMachineInput }) {
+    const {stateValue, context, event, self} = mapMachineInput;
+    const {suppressEntryActions} = context;
+
+    if (suppressEntryActions) {
+        return { suppressEntryActions: false };
+    }
+
+     let result = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
+     let statusConfig = result?.singleMarkers?.[0]?.popupConfig?.statusPopup?.statusConfig;
+     let legend = result?.legend?.bins;
+
+   const reshapedStatusConfig = Object.keys(statusConfig.labelMap).reduce((acc, key) => {
+
+    const rawLabel = statusConfig.labelMap[key];
+    const label = rawLabel || key; // fallback to the key name if label is missing
+
+
+    const camelKey = toCamelCase(label);     // e.g. "suspendedOperation"
+        acc[camelKey] = {
+        label,
+        color: statusConfig.colorMap[key],
+        statusId: key,
+        };
+
+        return acc;
+    }, {});
+
+    const statusTemplate = Object.keys(reshapedStatusConfig).reduce((acc, key) => {
+    acc[key] = 0;
+    return acc;
+    }, {});
+
+    // Enrich each legend entry with a cloned status object
+    const statusLegend = legend.map(item => ({
+    ...item,
+    status: { ...statusTemplate }
+    }));
+
+    const data = updateStatusLegend(statusLegend, reshapedStatusConfig, context?.data);
+
+    return {statusConfig: reshapedStatusConfig, data: data};
+}
+
+function updateStatusLegend(statusLegend, statusConfig, data) {
+  // Build lookup: statusId → statusKey (Planned, Construction, etc.)
+  const statusIdToKey = {};
+  for (const [key, cfg] of Object.entries(statusConfig)) {
+    if (cfg && cfg.statusId != null) {
+      statusIdToKey[Number(cfg.statusId)] = key;
+    }
+  }
+
+  const updatedLegend = statusLegend.map(item => ({
+    ...item,
+    status: { ...item.status }
+  }));
+
+  for (const site of data?.site || []) {
+    for (const b of site?.buildings || []) {
+      const capacity = Number(b.Capacity);
+      const statusId = Number(b.StatusId);
+      if (isNaN(capacity)) continue;
+
+      // Find correct bucket
+      const bucket = updatedLegend.find(item => {
+        const min = item.min ?? -Infinity;
+        const max = item.max;
+        if (max == null) return capacity >= min;
+        return capacity >= min && capacity <= max;
+      });
+
+      if (!bucket) continue;
+
+      // Map statusId → statusKey
+      const statusKey = statusIdToKey[statusId] ?? 'unknown';
+
+      if (bucket.status.hasOwnProperty(statusKey)) {
+        bucket.status[statusKey] += 1;
+      } else {
+        bucket.status.unknown += 1;
+      }
+    }
+  }
+
+  return updatedLegend;
+}
+
+const toCamelCase = (str) => {
+  return str
+    .toLowerCase()
+    .replace(/(?:^\w|[\s-_]\w)/g, (match, index) =>
+      index === 0
+        ? match.toLowerCase()
+        : match.replace(/[\s-_]/, '').toUpperCase()
+    );
+};
+
+
+export async function filterFeatures({ mapMachineInput, data, dispatch, send}) {
+    const {stateValue, context, event, self, map, namedPaths} = mapMachineInput;
+    const {suppressEntryActions} = context;
+
+    console.log(self);
+
+    console.log('mapMachineInput');
+    console.log(mapMachineInput);
+
+    const datatosend = {building: context.data.building, site: data};
+    clearAllSites(map, context.data.site, context.namedPaths);
+    // dispatch(setSelectedCoordinate());
+    // dispatch(setIsSelectingPosition(false));
+    //  send({
+    //         type: 'UPDATE_DATA',
+    //         data: datatosend
+    //     });
+    if (suppressEntryActions) {
+        return { suppressEntryActions: false };
+    }
+
+     let result = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
+     let singleMarkers = result?.singleMarkers;
+
+     const allowedIds = new Set(data.map(f => f.siteId));
+
+     
+   // const filterMarkers = filterSingleMarkers({ singleMarkers }, allowedIds);
+   
+   const allowedSet = new Set((Array.isArray(data) ? data : []).map(d => d.siteId));
+   const filteredSingleMarkers = await singleMarkers.map(cfg => {
+    const copy = { ...cfg };
+    copy.features = Array.isArray(cfg.features)
+      ? cfg.features.filter(f => allowedSet.has(f?.properties?.siteId))
+      : [];
+    return copy;
+  });
+  
+
+  console.log('filteredSingleMarkers');
+  console.log({filteredSingleMarkers}); 
+
+const { manageMarkers } = await handleMarkers(stateValue, filteredSingleMarkers, { context, self }); 
+    
+//const {manageMarkers} = await handleMarkers(stateValue, singleMarkers, {context, self});
+
+     let legend = result?.legend?.bins;
+
+
+    return 'okay';
+}
+
+function filterSingleMarkers({ singleMarkers }, allowedIds) {
+    if (!Array.isArray(singleMarkers)) return;
+
+    const allowedArray = Array.isArray(allowedIds) ? allowedIds : Array.from(allowedIds || []);
+
+    singleMarkers.forEach(group => {
+        if (Array.isArray(group.features)) {
+            group.features = group.features.filter(f => allowedArray.includes(f.properties.siteId));
+        }
+    });
+}
+
+
+function clearAllSites(map, sites, namedPath) {
+  sites.forEach(site => {
+    removeFeatureFromMapLayer({
+      map,
+      levelState: 'site',
+      featureId: site.siteId,
+      idKey: 'siteId',
+      namedPath
+    });
+  });
 }

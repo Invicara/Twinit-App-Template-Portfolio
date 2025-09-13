@@ -139,7 +139,7 @@ function createSingleMarker(context, feature, {bins, property, showLabel = true,
             const targetIdx = namedPath.map(p=>p.state).indexOf(path);
             const evt = { type: 'GO_TO' };
             namedPath.forEach((lvl, idx) => {
-                debugger;
+                // debugger;
                 const { idKey } = lvl;
                 if (!idKey) return; // top-most usually has no idKey
                 if (idx < targetIdx) {
@@ -200,6 +200,20 @@ function clearStaleMarkers(visibleMarkerIds){
     }
 }
 
+export function clearAllMarkers() {
+   for (const [id, markerEntry] of markers.entries()) {
+    // if you have Mapbox marker instances:
+    if (markerEntry.marker) {
+      markerEntry.marker.remove();
+    }
+    // if you only have DOM elements:
+    if (markerEntry.element && markerEntry.element.parentNode) {
+      markerEntry.element.parentNode.removeChild(markerEntry.element);
+    }
+  }
+  markers.clear();
+}
+
 
 export function clearStaleMarkersByPath(path){
     const markerIds = new Set();
@@ -220,15 +234,29 @@ export async function renderAllMarkers(e, {context, self}, singleMarkers) {
 
     let graphics = [];
 
+
+
     for(const markersInfo of singleMarkers){
         const {featureDef, config, ...restMarkerInfo} = markersInfo;
+
         const {path} = featureDef;
+        console.log('markersInfo', markersInfo);
+        console.log('singleMarkers', singleMarkers);
 
         try {
             const src = context.map.getSource(markersInfo.sourceId);
             const data = src._data || src.serialize().data; // raw GeoJSON
-            const features = data?.features;
-            markersInfo.features = features;
+            //TOCHECK: FILTERS
+            let features = data?.features;
+            
+              // Only overwrite if markersInfo.features wasn't already set
+            if (!markersInfo.features || !markersInfo.features.length) {
+                markersInfo.features = features;
+            }
+
+            // if(markersInfo.features.length !== data?.features?.length) {
+            //     features = markersInfo.features
+            // }
         } catch(e){
             console.error(e);
             markersInfo.features = [];
@@ -241,6 +269,9 @@ export async function renderAllMarkers(e, {context, self}, singleMarkers) {
         else if (e && e.sourceId !== sourceId && e.type == "sourcedata"){
             continue;
         }
+
+        clearAllMarkers();
+       
         let markerGraphics = await Promise.all(markersInfo.features.map(async f => {
             return  createSingleMarker(context, f,{...config, ...restMarkerInfo, featureDef, send: self.send, setPopupState: context.setPopupState});
         }));

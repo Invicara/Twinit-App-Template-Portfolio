@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useContext } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
 import { Bar } from 'react-chartjs-2';
 import {
@@ -12,6 +12,13 @@ import {
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import BarChartOutlinedIcon from '@material-ui/icons/BarChartOutlined';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import { usePopupState } from './map/popup/usePopupState';
+import { formControlClasses } from '@mui/material';
+import { filterFeatures } from '../../../../client/scripts/mapEntryActions.mjs';
+// import { useSelector as useXstateSelector } from '@xstate/react';
+import { MapContext, MapMachineContext } from '../PortfolioOverview';
+import { useDispatch, useSelector } from "react-redux";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ChartDataLabels);
 
@@ -75,10 +82,7 @@ const groupLabelPlugin = {
       const labelX = chartArea.left;
       const labelY = y - barThickness / 2 - labelGap;
 
-      let circleColor = '#000';
-      if (item.capacityMW === 900) circleColor = '#1DC0F7';
-      else if (item.capacityMW === 1300) circleColor = '#0072BC';
-      else if (item.capacityMW === 1450) circleColor = '#1D1D1D';
+      let circleColor = item.color || '#000';
 
       const circleRadius = 4;
       ctx.fillStyle = circleColor;
@@ -88,7 +92,15 @@ const groupLabelPlugin = {
 
       ctx.fillStyle = '#000';
       ctx.textAlign = 'left';
-      ctx.fillText(item.group, labelX + circleRadius * 2 + 4, labelY);
+
+        // Build label string
+  const mwValue = item.max ?? item.label;
+  const text =
+    typeof mwValue === 'number'
+      ? `${item.id} (${mwValue} MW)`
+      : `${item.id} (${item.label})`;
+
+  ctx.fillText(text, labelX + circleRadius * 2 + 4, labelY);
     });
 
     ctx.restore();
@@ -114,28 +126,48 @@ const hideLastXGridLinePlugin = {
 };
 
 const mockDeployData = [
-  { group: 'CP0/CPY Palier', capacityMW: 900, status: { notStarted: 10, inProgress: 7, atRisk: 3, completed: 20 } },
-  { group: "P4/P'4 Palier", capacityMW: 1300, status: { notStarted: 5, inProgress: 6, atRisk: 2, completed: 7 } },
-  { group: 'N4 Palier', capacityMW: 1450, status: { notStarted: 4, inProgress: 1, atRisk: 0, completed: 0 } },
+  { id: 'low',  min: 0, max: 900, color: "#8ecbff",  label: "< 900", status: { notStarted: 10, inProgress: 7, atRisk: 3, completed: 20 } },
+  { id: "mid", min: 900, max: 1300, color: "#1DC0F7", label: "900–1299", status: { notStarted: 5, inProgress: 6, atRisk: 2, completed: 7 } },
+  { id: 'high', min: 1300, max: 1450,color: "#0072BC", label: "1300–1449", status: { notStarted: 4, inProgress: 1, atRisk: 0, completed: 0 } },
+  { id: 'ultra', min: 1450, max: null,  label: "≥1450", color: "#1D1D1D", status: { notStarted: 4, inProgress: 1, atRisk: 0, completed: 0 } },
 ];
 
-export default function DeployStatusChart({ userConfig }) {
+// const mockDeployData = [
+// { id: "low", min: 0, max: 900, color: "#8ecbff", label: "< 900", status: { notStarted: 10, inProgress: 7, atRisk: 3, completed: 20 } },
+// { id: "mid", min: 900, max: 1300, color: "#1DC0F7", label: "900–1299", status: { notStarted: 5, inProgress: 6, atRisk: 2, completed: 7 } },
+// { id: "high", min: 1300, max: 1450, color: "#0072BC", label: "1300–1449", status: { notStarted: 4, inProgress: 1, atRisk: 0, completed: 0 } },
+// { id: "ultra", min: 1450, max: null, color: "#1D1D1D", label: "≥1450", status: { notStarted: 4, inProgress: 1, atRisk: 0, completed: 0 } }
+// ],
+
+export default function DeployStatusChart({ userConfig, chartConfig, context, mmvSend, snapshot }) {
   const chartHeight = mockDeployData.length * 120;
   const classes = useStyles({ chartHeight });
+   const dispatch = useDispatch();
   const chartTitle = userConfig.handlers.portfolioOverview.config.labels?.chartTitle || 'Status';
   const statusConfig = userConfig.handlers.portfolioOverview.config.statusConfig || {}
+  const popupRefs = useRef([]);
+//  const portContext = useContext(MapMachineContext);
+  const { send, actor } = useContext(MapMachineContext);
+  // const [popupState, setPopupState] = usePopupState({ open: false });
+const chartData = useMemo(() => {
+  if (!chartConfig?.data) {
+    return { labels: [], datasets: [] }; // safe fallback
+  }
 
-  const chartData = useMemo(() => {
-    const labels = mockDeployData.map(d => `${d.group} (${d.capacityMW} MW)`);
-    const datasets = Object.entries(statusConfig).map(([key, { label, color }]) => ({
-      label,
-      data: mockDeployData.map(d => d.status[key]),
-      backgroundColor: color,
-      stack: 'stack1',
-      barThickness: 56,
-    }));
-    return { labels, datasets };
-  }, []);
+  const labels = chartConfig.data.map(d => `${d.id} (${d.max ?? d.label} MW)`);
+  const datasets = Object.entries(chartConfig?.statusConfig).map(([key, { label, color }]) => ({
+    label,
+    data: chartConfig.data.map(d => d.status[key] ?? 0),
+    backgroundColor: color,
+    stack: 'stack1',
+    barThickness: 56,
+  }));
+
+  return { labels, datasets };
+}, [chartConfig]);
+
+
+ const isLoading = !chartData?.datasets?.length;
 
   const options = {
     indexAxis: 'y',
@@ -225,6 +257,35 @@ export default function DeployStatusChart({ userConfig }) {
         clip: false,
       },
     },
+onClick: (evt, elements) => {
+
+  console.log('context');
+  console.log(context);
+ const { datasetIndex, index } = elements[0];
+
+   const datasetLabel = chartData.datasets[datasetIndex].label;
+
+    // Bar label = capacity bin (whatever your X axis labels are)
+    const capacityLabel = chartData.labels[index];
+
+  const filteredSites = context.data.site.slice(0, 5);
+
+  snapshot.stateValue = 'portfolio';
+  snapshot.self = actor;
+
+  filterFeatures({
+      mapMachineInput: snapshot,
+      data: filteredSites,
+      dispatch: dispatch,
+      send: mmvSend
+  });
+
+  const newData = {...context, data: {building: context.data.building, site: filteredSites}};
+    mmvSend({
+      type: 'FILTER_BY_STATUS_AND_CAPACITY',
+      filteredSites,
+    });
+}
   };
 
   return (
@@ -238,8 +299,16 @@ export default function DeployStatusChart({ userConfig }) {
       </div>
 
       {/* Chart */}
-      <div className={classes.chartWrapper}>
-        <Bar data={chartData} options={options} plugins={[ChartDataLabels, groupLabelPlugin, hideLastXGridLinePlugin]} />
+      <div className={classes.chartWrapper} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        {isLoading ? (
+          <CircularProgress />
+        ) : (
+          <Bar
+            data={chartData}
+            options={options}
+            plugins={[ChartDataLabels, groupLabelPlugin, hideLastXGridLinePlugin]}
+          />
+        )}
       </div>
     </div>
   );

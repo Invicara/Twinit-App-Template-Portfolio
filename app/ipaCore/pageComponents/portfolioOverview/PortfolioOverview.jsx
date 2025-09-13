@@ -24,6 +24,8 @@ import {flushSync} from "react-dom";
 import PopupPortal from "./components/map/popup/PopupPortal.jsx";
 import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
+import { getChartStatus } from '../../../client/scripts/mapEntryActions.mjs';
+import { use } from 'react';
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -106,6 +108,8 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     const machineDef = useMemo(()=>createMachine("mapMachine",namedPaths),[namedPaths]);
     const [snapshot, send, actor] = useMachine(machineDef);
 
+    const [chartConfig, setChartConfig] = useState(null);
+ 
     // MMV Configuration state -> this should be removed to a user config or a script
     const [mmvConfig, setMmvConfig] = useState();
 
@@ -192,6 +196,17 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     // Track previous display state to detect switches
     const [mapInstance, setMapInstance] = useState(null);
 
+       useEffect(() => {
+        const run = async () => {
+            const firstState = DEFAULT_PATHS[0][0].state;
+
+            const chartInfo = await getChartStatus({ mapMachineInput: { ...snapshot, stateValue: firstState } });
+            console.log('chartInfo', chartInfo);
+            setChartConfig(chartInfo);
+        };
+        run();
+    }, [snapshot]);
+
     useEffect(() => {
         return () => {
             setMapInstance();//releasing map from memory
@@ -222,11 +237,15 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     },[]);
 
     const onMapReady = useCallback((map) => {
+ 
+
         setMapInstance(map); // Store map instance for refresh
         actor.send({ type: 'MAP_READY', map, mmvSend: setCommand, setPopupState });
     },[actor, setCommand])
 
     const mapMachineContextValue = useMemo(() => {
+               console.log('actor', actor)
+
         return { actor, send: actor.send }
     }, [actor]);
 
@@ -252,7 +271,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                     <Grid container className={classes.mainContent}> 
                         {/* TODO: remove here later, test search panel UI for now by uncommenting SearchPanel here and commenting out StatePanel grid item below */}
                         <Grid item className={classes.searchPanel}>
-                            <SearchPanel userConfig={userConfig} />
+                            <SearchPanel userConfig={userConfig} chartConfig={chartConfig} context={currentState?.context}  mmvSend={actor.send} snapshot={snapshot} />
                         </Grid>
                         {/* <Grid item className={classes.statePanel}>
                             <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
