@@ -22,6 +22,8 @@ import { selectIsSelectingPosition, selectSelectedCoordinate, setDraftSite, setI
 import { L } from '@table-library/react-table-library/styles-492c6342';
 
 const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
+let activeFilter = null;
+
 function makeBinColorExpression(config) {
     const expr = ["case"];
 
@@ -650,6 +652,8 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
         context.map.off('sourcedata', context.manageMarkers[stateValue])
     }
 
+    console.log('markersConfig');
+    console.log(markersConfig);
     
 
     if(markersConfig){
@@ -675,9 +679,12 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
                 context.mmvSend(commands);
             };
         }
-        context.map.on('moveend', manageMarkers);
-        context.map.on('idle', manageMarkers);
-        context.map.on('sourcedata', manageMarkers);
+
+        if(!markersConfig.filtered) {
+            context.map.on('moveend', manageMarkers);
+            context.map.on('idle', manageMarkers);
+            context.map.on('sourcedata', manageMarkers);
+        }
         manageMarkers();
     }
 
@@ -909,11 +916,8 @@ function updateStatusLegend(statusLegend, statusConfig, data) {
 
       // Find correct bucket
       const bucket = updatedLegend.find(item => {
-        const min = item.min ?? -Infinity;
-        const max = item.max;
-        if (max == null) return capacity >= min;
-        return capacity >= min && capacity <= max;
-      });
+        return capacityMatches(capacity, item.min, item.max)
+    });
 
       if (!bucket) continue;
 
@@ -942,79 +946,110 @@ const toCamelCase = (str) => {
 };
 
 
-export async function filterFeatures({ mapMachineInput, data, dispatch, send}) {
-    const {stateValue, context, event, self, map, namedPaths} = mapMachineInput;
-    const {suppressEntryActions} = context;
 
-    console.log(self);
+export async function filterFeatures({ mapMachineInput, data, dispatch, filteredLabels, legend }) {
+  const { stateValue, context, event, self } = mapMachineInput;
+  const { suppressEntryActions } = context;
 
-    console.log('mapMachineInput');
-    console.log(mapMachineInput);
+  // --- TOGGLE LOGIC START ---
+  const filterKey = filteredLabels
+    ? `${filteredLabels.status || ''}-${filteredLabels.capacity?.min ?? ''}-${filteredLabels.capacity?.max ?? ''}`
+    : null;
 
-    const datatosend = {building: context.data.building, site: data};
-    clearAllSites(map, context.data.site, context.namedPaths);
-    // dispatch(setSelectedCoordinate());
-    // dispatch(setIsSelectingPosition(false));
-    //  send({
-    //         type: 'UPDATE_DATA',
-    //         data: datatosend
-    //     });
-    if (suppressEntryActions) {
-        return { suppressEntryActions: false };
+  let filteredSites;
+  if (filterKey && activeFilter === filterKey) {
+    // same filter clicked → clear filter
+    console.log('Clearing filter (toggle off)');
+    activeFilter = null;
+    filteredLabels = null;
+
+    //  RESET TO FULL SITES, not the last `data`
+    filteredSites = context.data.site;
+  } else {
+    activeFilter = filterKey;
+    if (filteredLabels) {
+        console.log('inside to filter the sites');
+      filteredSites = filterSitesByBuilding({
+        sites: context.data.site,  //  always filter against the full set
+        filteredLabels
+      });
+    } else {
+      filteredSites = context.data.site;
     }
+  }
+  // --- TOGGLE LOGIC END ---
 
-     let result = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
-     let singleMarkers = result?.singleMarkers;
+  console.log('filteredSites (after toggle)');
+  console.log(filteredSites);
 
-     const allowedIds = new Set(data.map(f => f.siteId));
+  let result = await ScriptCache.runScript('getEntryActionTheme', { suppressEntryActions, stateValue });
+  let singleMarkers = result?.singleMarkers;
 
-     
-   // const filterMarkers = filterSingleMarkers({ singleMarkers }, allowedIds);
-   
-   const allowedSet = new Set((Array.isArray(data) ? data : []).map(d => d.siteId));
-   const filteredSingleMarkers = await singleMarkers.map(cfg => {
+  const allowedSet = new Set((Array.isArray(filteredSites) ? filteredSites : []).map(d => d.siteId));
+  const filteredSingleMarkers = singleMarkers.map(cfg => {
     const copy = { ...cfg };
     copy.features = Array.isArray(cfg.features)
       ? cfg.features.filter(f => allowedSet.has(f?.properties?.siteId))
       : [];
     return copy;
   });
-  
 
   console.log('filteredSingleMarkers');
-  console.log({filteredSingleMarkers}); 
+  console.log({ filteredSingleMarkers });
+  filteredSingleMarkers.filtered = true;
 
-const { manageMarkers } = await handleMarkers(stateValue, filteredSingleMarkers, { context, self }); 
-    
-//const {manageMarkers} = await handleMarkers(stateValue, singleMarkers, {context, self});
+  const { manageMarkers } = await handleMarkers(stateValue, filteredSingleMarkers, { context, self });
 
-     let legend = result?.legend?.bins;
-
-
-    return 'okay';
+  return 'okay';
 }
 
-function filterSingleMarkers({ singleMarkers }, allowedIds) {
-    if (!Array.isArray(singleMarkers)) return;
+function filterSitesByBuilding({ sites, filteredLabels, statusMap }) {
+  if (!filteredLabels?.status || !filteredLabels?.capacity) return sites;
 
-    const allowedArray = Array.isArray(allowedIds) ? allowedIds : Array.from(allowedIds || []);
+  const { status, capacity } = filteredLabels;
+  const min = Number(capacity.min ?? 0);
+  const max = capacity.max != null ? Number(capacity.max) : null;
 
-    singleMarkers.forEach(group => {
-        if (Array.isArray(group.features)) {
-            group.features = group.features.filter(f => allowedArray.includes(f.properties.siteId));
-        }
-    });
+  return sites.filter(site =>
+    site.buildings?.some(b => {
+      const bCap = Number(b.Capacity);
+      if (isNaN(bCap)) return false;
+
+      // map status label to ID if needed
+      const bStatusId = b.StatusId;
+      const filterStatusId = statusMap ? statusMap[status] : status;
+
+      const statusMatch = bStatusId == filterStatusId;  // loose equality allows string/number match
+      const capacityMatch = max == null ? bCap >= min : bCap >= min && bCap < max;
+     
+      if(bCap >= 1450) {
+        console.log('building capacity');
+        console.log(b);
+         console.log(statusMatch);
+         console.log(capacityMatch);
+         console.log(capacity);
+      }
+
+     // const capacityMatch
+    //   console.log('statusMatch');
+    //   console.log(statusMatch);
+    //   console.log('bStatusId');
+    //   console.log(bStatusId);
+    //   console.log('filterStatusId');
+    //   console.log(filterStatusId);
+     // const capacityMatch = max == null ? bCap >= min : bCap >= min && bCap < max;
+    //   console.log('capacityMatch');
+    // console.log(capacityMatch);
+      return statusMatch && capacityMatch;
+    })
+  );
 }
 
-
-function clearAllSites(map, sites, namedPath) {
-  sites.forEach(site => {
-    removeFeatureFromMapLayer({
-      map,
-      levelState: 'site',
-      featureId: site.siteId,
-      idKey: 'siteId',
-      namedPath
-    });
-  });
-}
+const capacityMatches = (cap, min, max) => {
+const value = Number(cap);
+  console.log('Checking capacity:', value, 'against range', { min, max });
+  if (isNaN(value)) return false;
+  if (min != null && value < min) return false;
+  if (max != null && value >= max) return false;
+  return true;
+};

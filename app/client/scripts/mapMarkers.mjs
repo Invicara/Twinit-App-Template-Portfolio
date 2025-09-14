@@ -202,11 +202,11 @@ function clearStaleMarkers(visibleMarkerIds){
 
 export function clearAllMarkers() {
    for (const [id, markerEntry] of markers.entries()) {
-    // if you have Mapbox marker instances:
+
     if (markerEntry.marker) {
       markerEntry.marker.remove();
     }
-    // if you only have DOM elements:
+
     if (markerEntry.element && markerEntry.element.parentNode) {
       markerEntry.element.parentNode.removeChild(markerEntry.element);
     }
@@ -234,19 +234,16 @@ export async function renderAllMarkers(e, {context, self}, singleMarkers) {
 
     let graphics = [];
 
-
-
     for(const markersInfo of singleMarkers){
         const {featureDef, config, ...restMarkerInfo} = markersInfo;
 
         const {path} = featureDef;
-        console.log('markersInfo', markersInfo);
-        console.log('singleMarkers', singleMarkers);
-
+    
         try {
             const src = context.map.getSource(markersInfo.sourceId);
             const data = src._data || src.serialize().data; // raw GeoJSON
-            //TOCHECK: FILTERS
+
+            if(!singleMarkers.filtered) {
             let features = data?.features;
             
               // Only overwrite if markersInfo.features wasn't already set
@@ -254,9 +251,8 @@ export async function renderAllMarkers(e, {context, self}, singleMarkers) {
                 markersInfo.features = features;
             }
 
-            // if(markersInfo.features.length !== data?.features?.length) {
-            //     features = markersInfo.features
-            // }
+        }
+    
         } catch(e){
             console.error(e);
             markersInfo.features = [];
@@ -270,7 +266,9 @@ export async function renderAllMarkers(e, {context, self}, singleMarkers) {
             continue;
         }
 
-        clearAllMarkers();
+        if(singleMarkers.filtered) {
+            clearAllMarkers();
+        }
        
         let markerGraphics = await Promise.all(markersInfo.features.map(async f => {
             return  createSingleMarker(context, f,{...config, ...restMarkerInfo, featureDef, send: self.send, setPopupState: context.setPopupState});
@@ -278,7 +276,7 @@ export async function renderAllMarkers(e, {context, self}, singleMarkers) {
         graphics.push(...markerGraphics.filter(m=>!!m));
     }
     graphics.forEach(graphic => {
-        markers.set(graphic.id,graphic);//track markers internally
+        markers.set(graphic.id,graphic);
     })
     return {graphics};
 }
