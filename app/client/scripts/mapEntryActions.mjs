@@ -658,8 +658,6 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
 
     if(markersConfig){
         manageMarkers = async (e) => {
-            console.log('renderallmarkers');
-            console.log(markersConfig);
             const {graphics} = await renderAllMarkers(e, {context, self}, markersConfig);
 
             if (graphics && graphics.length > 0) {
@@ -1047,7 +1045,6 @@ function filterSitesByBuilding({ sites, filteredLabels, statusMap }) {
 
 const capacityMatches = (cap, min, max) => {
 const value = Number(cap);
-  console.log('Checking capacity:', value, 'against range', { min, max });
   if (isNaN(value)) return false;
   if (min != null && value < min) return false;
   if (max != null && value >= max) return false;

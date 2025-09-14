@@ -66,8 +66,9 @@ Tooltip.positioners.centerBar = function (items, eventPosition) {
 };
 
 const groupLabelPlugin = {
-  id: 'groupLabelPlugin',
-  afterDatasetsDraw(chart) {
+ id: 'groupLabelPlugin',
+  afterDatasetsDraw(chart, args, options) {
+    const data = options.data || []; // <- access the passed-in data
     const { ctx, scales, chartArea } = chart;
     const yScale = scales.y;
 
@@ -75,15 +76,14 @@ const groupLabelPlugin = {
     ctx.textBaseline = 'middle';
     ctx.font = '14px Inter, sans-serif';
 
-    mockDeployData.forEach((item, i) => {
+    data.forEach((item, i) => {
       const y = yScale.getPixelForValue(i);
       const barThickness = 30;
       const labelGap = 24;
       const labelX = chartArea.left;
       const labelY = y - barThickness / 2 - labelGap;
 
-      let circleColor = item.color || '#000';
-
+      const circleColor = item.color || '#000';
       const circleRadius = 4;
       ctx.fillStyle = circleColor;
       ctx.beginPath();
@@ -93,18 +93,17 @@ const groupLabelPlugin = {
       ctx.fillStyle = '#000';
       ctx.textAlign = 'left';
 
-        // Build label string
-  const mwValue = item.max ?? item.label;
-  const text =
-  typeof mwValue === 'number'
-    ? `${item.id.charAt(0).toUpperCase() + item.id.slice(1)} (${mwValue} MW)`
-    : `${item.id.charAt(0).toUpperCase() + item.id.slice(1)} (${item.label})`;
+      const mwValue = item.max ?? item.label;
+      const capitalizedId = String(item.id || '').charAt(0).toUpperCase() + String(item.id || '').slice(1);
+      const text = typeof mwValue === 'number'
+        ? `${capitalizedId} (${mwValue} MW)`
+        : `${capitalizedId} (${item.label})`;
 
-  ctx.fillText(text, labelX + circleRadius * 2 + 4, labelY);
+      ctx.fillText(text, labelX + circleRadius * 2 + 4, labelY);
     });
 
     ctx.restore();
-  },
+  }
 };
 
 const hideLastXGridLinePlugin = {
@@ -125,26 +124,27 @@ const hideLastXGridLinePlugin = {
   },
 };
 
-const mockDeployData = [
-  { id: 'low',  min: 0, max: 900, color: "#8ecbff",  label: "< 900", status: { notStarted: 10, inProgress: 7, atRisk: 3, completed: 20 } },
-  { id: "mid", min: 900, max: 1300, color: "#1DC0F7", label: "900–1299", status: { notStarted: 5, inProgress: 6, atRisk: 2, completed: 7 } },
-  { id: 'high', min: 1300, max: 1450,color: "#0072BC", label: "1300–1449", status: { notStarted: 4, inProgress: 1, atRisk: 0, completed: 0 } },
-  { id: 'ultra', min: 1450, max: null,  label: "≥1450", color: "#1D1D1D", status: { notStarted: 4, inProgress: 1, atRisk: 0, completed: 0 } },
-];
+// const mockDeployData = [
+//   { id: 'low',  min: 0, max: 900, color: "#8ecbff",  label: "< 900", status: { notStarted: 10, inProgress: 7, atRisk: 3, completed: 20 } },
+//   { id: "mid", min: 900, max: 1300, color: "#1DC0F7", label: "900–1299", status: { notStarted: 5, inProgress: 6, atRisk: 2, completed: 7 } },
+//   { id: 'high', min: 1300, max: 1450,color: "#0072BC", label: "1300–1449", status: { notStarted: 4, inProgress: 1, atRisk: 0, completed: 0 } },
+//   { id: 'ultra', min: 1450, max: null,  label: "≥1450", color: "#1D1D1D", status: { notStarted: 4, inProgress: 1, atRisk: 0, completed: 0 } },
+// ];
 
 
 export default function DeployStatusChart({ userConfig, chartConfig, context, mmvSend, snapshot }) {
-  const chartHeight = mockDeployData.length * 120;
+  const chartHeight = (chartConfig?.data?.length || 0) * 120;
   const classes = useStyles({ chartHeight });
-   const dispatch = useDispatch();
   const chartTitle = userConfig.handlers.portfolioOverview.config.labels?.chartTitle || 'Status';
   const statusConfig = userConfig.handlers.portfolioOverview.config.statusConfig || {}
   const popupRefs = useRef([]);
 
+  console.log('context');
+  console.log(context);
 //  const [chartHeight, setChartHeight] = useState(null);
-//  const portContext = useContext(MapMachineContext);
+
   const { send, actor } = useContext(MapMachineContext);
-  // const [popupState, setPopupState] = usePopupState({ open: false });
+
 const chartData = useMemo(() => {
   if (!chartConfig?.data) {
     return { labels: [], datasets: [] }; // safe fallback
@@ -164,11 +164,10 @@ const chartData = useMemo(() => {
     barThickness: 56,
   }));
 
- // setChartHeight(chartConfig.data.length);
   return { labels, datasets };
 }, [chartConfig]);
 
-const isLoading = !chartConfig?.data || chartConfig.data.length === 0;
+const isLoading =  !chartData?.datasets?.length || chartData.datasets.every(ds => ds.data.every(v => v === 0));
 
   const options = {
     indexAxis: 'y',
@@ -184,6 +183,9 @@ const isLoading = !chartConfig?.data || chartConfig.data.length === 0;
     },
     clip: false,
     plugins: {
+        groupLabelPlugin: {
+        data: chartConfig?.data || []
+      },
       legend: {
         display: true,
         position: 'bottom',
