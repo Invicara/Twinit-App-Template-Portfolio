@@ -115,24 +115,6 @@ const groupLabelPlugin = {
   },
 };
 
-const hideLastXGridLinePlugin = {
-  id: "hideLastXGridLine",
-  afterDraw: (chart) => {
-    const xScale = chart.scales.x;
-    const ctx = chart.ctx;
-    const lastPixel = xScale.getPixelForValue(xScale.max);
-
-    ctx.save();
-    ctx.strokeStyle = chart.options.plugins?.background?.color || "#fff";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(lastPixel, chart.chartArea.top);
-    ctx.lineTo(lastPixel, chart.chartArea.bottom + 5);
-    ctx.stroke();
-    ctx.restore();
-  },
-};
-
 export default function DeployStatusChart({ userConfig, chartConfig, context, snapshot }) {
   const chartHeight = (chartConfig?.data?.length || 0) * 120;
   const classes = useStyles({ chartHeight });
@@ -237,7 +219,6 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, sn
           drawBorder: false, 
           color: "#d3d3d3",
           color: (ctx) => {
-          // Hide last grid line
             return ctx.tick.value === ctx.chart.scales.x.max ? 'transparent' : '#d3d3d3';
         },
         
@@ -346,8 +327,7 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, sn
             options={options}
             plugins={[
               ChartDataLabels,
-              groupLabelPlugin,
-              hideLastXGridLinePlugin,
+              groupLabelPlugin
             ]}
           />
         )}
