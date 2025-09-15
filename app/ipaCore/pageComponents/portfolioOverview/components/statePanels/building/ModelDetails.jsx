@@ -55,8 +55,6 @@ export default function ModelDetails({selectedModelComposite}) {
         }
     },[selectedModelComposite])
 
-    console.log("ModelDetails", {selectedModelComposite, modelDetails});
-
     return <Box p={2}>
             <InfoComponent
                 entity={modelDetails}

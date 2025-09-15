@@ -11,14 +11,14 @@ import {useContext, useEffect, useState} from "react";
 import {ModelContext} from "../../../../../contexts/ModelContext.js";
 import {Box} from "@material-ui/core";
 import CustomButton from "../../../../../components/atoms/CustomButton.jsx";
+import {MapMachineContext} from "../../../PortfolioOverview.jsx";
 
 export default function BuildingInfo({context}) {
     const { data = [], siteId, buildingId } = context;
     const { building: buildings = [] } = data;
     const currentBuilding = buildings.find(b => b.buildingId == buildingId);
-    const {mmvSend: send} = context;
     const { selectedModelComposite, availableModelComposites, setSelectedModelComposite } = useContext(ModelContext);
-
+    const { send, actor } = useContext(MapMachineContext);
     const [model, setModel] = useState({});
 
     useEffect(() => {
@@ -56,7 +56,7 @@ export default function BuildingInfo({context}) {
         }
 
         console.log('Setting model composite globally:', model);
-        setSelectedModelComposite && setSelectedModelComposite(model)
+        setSelectedModelComposite && selectedModelComposite!=model && setSelectedModelComposite(model)
     };
 
         return (

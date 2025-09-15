@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
 import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent } from '@material-ui/core';
 import CustomButton from '../../../../../components/atoms/CustomButton.jsx';
 import { useDispatch, useSelector } from 'react-redux';
-import { getClickEvent, getMapTypes, setMapTypes } from '../../../../../redux/pageComponentState.js';
+import { getMapTypes, setMapTypes } from '../../../../../redux/pageComponentState.js';
 import { MapMachineContext, MapContext } from '../../../PortfolioOverview.jsx';
 import { addFeatureToMapLayer, removeFeatureFromMapLayer, removeBuildingFromMap } from '../../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache, usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
@@ -25,7 +25,6 @@ export default function BuildingDetails({ context }) {
     const currentState = useXstateSelector(actor, state => state);
     const { mapInstance } = useContext(MapContext);
     const dispatch = useDispatch();
-    const clickEvent = useSelector(getClickEvent);
 
     const namedPath = currentState.context.namedPaths[0];
     const levels = getActiveLevels(currentState);
