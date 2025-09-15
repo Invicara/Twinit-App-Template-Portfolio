@@ -246,7 +246,6 @@ export async function renderAllMarkers(e, {context, self}, singleMarkers) {
             if(!singleMarkers.filtered) {
             let features = data?.features;
             
-              // Only overwrite if markersInfo.features wasn't already set
             if (!markersInfo.features || !markersInfo.features.length) {
                 markersInfo.features = features;
             }

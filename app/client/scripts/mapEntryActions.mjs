@@ -652,10 +652,6 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
         context.map.off('sourcedata', context.manageMarkers[stateValue])
     }
 
-    console.log('markersConfig');
-    console.log(markersConfig);
-    
-
     if(markersConfig){
         manageMarkers = async (e) => {
             const {graphics} = await renderAllMarkers(e, {context, self}, markersConfig);
@@ -702,8 +698,6 @@ export async function getEntryAction({mapMachineInput }) {
         return { suppressEntryActions: false };
     }
 
-    console.log('StateValue');
-    console.log(stateValue);
     switch (stateValue) {
         case 'portfolio': {
 
@@ -741,7 +735,6 @@ export async function getEntryAction({mapMachineInput }) {
             }
 
             const markersConfig = singleMarkers;
-            console.log("markersConfig", {markersConfig});
             const {manageMarkers} = await handleMarkers(stateValue, markersConfig, {context, self});
 
             return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme, legend };
@@ -849,51 +842,62 @@ export async function getExitAction({mapMachineInput }) {
 }
 
 export async function getChartStatus({ mapMachineInput }) {
-    const {stateValue, context, event, self} = mapMachineInput;
-    const {suppressEntryActions} = context;
+  const { stateValue, context, event, self } = mapMachineInput;
+  const { suppressEntryActions } = context;
 
-    if (suppressEntryActions) {
-        return { suppressEntryActions: false };
-    }
+  if (suppressEntryActions) {
+    return { suppressEntryActions: false };
+  }
 
-     let result = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
-     let statusConfig = result?.singleMarkers?.[0]?.popupConfig?.statusPopup?.statusConfig;
-     let legend = result?.legend?.bins;
+  let result = await ScriptCache.runScript("getEntryActionTheme", {
+    suppressEntryActions,
+    stateValue,
+  });
+  let statusConfig =
+    result?.singleMarkers?.[0]?.popupConfig?.statusPopup?.statusConfig;
+  let legend = result?.legend?.bins;
 
-   const reshapedStatusConfig = Object.keys(statusConfig.labelMap).reduce((acc, key) => {
+  const reshapedStatusConfig = Object.keys(statusConfig.labelMap).reduce(
+    (acc, key) => {
+      const rawLabel = statusConfig.labelMap[key];
+      const label = rawLabel || key; 
 
-    const rawLabel = statusConfig.labelMap[key];
-    const label = rawLabel || key; // fallback to the key name if label is missing
-
-
-    const camelKey = toCamelCase(label);     // e.g. "suspendedOperation"
-        acc[camelKey] = {
+      const camelKey = toCamelCase(label); 
+      acc[camelKey] = {
         label,
         color: statusConfig.colorMap[key],
         statusId: key,
-        };
+      };
 
-        return acc;
-    }, {});
+      return acc;
+    },
+    {},
+  );
 
-    const statusTemplate = Object.keys(reshapedStatusConfig).reduce((acc, key) => {
-    acc[key] = 0;
-    return acc;
-    }, {});
+  const statusTemplate = Object.keys(reshapedStatusConfig).reduce(
+    (acc, key) => {
+      acc[key] = 0;
+      return acc;
+    },
+    {},
+  );
 
-    // Enrich each legend entry with a cloned status object
-    const statusLegend = legend.map(item => ({
+  const statusLegend = legend.map((item) => ({
     ...item,
-    status: { ...statusTemplate }
-    }));
+    status: { ...statusTemplate },
+  }));
 
-    const data = updateStatusLegend(statusLegend, reshapedStatusConfig, context?.data);
+  const data = updateStatusLegend(
+    statusLegend,
+    reshapedStatusConfig,
+    context?.data,
+  );
 
-    return {statusConfig: reshapedStatusConfig, data: data};
+  return { statusConfig: reshapedStatusConfig, data: data };
 }
 
 function updateStatusLegend(statusLegend, statusConfig, data) {
-  // Build lookup: statusId → statusKey (Planned, Construction, etc.)
+ 
   const statusIdToKey = {};
   for (const [key, cfg] of Object.entries(statusConfig)) {
     if (cfg && cfg.statusId != null) {
@@ -901,9 +905,9 @@ function updateStatusLegend(statusLegend, statusConfig, data) {
     }
   }
 
-  const updatedLegend = statusLegend.map(item => ({
+  const updatedLegend = statusLegend.map((item) => ({
     ...item,
-    status: { ...item.status }
+    status: { ...item.status },
   }));
 
   for (const site of data?.site || []) {
@@ -912,15 +916,13 @@ function updateStatusLegend(statusLegend, statusConfig, data) {
       const statusId = Number(b.StatusId);
       if (isNaN(capacity)) continue;
 
-      // Find correct bucket
-      const bucket = updatedLegend.find(item => {
-        return capacityMatches(capacity, item.min, item.max)
-    });
+      const bucket = updatedLegend.find((item) => {
+        return capacityMatches(capacity, item.min, item.max);
+      });
 
       if (!bucket) continue;
 
-      // Map statusId → statusKey
-      const statusKey = statusIdToKey[statusId] ?? 'unknown';
+      const statusKey = statusIdToKey[statusId] ?? "unknown";
 
       if (bucket.status.hasOwnProperty(statusKey)) {
         bucket.status[statusKey] += 1;
@@ -939,37 +941,31 @@ const toCamelCase = (str) => {
     .replace(/(?:^\w|[\s-_]\w)/g, (match, index) =>
       index === 0
         ? match.toLowerCase()
-        : match.replace(/[\s-_]/, '').toUpperCase()
+        : match.replace(/[\s-_]/, "").toUpperCase(),
     );
 };
 
-
-
-export async function filterFeatures({ mapMachineInput, data, dispatch, filteredLabels, legend }) {
+export async function filterFeatures({ mapMachineInput, filteredLabels }) {
   const { stateValue, context, event, self } = mapMachineInput;
   const { suppressEntryActions } = context;
 
   // --- TOGGLE LOGIC START ---
   const filterKey = filteredLabels
-    ? `${filteredLabels.status || ''}-${filteredLabels.capacity?.min ?? ''}-${filteredLabels.capacity?.max ?? ''}`
+    ? `${filteredLabels.status || ""}-${filteredLabels.capacity?.min ?? ""}-${filteredLabels.capacity?.max ?? ""}`
     : null;
 
   let filteredSites;
   if (filterKey && activeFilter === filterKey) {
-    // same filter clicked → clear filter
-    console.log('Clearing filter (toggle off)');
     activeFilter = null;
     filteredLabels = null;
 
-    //  RESET TO FULL SITES, not the last `data`
     filteredSites = context.data.site;
   } else {
     activeFilter = filterKey;
     if (filteredLabels) {
-        console.log('inside to filter the sites');
       filteredSites = filterSitesByBuilding({
-        sites: context.data.site,  //  always filter against the full set
-        filteredLabels
+        sites: context.data.site, 
+        filteredLabels,
       });
     } else {
       filteredSites = context.data.site;
@@ -977,28 +973,32 @@ export async function filterFeatures({ mapMachineInput, data, dispatch, filtered
   }
   // --- TOGGLE LOGIC END ---
 
-  console.log('filteredSites (after toggle)');
-  console.log(filteredSites);
-
-  let result = await ScriptCache.runScript('getEntryActionTheme', { suppressEntryActions, stateValue });
+  let result = await ScriptCache.runScript("getEntryActionTheme", {
+    suppressEntryActions,
+    stateValue,
+  });
   let singleMarkers = result?.singleMarkers;
 
-  const allowedSet = new Set((Array.isArray(filteredSites) ? filteredSites : []).map(d => d.siteId));
-  const filteredSingleMarkers = singleMarkers.map(cfg => {
+  const allowedSet = new Set(
+    (Array.isArray(filteredSites) ? filteredSites : []).map((d) => d.siteId),
+  );
+  const filteredSingleMarkers = singleMarkers.map((cfg) => {
     const copy = { ...cfg };
     copy.features = Array.isArray(cfg.features)
-      ? cfg.features.filter(f => allowedSet.has(f?.properties?.siteId))
+      ? cfg.features.filter((f) => allowedSet.has(f?.properties?.siteId))
       : [];
     return copy;
   });
 
-  console.log('filteredSingleMarkers');
-  console.log({ filteredSingleMarkers });
   filteredSingleMarkers.filtered = true;
 
-  const { manageMarkers } = await handleMarkers(stateValue, filteredSingleMarkers, { context, self });
+  const { manageMarkers } = await handleMarkers(
+    stateValue,
+    filteredSingleMarkers,
+    { context, self },
+  );
 
-  return 'okay';
+  return "okay";
 }
 
 function filterSitesByBuilding({ sites, filteredLabels, statusMap }) {
@@ -1008,43 +1008,25 @@ function filterSitesByBuilding({ sites, filteredLabels, statusMap }) {
   const min = Number(capacity.min ?? 0);
   const max = capacity.max != null ? Number(capacity.max) : null;
 
-  return sites.filter(site =>
-    site.buildings?.some(b => {
+  return sites.filter((site) =>
+    site.buildings?.some((b) => {
       const bCap = Number(b.Capacity);
       if (isNaN(bCap)) return false;
 
-      // map status label to ID if needed
       const bStatusId = b.StatusId;
       const filterStatusId = statusMap ? statusMap[status] : status;
 
-      const statusMatch = bStatusId == filterStatusId;  // loose equality allows string/number match
-      const capacityMatch = max == null ? bCap >= min : bCap >= min && bCap < max;
-     
-      if(bCap >= 1450) {
-        console.log('building capacity');
-        console.log(b);
-         console.log(statusMatch);
-         console.log(capacityMatch);
-         console.log(capacity);
-      }
+      const statusMatch = bStatusId == filterStatusId;
+      const capacityMatch =
+        max == null ? bCap >= min : bCap >= min && bCap < max;
 
-     // const capacityMatch
-    //   console.log('statusMatch');
-    //   console.log(statusMatch);
-    //   console.log('bStatusId');
-    //   console.log(bStatusId);
-    //   console.log('filterStatusId');
-    //   console.log(filterStatusId);
-     // const capacityMatch = max == null ? bCap >= min : bCap >= min && bCap < max;
-    //   console.log('capacityMatch');
-    // console.log(capacityMatch);
       return statusMatch && capacityMatch;
-    })
+    }),
   );
 }
 
 const capacityMatches = (cap, min, max) => {
-const value = Number(cap);
+  const value = Number(cap);
   if (isNaN(value)) return false;
   if (min != null && value < min) return false;
   if (max != null && value >= max) return false;
