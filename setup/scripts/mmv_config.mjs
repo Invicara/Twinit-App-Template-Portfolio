@@ -262,25 +262,21 @@ let scriptModule = {
     async afterLayerSetupCommands(input){
 
         const {groupedFeatures} = input;
+        const commandRef = randomGuid();
 
         const commands  = [
             {
-                "commandName": "theme_elements",
-                "commandRef": randomGuid(),
+                "commandName": "custom",
+                commandRef,
                 "params": {
-                    "groups": {
-                        "sites_default": {
-                            "color": [ 223, 21, 140 ],
-                            ids: groupedFeatures.site.map(el => el.siteId)
+                    commandName: "passlayerdefaults",
+                    commandRef,
+                    params: {
+                        "site-features-layer": {
+                            defaults: [
+                                { property: "fill-color", value: "#DF158C" },
+                            ]
                         }
-                    },
-                    "clear": false,
-                    "extra": {
-                        "field": "siteId",
-                        "fieldType": "string",
-                        "layerNames": [
-                            "site-features-layer"
-                        ]
                     }
                 }
             }

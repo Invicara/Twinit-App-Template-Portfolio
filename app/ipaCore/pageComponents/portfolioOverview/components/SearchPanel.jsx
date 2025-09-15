@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Grid,
   Button,
-  Paper,
   Box,
   MenuItem,
   TextField,
@@ -12,24 +11,10 @@ import {
   FormControl,
   makeStyles
 } from '@material-ui/core';
-import clsx from 'clsx';
 import SearchIcon from '@material-ui/icons/Search';
 import KeyboardArrowDownIcon from '@material-ui/icons/KeyboardArrowDown';
-import DeployStatusChart from './DeployStatusBarChart';
 
 const useStyles = makeStyles((theme) => ({
-    sidebarPaper: {
-        width: 580,
-        maxHeight: '100vh',   
-        overflowY: 'auto',   
-        flexShrink: 0,
-        '& .MuiSelect-outlined.MuiSelect-select': {
-            display: 'flex',
-            alignItems: 'center',      
-            height: '100%',
-            padding: '0',                 
-        },
-      },
       formControl: {
         width: 258,
         '& .MuiOutlinedInput-root': {
@@ -102,7 +87,7 @@ const useStyles = makeStyles((theme) => ({
       },
 }));
 
-export default function SearchPanel({ context, userConfig, chartConfig, snapshot }) {
+export default function SearchPanel({ userConfig  }) {
   const classes = useStyles();
 
  const [labels, setLabels] = useState({
@@ -146,8 +131,8 @@ export default function SearchPanel({ context, userConfig, chartConfig, snapshot
   };
 
   return (
-    <Paper elevation={3} className={clsx(classes.sidebarPaper)}>
-      <Box display='flex' justifyContent='center' p={4}>
+    <div>
+      <Box display='flex' justifyContent='center' pb={4}>
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
             <Grid item xs={12}>
@@ -293,8 +278,7 @@ export default function SearchPanel({ context, userConfig, chartConfig, snapshot
         </form>
       </Box>
       <Box className={classes.divider} />
-        <DeployStatusChart userConfig={userConfig} chartConfig={chartConfig} context={context} snapshot={snapshot} />
-    </Paper>
+</div>
   );
 };
 

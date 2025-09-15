@@ -5,7 +5,9 @@ export const STATE_KEY = 'pageComponentState';
 
 const initialState = {
     clickEvent: undefined,
-    mapTypes: {}
+    mapTypes: {},
+    mapGraphicReferences: [],
+    selectedGraphicReference: undefined
 }
 
 const pageComponentSlice = createSlice({
@@ -17,13 +19,19 @@ const pageComponentSlice = createSlice({
         },
         setMapTypes: (state, action) => {
             state.mapTypes = action?.payload
+        },
+        setMapGraphicReferences: (state, action) => {
+            state.mapGraphicReferences = action?.payload
+        },
+        setSelectedGraphicReference: (state, action) => {
+            state.selectedGraphicReference = action?.payload
         }
     }
 })
 
 
 
-export const { setClickEvent, setMapTypes } = pageComponentSlice.actions
+export const { setClickEvent, setMapTypes, setMapGraphicReferences, setSelectedGraphicReference } = pageComponentSlice.actions
 export default pageComponentSlice.reducer
 
 export const getSlice = (rootState) => rootState[STATE_KEY];
@@ -36,4 +44,14 @@ export const getClickEvent = createSelector(
 export const getMapTypes = createSelector(
     getSlice,
     (slice) => slice.mapTypes
+)
+
+export const getMapGraphicReferences = createSelector(
+    getSlice,
+    (slice) => slice.mapGraphicReferences
+)
+
+export const getSelectedGraphicReference = createSelector(
+    getSlice,
+    (slice) => slice.selectedGraphicReference
 )
