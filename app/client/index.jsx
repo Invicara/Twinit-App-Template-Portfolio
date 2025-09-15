@@ -10,7 +10,9 @@ import ipaConfig from '../ipaCore/ipaConfig'
 import './styles/app.scss'
 import { mapboxGISMode, mmvRegisterMode } from '@invicara/ipa-core-mmv';
 import { ThemeProvider, CssBaseline } from '@material-ui/core';
+import { ThemeProvider as ThemeProviderV5, CssBaseline as CssBaselineV5 } from '@mui/material';
 import { themeOptions } from '../styles/defaultTheme';
+import { themeOptions as themeOptionsV5 } from '../styles/defaultTheme_mui_v5';
 
 mmvRegisterMode("mmvGIS", mapboxGISMode)
 
@@ -21,12 +23,12 @@ const AppWithModelContext = () => {
 
   const onConfigLoad = async (store, userConfig, AppContext) => {
     console.log('onConfigLoad ->', AppContext, store, userConfig)
-    
+
     IafSession.setConfig(endPointConfig)
-    
+
     // Set the appContext for the ModelContext
     setAppContext(AppContext)
-    
+
     // Get current project and set it for the ModelContext
     try {
       const currentProject = await IafProj.getCurrent()
@@ -38,13 +40,15 @@ const AppWithModelContext = () => {
 
   return (
     <ThemeProvider theme={themeOptions}>
-      <CssBaseline />
-      <ModelContextProvider project={project} appContext={appContext}>
-        <IpaMainLayout
-          ipaConfig={ipaConfig}
-          onConfigLoad={onConfigLoad}
-        />
-      </ModelContextProvider>
+        <ThemeProviderV5 theme={themeOptionsV5}>
+            <CssBaseline />
+            <ModelContextProvider project={project} appContext={appContext}>
+                <IpaMainLayout
+                    ipaConfig={ipaConfig}
+                    onConfigLoad={onConfigLoad}
+                />
+            </ModelContextProvider>
+        </ThemeProviderV5>
     </ThemeProvider>
   )
 }

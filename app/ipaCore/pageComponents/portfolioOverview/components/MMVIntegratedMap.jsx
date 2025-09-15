@@ -56,7 +56,14 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
         }
 
         if(event.payload.action === "click"){
-            dispatch(setClickEvent(event.payload))
+            const ground = event?.payload.ground || {};
+            const {latitude, longitude, point, screenCoordinates} = ground;
+            const serializableEvent = {
+                ground: {
+                    latitude, longitude, point, screenCoordinates
+                }
+            }
+            dispatch(setClickEvent(serializableEvent))
         }
 
         // }

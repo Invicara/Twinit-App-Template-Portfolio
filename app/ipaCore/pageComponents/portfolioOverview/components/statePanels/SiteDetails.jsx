@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
-import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent } from '@material-ui/core';
+import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent } from '@mui/material';
 import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
 import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference } from '../../../../redux/pageComponentState';
@@ -85,7 +85,7 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode})
                     Cancel
                 </CustomButton>
             </div>
-            
+
             {mapGraphicReferences.length === 0 ? (
                 <Typography variant="body2" color="textSecondary">
                     No building types available
@@ -94,8 +94,8 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode})
                 <Grid container spacing={2}>
                     {mapGraphicReferences.map((ref, index) => (
                         <Grid item xs={6} sm={4} md={3} key={index}>
-                            <Card 
-                                style={{ 
+                            <Card
+                                style={{
                                     cursor: 'pointer',
                                     backgroundColor: ref === selectedGraphicReferece ? 'rgba(223, 21, 140, 0.1)' : 'transparent',
                                     border: ref === selectedGraphicReferece ? '2px solid #DF158C' : '2px solid transparent',
@@ -171,19 +171,19 @@ export default function SiteDetails({ context }) {
 
     // Cache for original perimeter when entering drawing mode
     const [cachedPerimeter, setCachedPerimeter] = useState(null);
-    
+
     // Cache for original site when entering editing mode
     const [cachedOriginalSite, setCachedOriginalSite] = useState(null);
 
     // Check if this site is a draft that needs perimeter drawing
     const isDraftSite = currentSite?.isDraft === true;
-    
+
     // Check if this site is being edited
     const isEditingSite = currentSite?.isEditing === true;
-    
+
     // New building placement state
     const [isNewBuildingMode, setIsNewBuildingMode] = useState(false);
-    
+
     // Site is in edit mode if it's either draft or being edited
     const isInEditMode = isDraftSite || isEditingSite;
 
@@ -350,7 +350,7 @@ export default function SiteDetails({ context }) {
     };
 
     const setSiteForEdition = () => {
-        
+
         const updatedData = _.cloneDeep(currentState.context?.data || {});
         const currentSites = updatedData.site || [];
         const siteToEdit = currentSites.find(s => s.siteId === siteId);
@@ -362,32 +362,32 @@ export default function SiteDetails({ context }) {
             data: updatedData
         });
     };
-    
+
     // Handle canceling edit mode
     const handleCancelEdit = () => {
         if (!cachedOriginalSite) return;
-        
+
         // Restore the original site data
         const currentData = currentState.context?.data || {};
         const currentSites = currentData.site || [];
-        const restoredSites = currentSites.map(s => 
+        const restoredSites = currentSites.map(s =>
             s.siteId === siteId ? cachedOriginalSite : s
         );
         const restoredData = {
             ...currentData,
             site: restoredSites
         };
-                
+
         // Update XState context with restored data
         send({
             type: 'UPDATE_DATA',
             data: restoredData
         });
-        
+
         // Update map layer if needed
         if (mapInstance && currentState.context?.namedPaths) {
             const namedPath = currentState.context.namedPaths[0];
-            
+
             // Remove current feature and add restored one
             removeFeatureFromMapLayer({
                 map: mapInstance,
@@ -396,7 +396,7 @@ export default function SiteDetails({ context }) {
                 idKey: 'siteId',
                 namedPath: namedPath
             });
-            
+
             addFeatureToMapLayer({
                 map: mapInstance,
                 levelState: 'site',
@@ -411,28 +411,28 @@ export default function SiteDetails({ context }) {
                 namedPath: namedPath
             });
         }
-        
+
         console.log('Edit cancelled, site restored:', { original: cachedOriginalSite, siteId });
     };
-    
+
     // Handle saving edit mode
     const handleSaveEdit = async () => {
         if (!currentSite || !cachedOriginalSite) return;
-        
+
         // Check if there were any changes
         const hasChanges = !_.isEqual(
-            _.omit(currentSite, ['isEditing']), 
+            _.omit(currentSite, ['isEditing']),
             _.omit(cachedOriginalSite, ['isEditing'])
         );
-        
+
         // Finalize the edited site (remove isEditing flag)
         const finalizedSite = { ...currentSite };
         delete finalizedSite.isEditing;
-        
+
         // Update XState context
         const currentData = currentState.context?.data || {};
         const currentSites = currentData.site || [];
-        const updatedSites = currentSites.map(s => 
+        const updatedSites = currentSites.map(s =>
             s.siteId === siteId ? finalizedSite : s
         );
         const updatedData = {
@@ -445,7 +445,7 @@ export default function SiteDetails({ context }) {
             type: 'UPDATE_DATA',
             data: updatedData
         });
-        
+
         // If there were changes, update the backend
         if (hasChanges) {
             try {
@@ -458,7 +458,7 @@ export default function SiteDetails({ context }) {
         } else {
             console.log('No changes detected, skipping backend update');
         }
-        
+
         console.log('Site edit completed:', { finalizedSite, hasChanges });
     };
 
@@ -478,17 +478,17 @@ export default function SiteDetails({ context }) {
     const handleTypeModification = async (updatedType, changeInfo) => {
         // if (!currentSite) return;
         // const { action, fieldName, oldFieldName, newFieldName, value } = changeInfo;
-        
+
         dispatch(setMapTypes({...types, [entityType]: updatedType}));
         await ScriptCache.runScript("updateMapType", {updatedType});
     };
 
     // Handle adding new site info field
     const handleAddSiteInfo = () => {
-        
+
         // Generate a unique field name
         const newFieldName = `newField${Date.now()}`;
-        
+
         // Create updated type schema with the new property
         const updatedType = {
             ...type,
@@ -504,7 +504,7 @@ export default function SiteDetails({ context }) {
         };
 
         dispatch(setMapTypes({...types, [entityType]: updatedType}));
-        
+
         // Update the type (this would normally go through a type management system)
         // For now, we'll trigger a re-render by updating the types
         console.log('New field added to site:', { fieldName: newFieldName, updatedSite, updatedType });
@@ -598,7 +598,7 @@ export default function SiteDetails({ context }) {
                 Math.pow(newPin[0] - firstPin[0], 2) +
                 Math.pow(newPin[1] - firstPin[1], 2)
             );
-            
+
             // Close shape if clicked within ~25 meters of first pin (approximate)
             if (distance < 0.00025) {
                 completeShape(newPins);
@@ -815,7 +815,7 @@ export default function SiteDetails({ context }) {
     };
 
     return (
-        <div>
+        <Box p={2}>
             <Typography variant="h6">Site: {plantName}</Typography>
 
             {/* Site Info - Always displayed */}
@@ -829,8 +829,8 @@ export default function SiteDetails({ context }) {
                         </Typography>
                     </div>
                     {!isInEditMode && (
-                        <CustomButton 
-                            variant="contained" 
+                        <CustomButton
+                            variant="contained"
                             color="primary"
                             onClick={setSiteForEdition}
                             size="small"
@@ -851,8 +851,8 @@ export default function SiteDetails({ context }) {
                 />
                 <Divider style={{ margin: '16px 0'}} />
                     <Box style={{ marginTop: 12, display: 'flex', justifyContent: "right", gap: 14}}>
-                        <CustomButton 
-                            variant="outlined" 
+                        <CustomButton
+                            variant="outlined"
                             color="primary"
                             onClick={handleAddSiteInfo}
                             style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
@@ -861,8 +861,8 @@ export default function SiteDetails({ context }) {
                         >
                             Add Site Info
                         </CustomButton>
-                        <CustomButton 
-                            variant="contained" 
+                        <CustomButton
+                            variant="contained"
                             color="primary"
                             onClick={handleStartNewBuildingMode}
                             style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
@@ -873,12 +873,12 @@ export default function SiteDetails({ context }) {
                         </CustomButton>
                     </Box>
             </Box>
-            
+
             {isInEditMode && (
                 <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between", marginTop: 25, gap: 25}}>
                     <div>
-                        <CustomButton 
-                            variant="contained" 
+                        <CustomButton
+                            variant="contained"
                             color="primary"
                             onClick={toggleDrawingMode}
                             style={{ marginBottom: 16 }}
@@ -910,9 +910,9 @@ export default function SiteDetails({ context }) {
                     </Box>
                 </div>
             )}
-            
+
             <Divider style={{ margin: '16px 0px', marginTop: 25}} />
-            
+
             {isNewBuildingMode ? (
                 <BuildingThumbnails {...{mapGraphicReferences, handleCancelNewBuildingMode}} />
             ) : (
@@ -925,7 +925,7 @@ export default function SiteDetails({ context }) {
                     ))}
                 </>
             )}
-        </div>
+        </Box>
     );
 }
 

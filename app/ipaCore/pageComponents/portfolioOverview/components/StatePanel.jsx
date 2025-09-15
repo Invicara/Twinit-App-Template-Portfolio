@@ -1,16 +1,18 @@
 import React, { Suspense, lazy, useMemo }  from 'react';
-import { Paper, Box } from '@mui/material';
-import BuildingDetails from './statePanels/BuildingDetails.jsx';
+import { Paper, Box, Grid } from '@mui/material';
 import ipaConfig from "../../../ipaConfig.js";
 
 const fallback = <div>Loading details…</div>;
 
-export default function StatePanel({ currentState, context, send }) {
+export default function StatePanel({ currentState, context, className }) {
 
-    const states = Object.keys(ipaConfig.mapPortfolio.statePanel.componentPaths || {});
-    const stateKey = useMemo(()=>states.reverse().find(state=>currentState.matches(state)),[currentState]);
+    const states = useMemo(()=>Object.keys(ipaConfig.mapPortfolio.statePanel.componentPaths || {}),[]);
+    const stateKey = useMemo(()=>states.toReversed().find(state=>currentState.matches(state)),[states, currentState]);
 
     const LazyComponent = useMemo(() => {
+        if(!stateKey){
+            return null
+        }
         const importer = ipaConfig.mapPortfolio.statePanel.componentPaths[stateKey];
         return importer ? lazy(()=>import(`./statePanels/${importer}`)) : null;
     }, [stateKey]);
@@ -18,12 +20,14 @@ export default function StatePanel({ currentState, context, send }) {
     if (!LazyComponent) return null;
 
     return (
-        <Paper elevation={3} sx={{ height: '100%', overflowY: 'auto' }}>
-            <Box p={2}>
-                <Suspense fallback={fallback}>
-                    <LazyComponent context={context} />
-                </Suspense>
-            </Box>
-        </Paper>
+        <Grid item className={className}>
+            <Paper elevation={3} sx={{ height: '100%', overflowY: 'auto' }}>
+                <Box p={0}>
+                    <Suspense fallback={fallback}>
+                        <LazyComponent context={context} />
+                    </Suspense>
+                </Box>
+            </Paper>
+        </Grid>
     );
 }

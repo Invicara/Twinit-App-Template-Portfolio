@@ -37,6 +37,7 @@ const CONFIG = {
       })
     ],
     splitChunks: {
+      maxSize: 2600000,//to ensure Cloudflare's 25MB limit
       chunks: 'all'
     }
   },
