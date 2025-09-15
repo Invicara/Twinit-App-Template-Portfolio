@@ -135,7 +135,7 @@ export default function SearchPanel({ currentState, context, userConfig }) {
 
   return (
     <div>
-      <Box display='flex' justifyContent='center' p={4}>
+      <Box display='flex' justifyContent='center' pb={4}>
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
             <Grid item xs={12}>
