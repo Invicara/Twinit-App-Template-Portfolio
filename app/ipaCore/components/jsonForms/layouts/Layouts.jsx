@@ -1,10 +1,19 @@
 import React, {useMemo} from 'react';
-import { withJsonFormsLayoutProps, Dispatch } from '@jsonforms/react';
+import { withJsonFormsLayoutProps, JsonFormsDispatch } from '@jsonforms/react';
 import { rankWith, uiTypeIs, isControl, composePaths, toDataPath } from '@jsonforms/core';
 import {Box} from "@mui/material";
 import {RowWithActions} from "../../InfoComponent/controls/RowWithActions.jsx";
 
-function ActionableVerticalControls({ uischema, schema, path, enabled, renderers, cells,
+function ActionableVerticalControls({
+                                        //json from props
+                                        uischema,
+                                        schema,
+                                        path,
+                                        enabled,
+                                        visible,
+                                        renderers,
+                                        cells,
+                                        //custom props
                                         getIsEditable,
                                         getIsModifiable,
                                         getIsDeletable,
@@ -14,9 +23,9 @@ function ActionableVerticalControls({ uischema, schema, path, enabled, renderers
     return (
         <Box>
             {uischema.elements?.map((el, i) => {
-                const Control = Dispatch
+                const Control = JsonFormsDispatch
                 const controlProps = {
-                    uischema: el, schema, path, enabled, renderers, cells
+                    uischema: el, schema, path, enabled, renderers, cells, rootSchema: schema
                 }
                 return isControl(el) ? (
                     <RowWithActions

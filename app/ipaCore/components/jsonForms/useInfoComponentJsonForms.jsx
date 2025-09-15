@@ -15,7 +15,8 @@ const buildUiFromSchema = (schema) => {
         elements: entries.map(([key, prop]) => ({
             type: 'Control',
             scope: `#/properties/${key}`,
-            label: prop.title || key
+            label: prop.title || key,
+            options: (prop.format == "date-time" ? { "dateTimeSaveFormat": "YYYY-MM-DDTHH:mm:ssZ" } : {})
         }))
     };
 };
