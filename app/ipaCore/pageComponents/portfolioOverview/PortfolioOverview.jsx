@@ -24,6 +24,7 @@ import {flushSync} from "react-dom";
 import PopupPortal from "./components/map/popup/PopupPortal.jsx";
 import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
+import GenericErrorBoundary from "../../components/GenericErrorBoundary.jsx";
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -104,7 +105,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     const componentConfig = handler?.componentConfig;
     const namedPaths = useMemo(()=>componentConfig?.namedPaths || DEFAULT_PATHS,[]);
     const legendPath = useMemo(()=>componentConfig?.legendPath || "building",[]);
-    
+
     // Create machine with Redux context
     const machineDef = useMemo(()=>{
         return createMachine("mapMachine", namedPaths, {
@@ -114,7 +115,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             }
         });
     },[namedPaths, dispatch, store]);
-    
+
     const [snapshot, send, actor] = useMachine(machineDef);
 
     // MMV Configuration state -> this should be removed to a user config or a script
@@ -145,7 +146,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             dispatch(setMapTypes(types));
         }
 
-        const fetchMapRepresentations = async () => {            
+        const fetchMapRepresentations = async () => {
             const mapGraphicReferences = await ScriptCache.runScript("getGraphicReferences", {namedPaths});
             dispatch(setMapGraphicReferences(mapGraphicReferences));
         }
@@ -266,14 +267,12 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                             </div>
                         </div>
                     </div>
-                    <Grid container className={classes.mainContent}> 
+                    <Grid container className={classes.mainContent}>
                         {/* TODO: remove here later, test search panel UI for now by uncommenting SearchPanel here and commenting out StatePanel grid item below */}
                         {/* <Grid item className={classes.searchPanel}>
                             <SearchPanel userConfig={userConfig} />
                         </Grid> */}
-                        <Grid item className={classes.statePanel}>
-                            <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
-                        </Grid>
+                        <StatePanel currentState={currentState} context={currentState.context} send={actor.send} className={classes.statePanel} />
                         <Grid item xs className={classes.viewerContainer}>
                             <div
                                 className={clsx(classes.mmvContainer, "dark-map", {'map-selecting-position' : isSelectingPosition})}
