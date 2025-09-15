@@ -158,6 +158,7 @@ export function PropertyModificationModal({schema, modifyModalOpen, setModifyMod
                             value={modifyForm.type}
                             onChange={(e) => setModifyForm({ ...modifyForm, type: e.target.value })}
                             displayEmpty
+                            variant="standard"
                         >
                             <MenuItem value="string">String</MenuItem>
                             <MenuItem value="number">Number</MenuItem>

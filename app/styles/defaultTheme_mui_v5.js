@@ -181,6 +181,22 @@ const baseOptions = {
             },
         },
         MuiButton: {
+            variants: [
+                {
+                    props: { variant: 'contained', color: 'primary' },
+                    style: {
+                        backgroundColor: colorPalette.primary.light,
+                        color: colorPalette.white,
+                        '&:hover': { backgroundColor: colorPalette.primary.main },
+                    },
+                },
+                {
+                    props: { variant: 'text', color: 'primary' },
+                    style: {
+                        color: colorPalette.primary.light,
+                    },
+                },
+            ],
             styleOverrides: {
                 root: {
                     padding: '8px 42px',
