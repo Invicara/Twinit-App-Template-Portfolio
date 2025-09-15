@@ -292,10 +292,10 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                         return { stateValue, context, event, self, sendBack: self.send }
                     },
                     onDone: {
-                        actions: assign(({ event }) => {
-                            //console.log("entryService output", event)
-                            return event.output || {}
-                        })
+                         actions: assign(({ context, event }) => ({
+                        ...context,
+                        ...(event.output || {})
+                    }))
                     },
                 },
                 on: {
@@ -341,10 +341,10 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                                 pendingEvent: null,
                                 suppressEntryActions: false
                             })),
-                            assign(({ event }) => {
-                                //console.log("exitService output", event)
-                                return event.output || {}
-                            })
+                            assign(({ context, event }) => ({
+                                ...context,
+                                ...(event.output || {})
+                            }))
                         ]
                     }))
                 }
