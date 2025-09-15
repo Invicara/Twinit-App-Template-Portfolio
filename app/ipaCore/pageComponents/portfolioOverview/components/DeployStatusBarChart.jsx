@@ -139,10 +139,6 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, mm
   const statusConfig = userConfig.handlers.portfolioOverview.config.statusConfig || {}
   const popupRefs = useRef([]);
 
-  console.log('context');
-  console.log(context);
-//  const [chartHeight, setChartHeight] = useState(null);
-
   const { send, actor } = useContext(MapMachineContext);
 
 const chartData = useMemo(() => {
