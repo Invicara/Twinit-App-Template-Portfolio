@@ -24,7 +24,7 @@ const ipaConfig = {
              {
                 "portfolio": "PortfolioDetails.jsx",
                 "portfolio.site": "SiteDetails.jsx",
-                "portfolio.site.building": "BuildingDetails.jsx",
+                "portfolio.site.building": "tabs/BuildingTabs.jsx",
              }
       }
    }

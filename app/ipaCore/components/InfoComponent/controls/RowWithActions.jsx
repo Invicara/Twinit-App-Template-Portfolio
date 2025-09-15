@@ -13,6 +13,7 @@ import {
 const controlKey = (scope) => scope.match(/#\/properties\/(.+)$/)?.[1] ?? scope;
 
 export function RowWithActions({schema, path, enabled, labelPlacement = "auto", Control, controlProps, controlUiSchema = {}, getIsModifiable, getIsDeletable, getIsEditable, onOpenModify, onOpenDelete, disabledForm }) {
+    const rowRef = React.useRef(null);
     const key = controlKey(controlUiSchema.scope);
     const controlPath = composePaths(path ?? '', toDataPath(controlUiSchema.scope));
     const canModify = getIsModifiable(key);
@@ -24,22 +25,32 @@ export function RowWithActions({schema, path, enabled, labelPlacement = "auto", 
     // label & required
     const labelText = controlUiSchema.label ?? schema?.properties?.[key]?.title ?? key;
     const isRequired =
-        Array.isArray(schema?.required) && !schema.required.includes(key);
+        Array.isArray(schema?.required) && schema.required.includes(key);
 
     // clone element to hide the built-in label if we render our own on the left
-    const controlUiSchemaWithOptionalLabel = useMemo(()=>({ ...controlUiSchema, label: labelPlacement == "auto" ? controlUiSchema.label : false }),[controlUiSchema, labelPlacement]);
+    const controlUiSchemaWithOptionalLabel = useMemo(()=>({ ...controlUiSchema, label: labelPlacement == "auto" ? controlUiSchema.label : controlUiSchema.label }),[controlUiSchema, labelPlacement]);
 
-    // Exit edit when focus leaves this row
+    //Helper: is focus inside a MUI picker portal?
+    const isInMuiPicker = (el) =>
+        !!el?.closest?.(
+            '.MuiPickersPopper-root, .MuiModal-root, .MuiPickersModal-dialogRoot, [role="dialog"]'
+        );
+    // Exit edit when focus truly leaves (row AND any open picker)
     const onRowBlur = (e) => {
         if (!editing) return;
-        const next = e.relatedTarget;
-        if (!e.currentTarget.contains(next)) setEditing(false);
+        // Defer so the new activeElement is set (portal focus happens after blur)
+        requestAnimationFrame(() => {
+            const next = e.relatedTarget || document.activeElement;
+            const inRow = rowRef.current?.contains(next);
+            if (!inRow && !isInMuiPicker(next)) {
+                setEditing(false);
+            }
+        });
     };
 
     return (
-        <Box onBlur={onRowBlur} py={0.75}>
-            {console.log("RowWithActions",{key, canDelete, canEdit, canModify})}
-            <Box display="grid" gridTemplateColumns={`${labelPlacement=="auto" ? '' : '220px '} 1fr auto`} alignItems="center" columnGap={1}>
+        <Box ref={rowRef} onBlur={onRowBlur} p={0}>
+            <Box display="grid" gridTemplateColumns={`${labelPlacement=="auto" ? '' : '33% '} 1fr auto`} alignItems="center" columnGap={1}>
                 {/* LEFT: fixed label */}
                 {labelPlacement=="left" && <Box>
                     <Typography variant="body2" fontWeight={600}>
@@ -53,7 +64,6 @@ export function RowWithActions({schema, path, enabled, labelPlacement = "auto", 
                     {editing ? (<>
                         <Control
                             {...controlProps}
-                            path={controlPath}
                             uischema={controlUiSchemaWithOptionalLabel}
                             enabled={editing && canEdit && !disabledForm && (enabled ?? true)}
                         /></>
@@ -63,7 +73,7 @@ export function RowWithActions({schema, path, enabled, labelPlacement = "auto", 
                 </Box>
 
                 {/* Actions: edit/pencil or close (X); plus Modify/Delete */}
-                <Box justifySelf="end">
+                <Box justifySelf="end" alignSelf="start" pt={3}>
                     {!editing ? (
                         <Tooltip
                             title={
@@ -92,37 +102,35 @@ export function RowWithActions({schema, path, enabled, labelPlacement = "auto", 
                     {/* Modify (only if not required) */}
                     {canModify && (
                         <Tooltip title="Modify Property">
-                      <span>
-                        <IconButton
-                            size="small"
-                            onClick={() => onOpenModify?.(key)}
-                            disabled={disabledForm}
-                        >
-                          <SettingsOutlined fontSize="small" />
-                        </IconButton>
-                      </span>
+                          <span>
+                            <IconButton
+                                size="small"
+                                onClick={() => onOpenModify?.(key)}
+                                disabled={disabledForm}
+                            >
+                              <SettingsOutlined fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
                     )}
 
                     {/* Delete */}
                     {canDelete && (
                         <Tooltip title="Delete Property">
-              <span>
-                <IconButton
-                    size="small"
-                    onClick={() => onOpenDelete?.(key)}
-                    disabled={disabledForm}
-                >
-                  <DeleteForeverOutlined fontSize="small" />
-                </IconButton>
-              </span>
+                          <span>
+                            <IconButton
+                                size="small"
+                                onClick={() => onOpenDelete?.(key)}
+                                disabled={disabledForm}
+                            >
+                              <DeleteForeverOutlined fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
                     )}
                 </Box>
-
-
             </Box>
-            <Divider style={{ marginTop: 6 }} />
+            <Divider style={{ marginTop: 6, borderBottomWidth: "0px", height: "1px", backgroundColor: "#e7e7e7" }} />
         </Box>
     );
 }

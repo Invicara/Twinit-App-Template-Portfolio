@@ -4,6 +4,7 @@ import { useJsonForms } from '@jsonforms/react';
 import { composePaths, toDataPath, Resolve } from '@jsonforms/core';
 import { Typography, Box } from '@mui/material';
 import { OptionsContext } from '../../jsonForms/renderers/OptionsContext.jsx';
+import {renderNumberPreview} from "./numberFormat.js";
 
 // pull "name" from "#/properties/name"
 const controlKey = (scope) => scope.match(/#\/properties\/(.+)$/)?.[1] ?? scope;
@@ -35,6 +36,10 @@ function formatValue({ value, propSchema, enumOptions }) {
     if (propSchema?.format === 'date')   return new Date(value).toLocaleDateString();
     if (propSchema?.format === 'date-time') return new Date(value).toLocaleString();
 
+    if(typeof value === 'number' && propSchema?.['x-numberFormat']) {
+        return renderNumberPreview(value, propSchema['x-numberFormat'], navigator.language)
+    }
+
     return String(value);
 }
 
@@ -48,7 +53,7 @@ export default function ValuePresenter({ controlUiSchema, schema, path, labelPla
     // look up property schema (handles flat objects; for deep structures, resolve as needed)
     const propSchema = schema?.properties?.[key] ?? {};
     const isRequired =
-        Array.isArray(schema?.required) && !schema.required.includes(key);
+        Array.isArray(schema?.required) && schema.required.includes(key);
 
     const rawValue = Resolve.data(core?.data, absPath);
 
@@ -72,15 +77,15 @@ export default function ValuePresenter({ controlUiSchema, schema, path, labelPla
     const display = formatValue({ value: rawValue, propSchema, enumOptions });
 
     return (
-        <Box display="grid" gridTemplateColumns={`${labelPlacement=="auto" ? '' : '220px '} 1fr`} alignItems="center" columnGap={1}>
+        <Box display="grid" gridTemplateColumns={`${labelPlacement=="auto" ? '' : '33% '} 1fr`} alignItems="center" columnGap={1}>
             {/* LEFT: fixed label */}
             {labelPlacement=="left" && <Box>
                 <Typography variant="body2" fontWeight={600}>
                     {label}
-                    {isRequired ? <Typography component="span" color="error">&nbsp;*</Typography> : null}
+                    {isRequired ? <Typography component="span"  color="error">&nbsp;*</Typography> : null}
                 </Typography>
             </Box>}
-            <Typography variant="caption" color="textSecondary">{label}</Typography>
+            <Typography variant="caption" color="textSecondary">{label} {isRequired ? <Typography variant="caption"  component="span" color="error">&nbsp;*</Typography> : null}</Typography>
             <Typography variant="body1">{display}</Typography>
         </Box>
     );

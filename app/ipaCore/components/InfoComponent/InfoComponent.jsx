@@ -8,7 +8,7 @@ import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, FormControlLabel, Checkbox,
     InputLabel, ThemeProvider
 } from "@mui/material";
-import { useDebounce } from "../../hooks/useDebounce";
+import {useCancellableDebounce, useDebounce} from "../../hooks/useDebounce";
 import _ from "lodash";
 import {OptionsContext} from "../jsonForms/renderers/OptionsContext.jsx";
 import {useInfoComponentJsonForms} from "../jsonForms/useInfoComponentJsonForms.jsx";
@@ -17,6 +17,9 @@ import { formTheme } from './formTheme.js';
 import {PropertyModificationModal} from "./modals/PropertyModificationModal.jsx";
 import {DeleteConfirmationModal} from "./modals/DeleteConfirmationModal.jsx";
 import {makeLayouts} from "../jsonForms/layouts/Layouts.jsx";
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import {flushSync} from "react-dom";
 
 const useStyles = makeStyles(() => ({
     iconButton: {
@@ -135,7 +138,7 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
         setCurrentField(null);
     };
 
-    const debouncedHandleUpdate = useDebounce(handleUpdate, debounceTime)
+    const [debouncedHandleUpdate, cancelQueuedUpdate] = useCancellableDebounce(handleUpdate, debounceTime)
 
     const entityRef = useRef(entity);
     useEffect(() => {
@@ -143,8 +146,12 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
         if (_.isEqual(entityRef.current, entity)) {
             return;
         }
+        cancelQueuedUpdate();
         setLocalValue(entity || {});
         entityRef.current = entity;
+        return () => {
+            cancelQueuedUpdate();
+        }
     }, [entity]);
 
     // Layout wrappers (RowWithActions) use your existing helpers & modals
@@ -154,14 +161,12 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
                 const fieldSchema = type?.properties?.[field];
                 // editable if not required and not readOnly
                 const guard = !!fieldSchema && isFieldEditable(type, field);
-                console.log("getIsModifiable", {guard, fieldSchema, field});
                 return guard;
             },
             getIsEditable: (field) => {
                 const fieldSchema = type?.properties?.[field];
                 // editable if not required and not readOnly
                 const guard = !!fieldSchema && !fieldSchema.readOnly && isFieldEditable(type, field);
-                console.log("getIsEditable", {guard, fieldSchema, field});
                 return guard;
             },
             getIsDeletable: (field) => isFieldDeletable(type, field),
@@ -177,8 +182,6 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
     useEffect(() => { prevRef.current = localValue; }, [localValue]);
 
     const onJsonFormsChange = ({ data }) => {
-        // Update local state
-        setLocalValue(data);
         // Compute a changed key (shallow compare)
         const prev = prevRef.current || {};
         const keys = new Set([...Object.keys(prev), ...Object.keys(data)]);
@@ -191,22 +194,24 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
     };
 
     return (
-        <>
+        <ThemeProvider theme={formTheme}>
             {!type?.properties || !entity ? (
                 <div>No data to edit.</div>
             ) :
                 <OptionsContext.Provider value={{ resolve: optionsResolver }}>
-                    <ThemeProvider theme={formTheme}>
-                    <JsonForms
-                        data={localValue}
-                        schema={type}
-                        uischema={uiSchema}
-                        onChange={onJsonFormsChange}
-                        renderers={renderers}
-                        cells={materialCells}
-                        ajv={ajv}
-                    />
-                    </ThemeProvider>
+                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+                        <ThemeProvider theme={formTheme}>
+                            <JsonForms
+                                data={localValue}
+                                schema={type}
+                                uischema={uiSchema}
+                                onChange={onJsonFormsChange}
+                                renderers={renderers}
+                                cells={materialCells}
+                                ajv={ajv}
+                            />
+                        </ThemeProvider>
+                    </LocalizationProvider>
                 </OptionsContext.Provider>
             }
 
@@ -225,7 +230,7 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
                                        onModifyConfirm={onModifyConfirm}
                                        handleModalClose={handleModalClose}>
             </PropertyModificationModal>}
-        </>
+        </ThemeProvider>
     );
 };
 

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect } from 'react';
-import { Typography, Divider } from '@mui/material';
+import { Typography, Divider, Box } from '@mui/material';
 
 
 export default function PortfolioDetails({ context }) {
@@ -8,7 +8,7 @@ export default function PortfolioDetails({ context }) {
 
 
     return (
-        <div>
+        <Box p={2}>
             <Typography variant="h6">Portfolio</Typography>
             <Typography variant="body2">Total: {buildings.length}</Typography>
             <Divider sx={{ my: 2 }} />
@@ -17,6 +17,6 @@ export default function PortfolioDetails({ context }) {
                     {item.name}
                 </Typography>
             ))}
-        </div>
+        </Box>
     );
 }

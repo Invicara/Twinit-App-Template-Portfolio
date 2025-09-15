@@ -1,19 +1,19 @@
 import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
 import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent } from '@material-ui/core';
-import CustomButton from '../../../../components/atoms/CustomButton';
+import CustomButton from '../../../../../components/atoms/CustomButton.jsx';
 import { useDispatch, useSelector } from 'react-redux';
-import { getClickEvent, getMapTypes, setMapTypes } from '../../../../redux/pageComponentState';
-import { MapMachineContext, MapContext } from '../../PortfolioOverview';
-import { addFeatureToMapLayer, removeFeatureFromMapLayer, removeBuildingFromMap } from '../../../../../client/scripts/mapEntryActions.mjs';
+import { getClickEvent, getMapTypes, setMapTypes } from '../../../../../redux/pageComponentState.js';
+import { MapMachineContext, MapContext } from '../../../PortfolioOverview.jsx';
+import { addFeatureToMapLayer, removeFeatureFromMapLayer, removeBuildingFromMap } from '../../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache, usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
-import { InfoComponent } from '../../../../components/InfoComponent/InfoComponent';
+import { InfoComponent } from '../../../../../components/InfoComponent/InfoComponent.jsx';
 import { IafItemSvc } from '@dtplatform/platform-api';
 import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from 'lodash';
 import { Add } from '@material-ui/icons';
-import { getActiveLevels } from '../../../../../services/utils';
-import { ModelContext } from '../../../../contexts/ModelContext';
-import { defaultNewBuildingId } from './SiteDetails';
+import { getActiveLevels } from '../../../../../../services/utils.js';
+import { ModelContext } from '../../../../../contexts/ModelContext.js';
+import { defaultNewBuildingId } from '../SiteDetails.jsx';
 
 export default function BuildingDetails({ context }) {
     const { data = [], siteId, buildingId } = context;
@@ -38,13 +38,13 @@ export default function BuildingDetails({ context }) {
 
     // Check if this site is a draft that needs perimeter drawing
     const isDraftBuilding = currentBuilding?.isDraft === true;
-    
+
     // Check if this site is being edited
     const isEditingSite = currentBuilding?.isEditing === true;
-        
+
     // Building is in edit mode if it's either draft or being edited
     const isInEditMode = isDraftBuilding || isEditingSite;
-    
+
 
     // Get ModelContext
     const { availableModelComposites, setSelectedModelComposite, selectedModelComposite } = useContext(ModelContext);
@@ -57,38 +57,6 @@ export default function BuildingDetails({ context }) {
     }, [currentBuilding])
 
     if (!currentBuilding) return <Typography>No data found.</Typography>;
-
-    const handleSelectModel = () => {
-        // Example modelElementId - you can modify this based on your needs
-        const modelElementId = currentBuilding.ModelName;
-
-        // Send event to xState machine to set modelElementId - include siteId as specified
-        if (send) {
-            send({
-                type: 'GO_TO',
-                siteId,
-                buildingId,
-                modelElementId
-            });
-        }
-
-        // Find and set the model composite based on building's ModelName
-        if (availableModelComposites && currentBuilding.ModelName) {
-            const matchingModel = availableModelComposites.find(
-                model => model._name === currentBuilding.ModelName ||
-                        model._name.includes(currentBuilding.ModelName) ||
-                        currentBuilding.ModelName.includes(model._name)
-            );
-
-            if (matchingModel && setSelectedModelComposite) {
-                console.log('Setting selected model composite:', matchingModel);
-                setSelectedModelComposite(matchingModel);
-            } else {
-                console.log('No matching model found for:', currentBuilding.ModelName);
-                console.log('Available models:', availableModelComposites.map(m => m._name));
-            }
-        }
-    };
 
     // Handle building property changes
     const handleBuildingChange = (newValue, propertyName, metadata) => {
@@ -158,7 +126,7 @@ export default function BuildingDetails({ context }) {
     };
 
     const setBuildingForEdition = () => {
-        
+
         const updatedData = _.cloneDeep(currentState.context?.data || {});
         const currentBuildings = updatedData.building || [];
         const buildingToEdit = currentBuildings.find(b => b.buildingId === buildingId);
@@ -170,16 +138,16 @@ export default function BuildingDetails({ context }) {
             data: updatedData
         });
     };
-    
+
     // Handle canceling edit mode
     const handleCancelEdit = () => {
-        
+
         // Check if the building is a draft - if so, remove it from the map entirely
         if (currentBuilding?.isDraft) {
             const namedPath = currentState.context.namedPaths[0];
 
             console.log('Canceling draft building, removing from map:', {mapInstance, buildingId, namedPath});
-            
+
             // Remove the draft building from the map using removeBuildingFromMap
             if (mapInstance && namedPath) {
                 removeBuildingFromMap({
@@ -188,7 +156,7 @@ export default function BuildingDetails({ context }) {
                     namedPath: namedPath
                 });
             }
-            
+
             // Remove the draft building from the data entirely
             const currentData = currentState.context?.data || {};
             const currentBuildings = currentData.building || [];
@@ -197,43 +165,43 @@ export default function BuildingDetails({ context }) {
                 ...currentData,
                 building: filteredBuildings
             };
-                        
+
             // Update XState context with filtered data
             send({
                 type: 'UPDATE_DATA',
                 data: updatedData
             });
-            
+
             // Navigate back to site level since the building no longer exists
             send({
                 type: 'GO_TO',
                 siteId,
                 buildingId: null
             });
-            
+
             console.log('Draft building cancelled and removed:', { buildingId, siteId });
             return;
         }
 
         if (!cachedOriginalBuilding) return;
-        
+
         // For non-draft buildings, restore the original building data
         const currentData = currentState.context?.data || {};
         const currentBuildings = currentData.building || [];
-        const restoredBuildings = currentBuildings.map(b => 
+        const restoredBuildings = currentBuildings.map(b =>
             b.buildingId === buildingId ? cachedOriginalBuilding : b
         );
         const restoredData = {
             ...currentData,
             building: restoredBuildings
         };
-        
+
         // Update XState context with restored data
         send({
             type: 'UPDATE_DATA',
             data: restoredData
         });
-        
+
         console.log('Edit cancelled, building restored:', { original: cachedOriginalBuilding, buildingId });
     };
 
@@ -275,38 +243,38 @@ export default function BuildingDetails({ context }) {
 
         console.log('Site submitted and finalized:', {finalizedSite, result});
     };
-    
+
     // Handle saving edit mode
     const handleSaveEdit = async () => {
         if (!currentBuilding || !cachedOriginalBuilding) return;
-        
+
         // Check if there were any changes
         const hasChanges = !_.isEqual(
-            _.omit(currentBuilding, ['isEditing']), 
+            _.omit(currentBuilding, ['isEditing']),
             _.omit(cachedOriginalBuilding, ['isEditing'])
         );
-        
+
         // Finalize the edited building (remove isEditing flag)
         const finalizedBuilding = { ...currentBuilding };
         delete finalizedBuilding.isEditing;
-        
+
         // Update XState context
         const currentData = currentState.context?.data || {};
         const currentBuildings = currentData.building || [];
-        const updatedBuildings = currentBuildings.map(b => 
+        const updatedBuildings = currentBuildings.map(b =>
             b.buildingId === buildingId ? finalizedBuilding : b
         );
         const updatedData = {
             ...currentData,
             building: updatedBuildings
         };
-                
+
         // Send event to update XState context with finalized building
         send({
             type: 'UPDATE_DATA',
             data: updatedData
         });
-        
+
         // If there were changes, update the backend
         if (hasChanges) {
             try {
@@ -319,7 +287,7 @@ export default function BuildingDetails({ context }) {
         } else {
             console.log('No changes detected, skipping backend update');
         }
-        
+
         console.log('Building edit completed:', { finalizedBuilding, hasChanges });
     };
 
@@ -333,7 +301,7 @@ export default function BuildingDetails({ context }) {
     const handleAddBuildingInfo = () => {
         // Generate a unique field name
         const newFieldName = `newField${Date.now()}`;
-        
+
         // Create updated type schema with the new property
         const updatedType = {
             ...type,
@@ -349,51 +317,53 @@ export default function BuildingDetails({ context }) {
         };
 
         dispatch(setMapTypes({...types, [entityType]: updatedType}));
-        
+
         // Update the type (this would normally go through a type management system)
         console.log('New field added to building:', { fieldName: newFieldName, updatedType });
     };
 
     return (
         <div>
-            <Typography variant="h6">Building: {currentBuilding.name}</Typography>
-            <Typography variant="body2">Site: {siteId}</Typography>
-            <Divider sx={{ my: 2 }} />
 
             {/* Building Info - Always displayed */}
-            <Box sx={{ my: 2 }} style={{marginTop: 30}}>
-                <div style={{display: "flex", marginBottom: 30, justifyContent: "space-between", alignItems: "center"}}>
-                    <div style={{display: "flex", alignItems: "center", gap: 8}}>
-                        <img style={{width: 30, height: 30}} src='/icons/file-info.svg'/>
-                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }} style={{fontSize: 18}}>
-                            Building Info
-                        </Typography>
+            <Box p={0} m={0}>
+                <Box p={2}>
+                    <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
+                        <div style={{display: "flex", alignItems: "center", gap: 8}}>
+                            <img style={{width: 30, height: 30}} src='/icons/file-info.svg'/>
+                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }} style={{fontSize: 18}}>
+                                {currentBuilding.name}
+                            </Typography>
+                        </div>
+                        {!isInEditMode && (
+                            <CustomButton
+                                variant="contained"
+                                color="primary"
+                                onClick={setBuildingForEdition}
+                                size="small"
+                            >
+                                Edit Building
+                            </CustomButton>
+                        )}
                     </div>
-                    {!isInEditMode && (
-                        <CustomButton 
-                            variant="contained" 
-                            color="primary"
-                            onClick={setBuildingForEdition}
-                            size="small"
-                        >
-                            Edit Building
-                        </CustomButton>
-                    )}
-                </div>
-                <InfoComponent
-                    entity={currentBuilding}
-                    handleChange={handleBuildingChange}
-                    type={type}
-                    entityType={entityType}
-                    originalEntity={cachedOriginalBuilding}
-                    disabled={!isInEditMode}
-                    modifyTypeCallback={handleTypeModification}
-                />
-                <Divider style={{ margin: '16px 0'}} />
-                <Box style={{ marginTop: 12, display: 'flex', justifyContent: "space-between", gap: 14}}>
+                    <Typography variant="body2">Site: {siteId}</Typography>
+                    <Divider sx={{ my: 2 }} />
+                </Box>
+                <Box px={2}>
+                    <InfoComponent
+                        entity={currentBuilding}
+                        handleChange={handleBuildingChange}
+                        type={type}
+                        entityType={entityType}
+                        originalEntity={cachedOriginalBuilding}
+                        disabled={!isInEditMode}
+                        modifyTypeCallback={handleTypeModification}
+                    />
+                </Box>
+                <Box p={2} style={{ marginTop: 12, display: 'flex', justifyContent: "space-between", gap: 14}}>
                     <Box style={{ display: 'flex', justifyContent: "left", gap: 14}}>
-                        <CustomButton 
-                            variant="outlined" 
+                        <CustomButton
+                            variant="outlined"
                             color="primary"
                             onClick={handleAddBuildingInfo}
                             style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
@@ -403,20 +373,9 @@ export default function BuildingDetails({ context }) {
                             Add Building Info
                         </CustomButton>
                     </Box>
-                    <Box>
-                        <CustomButton
-                            variant="contained"
-                            color="primary"
-                            onClick={handleSelectModel}
-                            disabled={!send}
-                            size="small"
-                        >
-                            Select Model
-                        </CustomButton>
-                    </Box>
                 </Box>
             </Box>
-            
+
             {isInEditMode && (
                 <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between", marginTop: 25, gap: 25}}>
                     <Box style={{ marginTop: 24, display: 'flex', gap: 16 }}>

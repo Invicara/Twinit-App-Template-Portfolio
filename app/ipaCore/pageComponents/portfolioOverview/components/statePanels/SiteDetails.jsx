@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
-import { Typography, Divider, Button, Box } from '@mui/material';
-import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent } from '@material-ui/core';
+import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent } from '@mui/material';
 import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
 import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference } from '../../../../redux/pageComponentState';
@@ -86,7 +85,7 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode})
                     Cancel
                 </CustomButton>
             </div>
-            
+
             {mapGraphicReferences.length === 0 ? (
                 <Typography variant="body2" color="textSecondary">
                     No building types available
@@ -95,8 +94,8 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode})
                 <Grid container spacing={2}>
                     {mapGraphicReferences.map((ref, index) => (
                         <Grid item xs={6} sm={4} md={3} key={index}>
-                            <Card 
-                                style={{ 
+                            <Card
+                                style={{
                                     cursor: 'pointer',
                                     backgroundColor: ref === selectedGraphicReferece ? 'rgba(223, 21, 140, 0.1)' : 'transparent',
                                     border: ref === selectedGraphicReferece ? '2px solid #DF158C' : '2px solid transparent',
@@ -181,10 +180,10 @@ export default function SiteDetails({ context }) {
 
     // Check if this site is being edited
     const isEditingSite = currentSite?.isEditing === true;
-    
+
     // New building placement state
     const [isNewBuildingMode, setIsNewBuildingMode] = useState(false);
-    
+
     // Site is in edit mode if it's either draft or being edited
     const isInEditMode = isDraftSite || isEditingSite;
 
@@ -351,7 +350,7 @@ export default function SiteDetails({ context }) {
     };
 
     const setSiteForEdition = () => {
-        
+
         const updatedData = _.cloneDeep(currentState.context?.data || {});
         const currentSites = updatedData.site || [];
         const siteToEdit = currentSites.find(s => s.siteId === siteId);
@@ -378,7 +377,7 @@ export default function SiteDetails({ context }) {
             ...currentData,
             site: restoredSites
         };
-                
+
         // Update XState context with restored data
         send({
             type: 'UPDATE_DATA',
@@ -816,7 +815,7 @@ export default function SiteDetails({ context }) {
     };
 
     return (
-        <div>
+        <Box p={2}>
             <Typography variant="h6">Site: {plantName}</Typography>
 
             {/* Site Info - Always displayed */}
@@ -913,7 +912,7 @@ export default function SiteDetails({ context }) {
             )}
 
             <Divider style={{ margin: '16px 0px', marginTop: 25}} />
-            
+
             {isNewBuildingMode ? (
                 <BuildingThumbnails {...{mapGraphicReferences, handleCancelNewBuildingMode}} />
             ) : (
@@ -926,7 +925,7 @@ export default function SiteDetails({ context }) {
                     ))}
                 </>
             )}
-        </div>
+        </Box>
     );
 }
 
