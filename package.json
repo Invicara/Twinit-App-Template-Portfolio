@@ -22,7 +22,7 @@
       "@emotion/styled": "^11.14.1",
       "@invicara/ipa-core": "3.0.32",
       "@invicara/ipa-core-ct": "^1.0.19",
-      "@invicara/ipa-core-mmv": "^0.2.101-mapbox-alpha-2.3",
+      "@invicara/ipa-core-mmv": "^0.2.101-mapbox-alpha-2.4",
       "@jsonforms/core": "^3.6.0",
       "@jsonforms/material-renderers": "^3.6.0",
       "@jsonforms/react": "^3.6.0",
