@@ -1,22 +1,12 @@
-import React, { useContext, useEffect } from 'react';
-import { Typography, Divider } from '@mui/material';
+import React from 'react';
+import DeployStatusChart from '../DeployStatusBarChart';
+import SearchPanel from '../SearchPanel';
 
-
-export default function PortfolioDetails({ context }) {
-    const {data = {}} = context;
-    const {building: buildings = []} = data;
-
-
+export default function PortfolioDetails({ context, userConfig }) {
     return (
         <div>
-            <Typography variant="h6">Portfolio</Typography>
-            <Typography variant="body2">Total: {buildings.length}</Typography>
-            <Divider sx={{ my: 2 }} />
-            {buildings.map((item, i) => (
-                <Typography key={i} variant="body2">
-                    {item.name}
-                </Typography>
-            ))}
+            <SearchPanel userConfig={userConfig} context={context} />
+            <DeployStatusChart />
         </div>
     );
 }

@@ -18,18 +18,6 @@ import KeyboardArrowDownIcon from '@material-ui/icons/KeyboardArrowDown';
 import DeployStatusChart from './DeployStatusBarChart';
 
 const useStyles = makeStyles((theme) => ({
-    sidebarPaper: {
-        width: 580,
-        maxHeight: '100vh',   
-        overflowY: 'auto',   
-        flexShrink: 0,
-        '& .MuiSelect-outlined.MuiSelect-select': {
-            display: 'flex',
-            alignItems: 'center',      
-            height: '100%',
-            padding: '0',                 
-        },
-      },
       formControl: {
         width: 258,
         '& .MuiOutlinedInput-root': {
@@ -146,8 +134,8 @@ export default function SearchPanel({ currentState, context, userConfig }) {
   };
 
   return (
-    <Paper elevation={3} className={clsx(classes.sidebarPaper)}>
-      <Box display='flex' justifyContent='center' p={4}>
+    <div>
+      <Box display='flex' justifyContent='center' pb={4}>
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
             <Grid item xs={12}>
@@ -293,8 +281,7 @@ export default function SearchPanel({ currentState, context, userConfig }) {
         </form>
       </Box>
       <Box className={classes.divider} />
-      <DeployStatusChart />
-    </Paper>
+</div>
   );
 };
 
