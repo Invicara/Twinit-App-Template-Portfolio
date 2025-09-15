@@ -21,6 +21,15 @@ let scriptModule = {
         const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: "map_types"}}))._list[0];
         const result = await IafItemSvc.updateRelatedItems(coll._userItemId, [updatedType]);        
 
+    },
+
+    async getGraphicReferences(input, libraries, ctx, callback){
+        const { PlatformApi: { IafItemSvc } } = libraries
+
+        const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: "map_graphic_references"}}))._list[0];
+        const mapGraphicReferences = (await IafItemSvc.getRelatedItems(coll._userItemId, {}))._list;
+        
+        return mapGraphicReferences;
     }
 }
 
