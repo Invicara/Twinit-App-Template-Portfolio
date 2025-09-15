@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef, useContext } from 'react';
-import { makeStyles } from '@material-ui/core/styles';
-import { Bar } from 'react-chartjs-2';
+import React, { useMemo, useRef, useContext } from "react";
+import { makeStyles } from "@material-ui/core/styles";
+import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -9,48 +9,52 @@ import {
   Title,
   Tooltip,
   Legend,
-} from 'chart.js';
-import ChartDataLabels from 'chartjs-plugin-datalabels';
-import BarChartOutlinedIcon from '@material-ui/icons/BarChartOutlined';
-import CircularProgress from '@material-ui/core/CircularProgress';
-import { usePopupState } from './map/popup/usePopupState';
-import { formControlClasses } from '@mui/material';
-import { filterFeatures } from '../../../../client/scripts/mapEntryActions.mjs';
-// import { useSelector as useXstateSelector } from '@xstate/react';
-import { MapContext, MapMachineContext } from '../PortfolioOverview';
-import { useDispatch, useSelector } from "react-redux";
+} from "chart.js";
+import ChartDataLabels from "chartjs-plugin-datalabels";
+import BarChartOutlinedIcon from "@material-ui/icons/BarChartOutlined";
+import CircularProgress from "@material-ui/core/CircularProgress";
+import { filterFeatures } from "../../../../client/scripts/mapEntryActions.mjs";
+import { MapMachineContext } from "../PortfolioOverview";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ChartDataLabels);
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ChartDataLabels,
+);
 
 const useStyles = makeStyles({
   container: {
-    width: '100%',
-    overflowY: 'auto',
+    width: "100%",
+    overflowY: "auto",
     minHeight: (props) => props.chartHeight + 300,
-    display: 'flex',
-    flexDirection: 'column',
+    display: "flex",
+    flexDirection: "column",
   },
   header: {
-    display: 'flex',
-    alignItems: 'flex-start',
+    display: "flex",
+    alignItems: "flex-start",
     marginBottom: -20,
   },
   icon: {
-    color: '#5D5D5D',
+    color: "#5D5D5D",
     fontSize: 26,
     marginRight: 8,
     marginLeft: 15,
   },
   headerText: {
-    fontFamily: 'Inter',
+    fontFamily: "Inter",
     fontSize: 15,
     fontWeight: 700,
-    color: '#000',
+    color: "#000",
   },
   chartWrapper: {
-    width: '100%',
+    width: "100%",
     height: (props) => props.chartHeight + 40,
-    overflow: 'visible'
+    overflow: "visible",
   },
 });
 
@@ -60,21 +64,21 @@ Tooltip.positioners.centerBar = function (items, eventPosition) {
   }
   const element = items[0].element;
   return {
-    x: (element.base + element.x) / 2, 
-    y: element.y - element.height / 2.3
+    x: (element.base + element.x) / 2,
+    y: element.y - element.height / 2.3,
   };
 };
 
 const groupLabelPlugin = {
- id: 'groupLabelPlugin',
+  id: "groupLabelPlugin",
   afterDatasetsDraw(chart, args, options) {
     const data = options.data || []; // <- access the passed-in data
     const { ctx, scales, chartArea } = chart;
     const yScale = scales.y;
 
     ctx.save();
-    ctx.textBaseline = 'middle';
-    ctx.font = '14px Inter, sans-serif';
+    ctx.textBaseline = "middle";
+    ctx.font = "14px Inter, sans-serif";
 
     data.forEach((item, i) => {
       const y = yScale.getPixelForValue(i);
@@ -83,38 +87,42 @@ const groupLabelPlugin = {
       const labelX = chartArea.left;
       const labelY = y - barThickness / 2 - labelGap;
 
-      const circleColor = item.color || '#000';
+      const circleColor = item.color || "#000";
       const circleRadius = 4;
       ctx.fillStyle = circleColor;
       ctx.beginPath();
       ctx.arc(labelX + circleRadius, labelY - 1, circleRadius, 0, 2 * Math.PI);
       ctx.fill();
 
-      ctx.fillStyle = '#000';
-      ctx.textAlign = 'left';
+      ctx.fillStyle = "#000";
+      ctx.textAlign = "left";
 
       const mwValue = item.max ?? item.label;
-      const capitalizedId = String(item.id || '').charAt(0).toUpperCase() + String(item.id || '').slice(1);
-      const text = typeof mwValue === 'number'
-        ? `${capitalizedId} (${mwValue} MW)`
-        : `${capitalizedId} (${item.label})`;
+      const capitalizedId =
+        String(item.id || "")
+          .charAt(0)
+          .toUpperCase() + String(item.id || "").slice(1);
+      const text =
+        typeof mwValue === "number"
+          ? `${capitalizedId} (${mwValue} MW)`
+          : `${capitalizedId} (${item.label})`;
 
       ctx.fillText(text, labelX + circleRadius * 2 + 4, labelY);
     });
 
     ctx.restore();
-  }
+  },
 };
 
 const hideLastXGridLinePlugin = {
-  id: 'hideLastXGridLine',
+  id: "hideLastXGridLine",
   afterDraw: (chart) => {
     const xScale = chart.scales.x;
     const ctx = chart.ctx;
     const lastPixel = xScale.getPixelForValue(xScale.max);
 
     ctx.save();
-    ctx.strokeStyle = chart.options.plugins?.background?.color || '#fff';
+    ctx.strokeStyle = chart.options.plugins?.background?.color || "#fff";
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(lastPixel, chart.chartArea.top);
@@ -124,77 +132,74 @@ const hideLastXGridLinePlugin = {
   },
 };
 
-// const mockDeployData = [
-//   { id: 'low',  min: 0, max: 900, color: "#8ecbff",  label: "< 900", status: { notStarted: 10, inProgress: 7, atRisk: 3, completed: 20 } },
-//   { id: "mid", min: 900, max: 1300, color: "#1DC0F7", label: "900–1299", status: { notStarted: 5, inProgress: 6, atRisk: 2, completed: 7 } },
-//   { id: 'high', min: 1300, max: 1450,color: "#0072BC", label: "1300–1449", status: { notStarted: 4, inProgress: 1, atRisk: 0, completed: 0 } },
-//   { id: 'ultra', min: 1450, max: null,  label: "≥1450", color: "#1D1D1D", status: { notStarted: 4, inProgress: 1, atRisk: 0, completed: 0 } },
-// ];
-
-
-export default function DeployStatusChart({ userConfig, chartConfig, context, mmvSend, snapshot }) {
+export default function DeployStatusChart({ userConfig, chartConfig, context, snapshot }) {
   const chartHeight = (chartConfig?.data?.length || 0) * 120;
   const classes = useStyles({ chartHeight });
-  const chartTitle = userConfig.handlers.portfolioOverview.config.labels?.chartTitle || 'Status';
-  const statusConfig = userConfig.handlers.portfolioOverview.config.statusConfig || {}
-  const popupRefs = useRef([]);
+  const chartTitle = userConfig.handlers.portfolioOverview.config.labels?.chartTitle || "Status";
 
   const { send, actor } = useContext(MapMachineContext);
 
-const chartData = useMemo(() => {
-  if (!chartConfig?.data) {
-    return { labels: [], datasets: [] }; // safe fallback
-  }
+  const chartData = useMemo(() => {
+    if (!chartConfig?.data) {
+      return { labels: [], datasets: [] }; 
+    }
 
-  const labels = chartConfig.data.map(d => {
-    const idStr = String(d.id || '');
-    const capitalizedId = idStr.charAt(0).toUpperCase() + idStr.slice(1);
-    return `${capitalizedId} (${d.max ?? d.label} MW)`;
-  });
+    const labels = chartConfig.data.map((d) => {
+      const idStr = String(d.id || "");
+      const capitalizedId = idStr.charAt(0).toUpperCase() + idStr.slice(1);
+      return `${capitalizedId} (${d.max ?? d.label} MW)`;
+    });
 
-  const datasets = Object.entries(chartConfig?.statusConfig).map(([key, { label, color }]) => ({
-    label,
-    data: chartConfig.data.map(d => d.status[key] ?? 0),
-    backgroundColor: color,
-    stack: 'stack1',
-    barThickness: 56,
-  }));
+    const datasets = Object.entries(chartConfig?.statusConfig).map(
+      ([key, { label, color }]) => ({
+        label,
+        data: chartConfig.data.map((d) => d.status[key] ?? 0),
+        backgroundColor: color,
+        stack: "stack1",
+        barThickness: 56,
+      }),
+    );
 
-  return { labels, datasets };
-}, [chartConfig]);
+    return { labels, datasets };
+  }, [chartConfig]);
 
-const isLoading =  !chartData?.datasets?.length || chartData.datasets.every(ds => ds.data.every(v => v === 0));
+  const isLoading =
+    !chartData?.datasets?.length ||
+    chartData.datasets.every((ds) => ds.data.every((v) => v === 0));
 
   const options = {
-    indexAxis: 'y',
+    indexAxis: "y",
     responsive: true,
     maintainAspectRatio: false,
-    layout: { 
-      padding: { 
-        left: 10, 
-        right: 10, 
-        top: 28, 
-        bottom: 0 
-      } 
+    layout: {
+      padding: {
+        left: 10,
+        right: 10,
+        top: 28,
+        bottom: 0,
+      },
     },
     clip: false,
     plugins: {
-        groupLabelPlugin: {
-        data: chartConfig?.data || []
+      groupLabelPlugin: {
+        data: chartConfig?.data || [],
       },
       legend: {
         display: true,
-        position: 'bottom',
+        position: "bottom",
         labels: {
           usePointStyle: true,
-          pointStyle: 'circle',
+          pointStyle: "circle",
           boxWidth: 8,
           boxHeight: 8,
           padding: 20,
-          font: { family: 'Inter', size: 10, weight: '400' },
+          font: { family: "Inter", size: 10, weight: "400" },
           generateLabels(chart) {
             const datasets = chart.data.datasets;
-            const total = datasets.reduce((sum, ds) => sum + ds.data.reduce((a, b) => a + b, 0), 0);
+            const total = datasets.reduce(
+              (sum, ds) => sum + ds.data.reduce((a, b) => a + b, 0),
+              0,
+            );
             return datasets.map((ds, i) => {
               const statusTotal = ds.data.reduce((a, b) => a + b, 0);
               const percent = ((statusTotal / total) * 100).toFixed(0);
@@ -203,27 +208,27 @@ const isLoading =  !chartData?.datasets?.length || chartData.datasets.every(ds =
                 fillStyle: ds.backgroundColor,
                 strokeStyle: ds.backgroundColor,
                 hidden: !chart.isDatasetVisible(i),
-                pointStyle: 'circle',
+                pointStyle: "circle",
               };
             });
           },
         },
       },
       tooltip: {
-        position: 'centerBar', 
-        yAlign: 'bottom',
-        xAlign: 'center',
-        position: 'centerBar', 
+        position: "centerBar",
+        yAlign: "bottom",
+        xAlign: "center",
+        position: "centerBar",
         displayColors: false,
         padding: 12,
-        backgroundColor: '#000',
-        titleColor: '#fff',
-        bodyColor: '#fff',
-        bodyFont: { family: 'Inter', size: 12 },
+        backgroundColor: "#000",
+        titleColor: "#fff",
+        bodyColor: "#fff",
+        bodyFont: { family: "Inter", size: 12 },
         callbacks: {
           title: () => null,
           label: (context) => {
-            const datasetLabel = context.dataset.label || '';
+            const datasetLabel = context.dataset.label || "";
             const value = context.parsed.x;
             return `${datasetLabel}: ${value}`;
           },
@@ -234,13 +239,13 @@ const isLoading =  !chartData?.datasets?.length || chartData.datasets.every(ds =
     scales: {
       x: {
         stacked: true,
-        grid: { display: true, drawBorder: false, color: '#d3d3d3' },
+        grid: { display: true, drawBorder: false, color: "#d3d3d3" },
         ticks: {
-          color: '#555',
+          color: "#555",
           font: { size: 12 },
-          callback: function(value) {
+          callback: function (value) {
             const maxValue = this.max;
-            return value === maxValue ? '' : value;
+            return value === maxValue ? "" : value;
           },
         },
         border: { display: false },
@@ -256,97 +261,92 @@ const isLoading =  !chartData?.datasets?.length || chartData.datasets.every(ds =
         clip: false,
       },
     },
-onClick: (evt, elements) => {
+    onClick: async (evt, elements) => {
+      const { datasetIndex, index } = elements[0];
+      const datasetLabel = chartData.datasets[datasetIndex].label;
+      const capacityLabel = chartData.labels[index];
 
+      const match = Object.values(chartConfig?.statusConfig).find(
+        (status) => status.label === datasetLabel,
+      );
 
- const { datasetIndex, index } = elements[0];
-console.log('chartConfig');
-console.log(chartConfig.data);
+      const isLastBin = chartConfig.data[index].max === null;
 
-  const datasetLabel = chartData.datasets[datasetIndex].label;
-  const capacityLabel = chartData.labels[index];
+      const capacityValue = isLastBin
+        ? Infinity
+        : Number(capacityLabel.replace(/\D/g, ""));
 
-  const match = Object.values(chartConfig?.statusConfig).find(
-    (status) => status.label === datasetLabel
-  );
+      const capacityRange = findCapacityRange(capacityValue);
 
-  const isLastBin = chartConfig.data[index].max === null;
+      const filteredSites = context.data.site.slice(0, 5);
 
-// If it's the last bin, override capacityValue to Infinity
-const capacityValue = isLastBin
-  ? Infinity
-  : Number(capacityLabel.replace(/\D/g, '')); 
+      snapshot.stateValue = context.namedPaths[0][0].state
+      snapshot.self = actor;
 
-  const capacityRange = findCapacityRange(capacityValue);
+      filterFeatures({
+        mapMachineInput: snapshot,
+        data: filteredSites,
+        filteredLabels: {
+          status: match?.statusId,
+          capacity: capacityRange,
+        },
+        legend: chartConfig?.data,
+      });
 
-  const filteredSites = context.data.site.slice(0, 5);
+      const newData = {
+        ...context,
+        data: { building: context.data.building, site: filteredSites },
+      };
 
-  snapshot.stateValue = 'portfolio';
-  snapshot.self = actor;
-
-  filterFeatures({
-      mapMachineInput: snapshot,
-      data: filteredSites,
-      filteredLabels: {  
-        status: match?.statusId, 
-        capacity: capacityRange,
-      },
-      legend: chartConfig?.data
-  });
-
-  const newData = {...context, data: {building: context.data.building, site: filteredSites}};
-    // mmvSend({
-    //   type: 'FILTER_BY_STATUS_AND_CAPACITY',
-    //   filteredSites,
-    // });
-
-}
+    },
   };
 
-function findCapacityRange(capacityValue) {
- const bins = chartConfig?.data || [];
+  function findCapacityRange(capacityValue) {
+    const bins = chartConfig?.data || [];
+    bins.sort((a, b) => (a.min ?? -Infinity) - (b.min ?? -Infinity));
 
- console.log('chartconfig');
- console.log(chartConfig);
- console.log('capacityValue');
-  // Sort bins by min just in case
-  bins.sort((a,b) => (a.min ?? -Infinity) - (b.min ?? -Infinity));
+    for (let i = 0; i < bins.length; i++) {
+      const { min = -Infinity, max = Infinity } = bins[i];
+      const isLastBin = i === bins.length - 1;
 
-  for (let i = 0; i < bins.length; i++) {
-    const { min = -Infinity, max = Infinity } = bins[i];
-    const isLastBin = i === bins.length - 1;
-
-    if (isLastBin) {
-      // Last bin: include everything >= min
-      if (capacityValue >= min) return bins[i];
-    } else {
-      // Middle bins: include min <= value <= max
-      if (capacityValue >= min && capacityValue <= max) return bins[i];
+      if (isLastBin) {
+        if (capacityValue >= min) return bins[i];
+      } else {
+        if (capacityValue >= min && capacityValue <= max) return bins[i];
+      }
     }
-  }
 
-  return null;
-}
+    return null;
+  }
 
   return (
     <div className={classes.container}>
       {/* Header */}
       <div className={classes.header}>
         <BarChartOutlinedIcon className={classes.icon} />
-        <span className={classes.headerText}>
-          {chartTitle}
-        </span>
+        <span className={classes.headerText}>{chartTitle}</span>
       </div>
 
       {/* Chart */}
-      <div className={classes.chartWrapper} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div
+        className={classes.chartWrapper}
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
         {isLoading ? (
           <CircularProgress />
         ) : (
           <Bar
             data={chartData}
             options={options}
-            plugins={[ChartDataLabels, groupLabelPlugin, hideLastXGridLinePlugin]}
+            plugins={[
+              ChartDataLabels,
+              groupLabelPlugin,
+              hideLastXGridLinePlugin,
+            ]}
           />
         )}
       </div>
