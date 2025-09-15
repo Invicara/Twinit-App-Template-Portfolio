@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useContext } from "react";
+import React, { useMemo, useContext } from "react";
 import { makeStyles } from "@material-ui/core/styles";
 import { Bar } from "react-chartjs-2";
 import {
@@ -43,13 +43,14 @@ const useStyles = makeStyles({
     color: "#5D5D5D",
     fontSize: 26,
     marginRight: 8,
-    marginLeft: 15,
+    marginLeft: 0,
   },
   headerText: {
     fontFamily: "Inter",
     fontSize: 15,
     fontWeight: 700,
-    color: "#000",
+    marginTop: 4,
+    color: '#000',
   },
   chartWrapper: {
     width: "100%",
@@ -72,7 +73,7 @@ Tooltip.positioners.centerBar = function (items, eventPosition) {
 const groupLabelPlugin = {
   id: "groupLabelPlugin",
   afterDatasetsDraw(chart, args, options) {
-    const data = options.data || []; // <- access the passed-in data
+    const data = options.data || []; 
     const { ctx, scales, chartArea } = chart;
     const yScale = scales.y;
 
@@ -171,15 +172,7 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, sn
     indexAxis: "y",
     responsive: true,
     maintainAspectRatio: false,
-    layout: {
-      padding: {
-        left: 10,
-        right: 10,
-        top: 28,
-        bottom: 0,
-      },
-    },
-    clip: false,
+    layout: { padding: { left: 0, right: 10, top: 40, bottom: 0 } },
     plugins: {
       groupLabelPlugin: {
         data: chartConfig?.data || [],
@@ -239,7 +232,16 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, sn
     scales: {
       x: {
         stacked: true,
-        grid: { display: true, drawBorder: false, color: "#d3d3d3" },
+        grid: { 
+          display: true, 
+          drawBorder: false, 
+          color: "#d3d3d3",
+          color: (ctx) => {
+          // Hide last grid line
+            return ctx.tick.value === ctx.chart.scales.x.max ? 'transparent' : '#d3d3d3';
+        },
+        
+        },
         ticks: {
           color: "#555",
           font: { size: 12 },
