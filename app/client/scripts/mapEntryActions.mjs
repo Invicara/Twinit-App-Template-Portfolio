@@ -2102,18 +2102,54 @@ export async function filterFeatures({ mapMachineInput, filteredLabels }) {
   });
   let singleMarkers = result?.singleMarkers;
 
-  const allowedSet = new Set(
-    (Array.isArray(filteredSites) ? filteredSites : []).map((d) => d.siteId),
-  );
-  const filteredSingleMarkers = singleMarkers.map((cfg) => {
-    const copy = { ...cfg };
-    copy.features = Array.isArray(cfg.features)
-      ? cfg.features.filter((f) => allowedSet.has(f?.properties?.siteId))
-      : [];
-    return copy;
-  });
+  const allowedSites = new Map(
+  (Array.isArray(filteredSites) ? filteredSites : []).map((site) => [
+    site.siteId,
+    new Set(site.buildings.map((b) => b.buildingId)), 
+  ])
+);
+
+const filteredSingleMarkers = singleMarkers.map((cfg) => {
+  const copy = { ...cfg };
+
+  copy.features = Array.isArray(cfg.features)
+    ? cfg.features
+        .map((f) => {
+          const siteId = f?.properties?.siteId;
+
+          // find the matching site
+          const site = filteredSites.find((s) => s.siteId === siteId);
+          if (!site) return null;
+
+          // if feature has buildings in its properties, filter them down
+          if (Array.isArray(f?.properties?.buildings)) {
+            const matchedBuildings = f.properties.buildings.filter((fb) =>
+              site.buildings?.some((sb) => sb.buildingId === fb.buildingId)
+            );
+
+            // if nothing matches, drop this feature
+            if (!matchedBuildings.length) return null;
+
+            return {
+              ...f,
+              properties: {
+                ...f.properties,
+                buildings: matchedBuildings,
+              },
+            };
+          }
+
+          return null;
+        })
+        .filter(Boolean) // remove nulls
+    : [];
+
+  return copy;
+});
 
   filteredSingleMarkers.filtered = true;
+
+  context.data.building = context.data.building.slice(0, 2);
 
   const { manageMarkers } = await handleMarkers(
     stateValue,
@@ -2121,7 +2157,7 @@ export async function filterFeatures({ mapMachineInput, filteredLabels }) {
     { context, self },
   );
 
-  return "okay";
+  return {manageMarkers};
 }
 
 function filterSitesByBuilding({ sites, filteredLabels, statusMap }) {
@@ -2131,21 +2167,31 @@ function filterSitesByBuilding({ sites, filteredLabels, statusMap }) {
   const min = Number(capacity.min ?? 0);
   const max = capacity.max != null ? Number(capacity.max) : null;
 
-  return sites.filter((site) =>
-    site.buildings?.some((b) => {
-      const bCap = Number(b.Capacity);
-      if (isNaN(bCap)) return false;
+  return sites
+    .map((site) => {
+      const matchedBuildings = site.buildings?.filter((b) => {
+        const bCap = Number(b.Capacity);
+        if (isNaN(bCap)) return false;
 
-      const bStatusId = b.StatusId;
-      const filterStatusId = statusMap ? statusMap[status] : status;
+        const bStatusId = b.StatusId;
+        const filterStatusId = statusMap ? statusMap[status] : status;
 
-      const statusMatch = bStatusId == filterStatusId;
-      const capacityMatch =
-        max == null ? bCap >= min : bCap >= min && bCap < max;
+        const statusMatch = bStatusId == filterStatusId;
+        const capacityMatch =
+          max == null ? bCap >= min : bCap >= min && bCap < max;
 
-      return statusMatch && capacityMatch;
-    }),
-  );
+        return statusMatch && capacityMatch;
+      });
+
+      if (matchedBuildings?.length > 0) {
+        return {
+          ...site,
+          buildings: matchedBuildings,
+        };
+      }
+      return null;
+    })
+    .filter(Boolean);
 }
 
 const capacityMatches = (cap, min, max) => {
