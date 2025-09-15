@@ -56,7 +56,7 @@ const useStyles = makeStyles((theme) => ({
         height: "calc(100% - 40px)"
     },
     statePanel: ({stateKey}) => (  {
-        width: stateKey === 'portfolio' ? 580 : 400,
+        width: 580,
         height: '100%'
     }),
     searchPanel: {
@@ -276,6 +276,9 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                         <Grid item className={classes.statePanel}>
                             <StatePanel currentState={currentState} context={currentState.context} send={actor.send} userConfig={userConfig} />
                         </Grid>
+                        {/* <Grid item className={classes.statePanel}>
+                            <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
+                        </Grid> */}
                         <Grid item xs className={classes.viewerContainer}>
                             <div
                                 className={clsx(classes.mmvContainer, "dark-map", {'map-selecting-position' : isSelectingPosition})}
