@@ -25,6 +25,7 @@ import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
 import { getChartStatus } from '../../../client/scripts/mapEntryActions.mjs';
 import { use } from 'react';
+import GenericErrorBoundary from "../../components/GenericErrorBoundary.jsx";
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -103,7 +104,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     const componentConfig = handler?.componentConfig;
     const namedPaths = useMemo(()=>componentConfig?.namedPaths || DEFAULT_PATHS,[]);
     const legendPath = useMemo(()=>componentConfig?.legendPath || "building",[]);
-    
+
     // Create machine with Redux context
     const machineDef = useMemo(()=>{
         return createMachine("mapMachine", namedPaths, {
@@ -113,7 +114,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             }
         });
     },[namedPaths, dispatch, store]);
-    
+
     const [snapshot, send, actor] = useMachine(machineDef);
 
     const [chartConfig, setChartConfig] = useState(null);
@@ -124,9 +125,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
 
     const classes = useStyles({ stateKey });
     const dispatch = useDispatch();
-
-
-    
 
     // MMV Configuration state -> this should be removed to a user config or a script
     const [mmvConfig, setMmvConfig] = useState();
@@ -156,7 +154,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             dispatch(setMapTypes(types));
         }
 
-        const fetchMapRepresentations = async () => {            
+        const fetchMapRepresentations = async () => {
             const mapGraphicReferences = await ScriptCache.runScript("getGraphicReferences", {namedPaths});
             dispatch(setMapGraphicReferences(mapGraphicReferences));
         }
@@ -289,16 +287,16 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                             </div>
                         </div>
                     </div>
-                    <Grid container className={classes.mainContent}> 
-                        <Grid item className={classes.statePanel}>
-                            <StatePanel 
-                                currentState={currentState} 
-                                context={currentState.context} 
-                                chartConfig={chartConfig}
-                                userConfig={userConfig} 
-                                snapshot={snapshot}
-                            />
-                        </Grid>
+                    <Grid container className={classes.mainContent}>
+                        <StatePanel 
+                            currentState={currentState} 
+                            context={currentState.context} 
+                            send={actor.send} 
+                            className={classes.statePanel}
+                            chartConfig={chartConfig}
+                            userConfig={userConfig} 
+                            snapshot={snapshot}
+                        />
                         <Grid item xs className={classes.viewerContainer}>
                             <div
                                 className={clsx(classes.mmvContainer, "dark-map", {'map-selecting-position' : isSelectingPosition})}
