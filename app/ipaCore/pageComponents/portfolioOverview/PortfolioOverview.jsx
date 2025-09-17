@@ -23,7 +23,8 @@ import {flushSync} from "react-dom";
 import PopupPortal from "./components/map/popup/PopupPortal.jsx";
 import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
-import GenericErrorBoundary from "../../components/GenericErrorBoundary.jsx";
+import { UseNewEntityManagement } from '../../hooks/UseNewEntityManagement.js';
+import { UseGraphicsVisibility } from '../../hooks/useGraphicsVisibility.js';
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -89,10 +90,10 @@ export const MapMachineContext = createContext();
 export const MapContext = createContext();
 const DEFAULT_PATHS = [
     [
-        { state: 'portfolio', idKey: null },
-        { state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all" },
-        { state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all" },
-        { state: 'modelElement', idKey: 'modelElementId' },
+        { displayName: "Portfolio", state: 'portfolio', idKey: null, scopeLevel: 0 },
+        { displayName: "Site", state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all", scopeLevel: 1, collShortName: "geo_sites_coll" },
+        { displayName: "Building", state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all", scopeLevel: 2, collShortName: "building_coll" },
+        { displayName: "Model Element", state: 'modelElement', idKey: 'modelElementId', scopeLevel: 3 },
     ]
 ]
 
@@ -121,8 +122,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
 
     const classes = useStyles({ stateKey });
     const dispatch = useDispatch();
-
-
     
 
     // MMV Configuration state -> this should be removed to a user config or a script
@@ -263,6 +262,8 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     return (
         <MapContext.Provider value={mapContextValue}>
             <MapMachineContext.Provider value={mapMachineContextValue}>
+                <UseGraphicsVisibility/>
+                <UseNewEntityManagement/>
                 <div className={classes.container}>
                     <div className={classes.secondaryHeader}>
                         <div className={classes.headerInner}>
