@@ -361,7 +361,8 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
             namedPaths: paths,
             pendingEvent: null,
             suppressEntryActions: false,
-            manageMarkers: {}
+            manageMarkers: {},
+            filters: null
         },
         states: {
             ...topLevelStates,
@@ -383,6 +384,11 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                 actions: assign(({ event }) => ({
                     data: event.data
                 }))
+            },
+            UPDATE_FILTERS: { 
+                actions: assign(({ event }) => ({
+                    filters: event.filters
+            }))
             }
         }
     };

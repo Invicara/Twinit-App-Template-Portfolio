@@ -1,4 +1,4 @@
-import React, { useMemo, useContext } from "react";
+import React, { useMemo, useContext, useEffect } from "react";
 import { makeStyles } from "@material-ui/core/styles";
 import { Bar } from "react-chartjs-2";
 import {
@@ -15,6 +15,9 @@ import BarChartOutlinedIcon from "@material-ui/icons/BarChartOutlined";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import { filterFeatures } from "../../../../client/scripts/mapEntryActions.mjs";
 import { MapMachineContext } from "../PortfolioOverview";
+import { getSiteFilter, setSiteFilter } from "../../../redux/filters";
+import { useDispatch, useSelector as useReduxSelector, useStore } from 'react-redux';
+import { DatasetLinked } from "@mui/icons-material";
 
 ChartJS.register(
   CategoryScale,
@@ -115,12 +118,38 @@ const groupLabelPlugin = {
   },
 };
 
-export default function DeployStatusChart({ userConfig, chartConfig, context, snapshot }) {
+export default function DeployStatusChart({ userConfig, chartConfig, context, snapshot, send }) {
   const chartHeight = (chartConfig?.data?.length || 0) * 120;
   const classes = useStyles({ chartHeight });
   const chartTitle = userConfig.handlers.portfolioOverview.config.labels?.chartTitle || "Status";
 
-  const { send, actor } = useContext(MapMachineContext);
+  const siteFilter = useReduxSelector(getSiteFilter);
+
+  const { actor } = useContext(MapMachineContext);
+
+  const dispatch = useDispatch()
+
+  const handleBarClick = (site) => {
+    dispatch(setSiteFilter(site))
+  }
+
+   const findCapacityRange = (capacityValue) => {
+    const bins = chartConfig?.data || [];
+    bins.sort((a, b) => (a.min ?? -Infinity) - (b.min ?? -Infinity));
+
+    for (let i = 0; i < bins.length; i++) {
+      const { min = -Infinity, max = Infinity } = bins[i];
+      const isLastBin = i === bins.length - 1;
+
+      if (isLastBin) {
+        if (capacityValue >= min) return bins[i];
+      } else {
+        if (capacityValue >= min && capacityValue <= max) return bins[i];
+      }
+    }
+
+    return null;
+  }
 
   const chartData = useMemo(() => {
     if (!chartConfig?.data) {
@@ -245,62 +274,73 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, sn
       },
     },
     onClick: async (evt, elements) => {
-      const { datasetIndex, index } = elements[0];
-      const datasetLabel = chartData.datasets[datasetIndex].label;
-      const capacityLabel = chartData.labels[index];
+     // const { datasetIndex, index } = elements[0];
+    if (!elements.length) return;
 
-      const match = Object.values(chartConfig?.statusConfig).find(
-        (status) => status.label === datasetLabel,
-      );
+    const { datasetIndex, index } = elements[0];
+    const datasetLabel = chartData.datasets[datasetIndex].label;
+    const capacityLabel = chartData.labels[index];
 
-      const isLastBin = chartConfig.data[index].max === null;
+    // find the matching status from config
+    const match = Object.values(chartConfig?.statusConfig || {}).find(
+        (status) => status.label === datasetLabel
+    );
 
-      const capacityValue = isLastBin
-        ? Infinity
-        : Number(capacityLabel.replace(/\D/g, ""));
+    if (!match) return;
 
-      const capacityRange = findCapacityRange(capacityValue);
+    const statusId = match.statusId;
 
-      const filteredSites = context.data.site.slice(0, 5);
+    // Optional: parse capacity value from label (e.g., "Low (900 MW)")
 
-      snapshot.stateValue = context.namedPaths[0][0].state
-      snapshot.self = actor;
+    const isLastBin = chartConfig.data[index].max === null;
 
-      filterFeatures({
-        mapMachineInput: snapshot,
-        data: filteredSites,
-        filteredLabels: {
-          status: match?.statusId,
-          capacity: capacityRange,
+    const capacityValue = isLastBin
+      ? Infinity
+      : Number(capacityLabel.replace(/\D/g, ""));
+
+    const capacityRange = findCapacityRange(capacityValue);
+
+
+    const filter = {
+        site: {
+            op: "and",
+            rules: [
+                { fn: "statusIn", args: { values: statusId } },
+                { fn: "capacityBetween", args: 
+                  { min:capacityRange?.min, 
+                    max:capacityRange?.max 
+                  }
+                },
+            ],
         },
-        legend: chartConfig?.data,
-      });
+    }
 
-      const newData = {
-        ...context,
-        data: { building: context.data.building, site: filteredSites },
-      };
+
+    // Dispatch to Redux filters
+    dispatch(setSiteFilter(filter));
+
+      // const filteredSites = context.data.site.slice(0, 5);
+
+      // snapshot.stateValue = context.namedPaths[0][0].state
+      // snapshot.self = actor;
+
+      // filterFeatures({
+      //   mapMachineInput: snapshot,
+      //   data: filteredSites,
+      //   filteredLabels: {
+      //     status: match?.statusId,
+      //     capacity: capacityRange,
+      //   },
+      //   legend: chartConfig?.data,
+      // });
+
+      // const newData = {
+      //   ...context,
+      //   data: { building: context.data.building, site: filteredSites },
+      // };
 
     },
   };
-
-  function findCapacityRange(capacityValue) {
-    const bins = chartConfig?.data || [];
-    bins.sort((a, b) => (a.min ?? -Infinity) - (b.min ?? -Infinity));
-
-    for (let i = 0; i < bins.length; i++) {
-      const { min = -Infinity, max = Infinity } = bins[i];
-      const isLastBin = i === bins.length - 1;
-
-      if (isLastBin) {
-        if (capacityValue >= min) return bins[i];
-      } else {
-        if (capacityValue >= min && capacityValue <= max) return bins[i];
-      }
-    }
-
-    return null;
-  }
 
   return (
     <div className={classes.container}>
