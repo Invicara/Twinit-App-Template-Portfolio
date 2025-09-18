@@ -3,7 +3,7 @@ import DeployStatusChart from '../DeployStatusBarChart';
 import SearchPanel from '../SearchPanel';
 import {Box} from "@mui/material";
 
-export default function PortfolioDetails({ context, userConfig, chartConfig, snapshot }) {
+export default function PortfolioDetails({ context, userConfig, chartConfig, snapshot, send }) {
     return (
         <div>
             <Box pl={2} pr={2} pt={2}>
@@ -14,6 +14,7 @@ export default function PortfolioDetails({ context, userConfig, chartConfig, sna
                     context={context} 
                     chartConfig={chartConfig} 
                     snapshot={snapshot} 
+                    send={send}
                 />
             </Box>
         </div>

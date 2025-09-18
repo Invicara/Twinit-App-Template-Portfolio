@@ -24,6 +24,8 @@ import PopupPortal from "./components/map/popup/PopupPortal.jsx";
 import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
 import { getChartStatus } from '../../../client/scripts/mapEntryActions.mjs';
+import { getSiteFilter, setSiteFilter } from '../../redux/filters.js';
+import { filterFeatures } from '../../../client/scripts/mapEntryActions.mjs';
 import { use } from 'react';
 import GenericErrorBoundary from "../../components/GenericErrorBoundary.jsx";
 
@@ -104,6 +106,8 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     const componentConfig = handler?.componentConfig;
     const namedPaths = useMemo(()=>componentConfig?.namedPaths || DEFAULT_PATHS,[]);
     const legendPath = useMemo(()=>componentConfig?.legendPath || "building",[]);
+    
+    const siteFilter = useReduxSelector(getSiteFilter);
 
     // Create machine with Redux context
     const machineDef = useMemo(()=>{
@@ -163,6 +167,26 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         fetchMapTypes();
         fetchMapRepresentations();
     },[namedPaths])
+
+      useEffect(() => {
+
+    const run = async () => {
+      const newFilter = getSiteFilter(store.getState());
+
+     // currentState.stateValue = 'portfolio';
+      actor.send({ type: 'UPDATE_FILTERS', filters: newFilter, reenter: true });
+      const firstState = DEFAULT_PATHS[0][0].state;
+      snapshot.self = actor;
+      await filterFeatures({mapMachineInput: { ...snapshot, stateValue: firstState }});
+    };
+    run();
+
+}, [siteFilter]);
+
+    //     useEffect(() => {
+    //      console.log('portfolio context');
+    //      console.log(currentState.context);
+    //   }, [currentState]);
 
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
     const [mmvMode, setMmvMode] = useState("");
@@ -254,6 +278,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         //console.log('PortfolioOverview MMV Event:', event);
         // Handle MMV events as needed
     },[]);
+    
 
     const onMapReady = useCallback((map) => {
  

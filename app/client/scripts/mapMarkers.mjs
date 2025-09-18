@@ -1,6 +1,7 @@
 import mapboxgl from "mapbox-gl";
 import {markHandled} from "./mapEntryActions.mjs";
 import {get} from "lodash";
+import { IafScriptEngine } from "@dtplatform/iaf-script-engine";
 
 const PIE_SIZE  = 48;
 const PIE_ALPHA = 0.7; // (lower -> more transparent)
@@ -229,6 +230,7 @@ export function clearStaleMarkersByPath(path){
 const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
 
 export async function renderAllMarkers(e, {context, self}, singleMarkers) {
+    
     const {map} = context;
 
     let graphics = [];
@@ -242,14 +244,32 @@ export async function renderAllMarkers(e, {context, self}, singleMarkers) {
             const src = context.map.getSource(markersInfo.sourceId);
             const data = src._data || src.serialize().data; // raw GeoJSON
 
-            if(!singleMarkers.filtered) {
             let features = data?.features;
-            
-            if (!markersInfo.features || !markersInfo.features.length) {
-                markersInfo.features = features;
-            }
 
-        }
+
+            const filterFn = compileFilter(context?.filters);
+            const filteredSites = features.filter(filterFn);
+
+console.log('context');
+    console.log(context);
+            console.log('filteredSites');
+            console.log(filteredSites);
+            // if (context.filters) {
+            //     const siteFilterFn = compileFilter(context.filters)
+            //     console.log('siteFilterFn');
+            //     console.log(siteFilterFn);
+            //    // features = features.filter(siteFilterFn)
+            // }
+
+            //REMOVE
+        //     if(!singleMarkers.filtered) {
+        //     let features = data?.features;
+            
+           // if (!markersInfo.features || !markersInfo.features.length) {
+                markersInfo.features = filteredSites;
+           // }
+
+        // }
     
         } catch(e){
             console.error(e);
@@ -264,12 +284,12 @@ export async function renderAllMarkers(e, {context, self}, singleMarkers) {
             continue;
         }
 
-        if(singleMarkers.filtered) {
-            clearAllMarkers();
-        }
+        //REMOVE  
+        clearAllMarkers();
+        
        
         let markerGraphics = await Promise.all(markersInfo.features.map(async f => {
-            return  createSingleMarker(context, f,{...config, ...restMarkerInfo, featureDef, send: self.send, setPopupState: context.setPopupState});
+            return createSingleMarker(context, f,{...config, ...restMarkerInfo, featureDef, send: self.send, setPopupState: context.setPopupState});
         }));
         graphics.push(...markerGraphics.filter(m=>!!m));
     }
@@ -311,3 +331,37 @@ export function zoomIntoClusterByBounds(map, sourceId, clusterId, limit = 5000, 
         map.fitBounds(bounds, { padding, duration: 600 });
     });
 }
+
+export function compileFilter(filterObj) {
+   if (!filterObj || !filterObj.site) {
+    return () => true;
+  }
+
+  const { op, rules } = filterObj.site;
+
+  let fns = IafScriptEngine.getVar('loadedScripts')['filterRuleFns'];
+  if (typeof fns === 'function') {
+    fns = fns();
+  }
+
+  const buildingCheckFns = rules.map(rule => {
+    const fnFactory = fns[rule.fn];
+    if (!fnFactory) {
+      throw new Error(`Unknown rule function: ${rule.fn}`);
+    }
+    return fnFactory(rule.args);
+  });
+
+  return (feature) => {
+    const buildings = feature?.properties?.buildings || [];
+    return buildings.some(building => {
+      if (op === 'and') {
+        return buildingCheckFns.every(fn => fn(building));
+      }
+      if (op === 'or') {
+        return buildingCheckFns.some(fn => fn(building));
+      }
+      return false;
+    });
+  };
+};

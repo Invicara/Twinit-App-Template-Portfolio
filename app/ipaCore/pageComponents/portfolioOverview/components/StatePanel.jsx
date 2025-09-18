@@ -4,7 +4,7 @@ import ipaConfig from "../../../ipaConfig.js";
 
 const fallback = <div>Loading details…</div>;
 
-export default function StatePanel({ currentState, context, userConfig, chartConfig, snapshot, className }) {
+export default function StatePanel({ currentState, context, userConfig, chartConfig, snapshot, className, send }) {
 
     const states = useMemo(()=>Object.keys(ipaConfig.mapPortfolio.statePanel.componentPaths || {}),[]);
     const stateKey = useMemo(()=>states.toReversed().find(state=>currentState.matches(state)),[states, currentState]);
@@ -29,6 +29,7 @@ export default function StatePanel({ currentState, context, userConfig, chartCon
                         userConfig={userConfig} 
                         chartConfig={chartConfig} 
                         snapshot={snapshot} 
+                        send={send}
                     /> 
                 </Suspense>
                 </Box>
