@@ -23,8 +23,8 @@ import {flushSync} from "react-dom";
 import PopupPortal from "./components/map/popup/PopupPortal.jsx";
 import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
-import { UseNewEntityManagement } from '../../hooks/UseNewEntityManagement.js';
-import { UseGraphicsVisibility } from '../../hooks/useGraphicsVisibility.js';
+import { useGraphicsVisibility } from '../../hooks/useGraphicsVisibility.js';
+import { useNewEntityManagement } from '../../hooks/UseNewEntityManagement.js';
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -257,13 +257,14 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         return {setCommand, mapInstance }
     }, [setCommand, mapInstance]);
 
+    useNewEntityManagement({mapInstance, portContext: mapMachineContextValue});
+    useGraphicsVisibility({mapInstance, portContext: mapMachineContextValue});
+
     const [popupState, setPopupState] = usePopupState({ open:false });
 
     return (
         <MapContext.Provider value={mapContextValue}>
             <MapMachineContext.Provider value={mapMachineContextValue}>
-                <UseGraphicsVisibility/>
-                <UseNewEntityManagement/>
                 <div className={classes.container}>
                     <div className={classes.secondaryHeader}>
                         <div className={classes.headerInner}>

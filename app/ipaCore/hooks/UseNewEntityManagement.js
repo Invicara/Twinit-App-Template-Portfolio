@@ -9,7 +9,6 @@ import {
     setIsSelectingPosition, 
     setSelectedCoordinate 
 } from "../redux/siteSetup";
-import { MapContext, MapMachineContext } from "../pageComponents/portfolioOverview/PortfolioOverview";
 import { v4 as uuid } from "uuid";
 import { getClickEvent, getMapTypes, getSelectedGraphicReference } from "../redux/pageComponentState";
 import { addFeatureToMapLayer, removeFeatureFromMapLayer, addBuildingToMap, getGeometryInfo } from "../../client/scripts/mapEntryActions.mjs";
@@ -21,7 +20,7 @@ export const defaultNewSiteId = "<newSite>";
 export const defaultNewBuildingId = "<newBuilding>";
 
 
-export const UseNewEntityManagement = () => {
+export const useNewEntityManagement = ({portContext, mapInstance}) => {
 
     const dispatch = useDispatch();
     
@@ -32,8 +31,6 @@ export const UseNewEntityManagement = () => {
     const selectedGraphicReferecen = useSelector(getSelectedGraphicReference);
     const types = useSelector(getMapTypes);
 
-    const { mapInstance } = useContext(MapContext);
-    const portContext = useContext(MapMachineContext);
     const { send, actor } = portContext || {};
     const currentState = useXstateSelector(actor, state => state);
 
@@ -77,7 +74,6 @@ export const UseNewEntityManagement = () => {
 
     // Handle site cancellation (remove draft site) - extracted from line 59
     const handleCancelSite = (siteToRemove) => {
-        console.log("CHECKING_LOOP, handleCancelSite", {siteToRemove})
         if (!siteToRemove && currentElementType !== "site") return;
 
         // Remove the draft site from the data
@@ -155,7 +151,6 @@ export const UseNewEntityManagement = () => {
 
     // First useEffect - extracted from line 117
     useEffect(() => {
-        console.log("CHECKING_LOOP", {currentSite, previousSite, currentElementType})
         if(currentSite !== previousSite && previousSite?.isDraft){
             handleCancelSite(previousSite);
         }
