@@ -305,7 +305,7 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, sn
         site: {
             op: "and",
             rules: [
-                { fn: "statusIn", args: { values: statusId } },
+                { fn: "statusIn", args: { values: [statusId] } },
                 { fn: "capacityBetween", args: 
                   { min:capacityRange?.min, 
                     max:capacityRange?.max 
@@ -315,9 +315,12 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, sn
         },
     }
 
+    send({ type: 'UPDATE_FILTERS', filters: filter });
+
 
     // Dispatch to Redux filters
     dispatch(setSiteFilter(filter));
+ 
 
       // const filteredSites = context.data.site.slice(0, 5);
 

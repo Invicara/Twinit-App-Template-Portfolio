@@ -1,84 +1,99 @@
-import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
-import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent } from '@material-ui/core';
+import React, { useContext, useEffect, useState, useMemo } from 'react';
+import { Typography, Divider, Box } from '@material-ui/core';
 import CustomButton from '../../../../../components/atoms/CustomButton.jsx';
 import { useDispatch, useSelector } from 'react-redux';
 import { getMapTypes, setMapTypes } from '../../../../../redux/pageComponentState.js';
 import { MapMachineContext, MapContext } from '../../../PortfolioOverview.jsx';
 import { addFeatureToMapLayer, removeFeatureFromMapLayer, removeBuildingFromMap } from '../../../../../../client/scripts/mapEntryActions.mjs';
-import { ScriptCache, usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
+import { ScriptCache } from "@invicara/ipa-core/modules/IpaUtils";
 import { InfoComponent } from '../../../../../components/InfoComponent/InfoComponent.jsx';
 import { IafItemSvc } from '@dtplatform/platform-api';
 import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from 'lodash';
 import { Add } from '@material-ui/icons';
 import { getActiveLevels } from '../../../../../../services/utils.js';
-import { ModelContext } from '../../../../../contexts/ModelContext.js';
-import { defaultNewBuildingId } from '../SiteDetails.jsx';
 
 export default function BuildingDetails({ context }) {
-    const { data = [], siteId, buildingId } = context;
-    const { building: buildings = [] } = data;
-    const currentBuilding = buildings.find(b => b.buildingId == buildingId);
 
     // Get contexts and state
     const { send, actor } = useContext(MapMachineContext);
     const currentState = useXstateSelector(actor, state => state);
+
+    const [levels, currentElementType, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath] = useMemo(() => {
+        const levels = getActiveLevels(currentState);
+
+        const sPath = levels?.map(el => el.state).join(".");
+        const cElementType = sPath?.split(".")?.slice(-1)?.[0];
+
+        const namedPaths = currentState.context.namedPaths[0];
+
+        const namedPath = namedPaths.find(p => p.state === cElementType);
+        const { idKey } = namedPath;
+
+        const lowerLevelState = Object.assign({}, ...levels
+            .filter(l => l.idKey && l.scopeLevel < namedPath.scopeLevel)
+            .map(l => ({[l.idKey]: currentState.context[l.idKey]})
+        ));
+
+        const higherNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel - 1);
+
+        const entityId = currentState.context[idKey]
+        const currentEntity = currentState.context.data[namedPath.state].find(e => e[idKey] === entityId);
+
+        return [levels, cElementType, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath];
+
+    }, [currentState]);
+
     const { mapInstance } = useContext(MapContext);
     const dispatch = useDispatch();
 
-    const namedPath = currentState.context.namedPaths[0];
-    const levels = getActiveLevels(currentState);
     const types = useSelector(getMapTypes);
-    const entityType = levels.slice(-1)[0]?.state;
-    const type = (types || {})[entityType];
+    const type = (types || {})[currentElementType];
 
-    // Cache for original building when entering editing mode
-    const [cachedOriginalBuilding, setCachedOriginalBuilding] = useState(null);
+    // Cache for original entity when entering editing mode
+    const [cachedOriginalEntity, setCachedOriginalEntity] = useState(null);
 
-    // Check if this site is a draft that needs perimeter drawing
-    const isDraftBuilding = currentBuilding?.isDraft === true;
+    // Check if this entity is a draft that needs perimeter drawing
+    const isDraftEntity = currentEntity?.isDraft === true;
 
-    // Check if this site is being edited
-    const isEditingSite = currentBuilding?.isEditing === true;
+    // Check if this entity is being edited
+    const isEditingEntity = currentEntity?.isEditing === true;
 
-    // Building is in edit mode if it's either draft or being edited
-    const isInEditMode = isDraftBuilding || isEditingSite;
+    // Entity is in edit mode if it's either draft or being edited
+    const isInEditMode = isDraftEntity || isEditingEntity;
 
-
-    // Get ModelContext
-    const { availableModelComposites, setSelectedModelComposite, selectedModelComposite } = useContext(ModelContext);
 
     useEffect(() => {
-        if(!currentBuilding?.isDraft && !currentBuilding?.isEditing){
-            // Cache the original site before editing
-            setCachedOriginalBuilding(_.cloneDeep(currentBuilding));
+        if(!currentEntity?.isDraft && !currentEntity?.isEditing){
+            // Cache the original entity before editing
+            setCachedOriginalEntity(_.cloneDeep(currentEntity));
         }
-    }, [currentBuilding])
+    }, [currentEntity])
 
-    if (!currentBuilding) return <Typography>No data found.</Typography>;
+    if (!currentEntity) return <Typography>No data found.</Typography>;
 
-    // Handle building property changes
-    const handleBuildingChange = (newValue, propertyName, metadata) => {
-        if (!currentBuilding) return;
+    // Handle entity property changes
+    const handleEntityChange = (newValue, propertyName, metadata) => {
+        if (!currentEntity) return;
 
-        // Store the old buildingId for comparison
-        const oldBuildingId = currentBuilding.buildingId;
+        // Store the old entityId for comparison
+        const oldEntityId = currentEntity[idKey];
 
-        // Update the building object
-        const updatedBuilding = {
-            ...currentBuilding,
+        // Update the entity object
+        const updatedEntity = {
+            ...currentEntity,
             [propertyName]: newValue
         };
 
-        // Update XState context - operate on building data instead of site
+        // Update XState context - operate on entity data
         const currentData = currentState.context?.data || {};
-        const currentBuildings = currentData.building || [];
-        const updatedBuildings = currentBuildings.map(b =>
-            b.buildingId === buildingId ? updatedBuilding : b
+        const currentEntities = currentData?.[currentElementType] || [];
+        const updatedEntities = currentEntities.map(b =>
+            b[idKey] === entityId ? updatedEntity : b
         );
         const updatedData = {
             ...currentData,
-            building: updatedBuildings
+            [currentElementType]: updatedEntities
         };
 
         // Send event to update XState context with new data
@@ -87,49 +102,49 @@ export default function BuildingDetails({ context }) {
             data: updatedData
         });
 
-        // If buildingId was changed, navigate to the new buildingId to maintain selection
-        if (propertyName === 'buildingId' && newValue !== oldBuildingId && newValue.length) {
-            console.log('BuildingId changed, navigating to new building:', { oldBuildingId, newBuildingId: newValue });
+        // If entityId was changed, navigate to the new entityId to maintain selection
+        if (propertyName === idKey && newValue !== oldEntityId && newValue.length) {
+            console.log('EntityId changed, navigating to new entity:', { oldEntityId, newEntityId: newValue });
 
-            // Send GO_TO action to navigate to the updated buildingId - include siteId
+            // Send GO_TO action to navigate to the updated entityId
             send({
                 type: 'GO_TO',
-                siteId,
-                buildingId: newValue
+                ...lowerLevelState,
+                [idKey]: newValue
             });
 
             const removeSuccess = removeFeatureFromMapLayer({
                 map: mapInstance,
-                levelState: 'building',
-                featureId: oldBuildingId,
-                idKey: 'buildingId', // explicitly specify the key for building identification
+                levelState: currentElementType,
+                featureId: oldEntityId,
+                idKey, // explicitly specify the key for entity identification
                 namedPath: namedPath
             });
 
             const addSuccess = addFeatureToMapLayer({
                 map: mapInstance,
-                levelState: 'building',
+                levelState: currentElementType,
                 feature: {
-                    properties: updatedBuilding,
-                    geometry: updatedBuilding.coordinates ? {
+                    properties: updatedEntity,
+                    geometry: updatedEntity.coordinates ? {
                         type: 'Point',
-                        coordinates: [updatedBuilding.longitude, updatedBuilding.latitude]
+                        coordinates: [updatedEntity.longitude, updatedEntity.latitude]
                     } : null,
-                    coordinates: [updatedBuilding.longitude, updatedBuilding.latitude] // fallback for coordinate extraction
+                    coordinates: [updatedEntity.longitude, updatedEntity.latitude] // fallback for coordinate extraction
                 },
                 namedPath: namedPath
             });
         }
 
-        console.log('Building property updated:', { propertyName, newValue, updatedBuilding });
+        console.log('Entity property updated:', { propertyName, newValue, updatedEntity });
     };
 
-    const setBuildingForEdition = () => {
+    const setEntityForEdition = () => {
 
         const updatedData = _.cloneDeep(currentState.context?.data || {});
-        const currentBuildings = updatedData.building || [];
-        const buildingToEdit = currentBuildings.find(b => b.buildingId === buildingId);
-        buildingToEdit.isEditing = true;
+        const currentEntities = updatedData[currentElementType] || [];
+        const entityToEdit = currentEntities.find(b => b[idKey] === entityId);
+        entityToEdit.isEditing = true;
 
         // Send event to update XState context
         send({
@@ -141,28 +156,29 @@ export default function BuildingDetails({ context }) {
     // Handle canceling edit mode
     const handleCancelEdit = () => {
 
-        // Check if the building is a draft - if so, remove it from the map entirely
-        if (currentBuilding?.isDraft) {
+        // Check if the entity is a draft - if so, remove it from the map entirely
+        if (currentEntity?.isDraft) {
             const namedPath = currentState.context.namedPaths[0];
 
-            console.log('Canceling draft building, removing from map:', {mapInstance, buildingId, namedPath});
+            console.log('Canceling draft entity, removing from map:', {mapInstance, entityId, namedPath});
 
-            // Remove the draft building from the map using removeBuildingFromMap
+            // Remove the draft entity from the map using removeBuildingFromMap
             if (mapInstance && namedPath) {
                 removeBuildingFromMap({
+                    entityType: currentElementType,
                     map: mapInstance,
-                    buildingId: buildingId,
+                    [idKey]: entityId,
                     namedPath: namedPath
                 });
             }
 
-            // Remove the draft building from the data entirely
+            // Remove the draft entity from the data entirely
             const currentData = currentState.context?.data || {};
-            const currentBuildings = currentData.building || [];
-            const filteredBuildings = currentBuildings.filter(b => b.buildingId !== buildingId);
+            const currentEntities = currentData[currentElementType] || [];
+            const filteredEntities = currentEntities.filter(b => b[idKey] !== entityId);
             const updatedData = {
                 ...currentData,
-                building: filteredBuildings
+                [currentElementType]: filteredEntities
             };
 
             // Update XState context with filtered data
@@ -171,28 +187,28 @@ export default function BuildingDetails({ context }) {
                 data: updatedData
             });
 
-            // Navigate back to site level since the building no longer exists
+            // Navigate back to site level since the entity no longer exists
             send({
                 type: 'GO_TO',
-                siteId,
-                buildingId: null
+                ...lowerLevelState,
+                [idKey]: null
             });
 
-            console.log('Draft building cancelled and removed:', { buildingId, siteId });
+            console.log('Draft entity cancelled and removed:', { entityId });
             return;
         }
 
-        if (!cachedOriginalBuilding) return;
+        if (!cachedOriginalEntity) return;
 
-        // For non-draft buildings, restore the original building data
+        // For non-draft entities, restore the original entity data
         const currentData = currentState.context?.data || {};
-        const currentBuildings = currentData.building || [];
-        const restoredBuildings = currentBuildings.map(b =>
-            b.buildingId === buildingId ? cachedOriginalBuilding : b
+        const currentEntities = currentData[currentElementType] || [];
+        const restoredEntities = currentEntities.map(b =>
+            b[idKey] === entityId ? cachedOriginalEntity : b
         );
         const restoredData = {
             ...currentData,
-            building: restoredBuildings
+            [currentElementType]: restoredEntities
         };
 
         // Update XState context with restored data
@@ -201,74 +217,74 @@ export default function BuildingDetails({ context }) {
             data: restoredData
         });
 
-        console.log('Edit cancelled, building restored:', { original: cachedOriginalBuilding, buildingId });
+        console.log('Edit cancelled, entity restored:', { original: cachedOriginalEntity, entityId });
     };
 
-    // Handle site submission (finalize draft)
-    const handleSubmitBuilding = async () => {
-        if (!currentBuilding || currentBuilding.siteId === defaultNewBuildingId || !mapInstance || !currentState.context?.namedPaths) return;
+    // Handle entity submission (finalize draft)
+    const handleSubmitEntity = async () => {
+        if (!currentEntity || !mapInstance || !currentState.context?.namedPaths) return;
 
-        // Step 2: Update the site to mark it as no longer draft
-        const finalizedSite = { ...currentBuilding };
-        delete finalizedSite.isDraft;
+        // Step 2: Update the entity to mark it as no longer draft
+        const finalizedEntity = { ...currentEntity };
+        delete finalizedEntity.isDraft;
 
         // Update XState context
         const currentData = currentState.context?.data || {};
-        const currentBuildings = currentData.building || [];
-        const updatedBuildings = currentBuildings.map(s =>
-            s.buildingId === buildingId ? finalizedSite : s
+        const currentEntities = currentData[currentElementType] || [];
+        const updatedEntities = currentEntities.map(s =>
+            s[idKey] === entityId ? finalizedEntity : s
         );
         const updatedData = {
             ...currentData,
-            building: updatedBuildings
+            [currentElementType]: updatedEntities
         };
 
-        // Send event to update XState context with finalized site
+        // Send event to update XState context with finalized entity
         send({
             type: 'UPDATE_DATA',
             data: updatedData
         });
-
-        // Step 4: Pre-select the new site with a GO_TO operation
+        
+        // Step 4: Pre-select the new entity with a GO_TO operation
         send({
             type: 'GO_TO',
-            siteId: finalizedSite.siteId,
-            buildingId: finalizedSite.buildingId
+            ...lowerLevelState,
+            [idKey]: finalizedEntity[idKey]
         });
 
         //item service creation side effect
-        const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: "building_coll"}}))._list[0];
-        const result = await IafItemSvc.createRelatedItems(coll._userItemId, [finalizedSite]);
+        const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
+        const result = await IafItemSvc.createRelatedItems(coll._userItemId, [finalizedEntity]);
 
-        console.log('Site submitted and finalized:', {finalizedSite, result});
+        console.log('Entity submitted and finalized:', {finalizedEntity, result});
     };
 
     // Handle saving edit mode
     const handleSaveEdit = async () => {
-        if (!currentBuilding || !cachedOriginalBuilding) return;
+        if (!currentEntity || !cachedOriginalEntity) return;
 
         // Check if there were any changes
         const hasChanges = !_.isEqual(
-            _.omit(currentBuilding, ['isEditing']),
-            _.omit(cachedOriginalBuilding, ['isEditing'])
+            _.omit(currentEntity, ['isEditing']),
+            _.omit(cachedOriginalEntity, ['isEditing'])
         );
 
-        // Finalize the edited building (remove isEditing flag)
-        const finalizedBuilding = { ...currentBuilding };
-        delete finalizedBuilding.isEditing;
+        // Finalize the edited entity (remove isEditing flag)
+        const finalizedEntity = { ...currentEntity };
+        delete finalizedEntity.isEditing;
 
         // Update XState context
         const currentData = currentState.context?.data || {};
-        const currentBuildings = currentData.building || [];
-        const updatedBuildings = currentBuildings.map(b =>
-            b.buildingId === buildingId ? finalizedBuilding : b
+        const currentEntities = currentData[currentElementType] || [];
+        const updatedEntities = currentEntities.map(b =>
+            b[idKey] === entityId ? finalizedEntity : b
         );
         const updatedData = {
             ...currentData,
-            building: updatedBuildings
+            [currentElementType]: updatedEntities
         };
 
-        // Send event to update XState context with finalized building
+        // Send event to update XState context with finalized entity
         send({
             type: 'UPDATE_DATA',
             data: updatedData
@@ -277,27 +293,27 @@ export default function BuildingDetails({ context }) {
         // If there were changes, update the backend
         if (hasChanges) {
             try {
-                const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: "building_coll"}}))._list[0];
-                const result = await IafItemSvc.updateRelatedItems(coll._userItemId, [finalizedBuilding]);
-                console.log('Building updated successfully:', {finalizedBuilding, result});
+                const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
+                const result = await IafItemSvc.updateRelatedItems(coll._userItemId, [finalizedEntity]);
+                console.log('Entity updated successfully:', {finalizedEntity, result});
             } catch (error) {
-                console.error('Error updating building:', error);
+                console.error('Error updating entity:', error);
             }
         } else {
             console.log('No changes detected, skipping backend update');
         }
 
-        console.log('Building edit completed:', { finalizedBuilding, hasChanges });
+        console.log('Entity edit completed:', { finalizedEntity, hasChanges });
     };
 
     // Handle type modifications from InfoComponent
     const handleTypeModification = async (updatedType, changeInfo) => {
-        dispatch(setMapTypes({...types, [entityType]: updatedType}));
+        dispatch(setMapTypes({...types, [currentElementType]: updatedType}));
         await ScriptCache.runScript("updateMapType", {updatedType});
     };
 
-    // Handle adding new building info field
-    const handleAddBuildingInfo = () => {
+    // Handle adding new entity info field
+    const handleAddEntityInfo = () => {
         // Generate a unique field name
         const newFieldName = `newField${Date.now()}`;
 
@@ -309,52 +325,52 @@ export default function BuildingDetails({ context }) {
                 [newFieldName]: {
                     type: 'string',
                     title: 'New Field',
-                    description: 'Custom building field',
+                    description: `Custom ${currentElementType} field`,
                     propertyOrder: Object.keys(type.properties).length + 1
                 }
             }
         };
 
-        dispatch(setMapTypes({...types, [entityType]: updatedType}));
+        dispatch(setMapTypes({...types, [currentElementType]: updatedType}));
 
         // Update the type (this would normally go through a type management system)
-        console.log('New field added to building:', { fieldName: newFieldName, updatedType });
+        console.log(`New field added to ${currentElementType}:`, { fieldName: newFieldName, updatedType });
     };
 
     return (
         <div>
 
-            {/* Building Info - Always displayed */}
+            {/* Entity Info - Always displayed */}
             <Box p={0} m={0}>
                 <Box p={2}>
                     <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
                         <div style={{display: "flex", alignItems: "center", gap: 8}}>
                             <img style={{width: 30, height: 30}} src='/icons/file-info.svg'/>
                             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }} style={{fontSize: 18}}>
-                                {currentBuilding.name}
+                                {currentEntity.name}
                             </Typography>
                         </div>
                         {!isInEditMode && (
                             <CustomButton
                                 variant="contained"
                                 color="primary"
-                                onClick={setBuildingForEdition}
+                                onClick={setEntityForEdition}
                                 size="small"
                             >
-                                Edit Building
+                                Edit {namedPath.displayName}
                             </CustomButton>
                         )}
                     </div>
-                    <Typography variant="body2">Site: {siteId}</Typography>
+                    {currentState.context?.[higherNamedPath?.idKey] && <Typography variant="body2">{higherNamedPath.displayName}: {currentState.context[higherNamedPath.idKey]}</Typography>}
                     <Divider sx={{ my: 2 }} />
                 </Box>
                 <Box px={2}>
                     <InfoComponent
-                        entity={currentBuilding}
-                        handleChange={handleBuildingChange}
+                        entity={currentEntity}
+                        handleChange={handleEntityChange}
                         type={type}
-                        entityType={entityType}
-                        originalEntity={cachedOriginalBuilding}
+                        entityType={currentElementType}
+                        originalEntity={cachedOriginalEntity}
                         disabled={!isInEditMode}
                         modifyTypeCallback={handleTypeModification}
                     />
@@ -364,12 +380,12 @@ export default function BuildingDetails({ context }) {
                         <CustomButton
                             variant="outlined"
                             color="primary"
-                            onClick={handleAddBuildingInfo}
+                            onClick={handleAddEntityInfo}
                             style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
                             startIcon={<Add/>}
                             disabled={!isInEditMode}
                         >
-                            Add Building Info
+                            Add {namedPath.displayName} Info
                         </CustomButton>
                     </Box>
                 </Box>
@@ -389,7 +405,7 @@ export default function BuildingDetails({ context }) {
                         <CustomButton
                             variant="contained"
                             color="primary"
-                            onClick={isDraftBuilding ? handleSubmitBuilding : handleSaveEdit}
+                            onClick={isDraftEntity ? handleSubmitEntity : handleSaveEdit}
                             style={{ flex: 1 }}
                         >
                             Save

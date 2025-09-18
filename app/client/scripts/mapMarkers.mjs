@@ -2,6 +2,8 @@ import mapboxgl from "mapbox-gl";
 import {markHandled} from "./mapEntryActions.mjs";
 import {get} from "lodash";
 import { IafScriptEngine } from "@dtplatform/iaf-script-engine";
+import {generateUUID as uuid} from "@arcgis/core/core/uuid";
+import { MMV_COMMANDS } from '@invicara/ipa-core-mmv';
 
 const PIE_SIZE  = 48;
 const PIE_ALPHA = 0.7; // (lower -> more transparent)
@@ -231,72 +233,120 @@ const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === s
 
 export async function renderAllMarkers(e, {context, self}, singleMarkers) {
     
-    const {map} = context;
+    const {map, mmvSend} = context;
 
+    let filteredSites = []; // always in scope
+    let filteredSiteIds = [];
+    let featuresIds = []
     let graphics = [];
 
     for(const markersInfo of singleMarkers){
         const {featureDef, config, ...restMarkerInfo} = markersInfo;
-
         const {path} = featureDef;
     
         try {
-            const src = context.map.getSource(markersInfo.sourceId);
+            const src = context?.map?.getSource(markersInfo.sourceId);
+
+            if (!src) {
+                    console.warn('Source not found (maybe removed by MMV) for', markersInfo.sourceId);
+                    markersInfo.features = [];
+                     continue; // skip this iteration
+                }
+
             const data = src._data || src.serialize().data; // raw GeoJSON
 
             let features = data?.features;
 
-
             const filterFn = compileFilter(context?.filters);
-            const filteredSites = features.filter(filterFn);
+      
+            filteredSites = features
+                .map(f => {
+                    const filteredBuildings = (f.properties.buildings || []).filter(b => filterFn({ properties: { buildings: [b] } }));
+                    if (filteredBuildings.length === 0) return null; // remove the feature if no buildings match
+                    return { ...f, properties: { ...f.properties, buildings: filteredBuildings } };
+                })
+                .filter(Boolean);
 
-console.log('context');
-    console.log(context);
-            console.log('filteredSites');
-            console.log(filteredSites);
-            // if (context.filters) {
-            //     const siteFilterFn = compileFilter(context.filters)
-            //     console.log('siteFilterFn');
-            //     console.log(siteFilterFn);
-            //    // features = features.filter(siteFilterFn)
-            // }
-
-            //REMOVE
-        //     if(!singleMarkers.filtered) {
-        //     let features = data?.features;
-            
-           // if (!markersInfo.features || !markersInfo.features.length) {
-                markersInfo.features = filteredSites;
-           // }
-
-        // }
+         
+            markersInfo.features = filteredSites;
+            filteredSiteIds = filteredSites?.map(f => f.properties.siteId); // <-- consistent name
+                console.log('filteredSiteIds', filteredSiteIds);
+      
+            featuresIds = features?.map(f => f.properties.siteId); // <-- consistent name
     
+
         } catch(e){
             console.error(e);
             markersInfo.features = [];
         }
 
-        const sourceId = path+"-features";
-        if (e && e.sourceId === sourceId && e.hasOwnProperty("isSourceLoaded") && !e.isSourceLoaded){
-            continue;
-        }
-        else if (e && e.sourceId !== sourceId && e.type == "sourcedata"){
-            continue;
-        }
-
         //REMOVE  
-        clearAllMarkers();
-        
-       
-        let markerGraphics = await Promise.all(markersInfo.features.map(async f => {
-            return createSingleMarker(context, f,{...config, ...restMarkerInfo, featureDef, send: self.send, setPopupState: context.setPopupState});
-        }));
-        graphics.push(...markerGraphics.filter(m=>!!m));
+       clearAllMarkers();
+
+        mmvSend([{
+           commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+            commandRef: uuid(),
+            params: { ids: featuresIds } 
+        }]);
+
+        // Create Mapbox markers only for filtered features
+        for (const feature of filteredSites) {
+            const m = createSingleMarker(context, feature, {
+                ...config,
+                ...restMarkerInfo,
+                featureDef,
+                send: self.send,
+                setPopupState: context.setPopupState
+            });
+
+            if (m) {
+                const mapboxMarker = new mapboxgl.Marker(m.element)
+                    .setLngLat(m.coordinates)
+                    .addTo(map);
+
+                markers.set(m.id, { ...m, marker: mapboxMarker });
+                graphics.push(m);
+            }
+        }
     }
-    graphics.forEach(graphic => {
-        markers.set(graphic.id,graphic);
-    })
-    return {graphics};
+
+      if (filteredSites.length > 0) {
+            mmvSend([
+                {
+                    commandName: MMV_COMMANDS.ADD_GRAPHICS,
+                    commandRef: uuid(),
+                    params: {
+                        layerName: 'site-features-layer-centroid',
+                        graphics: filteredSites.map(f => ({
+                            id: String(f.properties.siteId),
+                            geometry: f.geometry,
+                            properties: f.properties
+                        }))
+                    }
+                }
+            ]);
+      }
+      if (filteredSiteIds?.length > 0) {
+         mmvSend([
+                {
+                    commandName: MMV_COMMANDS.CUSTOM,
+                    commandRef: uuid(),
+                    params: {
+                        commandName: 'filtermodel',
+                        params: {
+                            clear: false,
+                            ids: [...filteredSiteIds],
+                            invert: false,
+                            extra: { layerNames: ['site-features-layer-centroid'], field: 'siteId', fieldType: 'string' }
+                        }
+                    }
+                }
+            ]);
+
+        }
+     
+
+    return { graphics };
 }
 
 
