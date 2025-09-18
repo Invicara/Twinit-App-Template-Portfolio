@@ -907,6 +907,40 @@ async function setupGraphicLayers({ map, sourceId, level, features, loadedGraphi
 }
 
 /**
+ * Helper function to get and control 3D graphics layer visibility
+ * @param {Object} map - Mapbox map instance
+ * @param {string} sourceId - The source ID for the graphics layer
+ * @returns {Object} - Object with methods to control 3D graphics visibility
+ */
+export function get3DGraphicsController(map, sourceId) {
+    const customLayerId = `${sourceId}-3d-graphics`;
+    const layer = map.getLayer(customLayerId);
+    
+    if (!layer || layer.type !== 'custom') {
+        console.warn(`3D graphics layer not found: ${customLayerId}`);
+        return null;
+    }
+    
+    return {
+        // Layer-wide visibility control
+        show: () => layer.show3DGraphics && layer.show3DGraphics(),
+        hide: () => layer.hide3DGraphics && layer.hide3DGraphics(),
+        toggle: () => layer.toggle3DGraphics && layer.toggle3DGraphics(),
+        isVisible: () => layer.is3DGraphicsVisible && layer.is3DGraphicsVisible(),
+        
+        // Individual feature visibility control
+        showFeatures: (featureIds) => layer.showFeatures && layer.showFeatures(featureIds),
+        hideFeatures: (featureIds) => layer.hideFeatures && layer.hideFeatures(featureIds),
+        toggleFeatures: (featureIds, forceVisible = null) => layer.toggleFeatures && layer.toggleFeatures(featureIds, forceVisible),
+        getFeatureVisibility: (featureIds) => layer.getFeatureVisibility && layer.getFeatureVisibility(featureIds),
+        getAllFeatureVisibility: () => layer.getAllFeatureVisibility && layer.getAllFeatureVisibility(),
+        
+        // Direct layer access for advanced usage
+        layer: layer
+    };
+}
+
+/**
  * Create a 3D custom layer for graphics rendering
  * @param {string} layerId - The layer ID
  * @param {Array} features - Array of GeoJSON features
@@ -933,6 +967,8 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             }
         },
         features: [],
+        // Visibility control for performance optimization
+        _3dGraphicsVisible: false, // Default to hidden for better performance
 
         // Method to query features at a point
         queryFeatures: function(point) {
@@ -965,6 +1001,139 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                     type: this.metadata.type
                 }
             }));
+        },
+
+        // Toggle methods for 3D graphics visibility control
+        show3DGraphics: function() {
+            console.log('Showing 3D graphics for layer:', this.id);
+            this._3dGraphicsVisible = true;
+            if (this.map) {
+                this.map.triggerRepaint();
+            }
+        },
+
+        hide3DGraphics: function() {
+            console.log('Hiding 3D graphics for layer:', this.id);
+            this._3dGraphicsVisible = false;
+            if (this.map) {
+                this.map.triggerRepaint();
+            }
+        },
+
+        toggle3DGraphics: function() {
+            if (this._3dGraphicsVisible) {
+                this.hide3DGraphics();
+            } else {
+                this.show3DGraphics();
+            }
+            return this._3dGraphicsVisible;
+        },
+
+        is3DGraphicsVisible: function() {
+            return this._3dGraphicsVisible;
+        },
+
+        // Selective feature visibility control methods
+        showFeatures: function(featureIds) {
+            if (!Array.isArray(featureIds)) {
+                featureIds = [featureIds];
+            }
+            
+            let updated = false;
+            const keyProperty = this.metadata.featureInfo.idProperty;
+            
+            featureIds.forEach(id => {
+                const feature = this.features.find(f => f.properties[keyProperty] === id);
+                if (feature && !feature._featureVisible) {
+                    feature._featureVisible = true;
+                    updated = true;
+                    console.log(`Showing feature: ${id}`);
+                }
+            });
+            
+            if (updated && this.map) {
+                this.map.triggerRepaint();
+            }
+            return updated;
+        },
+
+        hideFeatures: function(featureIds) {
+            if (!Array.isArray(featureIds)) {
+                featureIds = [featureIds];
+            }
+            
+            let updated = false;
+            const keyProperty = this.metadata.featureInfo.idProperty;
+            
+            featureIds.forEach(id => {
+                const feature = this.features.find(f => f.properties[keyProperty] === id);
+                if (feature && feature._featureVisible) {
+                    feature._featureVisible = false;
+                    updated = true;
+                    console.log(`Hiding feature: ${id}`);
+                }
+            });
+            
+            if (updated && this.map) {
+                this.map.triggerRepaint();
+            }
+            return updated;
+        },
+
+        toggleFeatures: function(featureIds, forceVisible = null) {
+            if (!Array.isArray(featureIds)) {
+                featureIds = [featureIds];
+            }
+            
+            let updated = false;
+            const keyProperty = this.metadata.featureInfo.idProperty;
+            
+            featureIds.forEach(id => {
+                const feature = this.features.find(f => f.properties[keyProperty] === id);
+                if (feature) {
+                    const newVisibility = forceVisible !== null ? forceVisible : !feature._featureVisible;
+                    if (feature._featureVisible !== newVisibility) {
+                        feature._featureVisible = newVisibility;
+                        updated = true;
+                        console.log(`${newVisibility ? 'Showing' : 'Hiding'} feature: ${id}`);
+                    }
+                }
+            });
+            
+            if (updated && this.map) {
+                this.map.triggerRepaint();
+            }
+            return updated;
+        },
+
+        // Get visibility state of specific features
+        getFeatureVisibility: function(featureIds) {
+            if (!Array.isArray(featureIds)) {
+                featureIds = [featureIds];
+            }
+            
+            const keyProperty = this.metadata.featureInfo.idProperty;
+            const result = {};
+            
+            featureIds.forEach(id => {
+                const feature = this.features.find(f => f.properties[keyProperty] === id);
+                result[id] = feature ? feature._featureVisible : null;
+            });
+            
+            return featureIds.length === 1 ? result[featureIds[0]] : result;
+        },
+
+        // Get all feature IDs and their visibility states
+        getAllFeatureVisibility: function() {
+            const keyProperty = this.metadata.featureInfo.idProperty;
+            const result = {};
+            
+            this.features.forEach(feature => {
+                const id = feature.properties[keyProperty];
+                result[id] = feature._featureVisible;
+            });
+            
+            return result;
         },
 
         // Create optimized instance that shares geometries for better memory efficiency
@@ -1168,6 +1337,8 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                 layer: this,
                 transform: modelTransform,
                 graphicId: graphicId,
+                // Individual feature visibility control
+                _featureVisible: true, // Default to visible for individual features
                 properties: {
                     [keyProperty]: instanceId,
                     name: 'Placed 3D Model',
@@ -1194,7 +1365,8 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
 
 
         render: function(gl, matrix) {
-            if (!this.renderer || !this.features.length) return;
+            // Skip rendering entirely if 3D graphics are hidden for performance optimization
+            if (!this._3dGraphicsVisible || !this.renderer || !this.features.length) return;
 
             this.renderer.resetState();
 
@@ -1206,8 +1378,8 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
 
             // Process each feature with its own transform
             this.features.forEach(feature => {
-                // Skip rendering if this feature's model is set to invisible
-                if (!originalVisibility.get(feature)) {
+                // Skip rendering if this feature's model is set to invisible or feature is individually hidden
+                if (!originalVisibility.get(feature) || !feature._featureVisible) {
                     return;
                 }
 
@@ -1420,12 +1592,9 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
 }
 
 // Function to add a single feature to an existing map layer
-export function addFeatureToMapLayer({ map, levelState, feature, namedPath }) {
+export function addFeatureToMapLayer({ map, levelState, feature, namedPath: levelDef }) {
     const sourceId = `${levelState}-features`;
-    const layerId = `${sourceId}-layer`;
 
-    // Get the level definition to understand feature type
-    const levelDef = namedPath.find(lvl => lvl.state === levelState);
     if (!levelDef || !levelDef.feature) {
         console.warn(`Level definition not found for state: ${levelState}`);
         return false;
@@ -1466,12 +1635,9 @@ export function addFeatureToMapLayer({ map, levelState, feature, namedPath }) {
 }
 
 // Function to remove a feature from an existing map layer
-export function removeFeatureFromMapLayer({ map, levelState, featureId, idKey, namedPath }) {
+export function removeFeatureFromMapLayer({ map, levelState, featureId, idKey, namedPath: levelDef }) {
     const sourceId = `${levelState}-features`;
-    const layerId = `${sourceId}-layer`;
 
-    // Get the level definition to understand feature type
-    const levelDef = namedPath.find(lvl => lvl.state === levelState);
     if (!levelDef || !levelDef.feature) {
         console.warn(`Level definition not found for state: ${levelState}`);
         return false;
@@ -1795,13 +1961,13 @@ function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, ge
  * @param {Array} params.namedPath - Named path configuration
  * @returns {boolean} - Success status
  */
-export function removeBuildingFromMap({ map, buildingId, namedPath }) {
+export function removeBuildingFromMap({ map, buildingId, entityType, namedPath }) {
     console.log(`Removing building ${buildingId} from map`);
 
     let success = true;
 
     // Remove from 3D graphics layer
-    const buildingLayerId = 'building-features-3d-graphics';
+    const buildingLayerId = `${entityType}-features-3d-graphics`;
     const buildingLayer = map.getLayer(buildingLayerId);
 
     if (buildingLayer && buildingLayer.features) {
@@ -1871,7 +2037,7 @@ export function removeBuildingFromMap({ map, buildingId, namedPath }) {
 }
 
 // External function to add a building model instance to the map
-export function addBuildingToMap({ map, buildingId, centroid, graphicId, geometryInfo, namedPath, getContext }) {
+export function addBuildingToMap({ map, buildingId, centroid, graphicId, geometryInfo, entityType, getContext }) {
     console.log(`Adding building ${buildingId} to map at [${centroid}]`);
 
     if (!geometryInfo) {
@@ -1880,7 +2046,7 @@ export function addBuildingToMap({ map, buildingId, centroid, graphicId, geometr
     }
 
     // Find the 3D graphics layer for buildings
-    const buildingLayerId = 'building-features-3d-graphics';
+    const buildingLayerId = `${entityType}-features-3d-graphics`;
     const buildingLayer = map.getLayer(buildingLayerId);
 
 
