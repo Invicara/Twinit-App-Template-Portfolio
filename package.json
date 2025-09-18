@@ -16,7 +16,7 @@
    "dependencies": {
       "@arcgis/core": "^4.30.8",
       "@dtplatform/iaf-script-engine": "~4.6.0",
-      "@dtplatform/iaf-viewer": "^5.0.98",
+      "@dtplatform/iaf-viewer": "^5.0.117",
       "@dtplatform/platform-api": "4.6.14",
       "@emotion/react": "^11.14.0",
       "@emotion/styled": "^11.14.1",
@@ -145,7 +145,7 @@
          "@invicara/ipa-core-mmv": "$@invicara/ipa-core-mmv"
       },
       "@dtplatform/react-ifef": {
-         "react-router": "$react-router"
+         "react-router": "^4.3.1"
       },
       "@emotion/react": "^11.14.0",
       "@emotion/styled": "^11.14.1"

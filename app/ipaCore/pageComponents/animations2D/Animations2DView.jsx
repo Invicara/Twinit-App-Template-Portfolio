@@ -1,4 +1,4 @@
-import React, { useRef, useContext } from 'react';
+import React, { useRef, useState, useContext } from 'react';
 import { Panel, PanelGroup } from "react-resizable-panels";
 
 import { IafViewerDBM } from '@dtplatform/iaf-viewer';
@@ -12,6 +12,8 @@ const Animations2DView = (props) => {
 };
 
 const Animations2DPage = () => {
+    const [workflow, setWorkflow] = useState(null);
+
     const viewerRef = useRef();
 
     const {
@@ -44,57 +46,112 @@ const Animations2DPage = () => {
                                         model={{ ...selectedModelComposite, _versions: [selectedModelCompositeVersion] }}
                                         serverUri={endPointConfig.graphicsServiceOrigin}
                                         enableOptimizedSelection={true}
-                                        workflow={{
-                                            active: 5,
-                                            list: [
-                                                {
-                                                    uuid: 5,
-                                                    timeInSeconds: 4.5,
-                                                    loop: true,
-                                                    script: [
+                                        workflow={workflow}
+                                        OnViewerReadyCallback={(model) => {
+                                            if (model === '2d') {
+                                                setWorkflow({
+                                                    active: 5,
+                                                    list: [
                                                         {
-                                                            uuid: 'wf-3.markup.circle.813',
-                                                            elementIds: [2383],
-                                                            type: "Markup",
-                                                            frames: [
+                                                            uuid: 5,
+                                                            timeInSeconds: 4.5,
+                                                            loop: true,
+                                                            script: [
                                                                 {
-                                                                    type: "Circle",
-                                                                    status: "Error",
-                                                                    blink: true,
-                                                                    scale: 1.5
+                                                                    uuid: "lab_warning_1503",
+                                                                    elementIds: [203, 204, 201],
+                                                                    type: "Color",
+                                                                    frames: [
+                                                                        { r: 200, g: 0, b: 0 },
+                                                                        { r: 200, g: 200, b: 200 },
+                                                                        { r: 200, g: 0, b: 0 },
+                                                                        { r: 200, g: 200, b: 200 },
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    uuid: 'sprite_warning_gif_161',
+                                                                    elementIds: [161],
+                                                                    type: "Sprite",
+                                                                    frames: [
+                                                                        {
+                                                                            type: "Gif",
+                                                                            size: 1,
+                                                                            image: "/icons/warning-sign.gif",
+                                                                            alignment: "Center",
+                                                                            autoScale: true,
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    uuid: "patient_bed_move_2362",
+                                                                    elementIds: [2362],
+                                                                    type: "Translation",
+                                                                    frames: [
+                                                                        { x: 0, y: 0, z: 0, interpolationType: "CubicSpline" },
+                                                                        { x: 0, y: -4, z: 0, interpolationType: "CubicSpline" },
+                                                                        { x: 0, y: -4, z: 0, interpolationType: "CubicSpline" },
+                                                                        { x: 13, y: -4, z: 0, interpolationType: "CubicSpline" },
+                                                                        { x: 13, y: -20, z: 0, interpolationType: "CubicSpline" },
+                                                                        { x: 0, y: -20, z: 0, interpolationType: "ConCubicSplinestant" }
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    uuid: "patient_bed_color_2362",
+                                                                    elementIds: [2362],
+                                                                    type: "Color",
+                                                                    frames: [
+                                                                        { r: 0, g: 200, b: 0 },
+                                                                        { r: 200, g: 200, b: 200 },
+                                                                        { r: 0, g: 200, b: 0 },
+                                                                        { r: 200, g: 200, b: 200 },
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    uuid: 'circle_2383',
+                                                                    elementIds: [2383],
+                                                                    type: "Markup",
+                                                                    frames: [
+                                                                        {
+                                                                            type: "Circle",
+                                                                            status: "Error",
+                                                                            blink: true,
+                                                                            scale: 1.5
+                                                                        },
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    uuid: "opacity_2398",
+                                                                    elementIds: [2398],
+                                                                    type: "Opacity",
+                                                                    frames: [
+                                                                        { opacity: 0, interpolationType: "Linear" },
+                                                                        { opacity: 0.2, interpolationType: "Linear" },
+                                                                        { opacity: 0.4, interpolationType: "Linear" },
+                                                                        { opacity: 0.6, interpolationType: "Linear" },
+                                                                        { opacity: 0.8, interpolationType: "Linear" },
+                                                                        { opacity: 1, interpolationType: "Linear" }
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    uuid: 'text_2324',
+                                                                    elementIds: [2324],
+                                                                    type: "Markup",
+                                                                    frames: [
+                                                                        {
+                                                                            type: "Text",
+                                                                            text: "Entrance",
+                                                                            blink: true,
+                                                                            strokeColor: { r: 0, g: 0, b: 0 },
+                                                                            fillColor: { r: 100, g: 100, b: 250 },
+                                                                            shiftPercent: {x: -30, y: 20, z: 0}
+                                                                        }
+                                                                    ]
                                                                 },
                                                             ]
                                                         },
-                                                        // {
-                                                        //     uuid: 'wf-3.markup.circle.814',
-                                                        //     elementIds: [170],
-                                                        //     type: "Markup",
-                                                        //     frames: [
-                                                        //         {
-                                                        //             type: "Circle",
-                                                        //             status: "Error",
-                                                        //             blink: true,
-                                                        //             scale: 1.5
-                                                        //         }
-                                                        //     ]
-                                                        // },
-                                                        // {
-                                                        //     uuid: 'Sprite.Test',
-                                                        //     elementIds: [87],
-                                                        //     type: "Sprite",
-                                                        //     frames: [
-                                                        //         {
-                                                        //             type: "Gif",
-                                                        //             size: 5,
-                                                        //             image: "/icons/test.gif",
-                                                        //             alignment: "Center",
-                                                        //             autoScale: true
-                                                        //         }
-                                                        //     ]
-                                                        // },
                                                     ]
-                                                },
-                                            ]
+                                                })
+                                            }
                                         }}
                                     />
                                 )
