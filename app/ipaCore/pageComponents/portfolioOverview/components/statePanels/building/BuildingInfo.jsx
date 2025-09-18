@@ -23,7 +23,7 @@ export default function BuildingInfo({context}) {
 
     useEffect(() => {
         // Find and set the model composite based on building's ModelName
-        if (availableModelComposites && currentBuilding.ModelName) {
+        if (availableModelComposites && currentBuilding?.ModelName) {
             const matchingModel = availableModelComposites.find(
                 model => model._name === currentBuilding.ModelName ||
                     model._name.includes(currentBuilding.ModelName) ||
