@@ -28,6 +28,8 @@ import { getSiteFilter, setSiteFilter } from '../../redux/filters.js';
 import { filterFeatures } from '../../../client/scripts/mapEntryActions.mjs';
 import { use } from 'react';
 import GenericErrorBoundary from "../../components/GenericErrorBoundary.jsx";
+import { useGraphicsVisibility } from '../../hooks/useGraphicsVisibility.js';
+import { useNewEntityManagement } from '../../hooks/UseNewEntityManagement.js';
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -93,10 +95,10 @@ export const MapMachineContext = createContext();
 export const MapContext = createContext();
 const DEFAULT_PATHS = [
     [
-        { state: 'portfolio', idKey: null },
-        { state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all" },
-        { state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all" },
-        { state: 'modelElement', idKey: 'modelElementId' },
+        { displayName: "Portfolio", state: 'portfolio', idKey: null, scopeLevel: 0 },
+        { displayName: "Site", state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all", scopeLevel: 1, collShortName: "geo_sites_coll" },
+        { displayName: "Building", state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all", scopeLevel: 2, collShortName: "building_coll" },
+        { displayName: "Model Element", state: 'modelElement', idKey: 'modelElementId', scopeLevel: 3 },
     ]
 ]
 
@@ -129,6 +131,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
 
     const classes = useStyles({ stateKey });
     const dispatch = useDispatch();
+    
 
     // MMV Configuration state -> this should be removed to a user config or a script
     const [mmvConfig, setMmvConfig] = useState();
@@ -172,9 +175,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
 
     const run = async () => {
       const newFilter = getSiteFilter(store.getState());
-
-     // currentState.stateValue = 'portfolio';
-      actor.send({ type: 'UPDATE_FILTERS', filters: newFilter, reenter: true });
       const firstState = DEFAULT_PATHS[0][0].state;
       snapshot.self = actor;
       await filterFeatures({mapMachineInput: { ...snapshot, stateValue: firstState }});
@@ -182,11 +182,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     run();
 
 }, [siteFilter]);
-
-    //     useEffect(() => {
-    //      console.log('portfolio context');
-    //      console.log(currentState.context);
-    //   }, [currentState]);
 
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
     const [mmvMode, setMmvMode] = useState("");
@@ -296,6 +291,9 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     const mapContextValue = useMemo(() => {
         return {setCommand, mapInstance }
     }, [setCommand, mapInstance]);
+
+    useNewEntityManagement({mapInstance, portContext: mapMachineContextValue});
+    useGraphicsVisibility({mapInstance, portContext: mapMachineContextValue});
 
     const [popupState, setPopupState] = usePopupState({ open:false });
 

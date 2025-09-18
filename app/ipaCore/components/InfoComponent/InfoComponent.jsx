@@ -68,7 +68,8 @@ const isFieldRequired = (schema, fieldName) => {
 };
 
 const isFieldEditable = (schema, fieldName) => {
-    return !isFieldRequired(schema, fieldName);
+    const fieldSchema = schema?.properties?.[fieldName];
+    return !fieldSchema?.readOnly;
 };
 
 const isFieldDeletable = (schema, fieldName) => {
@@ -159,14 +160,14 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
         useMemo(() => makeLayouts({
             getIsModifiable: (field) => {
                 const fieldSchema = type?.properties?.[field];
-                // editable if not required and not readOnly
+                // modifiable if field exists and is not readOnly
                 const guard = !!fieldSchema && isFieldEditable(type, field);
                 return guard;
             },
             getIsEditable: (field) => {
                 const fieldSchema = type?.properties?.[field];
-                // editable if not required and not readOnly
-                const guard = !!fieldSchema && !fieldSchema.readOnly && isFieldEditable(type, field);
+                // editable if field exists and is not readOnly
+                const guard = !!fieldSchema && isFieldEditable(type, field);
                 return guard;
             },
             getIsDeletable: (field) => isFieldDeletable(type, field),
