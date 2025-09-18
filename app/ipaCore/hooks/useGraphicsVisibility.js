@@ -4,15 +4,13 @@ import { useSelector as useXstateSelector } from "@xstate/react";
 import { getActiveLevels } from "../../services/utils";
 import { usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
 import { get3DGraphicsController } from "../../client/scripts/mapEntryActions.mjs";
+import { defaultNewBuildingId } from "./UseNewEntityManagement";
 
 
-export function UseGraphicsVisibility(){
+export function useGraphicsVisibility({mapInstance, portContext}){
 
-    const portContext = useContext(MapMachineContext);
     const { send, actor } = portContext || {};
     const currentState = useXstateSelector(actor, state => state);
-    const { mapInstance } = useContext(MapContext);
-
 
     const meshFeaturesPerLevel = useMemo(() => {
         const levels = getActiveLevels(currentState);
@@ -111,7 +109,7 @@ export function UseGraphicsVisibility(){
             if (featuresToHide.length > 0) {
                 console.log(`UseGraphicsVisibility: Hiding features for ${levelKey}:`, featuresToHide);
                 try {
-                    controller.hideFeatures(featuresToHide);
+                    controller.hideFeatures(featuresToHide.filter(f => !f.includes(defaultNewBuildingId)));
                 } catch (error) {
                     console.error(`UseGraphicsVisibility: Error hiding features for ${levelKey}:`, error);
                 }
