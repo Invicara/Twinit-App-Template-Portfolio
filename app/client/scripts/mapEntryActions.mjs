@@ -915,26 +915,26 @@ async function setupGraphicLayers({ map, sourceId, level, features, loadedGraphi
 export function get3DGraphicsController(map, sourceId) {
     const customLayerId = `${sourceId}-3d-graphics`;
     const layer = map.getLayer(customLayerId);
-    
+
     if (!layer || layer.type !== 'custom') {
         console.warn(`3D graphics layer not found: ${customLayerId}`);
         return null;
     }
-    
+
     return {
         // Layer-wide visibility control
         show: () => layer.show3DGraphics && layer.show3DGraphics(),
         hide: () => layer.hide3DGraphics && layer.hide3DGraphics(),
         toggle: () => layer.toggle3DGraphics && layer.toggle3DGraphics(),
         isVisible: () => layer.is3DGraphicsVisible && layer.is3DGraphicsVisible(),
-        
+
         // Individual feature visibility control
         showFeatures: (featureIds) => layer.showFeatures && layer.showFeatures(featureIds),
         hideFeatures: (featureIds) => layer.hideFeatures && layer.hideFeatures(featureIds),
         toggleFeatures: (featureIds, forceVisible = null) => layer.toggleFeatures && layer.toggleFeatures(featureIds, forceVisible),
         getFeatureVisibility: (featureIds) => layer.getFeatureVisibility && layer.getFeatureVisibility(featureIds),
         getAllFeatureVisibility: () => layer.getAllFeatureVisibility && layer.getAllFeatureVisibility(),
-        
+
         // Direct layer access for advanced usage
         layer: layer
     };
@@ -973,21 +973,14 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
         // Method to query features at a point
         queryFeatures: function(point) {
             if (!this.features.length) return [];
-
+            // Define click tolerance in pixels
+            const tolerance = 100; // pixels
             // Check each feature for proximity to click point
             return this.features.filter(f => {
-                const featurePoint = f.centroid;
-
-                // Define click tolerance in pixels
-                const tolerance = 100; // pixels
-
-                // Simple distance check in pixel space
-                const distance = Math.sqrt(
-                    Math.pow(point.x - featurePoint[0], 2) +
-                    Math.pow(point.y - featurePoint[1], 2)
-                );
-
-                return distance <= tolerance;
+                const p = this.map.project({ lng: f.centroid[0], lat: f.centroid[1] }); // -> pixel space
+                const dx = point.x - p.x;
+                const dy = point.y - p.y;
+                return Math.sqrt(dx*dx + dy*dy) <= tolerance;
             }).map(f => ({
                 type: 'Feature',
                 id: f.properties.id,
@@ -1038,10 +1031,10 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             if (!Array.isArray(featureIds)) {
                 featureIds = [featureIds];
             }
-            
+
             let updated = false;
             const keyProperty = this.metadata.featureInfo.idProperty;
-            
+
             featureIds.forEach(id => {
                 const feature = this.features.find(f => f.properties[keyProperty] === id);
                 if (feature && !feature._featureVisible) {
@@ -1050,7 +1043,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                     console.log(`Showing feature: ${id}`);
                 }
             });
-            
+
             if (updated && this.map) {
                 this.map.triggerRepaint();
             }
@@ -1061,10 +1054,10 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             if (!Array.isArray(featureIds)) {
                 featureIds = [featureIds];
             }
-            
+
             let updated = false;
             const keyProperty = this.metadata.featureInfo.idProperty;
-            
+
             featureIds.forEach(id => {
                 const feature = this.features.find(f => f.properties[keyProperty] === id);
                 if (feature && feature._featureVisible) {
@@ -1073,7 +1066,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                     console.log(`Hiding feature: ${id}`);
                 }
             });
-            
+
             if (updated && this.map) {
                 this.map.triggerRepaint();
             }
@@ -1084,10 +1077,10 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             if (!Array.isArray(featureIds)) {
                 featureIds = [featureIds];
             }
-            
+
             let updated = false;
             const keyProperty = this.metadata.featureInfo.idProperty;
-            
+
             featureIds.forEach(id => {
                 const feature = this.features.find(f => f.properties[keyProperty] === id);
                 if (feature) {
@@ -1099,7 +1092,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                     }
                 }
             });
-            
+
             if (updated && this.map) {
                 this.map.triggerRepaint();
             }
@@ -1111,15 +1104,15 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             if (!Array.isArray(featureIds)) {
                 featureIds = [featureIds];
             }
-            
+
             const keyProperty = this.metadata.featureInfo.idProperty;
             const result = {};
-            
+
             featureIds.forEach(id => {
                 const feature = this.features.find(f => f.properties[keyProperty] === id);
                 result[id] = feature ? feature._featureVisible : null;
             });
-            
+
             return featureIds.length === 1 ? result[featureIds[0]] : result;
         },
 
@@ -1127,12 +1120,12 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
         getAllFeatureVisibility: function() {
             const keyProperty = this.metadata.featureInfo.idProperty;
             const result = {};
-            
+
             this.features.forEach(feature => {
                 const id = feature.properties[keyProperty];
                 result[id] = feature._featureVisible;
             });
-            
+
             return result;
         },
 
@@ -1289,6 +1282,8 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             });
 
             console.log(`Updated 3D graphics layer with ${this.features.length} features using addModelInstance`);
+            //repainiting after feature update - this line was moved here from "render" to prevent infinite loop
+            this.map.triggerRepaint();
         },
 
         addModelInstance: function(graphicId, centroid, instanceId, geometryInfo, featureProperties = null) {
@@ -1431,8 +1426,6 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             this.features.forEach(f => {
                 f.model.visible = originalVisibility.get(f);
             });
-
-            this.map.triggerRepaint();
         },
 
         // Clean up all resources when layer is removed
