@@ -74,7 +74,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
 
     // Handle site cancellation (remove draft site) - extracted from line 59
     const handleCancelSite = (siteToRemove) => {
-        if (!siteToRemove && currentElementType !== "site") return;
+        console.log("handleCancelSite", {siteToRemove});
 
         // Remove the draft site from the data
         const currentData = currentState.context?.data || {};
@@ -129,11 +129,6 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
         dispatch(setSelectedCoordinate());
         dispatch(setIsSelectingPosition(false));
     };
-
-    const {data = [], siteId} = currentState.context;
-    const {site = [], building = []} = data;
-    const currentSite = site.find(s => s.siteId === siteId);
-    const previousSite = usePrevious(currentSite);
     
     // Function to generate square coordinates around a centroid
     function generateSquareCoordinates(centerLng, centerLat, widthInMeters = 500) {
@@ -149,12 +144,18 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
         ];
     }
 
+    const prevElementType = usePrevious(currentElementType)
+
     // First useEffect - extracted from line 117
     useEffect(() => {
-        if(currentSite !== previousSite && previousSite?.isDraft){
-            handleCancelSite(previousSite);
+        const draftSites = currentState?.context?.data?.site.filter(s => s.isDraft) || [];
+
+        if(draftSites.length && prevElementType === "site" && currentElementType !== "site"){
+            for(let s of draftSites){
+                handleCancelSite(s);
+            }
         }
-    }, [currentSite, previousSite, currentElementType, handleCancelSite]);
+    }, [currentState, currentElementType, handleCancelSite]);
 
     // Second useEffect - extracted from line 138
     useEffect(() => {
