@@ -1760,7 +1760,6 @@ export async function getInitAction({mapMachineInput }) {
     return addLayers(mapMachineInput)
 }
 export async function getEntryAction({mapMachineInput }) {
-    console.log("getEntryAction", {mapMachineInput});
     const {stateValue, context, event, self} = mapMachineInput;
 
     const {suppressEntryActions} = context;
@@ -2228,88 +2227,15 @@ const toCamelCase = (str) => {
     );
 };
 
-export async function filterFeatures({ mapMachineInput, filteredLabels }) {
+export async function filterFeatures({ mapMachineInput }) {
   const { stateValue, context, event, self } = mapMachineInput;
   const { suppressEntryActions } = context;
-
-//   // --- TOGGLE LOGIC START ---
-//   const filterKey = filteredLabels
-//     ? `${filteredLabels.status || ""}-${filteredLabels.capacity?.min ?? ""}-${filteredLabels.capacity?.max ?? ""}`
-//     : null;
-
-//   let filteredSites;
-//   if (filterKey && activeFilter === filterKey) {
-//     activeFilter = null;
-//     filteredLabels = null;
-
-//     filteredSites = context.data.site;
-//   } else {
-//     activeFilter = filterKey;
-//     if (filteredLabels) {
-//       filteredSites = filterSitesByBuilding({
-//         sites: context.data.site, 
-//         filteredLabels,
-//       });
-//     } else {
-//       filteredSites = context.data.site;
-//     }
-//   }
-  // --- TOGGLE LOGIC END ---
 
   let result = await ScriptCache.runScript("getEntryActionTheme", {
     suppressEntryActions,
     stateValue,
   });
   let singleMarkers = result?.singleMarkers;
-
-//   const allowedSites = new Map(
-//   (Array.isArray(filteredSites) ? filteredSites : []).map((site) => [
-//     site.siteId,
-//     new Set(site.buildings.map((b) => b.buildingId)), 
-//   ])
-// );
-
-// const filteredSingleMarkers = singleMarkers.map((cfg) => {
-//   const copy = { ...cfg };
-
-//   copy.features = Array.isArray(cfg.features)
-//     ? cfg.features
-//         .map((f) => {
-//           const siteId = f?.properties?.siteId;
-
-//           // find the matching site
-//           const site = filteredSites.find((s) => s.siteId === siteId);
-//           if (!site) return null;
-
-//           // if feature has buildings in its properties, filter them down
-//           if (Array.isArray(f?.properties?.buildings)) {
-//             const matchedBuildings = f.properties.buildings.filter((fb) =>
-//               site.buildings?.some((sb) => sb.buildingId === fb.buildingId)
-//             );
-
-//             // if nothing matches, drop this feature
-//             if (!matchedBuildings.length) return null;
-
-//             return {
-//               ...f,
-//               properties: {
-//                 ...f.properties,
-//                 buildings: matchedBuildings,
-//               },
-//             };
-//           }
-
-//           return null;
-//         })
-//         .filter(Boolean) // remove nulls
-//     : [];
-
-//   return copy;
-// });
-
-//   filteredSingleMarkers.filtered = true;
-
-//   context.data.building = context.data.building.slice(0, 2);
 
   const { manageMarkers } = await handleMarkers(
     stateValue,
@@ -2320,39 +2246,6 @@ export async function filterFeatures({ mapMachineInput, filteredLabels }) {
   return {manageMarkers};
 }
 
-function filterSitesByBuilding({ sites, filteredLabels, statusMap }) {
-  if (!filteredLabels?.status || !filteredLabels?.capacity) return sites;
-
-  const { status, capacity } = filteredLabels;
-  const min = Number(capacity.min ?? 0);
-  const max = capacity.max != null ? Number(capacity.max) : null;
-
-  return sites
-    .map((site) => {
-      const matchedBuildings = site.buildings?.filter((b) => {
-        const bCap = Number(b.Capacity);
-        if (isNaN(bCap)) return false;
-
-        const bStatusId = b.StatusId;
-        const filterStatusId = statusMap ? statusMap[status] : status;
-
-        const statusMatch = bStatusId == filterStatusId;
-        const capacityMatch =
-          max == null ? bCap >= min : bCap >= min && bCap < max;
-
-        return statusMatch && capacityMatch;
-      });
-
-      if (matchedBuildings?.length > 0) {
-        return {
-          ...site,
-          buildings: matchedBuildings,
-        };
-      }
-      return null;
-    })
-    .filter(Boolean);
-}
 
 const capacityMatches = (cap, min, max) => {
   const value = Number(cap);

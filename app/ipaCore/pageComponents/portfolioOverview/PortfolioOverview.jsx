@@ -132,7 +132,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     const classes = useStyles({ stateKey });
     const dispatch = useDispatch();
     
-
     // MMV Configuration state -> this should be removed to a user config or a script
     const [mmvConfig, setMmvConfig] = useState();
 
@@ -171,17 +170,15 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         fetchMapRepresentations();
     },[namedPaths])
 
-      useEffect(() => {
-
-    const run = async () => {
-      const newFilter = getSiteFilter(store.getState());
-      const firstState = DEFAULT_PATHS[0][0].state;
-      snapshot.self = actor;
-      await filterFeatures({mapMachineInput: { ...snapshot, stateValue: firstState }});
-    };
-    run();
-
-}, [siteFilter]);
+    useEffect(() => {
+        const run = async () => {
+            const newFilter = getSiteFilter(store.getState());
+            const firstState = DEFAULT_PATHS[0][0].state;
+            snapshot.self = actor;
+            await filterFeatures({mapMachineInput: { ...snapshot, stateValue: firstState }});
+        };
+        run();
+    }, [siteFilter]);
 
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
     const [mmvMode, setMmvMode] = useState("");
