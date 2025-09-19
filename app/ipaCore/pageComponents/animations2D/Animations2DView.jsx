@@ -1,7 +1,8 @@
-import React, { useRef, useState, useContext } from 'react';
+import React, { useRef, useState, useContext, useEffect } from 'react';
 import { Panel, PanelGroup } from "react-resizable-panels";
 
 import { IafViewerDBM } from '@dtplatform/iaf-viewer';
+import { IafItemSvc } from "@dtplatform/platform-api"
 import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls';
 
 import ModelSelect from '../../components/ModelSelect/ModelSelect';
@@ -13,6 +14,8 @@ const Animations2DView = (props) => {
 
 const Animations2DPage = () => {
     const [workflow, setWorkflow] = useState(null);
+    const [animations, setAnimations] = useState(null);
+    const [isViewerReady, setIsViewerReady] = useState(false);
 
     const viewerRef = useRef();
 
@@ -21,12 +24,88 @@ const Animations2DPage = () => {
         selectedModelCompositeVersion,
     } = useContext(ModelContext);
 
-    // Create a script to populate Item Service with below
-    // Put animation templates in the Item Service
+    const fetchAnimations = async () => {
+        const animationsCollectionUserType = "2d_animations";
 
-    // Fetch an animation based on its type
-    // Populate the workflow accordingly
-    // Populate the elemetnId in the component
+        const animations_coll = await IafItemSvc.getNamedUserItems({
+            query: {
+                _userType: animationsCollectionUserType,
+            }
+        });
+
+        if (animations_coll && animations_coll._list.length > 0) {
+            return await IafItemSvc.getRelatedItems(animations_coll._list[0]._userItemId, {
+                query: {}
+            });
+        }
+    };
+
+    useEffect(() => {
+        const run = async () => {
+            const animations = await fetchAnimations();
+            setAnimations(animations._list);
+        };
+
+        run();
+    }, []);
+
+    const injectElementIds = (uuid, ids) => {
+        const animation = animations.find((item) => item.uuid === uuid);
+
+        const { _id, _metadata, ...rest } = animation;
+
+        rest.elementIds = ids;
+
+        return rest;
+    };
+
+    useEffect(() => {
+        if (Array.isArray(animations) && animations.length > 0 && isViewerReady) {
+            setWorkflow({
+                active: 5,
+                list: [
+                    {
+                        uuid: 5,
+                        timeInSeconds: 4.5,
+                        loop: true,
+                        script: [
+                            injectElementIds("lab_warning", [203, 204, 201]),
+                            injectElementIds("sprite_warning_gif", [161]),
+                            injectElementIds("patient_bed_move", [2362]),
+                            injectElementIds("patient_bed_color", [2362]),
+                            injectElementIds("text", [2324]),
+                            {
+                                uuid: 'circle',
+                                elementIds: [2383],
+                                type: "Markup",
+                                frames: [
+                                    {
+                                        type: "Circle",
+                                        status: "Error",
+                                        blink: true,
+                                        scale: 1.5
+                                    },
+                                ]
+                            },
+                            {
+                                uuid: "opacity",
+                                elementIds: [2398],
+                                type: "Opacity",
+                                frames: [
+                                    { opacity: 0, interpolationType: "Linear" },
+                                    { opacity: 0.2, interpolationType: "Linear" },
+                                    { opacity: 0.4, interpolationType: "Linear" },
+                                    { opacity: 0.6, interpolationType: "Linear" },
+                                    { opacity: 0.8, interpolationType: "Linear" },
+                                    { opacity: 1, interpolationType: "Linear" }
+                                ]
+                            },
+                        ]
+                    },
+                ]
+            })
+        }
+    }, [animations, isViewerReady]);
 
     return (
         <div className='simple-viewer-view'>
@@ -49,108 +128,7 @@ const Animations2DPage = () => {
                                         workflow={workflow}
                                         OnViewerReadyCallback={(model) => {
                                             if (model === '2d') {
-                                                setWorkflow({
-                                                    active: 5,
-                                                    list: [
-                                                        {
-                                                            uuid: 5,
-                                                            timeInSeconds: 4.5,
-                                                            loop: true,
-                                                            script: [
-                                                                {
-                                                                    uuid: "lab_warning_1503",
-                                                                    elementIds: [203, 204, 201],
-                                                                    type: "Color",
-                                                                    frames: [
-                                                                        { r: 200, g: 0, b: 0 },
-                                                                        { r: 200, g: 200, b: 200 },
-                                                                        { r: 200, g: 0, b: 0 },
-                                                                        { r: 200, g: 200, b: 200 },
-                                                                    ],
-                                                                },
-                                                                {
-                                                                    uuid: 'sprite_warning_gif_161',
-                                                                    elementIds: [161],
-                                                                    type: "Sprite",
-                                                                    frames: [
-                                                                        {
-                                                                            type: "Gif",
-                                                                            size: 1,
-                                                                            image: "/icons/warning-sign.gif",
-                                                                            alignment: "Center",
-                                                                            autoScale: true,
-                                                                        }
-                                                                    ]
-                                                                },
-                                                                {
-                                                                    uuid: "patient_bed_move_2362",
-                                                                    elementIds: [2362],
-                                                                    type: "Translation",
-                                                                    frames: [
-                                                                        { x: 0, y: 0, z: 0, interpolationType: "CubicSpline" },
-                                                                        { x: 0, y: -4, z: 0, interpolationType: "CubicSpline" },
-                                                                        { x: 0, y: -4, z: 0, interpolationType: "CubicSpline" },
-                                                                        { x: 13, y: -4, z: 0, interpolationType: "CubicSpline" },
-                                                                        { x: 13, y: -20, z: 0, interpolationType: "CubicSpline" },
-                                                                        { x: 0, y: -20, z: 0, interpolationType: "ConCubicSplinestant" }
-                                                                    ],
-                                                                },
-                                                                {
-                                                                    uuid: "patient_bed_color_2362",
-                                                                    elementIds: [2362],
-                                                                    type: "Color",
-                                                                    frames: [
-                                                                        { r: 0, g: 200, b: 0 },
-                                                                        { r: 200, g: 200, b: 200 },
-                                                                        { r: 0, g: 200, b: 0 },
-                                                                        { r: 200, g: 200, b: 200 },
-                                                                    ],
-                                                                },
-                                                                {
-                                                                    uuid: 'circle_2383',
-                                                                    elementIds: [2383],
-                                                                    type: "Markup",
-                                                                    frames: [
-                                                                        {
-                                                                            type: "Circle",
-                                                                            status: "Error",
-                                                                            blink: true,
-                                                                            scale: 1.5
-                                                                        },
-                                                                    ]
-                                                                },
-                                                                {
-                                                                    uuid: "opacity_2398",
-                                                                    elementIds: [2398],
-                                                                    type: "Opacity",
-                                                                    frames: [
-                                                                        { opacity: 0, interpolationType: "Linear" },
-                                                                        { opacity: 0.2, interpolationType: "Linear" },
-                                                                        { opacity: 0.4, interpolationType: "Linear" },
-                                                                        { opacity: 0.6, interpolationType: "Linear" },
-                                                                        { opacity: 0.8, interpolationType: "Linear" },
-                                                                        { opacity: 1, interpolationType: "Linear" }
-                                                                    ]
-                                                                },
-                                                                {
-                                                                    uuid: 'text_2324',
-                                                                    elementIds: [2324],
-                                                                    type: "Markup",
-                                                                    frames: [
-                                                                        {
-                                                                            type: "Text",
-                                                                            text: "Entrance",
-                                                                            blink: true,
-                                                                            strokeColor: { r: 0, g: 0, b: 0 },
-                                                                            fillColor: { r: 100, g: 100, b: 250 },
-                                                                            shiftPercent: {x: -30, y: 20, z: 0}
-                                                                        }
-                                                                    ]
-                                                                },
-                                                            ]
-                                                        },
-                                                    ]
-                                                })
+                                                setIsViewerReady(true);
                                             }
                                         }}
                                     />
