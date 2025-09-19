@@ -155,7 +155,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 handleCancelSite(s);
             }
         }
-    }, [currentState, currentElementType, handleCancelSite]);
+    }, [currentState, prevElementType, currentElementType]);
 
     // Second useEffect - extracted from line 138
     useEffect(() => {
