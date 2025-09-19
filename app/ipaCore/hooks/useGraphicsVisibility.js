@@ -4,7 +4,7 @@ import { useSelector as useXstateSelector } from "@xstate/react";
 import { getActiveLevels } from "../../services/utils";
 import { usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
 import { get3DGraphicsController } from "../../client/scripts/mapEntryActions.mjs";
-import { defaultNewBuildingId } from "./UseNewEntityManagement";
+import { defaultNewBuildingId } from "./useEntityManagement";
 
 
 export function useGraphicsVisibility({mapInstance, portContext}){
