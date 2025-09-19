@@ -1,38 +1,185 @@
 import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
-import { Typography, Divider, Button, Box } from '@material-ui/core';
+import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent } from '@mui/material';
 import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
-import { getClickEvent, getMapTypes, setMapTypes } from '../../../../redux/pageComponentState';
+import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference } from '../../../../redux/pageComponentState';
 import { MapMachineContext, MapContext } from '../../PortfolioOverview';
 import { addFeatureToMapLayer, removeFeatureFromMapLayer } from '../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache, usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
 import { InfoComponent } from '../../../../components/InfoComponent/InfoComponent';
-import { setIsSelectingPosition, setSelectedCoordinate } from '../../../../redux/siteSetup';
+import { setDraftType, setIsSelectingPosition, setSelectedCoordinate } from '../../../../redux/siteSetup';
 import { IafItemSvc } from '@dtplatform/platform-api';
 import {useSelector as useXstateSelector} from "@xstate/react";
 import _ from 'lodash';
-import { Add, Dashboard } from '@material-ui/icons';
-import { getActiveLevels } from '../../../../../services/utils';
+import { Add, Dashboard, Cancel } from '@material-ui/icons';
+import { getActiveLevels, getCachedFile } from '../../../../../services/utils';
 
-export const defaultNewSiteId = "<newSite>";
+
+
+const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath}) => {
+    const dispatch = useDispatch();
+
+    const [thumbnailUrls, setThumbnailUrls] = useState({});
+    const selectedGraphicReferece = useSelector(getSelectedGraphicReference);
+
+    useEffect(() => {
+        return () => {
+            dispatch(setDraftType());
+            dispatch(setIsSelectingPosition(false));
+            dispatch(setSelectedGraphicReference());
+        }
+    }, [])
+
+    // Handle thumbnail click for building selection
+    const handleThumbnailClick = (graphicReference) => {
+        if(selectedGraphicReferece !== graphicReference){
+            dispatch(setDraftType(lowerNamedPath.state));
+            dispatch(setIsSelectingPosition(true));
+            dispatch(setSelectedGraphicReference(graphicReference));
+        } else {
+            dispatch(setDraftType());
+            dispatch(setIsSelectingPosition(false));
+            dispatch(setSelectedGraphicReference());
+        }
+    };
+
+
+    useEffect(() => {
+        const loadThumbnails = async () => {
+            const urls = {};
+            for (const ref of mapGraphicReferences) {
+                if (ref.thumbnail) {
+                    try {
+                        const url = await getCachedFile(ref.thumbnail);
+                        if (url) {
+                            urls[ref.thumbnail] = url;
+                        }
+                    } catch (error) {
+                        console.error(`Failed to load thumbnail for ${ref.thumbnail}:`, error);
+                    }
+                }
+            }
+            setThumbnailUrls(urls);
+        };
+
+        if (mapGraphicReferences && mapGraphicReferences.length > 0) {
+            loadThumbnails();
+        }
+    }, [mapGraphicReferences]);
+
+    return (
+        <Box sx={{ mt: 2 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: 16 }}>
+                    Select Building Type
+                </Typography>
+                <CustomButton
+                    variant="outlined"
+                    color="secondary"
+                    onClick={handleCancelNewBuildingMode}
+                    size="small"
+                    startIcon={<Cancel />}
+                >
+                    Cancel
+                </CustomButton>
+            </div>
+
+            {mapGraphicReferences.length === 0 ? (
+                <Typography variant="body2" color="textSecondary">
+                    No building types available
+                </Typography>
+            ) : (
+                <Grid container spacing={2}>
+                    {mapGraphicReferences.map((ref, index) => (
+                        <Grid item xs={6} sm={4} md={3} key={index}>
+                            <Card
+                                style={{
+                                    cursor: 'pointer',
+                                    backgroundColor: ref === selectedGraphicReferece ? 'rgba(223, 21, 140, 0.1)' : 'transparent',
+                                    border: ref === selectedGraphicReferece ? '2px solid #DF158C' : '2px solid transparent',
+                                    '&:hover': {
+                                        transform: ref === selectedGraphicReferece ? 'scale(1.02) translateY(-2px)' : 'translateY(-2px)',
+                                        boxShadow: ref === selectedGraphicReferece ? '0 6px 16px rgba(223, 21, 140, 0.4)' : '0 4px 8px rgba(0,0,0,0.15)'
+                                    }
+                                }}
+                                onClick={() => handleThumbnailClick(ref)}
+                            >
+                                {ref.thumbnail && thumbnailUrls[ref.thumbnail] ? (
+                                    <CardMedia
+                                        component="img"
+                                        height="80"
+                                        image={thumbnailUrls[ref.thumbnail]}
+                                        alt={ref.name || 'Building thumbnail'}
+                                        sx={{ objectFit: 'cover' }}
+                                    />
+                                ) : (
+                                    <Box
+                                        sx={{
+                                            height: 80,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            backgroundColor: '#f5f5f5'
+                                        }}
+                                    >
+                                        <Dashboard sx={{ fontSize: 32, color: '#ccc' }} />
+                                    </Box>
+                                )}
+                                <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+                                    <Typography variant="caption" display="block" sx={{ textAlign: 'center', fontSize: '0.75rem' }}>
+                                        {ref.name || `Building ${index + 1}`}
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                    ))}
+                </Grid>
+            )}
+        </Box>
+    );
+};
 
 export default function SiteDetails({ context }) {
-    const {data = [], siteId} = context;
-    const {site = [], building = []} = data;
-    const buildings = building.filter(d => d.siteId == siteId);
-    const currentSite = site.find(s => s.siteId === siteId);
-    const plantName = siteId;
 
     // Get contexts and state
     const { send, actor } = useContext(MapMachineContext);
     const currentState = useXstateSelector(actor, state => state);
+
+    const [levels, currentElementType, namedPath, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath] = useMemo(() => {
+        const levels = getActiveLevels(currentState);
+
+        const sPath = levels?.map(el => el.state).join(".");
+        const cElementType = sPath?.split(".")?.slice(-1)?.[0];
+
+        const namedPaths = currentState.context.namedPaths[0];
+
+        const namedPath = namedPaths.find(p => p.state === cElementType);
+        const { idKey } = namedPath;
+
+        const lowerLevelState = Object.assign({}, ...levels
+            .filter(l => l.idKey && l.scopeLevel < namedPath.scopeLevel)
+            .map(l => ({[l.idKey]: currentState.context[l.idKey]})
+        ));
+
+        const higherNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel - 1);
+        const lowerNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel + 1);
+
+        const entityId = currentState.context[idKey]
+        const currentEntity = currentState.context.data[namedPath.state].find(e => e[idKey] === entityId);
+
+        return [levels, cElementType, namedPath, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath];
+
+    }, [currentState]);
+
+    const {data = []} = context;
+    const { building = []} = data;
+    const buildings = building.filter(d => d[idKey] === entityId);
+    const plantName = entityId;
+
     const { mapInstance } = useContext(MapContext);
     const dispatch = useDispatch();
     const clickEvent = useSelector(getClickEvent);
-
-    const namedPath = currentState.context.namedPaths[0];
-
-    const levels = getActiveLevels(currentState);
+    const mapGraphicReferences = useSelector(getMapGraphicReferences);
 
     const types = useSelector(getMapTypes);
     const entityType = levels.slice(-1)[0]?.state
@@ -45,43 +192,53 @@ export default function SiteDetails({ context }) {
 
     // Cache for original perimeter when entering drawing mode
     const [cachedPerimeter, setCachedPerimeter] = useState(null);
-    
-    // Cache for original site when entering editing mode
-    const [cachedOriginalSite, setCachedOriginalSite] = useState(null);
 
-    // Check if this site is a draft that needs perimeter drawing
-    const isDraftSite = currentSite?.isDraft === true;
-    
-    // Check if this site is being edited
-    const isEditingSite = currentSite?.isEditing === true;
-    
-    // Site is in edit mode if it's either draft or being edited
-    const isInEditMode = isDraftSite || isEditingSite;
+    // Cache for original entity when entering editing mode
+    const [cachedOriginalEntity, setCachedOriginalEntity] = useState(null);
+
+    // Check if this entity is a draft that needs perimeter drawing
+    const isDraftEntity = currentEntity?.isDraft === true;
+
+    // Check if this entity is being edited
+    const isEditingEntity = currentEntity?.isEditing === true;
+
+    // New building placement state
+    const [isNewBuildingMode, setIsNewBuildingMode] = useState(false);
+
+    // Entity is in edit mode if it's either draft or being edited
+    const isInEditMode = isDraftEntity || isEditingEntity;
 
     const prevIsDrawingMode = usePrevious(isDrawingMode);
 
-    // Handle site property changes
-    const handleSiteChange = (newValue, propertyName, metadata) => {
-        if (!currentSite) return;
+    useEffect(() => {
+        if(!currentEntity?.isDraft && !currentEntity?.isEditing){
+            // Cache the original entity before editing
+            setCachedOriginalEntity(_.cloneDeep(currentEntity));
+        }
+    }, [currentEntity])
 
-        // Store the old siteId for comparison
-        const oldSiteId = currentSite.siteId;
+    // Handle entity property changes
+    const handleEntityChange = (newValue, propertyName, metadata) => {
+        if (!currentEntity) return;
 
-        // Update the site object
-        const updatedSite = {
-            ...currentSite,
+        // Store the old entityId for comparison
+        const oldEntityId = currentEntity[idKey];
+
+        // Update the entity object
+        const updatedEntity = {
+            ...currentEntity,
             [propertyName]: newValue
         };
 
         // Update XState context
         const currentData = currentState.context?.data || {};
-        const currentSites = currentData.site || [];
-        const updatedSites = currentSites.map(s =>
-            s.siteId === siteId ? updatedSite : s
+        const currentEntities = currentData[currentElementType] || [];
+        const updatedEntities = currentEntities.map(s =>
+            s[idKey] === entityId ? updatedEntity : s
         );
         const updatedData = {
             ...currentData,
-            site: updatedSites
+            [currentElementType]: updatedEntities
         };
 
         // Send event to update XState context with new data
@@ -90,104 +247,101 @@ export default function SiteDetails({ context }) {
             data: updatedData
         });
 
-        // If siteId was changed, navigate to the new siteId to maintain selection
-        if (propertyName === 'siteId' && newValue !== oldSiteId && newValue.length) {
-            console.log('SiteId changed, navigating to new site:', { oldSiteId, newSiteId: newValue });
+        // If entityId was changed, navigate to the new entityId to maintain selection
+        if (propertyName === idKey && newValue !== oldEntityId && newValue.length) {
+            console.log('EntityId changed, navigating to new entity:', { oldEntityId, newEntityId: newValue });
 
-            // Send GO_TO action to navigate to the updated siteId
+            // Send GO_TO action to navigate to the updated entityId
             send({
                 type: 'GO_TO',
-                siteId: newValue
+                ...lowerLevelState,
+                [idKey]: newValue
             });
 
             const removeSuccess = removeFeatureFromMapLayer({
                 map: mapInstance,
-                levelState: 'site',
-                featureId: oldSiteId,
-                idKey: 'siteId', // explicitly specify the key for site identification
+                levelState: currentElementType,
+                featureId: oldEntityId,
+                idKey, // explicitly specify the key for entity identification
                 namedPath: namedPath
             });
 
             const addSuccess = addFeatureToMapLayer({
                 map: mapInstance,
-                levelState: 'site',
+                levelState: currentElementType,
                 feature: {
-                    properties: updatedSite,
-                    geometry: updatedSite.coordinates ? {
+                    properties: updatedEntity,
+                    geometry: updatedEntity.coordinates ? {
                         type: 'Polygon',
-                        coordinates: updatedSite.coordinates
+                        coordinates: updatedEntity.coordinates
                     } : null,
-                    coordinates: updatedSite.coordinates // fallback for coordinate extraction
+                    coordinates: updatedEntity.coordinates // fallback for coordinate extraction
                 },
                 namedPath: namedPath
             });
 
         }
 
-        console.log('Site property updated:', { propertyName, newValue, updatedSite });
+        console.log('Entity property updated:', { propertyName, newValue, updatedEntity });
     };
 
-    // Handle site submission (finalize draft)
-    const handleSubmitSite = async () => {
-        if (!currentSite || currentSite.siteId === defaultNewSiteId || !mapInstance || !currentState.context?.namedPaths) return;
+    // Handle entity submission (finalize draft)
+    const handleSubmitEntity = async () => {
+        if (!currentEntity || !mapInstance || !currentState.context?.namedPaths) return;
 
-        // Get the namedPath for map operations
-        const namedPath = currentState.context.namedPaths[0];
-
-        // Step 2: Update the site to mark it as no longer draft
-        const finalizedSite = { ...currentSite };
-        delete finalizedSite.isDraft;
+        // Step 2: Update the entity to mark it as no longer draft
+        const finalizedEntity = { ...currentEntity };
+        delete finalizedEntity.isDraft;
 
         // Update XState context
         const currentData = currentState.context?.data || {};
-        const currentSites = currentData.site || [];
-        const updatedSites = currentSites.map(s =>
-            s.siteId === siteId ? finalizedSite : s
+        const currentEntities = currentData[currentElementType] || [];
+        const updatedEntities = currentEntities.map(s =>
+            s[idKey] === entityId ? finalizedEntity : s
         );
         const updatedData = {
             ...currentData,
-            site: updatedSites
+            [currentElementType]: updatedEntities
         };
 
-        // Send event to update XState context with finalized site
+        // Send event to update XState context with finalized entity
         send({
             type: 'UPDATE_DATA',
             data: updatedData
         });
 
-        // Step 4: Pre-select the new site with a GO_TO operation
+        // Step 4: Pre-select the new entity with a GO_TO operation
         send({
             type: 'GO_TO',
-            siteId: finalizedSite.siteId
+            ...lowerLevelState,
+            [idKey]: finalizedEntity[idKey]
         });
 
         //item service creation side effect
-        const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: "geo_sites_coll"}}))._list[0];
-        const result = await IafItemSvc.createRelatedItems(coll._userItemId, [finalizedSite]);
+        const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
+        const result = await IafItemSvc.createRelatedItems(coll._userItemId, [finalizedEntity]);
 
-        console.log('Site submitted and finalized:', {finalizedSite, result});
+        console.log('Entity submitted and finalized:', {finalizedEntity, result});
     };
 
-    // Handle site cancellation (remove draft site)
-    const handleCancelSite = () => {
-        if (!currentSite) return;
+    // Handle entity cancellation (remove draft entity)
+    const handleCancelEntity = () => {
+        if (!currentEntity) return;
 
-        // Remove the draft site from the data
+        // Remove the draft entity from the data
         const currentData = currentState.context?.data || {};
-        const currentSites = currentData.site || [];
-        const filteredSites = currentSites.filter(s => s.siteId !== siteId);
+        const currentEntities = currentData[currentElementType] || [];
+        const filteredEntities = currentEntities.filter(s => s[idKey] !== entityId);
         const updatedData = {
             ...currentData,
-            site: filteredSites
+            [currentElementType]: filteredEntities
         };
-
-        const namedPath = currentState.context.namedPaths[0];
 
         const removeSuccess = removeFeatureFromMapLayer({
             map: mapInstance,
-            levelState: 'site',
-            featureId: currentSite.siteId,
-            idKey: 'siteId', // explicitly specify the key for site identification
+            levelState: currentElementType,
+            featureId: currentEntity[idKey],
+            idKey, // explicitly specify the key for entity identification
             namedPath: namedPath
         });
 
@@ -195,10 +349,10 @@ export default function SiteDetails({ context }) {
         dispatch(setIsSelectingPosition(false));
 
         if (!removeSuccess) {
-            console.warn('Failed to remove draft site feature from map layer');
+            console.warn('Failed to remove draft entity feature from map layer');
         }
 
-        // Send event to update XState context (removing the site)
+        // Send event to update XState context (removing the entity)
         send({
             type: 'UPDATE_DATA',
             data: updatedData
@@ -207,20 +361,18 @@ export default function SiteDetails({ context }) {
         // Navigate back to portfolio level
         send({
             type: 'GO_TO',
-            level: 'portfolio'
+            ...lowerLevelState
         });
 
-        console.log('Draft site cancelled and removed:', { siteId, removedSite: currentSite });
+        console.log('Draft entity cancelled and removed:', { entityId, removedEntity: currentEntity });
     };
 
-    const setSiteForEdition = () => {
-        // Cache the original site before editing
-        setCachedOriginalSite(_.cloneDeep(currentSite));
-        
+    const setEntityForEdition = () => {
+
         const updatedData = _.cloneDeep(currentState.context?.data || {});
-        const currentSites = updatedData.site || [];
-        const siteToEdit = currentSites.find(s => s.siteId === siteId);
-        siteToEdit.isEditing = true;
+        const currentEntities = updatedData[currentElementType] || [];
+        const entityToEdit = currentEntities.find(s => s[idKey] === entityId);
+        entityToEdit.isEditing = true;
 
         // Send event to update XState context
         send({
@@ -228,127 +380,132 @@ export default function SiteDetails({ context }) {
             data: updatedData
         });
     };
-    
+
     // Handle canceling edit mode
     const handleCancelEdit = () => {
-        if (!cachedOriginalSite) return;
-        
-        // Restore the original site data
+        if (!cachedOriginalEntity) return;
+
+        // Restore the original entity data
         const currentData = currentState.context?.data || {};
-        const currentSites = currentData.site || [];
-        const restoredSites = currentSites.map(s => 
-            s.siteId === siteId ? cachedOriginalSite : s
+        const currentEntities = currentData[currentElementType] || [];
+        const restoredEntities = currentEntities.map(s =>
+            s[idKey] === entityId ? cachedOriginalEntity : s
         );
         const restoredData = {
             ...currentData,
-            site: restoredSites
+            [currentElementType]: restoredEntities
         };
-        
-        // Clear the cached original site
-        setCachedOriginalSite(null);
-        
+
         // Update XState context with restored data
         send({
             type: 'UPDATE_DATA',
             data: restoredData
         });
-        
+
         // Update map layer if needed
-        if (mapInstance && currentState.context?.namedPaths) {
-            const namedPath = currentState.context.namedPaths[0];
+        if (mapInstance && namedPath) {
             
             // Remove current feature and add restored one
             removeFeatureFromMapLayer({
                 map: mapInstance,
-                levelState: 'site',
-                featureId: currentSite.siteId,
-                idKey: 'siteId',
+                levelState: currentElementType,
+                featureId: currentEntity[idKey],
+                idKey,
                 namedPath: namedPath
             });
-            
+
             addFeatureToMapLayer({
                 map: mapInstance,
-                levelState: 'site',
+                levelState: currentElementType,
                 feature: {
-                    properties: cachedOriginalSite,
-                    geometry: cachedOriginalSite.coordinates ? {
+                    properties: cachedOriginalEntity,
+                    geometry: cachedOriginalEntity.coordinates ? {
                         type: 'Polygon',
-                        coordinates: cachedOriginalSite.coordinates
+                        coordinates: cachedOriginalEntity.coordinates
                     } : null,
-                    coordinates: cachedOriginalSite.coordinates
+                    coordinates: cachedOriginalEntity.coordinates
                 },
                 namedPath: namedPath
             });
         }
-        
-        console.log('Edit cancelled, site restored:', { original: cachedOriginalSite, siteId });
+
+        console.log('Edit cancelled, entity restored:', { original: cachedOriginalEntity, entityId });
     };
-    
+
     // Handle saving edit mode
     const handleSaveEdit = async () => {
-        if (!currentSite || !cachedOriginalSite) return;
-        
+        if (!currentEntity || !cachedOriginalEntity) return;
+
         // Check if there were any changes
         const hasChanges = !_.isEqual(
-            _.omit(currentSite, ['isEditing']), 
-            _.omit(cachedOriginalSite, ['isEditing'])
+            _.omit(currentEntity, ['isEditing']),
+            _.omit(cachedOriginalEntity, ['isEditing'])
         );
-        
-        // Finalize the edited site (remove isEditing flag)
-        const finalizedSite = { ...currentSite };
-        delete finalizedSite.isEditing;
-        
+
+        // Finalize the edited entity (remove isEditing flag)
+        const finalizedEntity = { ...currentEntity };
+        delete finalizedEntity.isEditing;
+
         // Update XState context
         const currentData = currentState.context?.data || {};
-        const currentSites = currentData.site || [];
-        const updatedSites = currentSites.map(s => 
-            s.siteId === siteId ? finalizedSite : s
+        const currentEntities = currentData[currentElementType] || [];
+        const updatedEntities = currentEntities.map(s =>
+            s[idKey] === entityId ? finalizedEntity : s
         );
         const updatedData = {
             ...currentData,
-            site: updatedSites
+            [currentElementType]: updatedEntities
         };
-        
-        // Clear the cached original site
-        setCachedOriginalSite(null);
-        
-        // Send event to update XState context with finalized site
+
+        // Send event to update XState context with finalized entity
         send({
             type: 'UPDATE_DATA',
             data: updatedData
         });
-        
+
         // If there were changes, update the backend
         if (hasChanges) {
             try {
-                const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: "geo_sites_coll"}}))._list[0];
-                const result = await IafItemSvc.updateRelatedItems(coll._userItemId, [finalizedSite]);
-                console.log('Site updated successfully:', {finalizedSite, result});
+                const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
+                const result = await IafItemSvc.updateRelatedItems(coll._userItemId, [finalizedEntity]);
+                console.log('Entity updated successfully:', {finalizedEntity, result});
             } catch (error) {
-                console.error('Error updating site:', error);
+                console.error('Error updating entity:', error);
             }
         } else {
             console.log('No changes detected, skipping backend update');
         }
-        
-        console.log('Site edit completed:', { finalizedSite, hasChanges });
+
+        console.log('Entity edit completed:', { finalizedEntity, hasChanges });
+    };
+
+    // Handle starting new building placement mode
+    const handleStartNewBuildingMode = () => {
+        setIsNewBuildingMode(true);
+        console.log('Started new building placement mode');
+    };
+
+    // Handle canceling new building placement mode
+    const handleCancelNewBuildingMode = () => {
+        setIsNewBuildingMode(false);
+        console.log('Cancelled new building placement mode');
     };
 
     // Handle type modifications from InfoComponent
     const handleTypeModification = async (updatedType, changeInfo) => {
         // if (!currentSite) return;
         // const { action, fieldName, oldFieldName, newFieldName, value } = changeInfo;
-        
+
         dispatch(setMapTypes({...types, [entityType]: updatedType}));
         await ScriptCache.runScript("updateMapType", {updatedType});
     };
 
-    // Handle adding new site info field
-    const handleAddSiteInfo = () => {
-        
+    // Handle adding new entity info field
+    const handleAddEntityInfo = () => {
+
         // Generate a unique field name
         const newFieldName = `newField${Date.now()}`;
-        
+
         // Create updated type schema with the new property
         const updatedType = {
             ...type,
@@ -357,17 +514,17 @@ export default function SiteDetails({ context }) {
                 [newFieldName]: {
                     type: 'string',
                     title: 'New Field',
-                    description: 'Custom site field',
+                    description: `Custom ${currentElementType} field`,
                     propertyOrder: Object.keys(type.properties).length + 1
                 }
             }
         };
 
         dispatch(setMapTypes({...types, [entityType]: updatedType}));
-        
+
         // Update the type (this would normally go through a type management system)
         // For now, we'll trigger a re-render by updating the types
-        console.log('New field added to site:', { fieldName: newFieldName, updatedSite, updatedType });
+        console.log(`New field added to ${currentElementType}:`, { fieldName: newFieldName, updatedType });
     };
 
     useEffect(() => {
@@ -426,16 +583,16 @@ export default function SiteDetails({ context }) {
     useEffect(() => {
         if (!mapInstance) return;
 
-        const siteLayerId = 'site-features-layer';
-        const layerExists = mapInstance.getLayer(siteLayerId);
+        const entityLayerId = `${currentElementType}-features-layer`;
+        const layerExists = mapInstance.getLayer(entityLayerId);
 
         if (layerExists) {
             if (isDrawingMode) {
                 // Hide the current perimeter layer when drawing
-                mapInstance.setLayoutProperty(siteLayerId, 'visibility', 'none');
+                mapInstance.setLayoutProperty(entityLayerId, 'visibility', 'none');
             } else {
                 // Show the perimeter layer when not drawing
-                mapInstance.setLayoutProperty(siteLayerId, 'visibility', 'visible');
+                mapInstance.setLayoutProperty(entityLayerId, 'visibility', 'visible');
             }
         }
     }, [mapInstance, isDrawingMode]);
@@ -458,7 +615,7 @@ export default function SiteDetails({ context }) {
                 Math.pow(newPin[0] - firstPin[0], 2) +
                 Math.pow(newPin[1] - firstPin[1], 2)
             );
-            
+
             // Close shape if clicked within ~25 meters of first pin (approximate)
             if (distance < 0.00025) {
                 completeShape(newPins);
@@ -512,22 +669,22 @@ export default function SiteDetails({ context }) {
         // Close the polygon
         const closedCoordinates = [...pins, pins[0]];
 
-        // Update the current site's coordinates
-        const updatedSite = {
-            ...currentSite,
+        // Update the current entity's coordinates
+        const updatedEntity = {
+            ...currentEntity,
             coordinates: [closedCoordinates], // GeoJSON Polygon format
             // isDraft: false // Mark as no longer draft
         };
 
         // Update XState context
         const currentData = currentState.context?.data || {};
-        const currentSites = currentData.site || [];
-        const updatedSites = currentSites.map(s =>
-            s.siteId === siteId ? updatedSite : s
+        const currentEntities = currentData[currentElementType] || [];
+        const updatedEntities = currentEntities.map(s =>
+            s[idKey] === entityId ? updatedEntity : s
         );
         const updatedData = {
             ...currentData,
-            site: updatedSites
+            [currentElementType]: updatedEntities
         };
 
         // Clear cached perimeter BEFORE updating to prevent restoration
@@ -542,15 +699,14 @@ export default function SiteDetails({ context }) {
 
         // Update the map layer with new coordinates
         if (mapInstance && currentState.context?.namedPaths) {
-            const namedPath = currentState.context.namedPaths[0];
 
             // Remove old feature and add updated one
-            const sourceId = 'site-features';
+            const sourceId = `${currentElementType}-features`;
             const existingSource = mapInstance.getSource(sourceId);
             if (existingSource) {
                 const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
                 const updatedFeatures = currentData.features.map(feature => {
-                    if (feature.properties.siteId === siteId) {
+                    if (feature.properties[idKey] === entityId) {
                         return {
                             ...feature,
                             geometry: {
@@ -578,7 +734,7 @@ export default function SiteDetails({ context }) {
         // Reset drawing state
         resetDrawingState();
 
-        console.log('Site perimeter completed and coordinates updated:', updatedSite);
+        console.log('Entity perimeter completed and coordinates updated:', updatedEntity);
     };
 
     const resetDrawingState = () => {
@@ -600,8 +756,8 @@ export default function SiteDetails({ context }) {
 
     const startDrawingMode = () => {
         // Cache the current perimeter before starting drawing
-        if (currentSite?.coordinates) {
-            setCachedPerimeter(currentSite.coordinates);
+        if (currentEntity?.coordinates) {
+            setCachedPerimeter(currentEntity.coordinates);
         }
 
         // Start with empty drawing pins array
@@ -614,13 +770,13 @@ export default function SiteDetails({ context }) {
         // Restore cached perimeter if drawing is cancelled
         if (cachedPerimeter && mapInstance && currentState.context?.namedPaths) {
             const currentData = currentState.context?.data || {};
-            const currentSites = currentData.site || [];
-            const restoredSites = currentSites.map(s =>
-                s.siteId === siteId ? { ...s, coordinates: cachedPerimeter } : s
+            const currentEntities = currentData[currentElementType] || [];
+            const restoredEntities = currentEntities.map(s =>
+                s[idKey] === entityId ? { ...s, coordinates: cachedPerimeter } : s
             );
             const restoredData = {
                 ...currentData,
-                site: restoredSites
+                [currentElementType]: restoredEntities
             };
 
             send({ type: "END_DRAFT" });
@@ -633,12 +789,12 @@ export default function SiteDetails({ context }) {
             setCurrentDrawingPins([]);
 
             // Update the map layer with restored coordinates
-            const sourceId = 'site-features';
+            const sourceId = `${currentElementType}-features`;
             const existingSource = mapInstance.getSource(sourceId);
             if (existingSource) {
                 const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
                 const restoredFeatures = currentData.features.map(feature => {
-                    if (feature.properties.siteId === siteId) {
+                    if (feature.properties[idKey] === entityId) {
                         return {
                             ...feature,
                             geometry: {
@@ -675,76 +831,76 @@ export default function SiteDetails({ context }) {
     };
 
     return (
-        <div>
-            <Typography variant="h6">Site: {plantName}</Typography>
+        <Box p={2}>
+            <Typography variant="h6">{namedPath?.displayName}: {plantName}</Typography>
 
-            {/* Site Info - Always displayed */}
+            {/* Entity Info - Always displayed */}
             <Box sx={{ my: 2 }} style={{marginTop: 30}}>
                 <div style={{display: "flex", marginBottom: 30, justifyContent: "space-between", alignItems: "center"}}>
                     <div style={{display: "flex", alignItems: "center", gap: 8}}>
 
                         <img style={{width: 30, height: 30}} src='/icons/file-info.svg'/>
                         <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }} style={{fontSize: 18}}>
-                            Site Info
+                            {namedPath?.displayName} Info
                         </Typography>
                     </div>
                     {!isInEditMode && (
-                        <CustomButton 
-                            variant="contained" 
+                        <CustomButton
+                            variant="contained"
                             color="primary"
-                            onClick={setSiteForEdition}
+                            onClick={setEntityForEdition}
                             size="small"
                             disabled={isDrawingMode}
                         >
-                            Edit Site
+                            Edit {namedPath?.displayName}
                         </CustomButton>
                     )}
                 </div>
                 <InfoComponent
-                    entity={currentSite}
-                    handleChange={handleSiteChange}
+                    entity={currentEntity}
+                    handleChange={handleEntityChange}
                     type={type}
                     entityType={entityType}
-                    originalEntity={currentSite}
+                    originalEntity={cachedOriginalEntity}
                     disabled={!isInEditMode}
                     modifyTypeCallback={handleTypeModification}
                 />
                 <Divider style={{ margin: '16px 0'}} />
                     <Box style={{ marginTop: 12, display: 'flex', justifyContent: "right", gap: 14}}>
-                        <CustomButton 
-                            variant="outlined" 
+                        <CustomButton
+                            variant="outlined"
                             color="primary"
-                            onClick={handleAddSiteInfo}
+                            onClick={handleAddEntityInfo}
                             style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
                             startIcon={<Add/>}
                             disabled={!isInEditMode}
                         >
-                            Add Site Info
+                            Add {namedPath?.displayName} Info
                         </CustomButton>
-                        <CustomButton 
-                            variant="contained" 
+                        <CustomButton
+                            variant="contained"
                             color="primary"
-                            onClick={() => {}}
-                            style={{ color: "grey", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
+                            onClick={handleStartNewBuildingMode}
+                            style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
                             startIcon={<Dashboard/>}
-                            disabled={true}
+                            disabled={!isInEditMode}
                         >
                             Add Structure
                         </CustomButton>
                     </Box>
             </Box>
-            
+
             {isInEditMode && (
                 <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between", marginTop: 25, gap: 25}}>
                     <div>
-                        <CustomButton 
-                            variant="contained" 
+                        <CustomButton
+                            variant="contained"
                             color="primary"
                             onClick={toggleDrawingMode}
                             style={{ marginBottom: 16 }}
                             fullWidth
                         >
-                            {isDrawingMode ? 'Cancel Drawing' : 'Draw Site Perimeter'}
+                            {isDrawingMode ? 'Cancel Drawing' : `Draw ${namedPath?.displayName} Perimeter`}
                         </CustomButton>
                     </div>
 
@@ -752,7 +908,7 @@ export default function SiteDetails({ context }) {
                         <CustomButton
                             variant="outlined"
                             color="secondary"
-                            onClick={isDraftSite ? handleCancelSite : handleCancelEdit}
+                            onClick={isDraftEntity ? handleCancelEntity : handleCancelEdit}
                             style={{ flex: 1 }}
                             disabled={isDrawingMode}
                         >
@@ -761,7 +917,7 @@ export default function SiteDetails({ context }) {
                         <CustomButton
                             variant="contained"
                             color="primary"
-                            onClick={isDraftSite ? handleSubmitSite : handleSaveEdit}
+                            onClick={isDraftEntity ? handleSubmitEntity : handleSaveEdit}
                             style={{ flex: 1 }}
                             disabled={isDrawingMode}
                         >
@@ -770,16 +926,22 @@ export default function SiteDetails({ context }) {
                     </Box>
                 </div>
             )}
-            
-            <Divider style={{ margin: '16px 0px', marginTop: 25}} />
-            <Typography variant="body2">Buildings: {buildings.length}</Typography>
 
-            {buildings.map((unit, i) => (
-                <Typography key={i} variant="body2">
-                    {unit.name}
-                </Typography>
-            ))}
-        </div>
+            <Divider style={{ margin: '16px 0px', marginTop: 25}} />
+
+            {isNewBuildingMode ? (
+                <BuildingThumbnails {...{mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath}} />
+            ) : (
+                <>
+                    <Typography variant="body2">Buildings: {buildings.length}</Typography>
+                    {buildings.map((unit, i) => (
+                        <Typography key={i} variant="body2">
+                            {unit.name}
+                        </Typography>
+                    ))}
+                </>
+            )}
+        </Box>
     );
 }
 

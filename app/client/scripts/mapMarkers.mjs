@@ -139,7 +139,6 @@ function createSingleMarker(context, feature, {bins, property, showLabel = true,
             const targetIdx = namedPath.map(p=>p.state).indexOf(path);
             const evt = { type: 'GO_TO' };
             namedPath.forEach((lvl, idx) => {
-                debugger;
                 const { idKey } = lvl;
                 if (!idKey) return; // top-most usually has no idKey
                 if (idx < targetIdx) {

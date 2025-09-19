@@ -152,7 +152,6 @@ export default function IafViewerMapboxMap({ onMapReady, OnNotificationCallback,
             }
             if (message && message.includes("The model has been found with a")) {
                 const mapboxMap = viewer.iafMapBoxGl?.map;
-                window._mapboxMap = mapboxMap;
                 const mapLoaded = mapboxMap?.loaded();
                 if (mapLoaded) {
                     onMapReady(mapboxMap);
