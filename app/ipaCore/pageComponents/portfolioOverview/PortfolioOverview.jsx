@@ -24,7 +24,7 @@ import PopupPortal from "./components/map/popup/PopupPortal.jsx";
 import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
 import { useGraphicsVisibility } from '../../hooks/useGraphicsVisibility.js';
-import { useNewEntityManagement } from '../../hooks/UseNewEntityManagement.js';
+import { useNewEntityManagement } from '../../hooks/useEntityManagement.js';
 
 const useStyles = makeStyles((theme) => ({
     container: {

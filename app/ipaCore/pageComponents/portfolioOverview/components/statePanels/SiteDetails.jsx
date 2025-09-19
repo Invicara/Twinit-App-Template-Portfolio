@@ -289,9 +289,6 @@ export default function SiteDetails({ context }) {
     const handleSubmitEntity = async () => {
         if (!currentEntity || !mapInstance || !currentState.context?.namedPaths) return;
 
-        // Get the namedPath for map operations
-        const namedPath = currentState.context.namedPaths[0];
-
         // Step 2: Update the entity to mark it as no longer draft
         const finalizedEntity = { ...currentEntity };
         delete finalizedEntity.isDraft;
@@ -339,8 +336,6 @@ export default function SiteDetails({ context }) {
             ...currentData,
             [currentElementType]: filteredEntities
         };
-
-        const namedPath = currentState.context.namedPaths[0];
 
         const removeSuccess = removeFeatureFromMapLayer({
             map: mapInstance,
@@ -704,7 +699,6 @@ export default function SiteDetails({ context }) {
 
         // Update the map layer with new coordinates
         if (mapInstance && currentState.context?.namedPaths) {
-            const namedPath = currentState.context.namedPaths[0];
 
             // Remove old feature and add updated one
             const sourceId = `${currentElementType}-features`;

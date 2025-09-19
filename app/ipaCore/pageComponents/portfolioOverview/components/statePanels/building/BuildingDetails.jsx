@@ -158,7 +158,6 @@ export default function BuildingDetails({ context }) {
 
         // Check if the entity is a draft - if so, remove it from the map entirely
         if (currentEntity?.isDraft) {
-            const namedPath = currentState.context.namedPaths[0];
 
             console.log('Canceling draft entity, removing from map:', {mapInstance, entityId, namedPath});
 
