@@ -84,3 +84,64 @@ export function getActiveLevels(currentState){
     return levels;
 }
 
+/**
+ * Get a cached file URL from sessionStorage or fetch from platform if expired/missing
+ * URLs from platform live 48 hours, but we cache for 40 hours for safety
+ * 
+ * @param {string} fileId - The file ID to get the URL for
+ * @returns {Promise<string|null>} - The file URL or null if not found
+ */
+export const getCachedFile = async (fileId) => {
+    if (!fileId) {
+        console.warn('getCachedFile: fileId is required');
+        return null;
+    }
+
+    const cacheKey = `fileUrl_${fileId}`;
+    const CACHE_DURATION_MS = 40 * 60 * 60 * 1000; // 40 hours in milliseconds
+    
+    try {
+        // Check sessionStorage for cached URL
+        const cachedData = sessionStorage.getItem(cacheKey);
+        
+        if (cachedData) {
+            const { url, timestamp } = JSON.parse(cachedData);
+            const now = Date.now();
+            
+            // Check if cached URL is still valid (within 40 hours)
+            if (now - timestamp < CACHE_DURATION_MS) {
+                console.log(`getCachedFile: Using cached URL for fileId ${fileId}`);
+                return url;
+            } else {
+                console.log(`getCachedFile: Cached URL expired for fileId ${fileId}, fetching new one`);
+                // Remove expired cache entry
+                sessionStorage.removeItem(cacheKey);
+            }
+        }
+
+        // Fetch new URL from platform
+        console.log(`getCachedFile: Fetching URL from platform for fileId ${fileId}`);
+        const result = await IafFileSvc.getFileUrl(fileId);
+        
+        if (result && result._url) {
+            // Cache the URL with current timestamp
+            const cacheData = {
+                url: result._url,
+                timestamp: Date.now()
+            };
+            
+            sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
+            console.log(`getCachedFile: Cached new URL for fileId ${fileId}`);
+            
+            return result._url;
+        } else {
+            console.warn(`getCachedFile: No URL found for fileId ${fileId}`);
+            return null;
+        }
+        
+    } catch (error) {
+        console.error(`getCachedFile: Error getting file URL for fileId ${fileId}:`, error);
+        return null;
+    }
+};
+

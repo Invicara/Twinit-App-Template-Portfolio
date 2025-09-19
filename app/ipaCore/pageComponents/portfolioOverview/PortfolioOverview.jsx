@@ -10,20 +10,21 @@ import './PortfolioOverview.css'
 import './components/map/darkMap.scss'
 import {createMachine} from "./machines/hierarchicalMapMachine";
 import ipaConfig from "../../ipaConfig.js";
-import { useDispatch, useSelector as useReduxSelector } from 'react-redux';
+import { useDispatch, useSelector as useReduxSelector, useStore } from 'react-redux';
 import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
-import SearchPanel from './components/SearchPanel';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
 import clsx from "clsx";
 import {Custom2D3DToggle} from "./components/map/control/Custom2D3DToggle";
 import { IafItemSvc } from '@dtplatform/platform-api';
-import { setMapTypes } from '../../redux/pageComponentState.js';
+import { setMapGraphicReferences, setMapTypes } from '../../redux/pageComponentState.js';
 import {useSelector} from "react-redux";
 import {Legend} from "./components/map/control/Legend.jsx";
 import {flushSync} from "react-dom";
 import PopupPortal from "./components/map/popup/PopupPortal.jsx";
 import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
+import { useGraphicsVisibility } from '../../hooks/useGraphicsVisibility.js';
+import { useNewEntityManagement } from '../../hooks/useEntityManagement.js';
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -56,10 +57,10 @@ const useStyles = makeStyles((theme) => ({
     mainContent: {
         height: "calc(100% - 40px)"
     },
-    statePanel: {
-        width: 400,
+    statePanel: ({stateKey}) => (  {
+        width: 580,
         height: '100%'
-    },
+    }),
     searchPanel: {
         width: 580,
         height: '100%'
@@ -89,22 +90,39 @@ export const MapMachineContext = createContext();
 export const MapContext = createContext();
 const DEFAULT_PATHS = [
     [
-        { state: 'portfolio', idKey: null },
-        { state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all" },
-        { state: 'building', idKey: 'buildingId', feature: "point", api: "building/all" },
-        { state: 'modelElement', idKey: 'modelElementId' },
+        { displayName: "Portfolio", state: 'portfolio', idKey: null, scopeLevel: 0 },
+        { displayName: "Site", state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all", scopeLevel: 1, collShortName: "geo_sites_coll" },
+        { displayName: "Building", state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all", scopeLevel: 2, collShortName: "building_coll" },
+        { displayName: "Model Element", state: 'modelElement', idKey: 'modelElementId', scopeLevel: 3 },
     ]
 ]
 
 export default function PortfolioOverview({handler, userConfig, selectedItems}) {
-    const classes = useStyles();
-    const dispatch = useDispatch();
+    const store = useStore();
 
     const componentConfig = handler?.componentConfig;
     const namedPaths = useMemo(()=>componentConfig?.namedPaths || DEFAULT_PATHS,[]);
     const legendPath = useMemo(()=>componentConfig?.legendPath || "building",[]);
-    const machineDef = useMemo(()=>createMachine("mapMachine",namedPaths),[namedPaths]);
+
+    // Create machine with Redux context
+    const machineDef = useMemo(()=>{
+        return createMachine("mapMachine", namedPaths, {
+            initialContext: {
+                reduxStore: store,
+                reduxDispatch: dispatch
+            }
+        });
+    },[namedPaths, dispatch, store]);
+
     const [snapshot, send, actor] = useMachine(machineDef);
+
+    const currentState = useXstateSelector(actor, state => state);
+    const states = Object.keys(ipaConfig.mapPortfolio.statePanel.componentPaths || {});
+    const stateKey = useMemo(()=>states.reverse().find(state=>currentState.matches(state)),[currentState]);
+
+    const classes = useStyles({ stateKey });
+    const dispatch = useDispatch();
+    
 
     // MMV Configuration state -> this should be removed to a user config or a script
     const [mmvConfig, setMmvConfig] = useState();
@@ -134,8 +152,14 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             dispatch(setMapTypes(types));
         }
 
+        const fetchMapRepresentations = async () => {
+            const mapGraphicReferences = await ScriptCache.runScript("getGraphicReferences", {namedPaths});
+            dispatch(setMapGraphicReferences(mapGraphicReferences));
+        }
+
         fetchGisConfig();
         fetchMapTypes();
+        fetchMapRepresentations();
     },[namedPaths])
 
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
@@ -183,7 +207,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         return ()=> subscription.unsubscribe();
     },[actor])
 
-    const currentState = useXstateSelector(actor, state => state);
 
     // Extract modelElementId from current state context
     const modelElementId = currentState?.context?.modelElementId;
@@ -234,6 +257,9 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         return {setCommand, mapInstance }
     }, [setCommand, mapInstance]);
 
+    useNewEntityManagement({mapInstance, portContext: mapMachineContextValue});
+    useGraphicsVisibility({mapInstance, portContext: mapMachineContextValue});
+
     const [popupState, setPopupState] = usePopupState({ open:false });
 
     return (
@@ -249,14 +275,8 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                             </div>
                         </div>
                     </div>
-                    <Grid container className={classes.mainContent}> 
-                        {/* TODO: remove here later, test search panel UI for now by uncommenting SearchPanel here and commenting out StatePanel grid item below */}
-                        {/* <Grid item className={classes.searchPanel}>
-                            <SearchPanel userConfig={userConfig} />
-                        </Grid> */}
-                        <Grid item className={classes.statePanel}>
-                            <StatePanel currentState={currentState} context={currentState.context} send={actor.send} />
-                        </Grid>
+                    <Grid container className={classes.mainContent}>
+                        <StatePanel currentState={currentState} context={currentState.context} send={actor.send} className={classes.statePanel} />
                         <Grid item xs className={classes.viewerContainer}>
                             <div
                                 className={clsx(classes.mmvContainer, "dark-map", {'map-selecting-position' : isSelectingPosition})}

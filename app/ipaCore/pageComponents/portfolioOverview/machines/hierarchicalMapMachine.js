@@ -67,7 +67,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
             return anyPath.slice(depth).map(seg => seg.idKey).filter(Boolean);
         };
 
-        return normalizedPaths.reverse().flatMap(path => {
+        return normalizedPaths.toReversed().flatMap(path => {
             const fullPath = path.map(p => typeof p === 'string' ? { state: p, idKey: p + 'Id' } : p);
             const target = `#${MACHINE_ID}.${fullPath.map(p => p.state).join('.')}`;
             const deeperKeys = deeperKeysAfter(fullPath);
@@ -389,12 +389,22 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
 }
 
 export const createMachine = (id = 'mapMachine', paths, machineSetup = {}) => {
-    const {actors, actions} = machineSetup;
+    const {actors, actions, initialContext = {}} = machineSetup;
     const machineDef = generateMapMachine(id, paths, {
         initializeService: 'initializeService',
         entryService: 'entryService',
         exitService: 'exitService'
     });
+
+    // Merge any additional initial context (like Redux store/dispatch)
+    const enhancedMachineDef = {
+        ...machineDef,
+        context: {
+            ...machineDef.context,
+            ...initialContext
+        }
+    };
+
     return setup({
         actors: actors || {
             initializeService: fromPromise(async ({ input }) => {
@@ -415,5 +425,5 @@ export const createMachine = (id = 'mapMachine', paths, machineSetup = {}) => {
                 return getExitAction({ stateValue, context, event, self });
             })
         }
-    }).createMachine(machineDef);
+    }).createMachine(enhancedMachineDef);
 };
