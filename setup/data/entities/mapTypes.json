@@ -1,0 +1,215 @@
+[
+    {
+        "type": "object",
+        "title": "building",
+        "required": [
+            "buildingId",
+            "name",
+            "siteId"
+        ],
+        "properties": {
+            "ModelName": {
+                "propertyOrder": 13,
+                "description": "The name of the building model or template",
+                "type": "string",
+                "title": "Model Name"
+            },
+            "LastUpdatedAt": {
+                "propertyOrder": 1,
+                "format": "date-time",
+                "description": "The timestamp when the building was last updated",
+                "type": "string",
+                "title": "Last Updated At"
+            },
+            "ReactorModel": {
+                "propertyOrder": 2,
+                "description": "The model type of the reactor",
+                "type": "string",
+                "title": "Reactor Model"
+            },
+            "latitude": {
+                "propertyOrder": 3,
+                "description": "The latitude coordinate of the building",
+                "type": "number",
+                "title": "Latitude"
+            },
+            "buildingDesignator": {
+                "propertyOrder": 4,
+                "description": "The designator identifier for the building",
+                "type": "string",
+                "title": "Building Designator"
+            },
+            "OperationalFrom": {
+                "propertyOrder": 5,
+                "format": "date",
+                "description": "The date when the building became operational",
+                "type": "string",
+                "title": "Operational From"
+            },
+            "IAEAId": {
+                "propertyOrder": 14,
+                "description": "The International Atomic Energy Agency identifier",
+                "type": "number",
+                "title": "IAEA ID"
+            },
+            "Latitude": {
+                "propertyOrder": 6,
+                "description": "Alternative latitude coordinate field",
+                "type": "number",
+                "title": "Latitude (Alternative)"
+            },
+            "ReactorTypeId": {
+                "propertyOrder": 15,
+                "description": "The numeric identifier for the reactor type",
+                "type": "number",
+                "title": "Reactor Type ID"
+            },
+            "Longitude": {
+                "propertyOrder": 16,
+                "description": "Alternative longitude coordinate field",
+                "type": "number",
+                "title": "Longitude (Alternative)"
+            },
+            "OperationalTo": {
+                "propertyOrder": 17,
+                "format": "date",
+                "description": "The date when the building ceased operations (null if still operational)",
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Operational To"
+            },
+            "Source": {
+                "propertyOrder": 7,
+                "description": "The data source for the building information",
+                "type": "string",
+                "title": "Source"
+            },
+            "Name": {
+                "propertyOrder": 8,
+                "description": "The official name of the building",
+                "type": "string",
+                "title": "Name"
+            },
+            "buildingId": {
+                "propertyOrder": 18,
+                "description": "Unique identifier for the building",
+                "type": "string",
+                "title": "Building ID"
+            },
+            "Capacity": {
+                "propertyOrder": 9,
+                "x-numberFormat": {
+                    "unit": "MW",
+                    "kind": "unit",
+                    "precision": 0
+                },
+                "description": "The capacity rating of the building/facility",
+                "readOnly": false,
+                "type": "number",
+                "title": "Capacity",
+                "key": "Capacity"
+            },
+            "requestId": {
+                "propertyOrder": 10,
+                "description": "Unique identifier for the request that created this building record",
+                "type": "string",
+                "title": "Request ID"
+            },
+            "ConstructionStartAt": {
+                "propertyOrder": 19,
+                "format": "date",
+                "description": "The date when construction of the building started",
+                "type": "string",
+                "title": "Construction Start At"
+            },
+            "name": {
+                "propertyOrder": 20,
+                "description": "Alternative name field for the building",
+                "type": "string",
+                "title": "Name (Alternative)"
+            },
+            "siteId": {
+                "propertyOrder": 21,
+                "description": "Identifier of the site where this building is located",
+                "type": "string",
+                "title": "Site ID"
+            },
+            "StatusId": {
+                "propertyOrder": 22,
+                "description": "Numeric identifier for the building status",
+                "type": "number",
+                "title": "Status ID"
+            },
+            "Id": {
+                "propertyOrder": 23,
+                "description": "Primary numeric identifier for the building",
+                "type": "number",
+                "title": "ID"
+            },
+            "CountryCode": {
+                "propertyOrder": 11,
+                "description": "The ISO country code where the building is located",
+                "type": "string",
+                "title": "Country Code"
+            },
+            "longitude": {
+                "propertyOrder": 12,
+                "description": "The longitude coordinate of the building",
+                "type": "number",
+                "title": "Longitude"
+            }
+        }
+    },
+    {
+        "type": "object",
+        "title": "site",
+        "required": [
+            "requestId",
+            "name",
+            "siteId",
+            "address",
+            "siteType"
+        ],
+        "properties": {
+            "address": {
+                "propertyOrder": 4,
+                "description": "Address of the site installations",
+                "type": "string",
+                "title": "Site Address"
+            },
+            "requestId": {
+                "propertyOrder": 1,
+                "description": "Unique identifier for the request that created this site record",
+                "readOnly": true,
+                "type": "string",
+                "title": "Request ID"
+            },
+            "name": {
+                "propertyOrder": 2,
+                "description": "Name value for the site",
+                "type": "string",
+                "title": "Site Name"
+            },
+            "siteId": {
+                "propertyOrder": 3,
+                "description": "ID identifier value for the site",
+                "type": "string",
+                "title": "Site Id"
+            },
+            "siteType": {
+                "propertyOrder": 5,
+                "description": "Site type range",
+                "readOnly": false,
+                "type": "string",
+                "title": "Site type",
+                "enum": [
+                    "900MW",
+                    "1300MW",
+                    "1450MW"
+                ]
+            }
+        }
+    }
+]
