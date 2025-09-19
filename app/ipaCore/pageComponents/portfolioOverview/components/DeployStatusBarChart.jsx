@@ -13,11 +13,10 @@ import {
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import BarChartOutlinedIcon from "@material-ui/icons/BarChartOutlined";
 import CircularProgress from "@material-ui/core/CircularProgress";
-import { filterFeatures } from "../../../../client/scripts/mapEntryActions.mjs";
 import { MapMachineContext } from "../PortfolioOverview";
 import { getSiteFilter, setSiteFilter } from "../../../redux/filters";
 import { useDispatch, useSelector as useReduxSelector, useStore } from 'react-redux';
-import { DatasetLinked } from "@mui/icons-material";
+import { getChartFilters } from "../../utils/filters-utils";
 
 ChartJS.register(
   CategoryScale,
@@ -125,13 +124,7 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, sn
 
   const siteFilter = useReduxSelector(getSiteFilter);
 
-  const { actor } = useContext(MapMachineContext);
-
   const dispatch = useDispatch()
-
-  const handleBarClick = (site) => {
-    dispatch(setSiteFilter(site))
-  }
 
    const findCapacityRange = (capacityValue) => {
     const bins = chartConfig?.data || [];
@@ -273,76 +266,38 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, sn
         clip: false,
       },
     },
-    onClick: async (evt, elements) => {
-     // const { datasetIndex, index } = elements[0];
-    if (!elements.length) return;
+   onClick: async (evt, elements) => {
+      if (!elements.length) return;
 
-    const { datasetIndex, index } = elements[0];
-    const datasetLabel = chartData.datasets[datasetIndex].label;
-    const capacityLabel = chartData.labels[index];
+      const { datasetIndex, index } = elements[0];
+      const datasetLabel = chartData.datasets[datasetIndex].label;
+      const capacityLabel = chartData.labels[index];
 
-    // find the matching status from config
-    const match = Object.values(chartConfig?.statusConfig || {}).find(
+      const match = Object.values(chartConfig?.statusConfig || {}).find(
         (status) => status.label === datasetLabel
-    );
+      );
+      if (!match) return;
 
-    if (!match) return;
+      const statusId = match.statusId;
+      const isLastBin = chartConfig.data[index].max === null;
+      const capacityValue = isLastBin
+        ? Infinity
+        : Number(capacityLabel.replace(/\D/g, ""));
+      const capacityRange = findCapacityRange(capacityValue);
 
-    const statusId = match.statusId;
+      const newFilter = getChartFilters(statusId, capacityRange);
 
-    // Optional: parse capacity value from label (e.g., "Low (900 MW)")
+      const isSameFilter =
+        JSON.stringify(siteFilter) === JSON.stringify(newFilter);
 
-    const isLastBin = chartConfig.data[index].max === null;
-
-    const capacityValue = isLastBin
-      ? Infinity
-      : Number(capacityLabel.replace(/\D/g, ""));
-
-    const capacityRange = findCapacityRange(capacityValue);
-
-
-    const filter = {
-        site: {
-            op: "and",
-            rules: [
-                { fn: "statusIn", args: { values: [statusId] } },
-                { fn: "capacityBetween", args: 
-                  { min:capacityRange?.min, 
-                    max:capacityRange?.max 
-                  }
-                },
-            ],
-        },
+      if (isSameFilter) {
+        send({ type: 'UPDATE_FILTERS', filters: {} });
+        dispatch(setSiteFilter({}));
+      } else {
+        send({ type: 'UPDATE_FILTERS', filters: newFilter });
+        dispatch(setSiteFilter(newFilter));
+      }
     }
-
-    send({ type: 'UPDATE_FILTERS', filters: filter });
-
-
-    // Dispatch to Redux filters
-    dispatch(setSiteFilter(filter));
- 
-
-      // const filteredSites = context.data.site.slice(0, 5);
-
-      // snapshot.stateValue = context.namedPaths[0][0].state
-      // snapshot.self = actor;
-
-      // filterFeatures({
-      //   mapMachineInput: snapshot,
-      //   data: filteredSites,
-      //   filteredLabels: {
-      //     status: match?.statusId,
-      //     capacity: capacityRange,
-      //   },
-      //   legend: chartConfig?.data,
-      // });
-
-      // const newData = {
-      //   ...context,
-      //   data: { building: context.data.building, site: filteredSites },
-      // };
-
-    },
   };
 
   return (
