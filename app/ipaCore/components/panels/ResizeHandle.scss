@@ -1,0 +1,48 @@
+
+
+   .ResizeHandleOuter {
+      flex: 0 0 1.5em;
+      position: relative;
+      outline: none;
+      background-color: white;
+      z-index: 1000;
+      border-top: 2px solid lightgray;
+      --background-color: transparent;
+
+      .ResizeHandleInner {
+         position: absolute;
+         top: 0.25em;
+         bottom: 0.25em;
+         left: 0.25em;
+         right: 0.25em;
+         border-radius: 0.25em;
+         background-color: var(--background-color);
+         transition: background-color 0.2s linear;
+      
+         .Icon {
+            width: 20px;
+            height: 20px;
+            position: absolute;
+            left: calc(50% - 0.5rem);
+            top: calc(50% - 0.5rem);
+         }
+
+         .horizontal {
+            transform: rotate(90deg);
+         }
+      }
+
+   }
+
+   .ResizeHandleOuter.horizontal {
+      border-right: 2px solid lightgray;
+      border-top: unset;
+   }
+   .ResizeHandleOuter[data-resize-handle-active] {
+      --background-color: var(--color-solid-resize-bar-handle);
+   }
+
+ 
+ 
+
+ 

@@ -1,0 +1,101 @@
+.inv-icon-svg
+{
+  width: 42px;
+  height: 42px;
+  display: inline-block;
+  mask-size: 42px;
+  mask-position: -7px;
+  mask-repeat: no-repeat;
+  background-color: white;
+  -webkit-mask-size: 42px;
+  -webkit-mask-position: -7px;
+  -webkit-mask-repeat: no-repeat;
+}
+
+.inv-icon-svg.purple { 
+  background-color: var(--app-accent-color);
+}
+
+.entity-actions-panel .inv-icon-svg {
+  display: inline-block;
+  mask-size: 40px;
+  mask-position: -1px;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 40px;
+  -webkit-mask-position: -1px;
+  -webkit-mask-repeat: no-repeat;
+}
+
+.inv-icon-assets   { 
+  
+  mask-image: url(/icons/icon-assets.svg); 
+  -webkit-mask-image: url(/icons/icon-assets.svg); 
+}
+.inv-icon-docs     { 
+  
+  mask-image: url(/icons/icon-docs.svg); 
+  -webkit-mask-image: url(/icons/icon-docs.svg); 
+}
+.inv-icon-download { 
+  
+  mask-image: url(/icons/icon-download.svg); 
+  -webkit-mask-image: url(/icons/icon-download.svg); 
+}
+.inv-icon-logout   { 
+  
+  mask-image: url(/icons/icon-logout.svg); 
+  -webkit-mask-image: url(/icons/icon-logout.svg); 
+}
+.inv-icon-reports  { 
+  
+  mask-image: url(/icons/icon-reports.svg); 
+  -webkit-mask-image: url(/icons/icon-reports.svg); 
+}
+.inv-icon-spaces   { 
+  mask-image: url(/icons/icon-spaces.svg); 
+  -webkit-mask-image: url(/icons/icon-spaces.svg); 
+}
+.inv-icon-user     { 
+  
+  mask-image: url(/icons/icon-user.svg); 
+  -webkit-mask-image: url(/icons/icon-user.svg); 
+}
+.inv-icon-smartBuilding { 
+  
+  mask-image: url(/icons/icon-smartBuilding.svg); 
+  -webkit-mask-image: url(/icons/icon-smartBuilding.svg); 
+  mask-size: 36px;
+  mask-position: -2px;
+  -webkit-mask-size: 36px;
+  -webkit-mask-position: -2px;
+}
+
+.inv-icon-nav      {
+  // tweaked size and position to avoid clipping
+  mask-image: url(/icons/icon-nav.svg);
+  mask-size: 40px;
+  mask-position: -5px -5px;
+  -webkit-mask-image: url(/icons/icon-nav.svg);
+  -webkit-mask-size: 40px;
+  -webkit-mask-position: -5px -5px;
+}
+
+
+
+.grouped-left-nav-bar .grouped-nav li {
+
+  .inv-icon-svg {
+
+    &.inv-icon-spaces {
+      mask-position: 2px -5px;
+      -webkit-mask-position: 2px -5px;
+    }
+
+    &.inv-icon-smartBuilding { 
+      mask-size: 36px;
+      mask-position: -2px;
+      -webkit-mask-size: 36px;
+      -webkit-mask-position: -2px;
+    }
+  }
+}

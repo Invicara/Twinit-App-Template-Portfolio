@@ -1,0 +1,67 @@
+.file-row {
+
+   .fa-chevron-right {
+      cursor: pointer;
+   } 
+
+   .fa-chevron-down {
+      cursor: pointer;
+   }
+
+   .fa-file-download {
+      color: blue;
+      cursor: pointer;
+      font-size: 1.5em;
+   }
+
+   .fa-eye {
+      color: blue;
+      cursor: pointer;
+      font-size: 1.5em;
+   }
+
+   .fa-trash {
+      color: darkred;
+      cursor: pointer;
+      font-size: 1.5em;
+   }
+
+   td {
+      padding: 5px 0px;
+   }
+
+   .row-ver {
+      text-align: center;
+   }
+}
+
+.file-tip-row {
+
+   font-weight: bold;
+
+}
+
+.file-ver-row {
+
+   background-color: lightgray;
+   border-left: 1px solid black;
+
+}
+
+.confirm-delete {
+
+   td {
+      padding: 5px 0px;
+
+   }
+
+   .choice-btn {
+
+      color: var(--app-accent-color);
+      cursor: pointer;
+      text-align: right;
+
+   }
+
+
+}

@@ -1,0 +1,60 @@
+.import-version-table {
+   margin-top: 10px;
+   margin-bottom: 30px;
+}
+
+.download-notice {
+   display: flex;
+   flex-direction: column;
+   margin: 30px;
+   padding: 10px;
+   border: 1px solid lightgray;
+   border-radius: 10px;
+   background-color: #ECFFDC;
+
+   div {
+      margin-bottom: 5px;
+   }
+}
+
+.import-version-table {
+
+   tr {
+      border-bottom: 1px solid lightgray;
+
+      td:nth-of-type(1) {
+         width: 10%;
+      }
+
+      td:nth-of-type(2) {
+         width: 10%;
+      }
+
+      td:nth-of-type(3) {
+         width: 10%;
+      }
+
+      td:nth-of-type(4) {
+         width: 10%;
+      }
+
+      .delete-msg {
+         color: var(--app-accent-color)
+      }
+   }
+
+   .delete-ver {
+      cursor: pointer;
+
+      &:hover {
+         color: red;
+      }
+
+   }
+
+   .download-ver {
+      cursor: pointer;
+      color: darkblue;
+   }
+
+}

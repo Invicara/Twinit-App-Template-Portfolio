@@ -1,0 +1,32 @@
+.projectmake-page {
+   margin: 30px;
+   display: flex;
+   flex-direction: row;
+   min-height:calc(100vh - 120px);
+
+   .projectmake-left {
+      width: 50%;
+
+      .checking-admin-notice {
+         margin: 30px;
+         width: 300px;
+         padding: 20px;
+         font-weight: bold;
+         background-color: lightgreen;
+      }
+   
+      .checking-admin-fail {
+         color: white;
+         background-color: lightsalmon;
+      }
+   }
+
+   .projectmake-right {
+      width: 50%;
+      min-height: 100%;
+      border-left: 2px solid lightgray;
+      padding-left: 10px;
+
+   }
+
+}
