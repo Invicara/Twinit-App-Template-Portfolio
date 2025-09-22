@@ -1,0 +1,70 @@
+[
+   {
+      "endpoints": {
+         "references": {
+            "paths": [
+               {
+                  "path": "/references",
+                  "method": "OPTIONS",
+                  "script": {
+                     "_userType": "hitachi-refequip-omapi",
+                     "_scriptName": "returnStatus"
+                  }
+               },
+               {
+                  "path": "/references",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-refequip-omapi",
+                     "_scriptName": "returnStatus"
+                  }
+               },
+               {
+                  "path": "/references/unittypes",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-refequip-omapi",
+                     "_scriptName": "getReferenceUnitTypes"
+                  }
+               },
+               {
+                  "path": "/references/unittypes/:unittype/systems",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-refequip-omapi",
+                     "_scriptName": "getReferenceSystemsByUnitType"
+                  }
+               },
+               {
+                  "path": "/references/unittypes/:unittype/systems/:system",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-refequip-omapi",
+                     "_scriptName": "getReferenceEquipmntTypeByByUnitTypeSystem"
+                  }
+               },
+               {
+                  "path": "/references/unittypes/:unittype/systems/:system/equipmenttypes",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-refequip-omapi",
+                     "_scriptName": "getReferenceEquipmentTypes"
+                  }
+               },
+               {
+                  "path": "/references/unittypes/:unittype/systems/:system/equipmenttypes/:equiptype/equipment",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-refequip-omapi",
+                     "_scriptName": "getReferenceEquipment"
+                  }
+               }
+            ]
+         }
+      },
+      "schema_version": 2,
+      "settings": {
+         "apiConfig": true
+      }
+   }
+]
