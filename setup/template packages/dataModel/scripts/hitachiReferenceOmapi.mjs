@@ -37,7 +37,7 @@ async function getReferenceUnitTypes(input, libraries, ctx) {
    return {
          status: 200,
          statusMessage: "Success",
-         unittypes: distinctUnitTypes
+         unitTypes: distinctUnitTypes
    }
 
 }
@@ -47,7 +47,7 @@ async function getReferenceSystemsByUnitType(input, libraries, ctx) {
    const { IafItemSvc } = libraries.PlatformApi
    const { IafScriptEngine } = libraries
 
-   const unittype = decodeURIComponent(input.unittype)
+   const unitType = decodeURIComponent(input.unitType)
 
    let collections = await IafItemSvc.getNamedUserItems({
 		query: { _userType: "equipRefs", _itemClass: 'NamedUserCollection' }
@@ -67,7 +67,7 @@ async function getReferenceSystemsByUnitType(input, libraries, ctx) {
 
    let distinctSystems = await IafScriptEngine.getDistinct({
 		collectionDesc: { _userType: refEquipColl._userType, _userItemId: refEquipColl._userItemId },
-      query: { unitType: unittype},
+      query: { unitType },
 		field: 'systemId',
 		options: { getCollInfo: false }
 	}, ctx )
@@ -75,8 +75,8 @@ async function getReferenceSystemsByUnitType(input, libraries, ctx) {
    return {
          status: 200,
          statusMessage: "Success",
-         unittype: unittype,
-         systems: distinctSystems
+         unitType,
+         systemIds: distinctSystems
    }
 
 }
@@ -86,8 +86,8 @@ async function getReferenceEquipmentTypes(input, libraries, ctx) {
    const { IafItemSvc } = libraries.PlatformApi
    const { IafScriptEngine } = libraries
 
-   const unittype = decodeURIComponent(input.unittype)
-   const system = decodeURIComponent(input.system)
+   const unitType = decodeURIComponent(input.unitType)
+   const systemId = decodeURIComponent(input.systemId)
 
    let collections = await IafItemSvc.getNamedUserItems({
 		query: { _userType: "equipRefs", _itemClass: 'NamedUserCollection' }
@@ -107,7 +107,7 @@ async function getReferenceEquipmentTypes(input, libraries, ctx) {
 
    let distinctEquipTypes = await IafScriptEngine.getDistinct({
 		collectionDesc: { _userType: refEquipColl._userType, _userItemId: refEquipColl._userItemId },
-      query: { unitType: unittype, systemId: system},
+      query: { unitType, systemId},
 		field: 'equipmentType',
 		options: { getCollInfo: false }
 	}, ctx )
@@ -115,9 +115,9 @@ async function getReferenceEquipmentTypes(input, libraries, ctx) {
    return {
          status: 200,
          statusMessage: "Success",
-         unittype: unittype,
-         system: system,
-         equipmentypes: distinctEquipTypes
+         unitType,
+         systemId,
+         equipmentTypes: distinctEquipTypes
    }
 
 }
@@ -127,9 +127,9 @@ async function getReferenceEquipment(input, libraries, ctx) {
    const { IafItemSvc } = libraries.PlatformApi
    const { IafScriptEngine } = libraries
 
-   const unittype = decodeURIComponent(input.unittype)
-   const system = decodeURIComponent(input.system)
-   const equiptype = decodeURIComponent(input.equiptype)
+   const unitType = decodeURIComponent(input.unitType)
+   const systemId = decodeURIComponent(input.systemId)
+   const equipmentType = decodeURIComponent(input.equipmentType)
 
    let collections = await IafItemSvc.getNamedUserItems({
 		query: { _userType: { $in: ["equipRefs", "equipRefRevs"]} , _itemClass: 'NamedUserCollection' }
@@ -150,7 +150,7 @@ async function getReferenceEquipment(input, libraries, ctx) {
 
    let refWithRevs = await IafScriptEngine.findWithRelated({
       parent: {
-         query: { unitType: unittype, systemId: system, "Equipment Type": equiptype},
+         query: { unitType, systemId, equipmentType },
          collectionDesc: { _userItemId: refEquipColl._userItemId, _userType: refEquipColl._userType },
          options: {
             page: { _pageSize: 100, _offset: 0 },
@@ -159,22 +159,81 @@ async function getReferenceEquipment(input, libraries, ctx) {
       },
       related: [
          {
-            relatedDesc: { _relatedUserType: refEquipRevsColl._userType},
+            relatedDesc: { _relatedUserType: refEquipRevsColl._userType, _isInverse: true},
             as: "revisions"
          }
       ]
+   }, ctx)
+
+   return {
+         status: 200,
+         statusMessage: "Success",
+         unitType,
+         systemId,
+         equipmentType,
+         equipment: refWithRevs,
+   }
+
+}
+
+async function searchEquipment(input, libraries, ctx) {
+
+   const { IafItemSvc } = libraries.PlatformApi
+   const { IafScriptEngine } = libraries
+
+   let query = {}
+   if (input.params.unitType && input.params.unitType.length) {
+      query.unitType = input.params.unitType
+   }
+
+   if (input.params.systemId && input.params.systemId.length) {
+      query.systemId = input.params.systemId
+   }
+
+   if (input.params.equipmentType && input.params.equipmentType.length) {
+      query.equipmentType = input.params.equipmentType
+   }
+
+   if (input.params.equipmentId && input.params.equipmentId.length) {
+      query['Equipment Id'] = input.params.equipmentId
+   }
+
+   let _pageSize = input._pageSize ? input._pageSize : 100
+   let _offset = input._offset ? input._offset : 0
+
+   let collections = await IafItemSvc.getNamedUserItems({
+		query: { _userType: { $in: ["equipRefs", "equipRefRevs"]} , _itemClass: 'NamedUserCollection' }
+         }, ctx, { page: {_pageSize: 10, _offset: 0}  
    })
+
+   const refEquipColl =  collections._list.find(c => c._userType === "equipRefs")
+   const refEquipRevsColl =  collections._list.find(c => c._userType === "equipRefRevs")
+
+   let refWithRevs = await IafScriptEngine.findWithRelated({
+      parent: {
+         query: query,
+         collectionDesc: { _userItemId: refEquipColl._userItemId, _userType: refEquipColl._userType },
+         options: {
+            page: { _pageSize, _offset },
+            sort: { "Equipment Id": 1 }
+         }
+      },
+      related: [
+         {
+            relatedDesc: { _relatedUserType: refEquipRevsColl._userType, _isInverse: true},
+            as: "revisions"
+         }
+      ]
+   }, ctx)
 
    refWithRevs._list.forEach (ref => {
       ref.revisions = ref.revisions._list.length ? ref.revisions._list : []
    })
 
-   return {
+    return {
          status: 200,
          statusMessage: "Success",
-         unittype: unittype,
-         system: system,
-         equipmentypes: equiptype,
+         query,
          equipment: refWithRevs
    }
 
