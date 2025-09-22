@@ -20,6 +20,14 @@
                   }
                },
                {
+                  "path": "/references/search",
+                  "method": "POST",
+                  "script": {
+                     "_userType": "hitachi-refequip-omapi",
+                     "_scriptName": "searchEquipment"
+                  }
+               },
+               {
                   "path": "/references/unittypes",
                   "method": "GET",
                   "script": {
@@ -28,7 +36,7 @@
                   }
                },
                {
-                  "path": "/references/unittypes/:unittype/systems",
+                  "path": "/references/unittypes/:unitType/systems",
                   "method": "GET",
                   "script": {
                      "_userType": "hitachi-refequip-omapi",
@@ -36,7 +44,7 @@
                   }
                },
                {
-                  "path": "/references/unittypes/:unittype/systems/:system",
+                  "path": "/references/unittypes/:unitType/systems/:systemId",
                   "method": "GET",
                   "script": {
                      "_userType": "hitachi-refequip-omapi",
@@ -44,7 +52,7 @@
                   }
                },
                {
-                  "path": "/references/unittypes/:unittype/systems/:system/equipmenttypes",
+                  "path": "/references/unittypes/:unitType/systems/:systemId/equipmenttypes",
                   "method": "GET",
                   "script": {
                      "_userType": "hitachi-refequip-omapi",
@@ -52,7 +60,7 @@
                   }
                },
                {
-                  "path": "/references/unittypes/:unittype/systems/:system/equipmenttypes/:equiptype/equipment",
+                  "path": "/references/unittypes/:unitType/systems/:systemId/equipmenttypes/:equipmentType/equipment",
                   "method": "GET",
                   "script": {
                      "_userType": "hitachi-refequip-omapi",
