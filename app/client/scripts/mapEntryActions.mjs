@@ -9,6 +9,7 @@ import {v4 as uuid} from "uuid"
 import bbox from "@turf/bbox";
 import centroid from "@turf/centroid";
 import {
+    clearStaleMarkers,
     clearStaleMarkersByPath,
     makeMarkerShell,
     makePieCanvas,
@@ -21,6 +22,14 @@ import { getCachedFile } from "../../services/utils.js";
 
 // Global Map to store loaded geometries, accessible throughout the application
 const globalLoadedGeometries = new Map();
+// stable snapshot of what we’ve mirrored downstream per layer
+const globalFilterKeys = new Map(); // layerId -> string
+
+function makeGlobalFilterKey({ layer, field, ids, invert, filter }) {
+    // sort ids for stable equality
+    const sorted = (ids || []).slice().sort();
+    return JSON.stringify({ layer, field, sorted, filter, invert: !!invert });
+}
 
 /**
  * Get geometry info for a specific graphic ID
@@ -49,6 +58,7 @@ export function getLoadedGeometryIds() {
 }
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
 
 /**
  * Properly dispose of THREE.js resources to prevent memory leaks
@@ -1724,28 +1734,124 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
     }
 
     if(markersConfig){
-        manageMarkers = async (e) => {
-            const {graphics} = await renderAllMarkers(e, {context, self}, markersConfig);
 
-            if (graphics && graphics.length > 0) {
-                const commands = [{
-                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
-                    commandRef: uuid(),
-                    params: {
-                        ids: graphics.map(g => g.id),//remove stale
+        manageMarkers = async (e) => {
+
+            for (const markersInfo of markersConfig) {
+                const {featureDef, config, ...restMarkerInfo} = markersInfo;
+                const {path} = featureDef;
+
+                const sourceId = path + "-features";
+                if (e && e.sourceId === sourceId && e.hasOwnProperty("isSourceLoaded") && !e.isSourceLoaded) {
+                    continue;
+                } else if (e && e.sourceId !== sourceId && e.type == "sourcedata") {
+                    continue;
+                }
+
+                const {graphics, visibleFeatures, allFeaturesMarkerIds, previousMarkerIds, currentMarkerIds, filters} = await renderAllMarkers(e, {self}, markersInfo);
+                console.log("UPDATE_FILTERS renderAllMarkers", {graphics, visibleFeatures, previousMarkerIds, currentMarkerIds, filters: JSON.stringify(filters)});
+
+                if (previousMarkerIds && previousMarkerIds.length > 0) {
+                    const toRemove = previousMarkerIds.filter(id=>!currentMarkerIds.includes(id));
+                    if(toRemove.length>0){
+                        const commands = [{
+                            commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                            commandRef: uuid(),
+                            params: {
+                                ids: toRemove,//remove stale
+                            }
+                        }]
+                        context.mmvSend(commands);
+                        clearStaleMarkers(toRemove);
                     }
-                }, {
-                    commandName: MMV_COMMANDS.ADD_GRAPHICS,
-                    commandRef: uuid(),
-                    params: {
-                        graphics: graphics
+                }
+                if (graphics && graphics.length > 0) {
+                    const commands = [{
+                        commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                        commandRef: uuid(),
+                        params: {
+                            ids: allFeaturesMarkerIds,//remove stale
+                        }
+                    },{
+                        commandName: MMV_COMMANDS.ADD_GRAPHICS,
+                        commandRef: uuid(),
+                        params: {
+                            graphics: graphics
+                        }
+                    }]
+                    context.mmvSend(commands);
+                }
+
+
+                if (path == "site" && visibleFeatures && visibleFeatures.length > 0) {
+
+                    const ids = visibleFeatures.map(f => f.properties["siteId"]);
+                    const key = makeGlobalFilterKey({
+                        layer: 'site-features-layer',
+                        field: 'siteId',
+                        ids,
+                        invert: false,
+                        filter: context.filters?.["site"]
+                    });
+                    if (ids.length && globalFilterKeys.get('site-features-layer') !== key) {
+                        try {
+                            context.mmvSend([
+                                {
+                                    commandName: MMV_COMMANDS.CUSTOM,
+                                    commandRef: uuid(),
+                                    params: {
+                                        commandName: 'filtermodel',
+                                        commandRef: uuid(),
+                                        params: {
+                                            clear: false,
+                                            ids: ids,
+                                            invert: false,
+                                            extra: {
+                                                //layerNames: ['site-features-layer','site-features-centroids-layer-circle'],
+                                                layerNames: 'site-features-layer',
+                                                field: 'siteId',
+                                                fieldType: 'string'
+                                            }
+                                        }
+                                    }
+
+                                },
+                                {
+                                    commandName: MMV_COMMANDS.CUSTOM,
+                                    commandRef: uuid(),
+                                    params: {
+                                        commandName: 'filtermodel',
+                                        commandRef: uuid(),
+                                        params: {
+                                            clear: false,
+                                            ids: ids,
+                                            invert: false,
+                                            extra: {
+                                                //layerNames: ['site-features-layer','site-features-centroids-layer-circle'],
+                                                layerNames: 'site-features-centroids-layer-circle',
+                                                field: 'siteId',
+                                                fieldType: 'string'
+                                            }
+                                        }
+                                    }
+
+                                }
+                            ]);
+                        } catch (e) {
+                            console.error(e)
+                        }
                     }
-                }]
-                context.mmvSend(commands);
-            };
+
+                    globalFilterKeys.set('site-features-layer', key);
+                    globalFilterKeys.set('site-features-centroids-layer-circle', key);
+
+                }
+
+            }
         }
 
-        if(context) {
+
+        if(context.map) {
             context.map.on('moveend', manageMarkers);
             context.map.on('idle', manageMarkers);
             context.map.on('sourcedata', manageMarkers);
@@ -1806,6 +1912,43 @@ export async function getEntryAction({mapMachineInput }) {
 
             const markersConfig = singleMarkers;
             const {manageMarkers} = await handleMarkers(stateValue, markersConfig, {context, self});
+
+            if(globalFilterKeys.get('site-features-layer')){
+                context.mmvSend([{
+                    commandName: MMV_COMMANDS.CUSTOM,
+                    commandRef: uuid(),
+                    params: {
+                        commandName: 'filtermodel',
+                        commandRef: uuid(),
+                        params: {
+                            clear: true,
+                            extra: {
+                                //layerNames: ['site-features-layer','site-features-centroids-layer-circle'],
+                                layerNames: 'site-features-centroids-layer-circle',
+                            }
+                        }
+                    }
+                }])
+            }
+            if(globalFilterKeys.get('site-features-centroids-layer-circle')){
+                context.mmvSend([{
+                    commandName: MMV_COMMANDS.CUSTOM,
+                    commandRef: uuid(),
+                    params: {
+                        commandName: 'filtermodel',
+                        commandRef: uuid(),
+                        params: {
+                            clear: true,
+                            extra: {
+                                //layerNames: ['site-features-layer','site-features-centroids-layer-circle'],
+                                layerNames: 'site-features-layer',
+                                field: 'siteId',
+                                fieldType: 'string'
+                            }
+                        }
+                    }
+                }])
+            }
 
             return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme, legend };
         }
@@ -2086,14 +2229,16 @@ export async function getExitAction({mapMachineInput }) {
                 context.map.off('sourcedata', context.manageMarkers[stateValue]);
             }
             const markerIds = clearStaleMarkersByPath("site")
-            const commands = [{
-                commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
-                commandRef: uuid(),
-                params: {
-                    ids: [...markerIds],
-                }
-            }]
-            context.mmvSend(commands);
+            if(markerIds && markerIds.length) {
+                const commands = [{
+                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                    commandRef: uuid(),
+                    params: {
+                        ids: [...markerIds],
+                    }
+                }]
+                context.mmvSend(commands);
+            }
 
             return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
         }
@@ -2104,15 +2249,17 @@ export async function getExitAction({mapMachineInput }) {
                 context.map.off('idle', context.manageMarkers[stateValue]);
                 context.map.off('sourcedata', context.manageMarkers[stateValue]);
             }
-            const markerIds = clearStaleMarkersByPath("building")
-            const commands = [{
-                commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
-                commandRef: uuid(),
-                params: {
-                    ids: [...markerIds],
-                }
-            }]
-            context.mmvSend(commands);
+            const markerIds = clearStaleMarkersByPath("building");
+            if(markerIds && markerIds.length) {
+                const commands = [{
+                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                    commandRef: uuid(),
+                    params: {
+                        ids: [...markerIds],
+                    }
+                }]
+                context.mmvSend(commands);
+            }
 
             return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
         }
@@ -2121,137 +2268,3 @@ export async function getExitAction({mapMachineInput }) {
             return {};
     }
 }
-
-export async function getChartStatus({ mapMachineInput }) {
-  const { stateValue, context, event, self } = mapMachineInput;
-  const { suppressEntryActions } = context;
-
-  if (suppressEntryActions) {
-    return { suppressEntryActions: false };
-  }
-
-  let result = await ScriptCache.runScript("getEntryActionTheme", {
-    suppressEntryActions,
-    stateValue,
-  });
-  let statusConfig =
-    result?.singleMarkers?.[0]?.popupConfig?.statusPopup?.statusConfig;
-  let legend = result?.legend?.bins;
-
-  const reshapedStatusConfig = Object.keys(statusConfig.labelMap).reduce(
-    (acc, key) => {
-      const rawLabel = statusConfig.labelMap[key];
-      const label = rawLabel || key; 
-
-      const camelKey = toCamelCase(label); 
-      acc[camelKey] = {
-        label,
-        color: statusConfig.colorMap[key],
-        statusId: key,
-      };
-
-      return acc;
-    },
-    {},
-  );
-
-  const statusTemplate = Object.keys(reshapedStatusConfig).reduce(
-    (acc, key) => {
-      acc[key] = 0;
-      return acc;
-    },
-    {},
-  );
-
-  const statusLegend = legend.map((item) => ({
-    ...item,
-    status: { ...statusTemplate },
-  }));
-
-  const data = updateStatusLegend(
-    statusLegend,
-    reshapedStatusConfig,
-    context?.data,
-  );
-
-  return { statusConfig: reshapedStatusConfig, data: data };
-}
-
-function updateStatusLegend(statusLegend, statusConfig, data) {
- 
-  const statusIdToKey = {};
-  for (const [key, cfg] of Object.entries(statusConfig)) {
-    if (cfg && cfg.statusId != null) {
-      statusIdToKey[Number(cfg.statusId)] = key;
-    }
-  }
-
-  const updatedLegend = statusLegend.map((item) => ({
-    ...item,
-    status: { ...item.status },
-  }));
-
-  for (const site of data?.site || []) {
-        for (const b of site?.buildings || []) {
-            if (b.Capacity == null) continue; // skip null or undefined
-            const capacity = Number(b.Capacity);
-            const statusId = Number(b.StatusId);
-            if (isNaN(capacity)) continue;
-
-            const bucket = updatedLegend.find((item) => {
-                return capacityMatches(capacity, item.min, item.max);
-            });
-
-            if (!bucket) continue;
-
-            const statusKey = statusIdToKey[statusId] ?? 'unknown';
-
-            if (bucket.status.hasOwnProperty(statusKey)) {
-                bucket.status[statusKey] += 1;
-            } else {
-                bucket.status.unknown += 1;
-            }
-        }
-  }
-
-  return updatedLegend;
-}
-
-const toCamelCase = (str) => {
-  return str
-    .toLowerCase()
-    .replace(/(?:^\w|[\s-_]\w)/g, (match, index) =>
-      index === 0
-        ? match.toLowerCase()
-        : match.replace(/[\s-_]/, "").toUpperCase(),
-    );
-};
-
-export async function filterFeatures({ mapMachineInput }) {
-  const { stateValue, context, event, self } = mapMachineInput;
-  const { suppressEntryActions } = context;
-
-  let result = await ScriptCache.runScript("getEntryActionTheme", {
-    suppressEntryActions,
-    stateValue,
-  });
-  let singleMarkers = result?.singleMarkers;
-
-  const { manageMarkers } = await handleMarkers(
-    stateValue,
-    singleMarkers,
-    { context, self },
-  );
-
-  return {manageMarkers};
-}
-
-
-const capacityMatches = (cap, min, max) => {
-  const value = Number(cap);
-  if (isNaN(value)) return false;
-  if (cap == null) return false;  
-  if (min != null && value < min) return false;
-  if (max != null && value >= max) return false;
-  return true;
-};

@@ -1,4 +1,4 @@
-import React, { useMemo, useContext, useEffect } from "react";
+import React, {useMemo, useContext, useEffect, useState} from "react";
 import { makeStyles } from "@material-ui/core/styles";
 import { Bar } from "react-chartjs-2";
 import {
@@ -13,10 +13,9 @@ import {
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import BarChartOutlinedIcon from "@material-ui/icons/BarChartOutlined";
 import CircularProgress from "@material-ui/core/CircularProgress";
-import { MapMachineContext } from "../PortfolioOverview";
-import { getSiteFilter, setSiteFilter } from "../../../redux/filters";
+import { getFilter, setFilter } from "../../../redux/filters";
 import { useDispatch, useSelector as useReduxSelector, useStore } from 'react-redux';
-import { getChartFilters } from "../../utils/filters-utils";
+import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils/index.js";
 
 ChartJS.register(
   CategoryScale,
@@ -72,101 +71,302 @@ Tooltip.positioners.centerBar = function (items, eventPosition) {
   };
 };
 
-const groupLabelPlugin = {
-  id: "groupLabelPlugin",
-  afterDatasetsDraw(chart, args, options) {
-    const data = options.data || []; 
-    const { ctx, scales, chartArea } = chart;
-    const yScale = scales.y;
+// define the plugin once
+const GroupLabelPlugin = {
+  id: 'groupLabelPlugin',
+  afterDatasetsDraw(chart, _args, opts) {
+    const { ctx, scales, data } = chart;
+    const rows = opts?.data || [];                  // ← you pass this in options.plugins.groupLabelPlugin.data
+    const fmt  = opts?.formatter || (b => b.label); // ← optional formatter
+
+    if (!rows.length) return;
 
     ctx.save();
-    ctx.textBaseline = "middle";
-    ctx.font = "14px Inter, sans-serif";
+    ctx.fillStyle = opts?.color || '#1D1D1D';
+    ctx.font = (opts?.font?.string) || (ChartJS.defaults.font && ChartJS.defaults.font.string) || '12px sans-serif';
+    ctx.textBaseline = 'bottom';
 
-    data.forEach((item, i) => {
-      const y = yScale.getPixelForValue(i);
-      const barThickness = 30;
-      const labelGap = 24;
-      const labelX = chartArea.left;
-      const labelY = y - barThickness / 2 - labelGap;
-
-      const circleColor = item.color || "#000";
-      const circleRadius = 4;
-      ctx.fillStyle = circleColor;
-      ctx.beginPath();
-      ctx.arc(labelX + circleRadius, labelY - 1, circleRadius, 0, 2 * Math.PI);
-      ctx.fill();
-
-      ctx.fillStyle = "#000";
-      ctx.textAlign = "left";
-
-      const mwValue = item.max ?? item.label;
-      const capitalizedId =
-        String(item.id || "")
-          .charAt(0)
-          .toUpperCase() + String(item.id || "").slice(1);
-      const text =
-        typeof mwValue === "number"
-          ? `${capitalizedId} (${mwValue} MW)`
-          : `${capitalizedId} (${item.label})`;
-
-      ctx.fillText(text, labelX + circleRadius * 2 + 4, labelY);
+    const yScale = scales.y, xScale = scales.x;
+    rows.forEach((bin, i) => {
+      const label = fmt(bin);
+      const y = yScale.getPixelForValue(i) - 6;     // a bit above the bar
+      const total = chart.getSortedVisibleDatasetMetas().reduce((s, m) => {
+        const v = m.controller.getParsed(i)?.x ?? 0;
+        return s + (chart.isDatasetVisible(m.index) ? Number(v) : 0);
+      }, 0);
+      const x = xScale.getPixelForValue(total);
+      ctx.textAlign = 'left';
+      ctx.fillText(label, x + 8, y);
     });
 
     ctx.restore();
+  }
+};
+
+// one-time global registration (module scope)
+if (!ChartJS.registry.plugins.get('groupLabelPlugin')) {
+  ChartJS.register(GroupLabelPlugin);
+}
+
+const get = (obj, path, dflt) => {
+  if (typeof path === 'function') return path(obj);
+  if (!path) return Array.isArray(obj) ? obj : dflt;
+  return path.split('.').reduce((o, k) => (o && k in o ? o[k] : undefined), obj) ?? dflt;
+};
+
+const inRange = (v, min, max) => {
+  if (v == null || Number.isNaN(+v)) return false;
+  if (min != null && +v < min) return false;
+  if (max != null && max !== Infinity && +v >= max) return false;
+  return true;
+};
+
+const sanitizeColor = (c) => {
+  if (!c) return '#999';
+  const m = /^#([0-9a-f]{8})$/i.exec(String(c).trim());
+  if (m) {
+    const hex = m[1];
+    const r = parseInt(hex.slice(0,2),16);
+    const g = parseInt(hex.slice(2,4),16);
+    const b = parseInt(hex.slice(4,6),16);
+    const a = parseInt(hex.slice(6,8),16) / 255;
+    return `rgba(${r},${g},${b},${a})`;
+  }
+  return c;
+};
+
+export function deriveChartMatrix({ data, ctx, chartCfg }) {
+  // items
+  const items =
+      typeof chartCfg?.itemsOf === 'function'
+          ? chartCfg.itemsOf(data, ctx)
+          : (Array.isArray(data) ? data : get(data, chartCfg?.dataPath, []));
+
+  const bins = (chartCfg?.group?.bins || []).map(b => ({ ...b }));
+
+  // legend from maps
+  const labelMap = chartCfg?.series?.config?.labelMap || {};
+  const colorMap = chartCfg?.series?.config?.colorMap || {};
+  const legend = Object.keys(labelMap).reduce((acc, k) => {
+    acc[k] = { label: labelMap[k], color: sanitizeColor(colorMap[k] || '#999') };
+    return acc;
+  }, {});
+  if (!legend.unknown) legend.unknown = { label: 'Unknown', color: '#CCCCCC' };
+
+  // rows
+  const seriesKeysSeen = new Set(Object.keys(legend));
+  const rows = bins.map(b => ({ ...b, buckets: {} }));
+
+  // choose bin for a feature:
+  const getRow = (f) => {
+    // priority: explicit bin.test(feature) takes precedence
+    const byTest = rows.find(r => typeof r.test === 'function' && r.test(f, ctx));
+    if (byTest) return byTest;
+
+    // fallback: numeric bins via valueProp
+    if (typeof chartCfg?.group?.valueProp === 'function') {
+      const v = chartCfg.group.valueProp(f, ctx);
+      return rows.find(r => inRange(v, r.min ?? -Infinity, r.max ?? Infinity));
+    }
+    return undefined;
+  };
+
+  // weight
+  const weightOf = (f) => {
+    if (chartCfg?.metric?.type === 'sum' && typeof chartCfg?.metric?.valueProp === 'function') {
+      const w = Number(chartCfg.metric.valueProp(f, ctx));
+      return Number.isFinite(w) ? w : 0;
+    }
+    return 1;
+  };
+
+  // accumulate
+  for (const f of items) {
+    const row = getRow(f);
+    if (!row) continue;
+
+    const w = weightOf(f);
+    let key = chartCfg?.series?.keyProp?.(f, ctx);
+    if (!key) key = 'unknown';
+    key = String(key);
+
+    seriesKeysSeen.add(key);
+    row.buckets[key] = (row.buckets[key] || 0) + w;
+  }
+
+  // series order
+  const allKeys = Array.from(seriesKeysSeen);
+  const seriesKeys = (typeof chartCfg?.series?.order === 'function')
+      ? chartCfg.series.order(allKeys, legend)
+      : allKeys;
+
+  // sort rows by total desc
+  rows.sort((a, b) => {
+    const ta = Object.values(a.buckets).reduce((s, v) => s + (v || 0), 0);
+    const tb = Object.values(b.buckets).reduce((s, v) => s + (v || 0), 0);
+    return tb - ta;
+  });
+
+  // labels
+  const labels = rows.map(bin =>
+      typeof chartCfg?.group?.groupLabel === 'function'
+          ? chartCfg.group.groupLabel(bin)
+          : (bin.label ?? String(bin.id))
+  );
+
+  return { rows, legend, seriesKeys, labels };
+}
+
+
+
+//TODO: move that to external script
+const defaultChartCfg =  {
+  // 1) where items come from (no childPath)
+  itemsOf: (data /* context.data */) => {
+    const sites = Array.isArray(data?.site) ? data.site : [];
+    return sites.flatMap(s => Array.isArray(s.buildings) ? s.buildings : []);
+  },
+
+  // 2) GROUP: Palier bins from ReactorModel, using ONLY bins[].test
+  group: {
+    id: 'palier',
+    bins: [
+      {
+        id: 'CP0/CPY', label: 'CP0/CPY Palier',
+        test: (b) => /CP0|CP1|CPY/i.test(String(b?.ReactorModel || '')),
+      },
+      {
+        id: "P4/P'4", label: "P4/P'4 Palier",
+        test: (b) => /P4|'?P4/i.test(String(b?.ReactorModel || '')),
+      },
+      {
+        id: 'N4', label: 'N4 Palier',
+        test: (b) => /N4/i.test(String(b?.ReactorModel || '')),
+      },
+      {
+        id: 'Other', label: 'Other',
+        test: () => true, // catch-all
+      },
+    ],
+    // optional pretty label
+    groupLabel: (bin) => bin.label,
+  },
+
+  // 3) SERIES: StatusId → stacks, with your label/color maps
+  series: {
+    id: 'status',
+    keyProp: (b) => String(b?.StatusId ?? 'unknown'),
+    config: {
+      colorMap: {
+        "1": "#d3d3d3",   // Not started / Planned (adjust if you want your old palette)
+        "2": "#f4b740",   // In Progress / Construction
+        "3": "#66bb6a",   // Completed / Operating
+        "4": "#e53935",   // At risk / Suspended Operation
+        "5": "#6B7280",   // Permanent Shutdown
+        "unknown": "#CCCCCC",
+      },
+      labelMap: {
+        "1": "Not started",
+        "2": "In Progress",
+        "3": "Completed",
+        "4": "At risk",
+        "5": "Permanent Shutdown",
+        "unknown": "Unknown",
+      },
+    },
+    // keep a stable legend order
+    order: (keys) => {
+      const pref = ['1','2','4','3','5','unknown']; // your desired sequence
+      return pref.filter(k => keys.includes(k)).concat(keys.filter(k => !pref.includes(k)));
+    },
+  },
+
+  // 4) METRIC
+  metric: { type: 'count' },
+
+  // 5) Click → filters (map back to your predicate registry)
+  filter: {
+    scope: 'site',
+    combine: 'and',
+    rules: {
+      series: (statusKey) =>
+          statusKey === 'unknown' ? null : ({ fn: 'statusIn', args: { values: [statusKey] } }),
+      group:  (bin) => ({ fn: 'reactorPalierIn', args: { values: [bin.id] } }),
+    },
   },
 };
 
-export default function DeployStatusChart({ userConfig, chartConfig, context, snapshot, send }) {
-  const chartHeight = (chartConfig?.data?.length || 0) * 120;
+
+export function buildChartData(matrix) {
+  const { rows, legend, seriesKeys, labels } = matrix;
+
+  let datasets = seriesKeys.map(k => ({
+    key: k,
+    label: (legend[k]?.label ?? k),
+    data: rows.map(r => r.buckets[k] ?? 0),
+    backgroundColor: (legend[k]?.color ?? '#999'),
+    stack: 'stack1',
+    barThickness: 56,
+  }));
+
+  // drop all-zero series
+  datasets = datasets.filter(ds => ds.data.some(v => v > 0));
+
+  // drop empty bins
+  const keepRow = rows.map((_, i) => datasets.some(ds => (ds.data[i] || 0) > 0));
+  const finalLabels = labels.filter((_, i) => keepRow[i]);
+  datasets = datasets.map(ds => ({ ...ds, data: ds.data.filter((_, i) => keepRow[i]) }));
+
+  return { labels: finalLabels, datasets };
+}
+
+
+
+/**
+ * Build a scoped global-filter object from a chart click, using chartCfg.filter.
+ *
+ * @param {{ seriesKey: string, series?: any, bin?: {id:string,min?:number,max?:number,label?:string,unit?:string}, ctx?: any }} click
+ * @param {any} chartCfg  // popupConfig.chart
+ * @returns {{ [scope: string]: { op: 'and'|'or', rules: any[] } } | {}}
+ */
+export const getChartFilters = (click, chartCfg) => {
+  const filterCfg = chartCfg?.filter;
+  if (!filterCfg?.rules) return {};
+  const scope = filterCfg.scope || 'site';
+  const op = (filterCfg.combine || 'and');
+  const rules = [];
+
+  if (typeof filterCfg.rules.series === 'function' && click?.seriesKey != null) {
+    const r = filterCfg.rules.series(click.seriesKey, { legend: click.series, ctx: click.ctx });
+    if (r) rules.push(r);
+  }
+  if (typeof filterCfg.rules.group === 'function' && click?.bin) {
+    const r = filterCfg.rules.group(click.bin, { ctx: click.ctx });
+    if (r) rules.push(r);
+  }
+  if (!rules.length) return {};
+  return { [scope]: { op, rules } };
+};
+
+
+
+export default function DeployStatusChart({ userConfig, context, snapshot, send, stateKey }) {
+  const rowsCount = Object.keys(defaultChartCfg.series.config.labelMap).length;
+  const chartHeight = Math.max(240, rowsCount * 80);
   const classes = useStyles({ chartHeight });
   const chartTitle = userConfig.handlers.portfolioOverview.config.labels?.chartTitle || "Status";
 
-  const siteFilter = useReduxSelector(getSiteFilter);
+  const filter = useReduxSelector(getFilter);
 
-  const dispatch = useDispatch()
+  const matrix = useMemo(() => deriveChartMatrix({
+    data: context.data,       // plain array of features
+    ctx: {  },
+    chartCfg: defaultChartCfg,
+  }), [context.data]);
 
-   const findCapacityRange = (capacityValue) => {
-    const bins = chartConfig?.data || [];
-    bins.sort((a, b) => (a.min ?? -Infinity) - (b.min ?? -Infinity));
+  const chartData = useMemo(() => buildChartData(matrix), [matrix]);
 
-    for (let i = 0; i < bins.length; i++) {
-      const { min = -Infinity, max = Infinity } = bins[i];
-      const isLastBin = i === bins.length - 1;
-
-      if (isLastBin) {
-        if (capacityValue >= min) return bins[i];
-      } else {
-        if (capacityValue >= min && capacityValue <= max) return bins[i];
-      }
-    }
-
-    return null;
-  }
-
-  const chartData = useMemo(() => {
-    if (!chartConfig?.data) {
-      return { labels: [], datasets: [] }; 
-    }
-
-    const labels = chartConfig.data.map((d) => {
-      const idStr = String(d.id || "");
-      const capitalizedId = idStr.charAt(0).toUpperCase() + idStr.slice(1);
-      return `${capitalizedId} (${d.max ?? d.label} MW)`;
-    });
-
-    const datasets = Object.entries(chartConfig?.statusConfig).map(
-      ([key, { label, color }]) => ({
-        label,
-        data: chartConfig.data.map((d) => d.status[key] ?? 0),
-        backgroundColor: color,
-        stack: "stack1",
-        barThickness: 56,
-      }),
-    );
-
-    return { labels, datasets };
-  }, [chartConfig]);
+  const dispatch = useDispatch();
 
   const isLoading =
     !chartData?.datasets?.length ||
@@ -179,7 +379,8 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, sn
     layout: { padding: { left: 0, right: 10, top: 40, bottom: 0 } },
     plugins: {
       groupLabelPlugin: {
-        data: chartConfig?.data || [],
+        data: matrix?.data || [],
+        formatter: defaultChartCfg?.groupLabel
       },
       legend: {
         display: true,
@@ -215,7 +416,6 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, sn
         position: "centerBar",
         yAlign: "bottom",
         xAlign: "center",
-        position: "centerBar",
         displayColors: false,
         padding: 12,
         backgroundColor: "#000",
@@ -236,14 +436,14 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, sn
     scales: {
       x: {
         stacked: true,
-        grid: { 
-          display: true, 
-          drawBorder: false, 
-          color: "#d3d3d3",
+        grid: {
+          display: true,
+          drawBorder: false,
+          //color: "#d3d3d3",
           color: (ctx) => {
             return ctx.tick.value === ctx.chart.scales.x.max ? 'transparent' : '#d3d3d3';
         },
-        
+
         },
         ticks: {
           color: "#555",
@@ -266,38 +466,14 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, sn
         clip: false,
       },
     },
-   onClick: async (evt, elements) => {
+    onClick: (evt, elements, chart) => {
       if (!elements.length) return;
-
       const { datasetIndex, index } = elements[0];
-      const datasetLabel = chartData.datasets[datasetIndex].label;
-      const capacityLabel = chartData.labels[index];
-
-      const match = Object.values(chartConfig?.statusConfig || {}).find(
-        (status) => status.label === datasetLabel
-      );
-      if (!match) return;
-
-      const statusId = match.statusId;
-      const isLastBin = chartConfig.data[index].max === null;
-      const capacityValue = isLastBin
-        ? Infinity
-        : Number(capacityLabel.replace(/\D/g, ""));
-      const capacityRange = findCapacityRange(capacityValue);
-
-      const newFilter = getChartFilters(statusId, capacityRange);
-
-      const isSameFilter =
-        JSON.stringify(siteFilter) === JSON.stringify(newFilter);
-
-      if (isSameFilter) {
-        send({ type: 'UPDATE_FILTERS', filters: {} });
-        dispatch(setSiteFilter({}));
-      } else {
-        send({ type: 'UPDATE_FILTERS', filters: newFilter });
-        dispatch(setSiteFilter(newFilter));
-      }
-    }
+      const seriesKey = chart.data.datasets[datasetIndex].key;
+      const bin = matrix.rows[index];
+      const newFilter = getChartFilters({ seriesKey, series: matrix.legend[seriesKey], bin, ctx: {} }, defaultChartCfg);
+      // dispatch newFilter…
+    },
   };
 
   return (
@@ -325,7 +501,7 @@ export default function DeployStatusChart({ userConfig, chartConfig, context, sn
             options={options}
             plugins={[
               ChartDataLabels,
-              groupLabelPlugin
+              GroupLabelPlugin
             ]}
           />
         )}
