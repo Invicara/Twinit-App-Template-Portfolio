@@ -293,22 +293,6 @@ export async function renderAllMarkers(e, {context, self}, singleMarkers) {
         }
     }
 
-      if (filteredSites.length > 0) {
-            mmvSend([
-                {
-                    commandName: MMV_COMMANDS.ADD_GRAPHICS,
-                    commandRef: uuid(),
-                    params: {
-                        layerName: 'site-features-layer-centroid',
-                        graphics: filteredSites.map(f => ({
-                            id: String(f.properties.siteId),
-                            geometry: f.geometry,
-                            properties: f.properties
-                        }))
-                    }
-                }
-            ]);
-      }
       if (filteredSiteIds?.length > 0) {
          mmvSend([
             {
