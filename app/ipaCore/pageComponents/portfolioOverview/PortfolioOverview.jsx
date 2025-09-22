@@ -24,10 +24,6 @@ import PopupPortal from "./components/map/popup/PopupPortal.jsx";
 import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
 import { getChartStatus } from '../../../client/scripts/mapEntryActions.mjs';
-import { getSiteFilter, setSiteFilter } from '../../redux/filters.js';
-import { filterFeatures } from '../../../client/scripts/mapEntryActions.mjs';
-import { use } from 'react';
-import GenericErrorBoundary from "../../components/GenericErrorBoundary.jsx";
 import { useGraphicsVisibility } from '../../hooks/useGraphicsVisibility.js';
 import { useNewEntityManagement } from '../../hooks/UseNewEntityManagement.js';
 
@@ -108,8 +104,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     const componentConfig = handler?.componentConfig;
     const namedPaths = useMemo(()=>componentConfig?.namedPaths || DEFAULT_PATHS,[]);
     const legendPath = useMemo(()=>componentConfig?.legendPath || "building",[]);
-    
-    const siteFilter = useReduxSelector(getSiteFilter);
 
     // Create machine with Redux context
     const machineDef = useMemo(()=>{
@@ -123,15 +117,13 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
 
     const [snapshot, send, actor] = useMachine(machineDef);
 
-    const [chartConfig, setChartConfig] = useState(null);
- 
     const currentState = useXstateSelector(actor, state => state);
     const states = Object.keys(ipaConfig.mapPortfolio.statePanel.componentPaths || {});
     const stateKey = useMemo(()=>states.reverse().find(state=>currentState.matches(state)),[currentState]);
 
     const classes = useStyles({ stateKey });
     const dispatch = useDispatch();
-    
+
     // MMV Configuration state -> this should be removed to a user config or a script
     const [mmvConfig, setMmvConfig] = useState();
 
@@ -169,16 +161,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         fetchMapTypes();
         fetchMapRepresentations();
     },[namedPaths])
-
-    useEffect(() => {
-        const run = async () => {
-            const newFilter = getSiteFilter(store.getState());
-            const firstState = DEFAULT_PATHS[0][0].state;
-            snapshot.self = actor;
-            await filterFeatures({mapMachineInput: { ...snapshot, stateValue: firstState }});
-        };
-        run();
-    }, [siteFilter]);
 
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
     const [mmvMode, setMmvMode] = useState("");
@@ -233,15 +215,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     // Track previous display state to detect switches
     const [mapInstance, setMapInstance] = useState(null);
 
-       useEffect(() => {
-        const run = async () => {
-            const firstState = DEFAULT_PATHS[0][0].state;
-            const chartInfo = await getChartStatus({ mapMachineInput: { ...snapshot, stateValue: firstState } });
-            setChartConfig(chartInfo);
-        };
-        run();
-    }, [snapshot]);
-
     useEffect(() => {
         return () => {
             setMapInstance();//releasing map from memory
@@ -270,10 +243,10 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         //console.log('PortfolioOverview MMV Event:', event);
         // Handle MMV events as needed
     },[]);
-    
+
 
     const onMapReady = useCallback((map) => {
- 
+
 
         setMapInstance(map); // Store map instance for refresh
         actor.send({ type: 'MAP_READY', map, mmvSend: setCommand, setPopupState });
@@ -308,13 +281,13 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                         </div>
                     </div>
                     <Grid container className={classes.mainContent}>
-                        <StatePanel 
-                            currentState={currentState} 
-                            context={currentState.context} 
-                            send={actor.send} 
+                        <StatePanel
+                            handler={handler}
+                            currentState={currentState}
+                            context={currentState.context}
+                            send={actor.send}
                             className={classes.statePanel}
-                            chartConfig={chartConfig}
-                            userConfig={userConfig} 
+                            userConfig={userConfig}
                             snapshot={snapshot}
                         />
                         <Grid item xs className={classes.viewerContainer}>

@@ -2,8 +2,7 @@ import mapboxgl from "mapbox-gl";
 import {markHandled} from "./mapEntryActions.mjs";
 import {get} from "lodash";
 import { IafScriptEngine } from "@dtplatform/iaf-script-engine";
-import {generateUUID as uuid} from "@arcgis/core/core/uuid";
-import { MMV_COMMANDS } from '@invicara/ipa-core-mmv';
+import {FilterCompiler} from "../../ipaCore/redux/filters.js";
 
 const PIE_SIZE  = 48;
 const PIE_ALPHA = 0.7; // (lower -> more transparent)
@@ -110,13 +109,9 @@ function wrapToView(lng, centerLng) {
     return lng;
 }
 
-function createSingleMarker(context, feature, {bins, property, showLabel = true, pieAlpha=true, getCounts = getBinCounts, popupConfig, send, featureDef, setPopupState}){
+function createSingleMarker(context, feature, {bins, property, showLabel = true, pieAlpha=true, getCounts = getBinCounts, popupConfig, send, featureDef, setPopupState, markerId}){
     const {map, namedPaths} = context;
     const namedPath = namedPaths[0]
-    const {idKey, path} = featureDef;
-    const id = feature.id ?? feature.properties._id ?? JSON.stringify(feature.geometry.coordinates);
-    const keyVal = feature?.properties?.[idKey] ?? id;
-    const markerId = `${path}-${keyVal}`;
     let entry = markers.get(markerId);
     if(entry){
         return null;
@@ -130,7 +125,7 @@ function createSingleMarker(context, feature, {bins, property, showLabel = true,
     const wrap = document.createElement('div');
     wrap.style.width = wrap.style.height = PIE_SIZE+'px';
     wrap.style.position = 'relative';
-    wrap.id = "SingleMarker-"+id;
+    wrap.id = "SingleMarker-"+markerId;
     wrap.setAttribute('class', 'singleMarker singleMarker-'+feature.properties.name);
     wrap.style.cursor = 'pointer';   // makes mouse turn to hand
     wrap.appendChild(labelWrap);
@@ -193,27 +188,13 @@ function createSingleMarker(context, feature, {bins, property, showLabel = true,
     }
 }
 
-function clearStaleMarkers(visibleMarkerIds){
+export function clearStaleMarkers(staleMarkerIds){
     for (const id of Array.from(markers.keys())){
-        if (visibleMarkerIds && !visibleMarkerIds.has(id)){
+        if (staleMarkerIds && staleMarkerIds.includes(id)){
             //markers.get(id).marker.remove();//since moving to mmv command we have no marker access
             markers.delete(id);
         }
     }
-}
-
-export function clearAllMarkers() {
-   for (const [id, markerEntry] of markers.entries()) {
-
-    if (markerEntry.marker) {
-      markerEntry.marker.remove();
-    }
-
-    if (markerEntry.element && markerEntry.element.parentNode) {
-      markerEntry.element.parentNode.removeChild(markerEntry.element);
-    }
-  }
-  markers.clear();
 }
 
 
@@ -226,112 +207,89 @@ export function clearStaleMarkersByPath(path){
             markers.delete(id);
         }
     }
-    return markerIds;
+    return [...markerIds];
 }
 
 const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
 
-export async function renderAllMarkers(e, {context, self}, singleMarkers) {
-    
-    const {map, mmvSend} = context;
+export async function renderAllMarkers(e, {self}, markersInfo) {
+    const context = self.getSnapshot().context;
+    const {map} = context;
 
-    let filteredSites = []; 
-    let filteredSiteIds = [];
     let graphics = [];
 
-    for(const markersInfo of singleMarkers){
-        const {featureDef, config, ...restMarkerInfo} = markersInfo;
-        const {path} = featureDef;
-    
-        try {
-            const src = context?.map?.getSource(markersInfo.sourceId);
-            const data = src._data || src.serialize().data; 
+    const {featureDef, config, ...restMarkerInfo} = markersInfo;
+    const {path} = featureDef;
 
-            let features = data?.features;
+    const fnsFactory = IafScriptEngine.getVar("loadedScripts")["filterRuleFns"];
+    const originalFns = fnsFactory();
+    const fns = {...originalFns,
+        capacityBetween:
+            ({ min, max }) =>
+                (feature) => {
+                    //original one is about the building
+                    const originalPredicate = originalFns.capacityBetween({min, max});
+                    if(path=="site"){
+                        return feature.properties.buildings.some(originalPredicate);
+                    } else {
+                        return originalPredicate(feature.properties);
+                    }
 
-            const filterFn = compileFilter(context?.filters);
-      
-            filteredSites = features
-                .map(f => {
-                    const filteredBuildings = (
-                        f.properties.buildings 
-                            || []).filter(b => filterFn({ properties: { buildings: [b] } }));
-                    if (filteredBuildings.length === 0) return null; 
-                    return { ...f, properties: { ...f.properties, buildings: filteredBuildings } };
-                })
-                .filter(Boolean);
-
-            markersInfo.features = filteredSites;
-    
-            filteredSiteIds = filteredSites?.map(f => f.properties.siteId); 
-            featuresIds = features?.map(f => f.properties.siteId); 
-
-        } catch(e){
-            console.error(e);
-            markersInfo.features = [];
-        }
-
-        clearAllMarkers();
-
-        for (const feature of filteredSites) {
-            const m = createSingleMarker(context, feature, {
-                ...config,
-                ...restMarkerInfo,
-                featureDef,
-                send: self.send,
-                setPopupState: context.setPopupState
-            });
-
-            if (m) {
-                const mapboxMarker = new mapboxgl.Marker(m.element)
-                    .setLngLat(m.coordinates)
-                    .addTo(map);
-
-                markers.set(m.id, { ...m, marker: mapboxMarker });
-                graphics.push(m);
+                },
+        statusIn: ({values}) => (feature) => {
+            //original one is about the building
+            const originalPredicate = originalFns.statusIn({values});
+            if(path=="site"){
+                return feature.properties.buildings.some(originalPredicate);
+            } else {
+                return originalPredicate(feature.properties);
             }
         }
+
+    }
+    let features;
+    let allFeatures;
+    const filters = context?.filters?.[path];
+    try {
+        const src = context?.map?.getSource(markersInfo.sourceId);
+        const data = src._data || src.serialize().data;
+
+        features = data?.features;
+        allFeatures = features;
+
+        if(filters) {
+            const compiler = new FilterCompiler(fns)
+            const filterFn = compiler.compileFilter(filters);
+            features = features.filter(filterFn);
+        }
+    } catch(e){
+        console.error(e);
+        features = [];
     }
 
-      if (filteredSites.length > 0) {
-            mmvSend([
-                {
-                    commandName: MMV_COMMANDS.ADD_GRAPHICS,
-                    commandRef: uuid(),
-                    params: {
-                        layerName: 'site-features-layer-centroid',
-                        graphics: filteredSites.map(f => ({
-                            id: String(f.properties.siteId),
-                            geometry: f.geometry,
-                            properties: f.properties
-                        }))
-                    }
-                }
-            ]);
-      }
-      if (filteredSiteIds?.length > 0) {
-         mmvSend([
-            {
-                commandName: MMV_COMMANDS.CUSTOM,
-                commandRef: uuid(),
-                params: {
-                    commandName: 'filtermodel',
-                    params: {
-                        clear: false,
-                        ids: [...filteredSiteIds],
-                        invert: false,
-                        extra: { 
-                            layerNames: ['site-features-layer-centroid'], 
-                            field: 'siteId', 
-                            fieldType: 'string' 
-                        }
-                    }
-                }
-            }
-        ]);
-    }
-    
-    return { graphics };
+    const visibleFeatures  = features;
+
+    let markerGraphics = await Promise.all(features.map(async f => {
+        const {idKey, path} = featureDef;
+        const id = f.id ?? f.properties._id ?? JSON.stringify(f.geometry.coordinates);
+        const keyVal = f?.properties?.[idKey] ?? id;
+        const markerId = `${path}-${keyVal}`;
+        return {markerId, graphic: createSingleMarker(context, f,{...config, ...restMarkerInfo, markerId, featureDef, send: self.send, setPopupState: context.setPopupState})};
+    }));
+    graphics.push(...markerGraphics.filter(mg=>!!mg.graphic).map(mg=>mg.graphic));
+    const allFeaturesMarkerIds = allFeatures.map(f=>{
+        const {idKey, path} = featureDef;
+        const id = f.id ?? f.properties._id ?? JSON.stringify(f.geometry.coordinates);
+        const keyVal = f?.properties?.[idKey] ?? id;
+        const markerId = `${path}-${keyVal}`;
+        return markerId;
+    })
+
+    const previousMarkerIds = [...markers.keys()];
+    graphics.forEach(graphic => {
+        markers.set(graphic.id,graphic);//track markers internally
+    })
+    return {allFeatures, graphics, visibleFeatures, allFeaturesMarkerIds, previousMarkerIds, currentMarkerIds: markerGraphics.map(mg=>mg.markerId), filters};
 }
 
 
@@ -366,37 +324,3 @@ export function zoomIntoClusterByBounds(map, sourceId, clusterId, limit = 5000, 
         map.fitBounds(bounds, { padding, duration: 600 });
     });
 }
-
-export function compileFilter(filterObj) {
-   if (!filterObj || !filterObj.site) {
-    return () => true;
-  }
-
-  const { op, rules } = filterObj.site;
-
-  let fns = IafScriptEngine.getVar('loadedScripts')['filterRuleFns'];
-  if (typeof fns === 'function') {
-    fns = fns();
-  }
-
-  const buildingCheckFns = rules.map(rule => {
-    const fnFactory = fns[rule.fn];
-    if (!fnFactory) {
-      throw new Error(`Unknown rule function: ${rule.fn}`);
-    }
-    return fnFactory(rule.args);
-  });
-
-  return (feature) => {
-    const buildings = feature?.properties?.buildings || [];
-    return buildings.some(building => {
-      if (op === 'and') {
-        return buildingCheckFns.every(fn => fn(building));
-      }
-      if (op === 'or') {
-        return buildingCheckFns.some(fn => fn(building));
-      }
-      return false;
-    });
-  };
-};

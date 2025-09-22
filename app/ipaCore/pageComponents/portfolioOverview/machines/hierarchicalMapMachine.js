@@ -1,5 +1,5 @@
 // generateMapMachine.js (XState v5 compatible)
-import {assign, fromPromise, setup, spawnChild} from 'xstate';
+import {assign, fromPromise, setup, sendTo} from 'xstate';
 import {getEntryAction, getInitAction, getExitAction} from './utils/scriptedEntryActions';
 
 export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
@@ -375,7 +375,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
         },
         on: {
             '*': { actions: [({context, event}) => {
-                //console.log('[machine event]', event)
+                console.log('[machine event]', event)
             }] },
             GO_TO: {
                 actions: assign(({ event }) => ({ pendingEvent: event }))
@@ -385,10 +385,18 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                     data: event.data
                 }))
             },
-            UPDATE_FILTERS: { 
-                actions: assign(({ event }) => ({
-                    filters: event.filters
-            }))
+            UPDATE_FILTERS: {
+                actions: [
+                    assign(({ event }) => ({
+                        filters: event.filters
+                    })),
+                    sendTo(({ self }) => self, { type: 'APPLY_FILTERS' }, { delay: 0 })],
+
+            },
+            APPLY_FILTERS: {
+                actions: [({context, self})=>{
+                    context.manageMarkers && Object.values(context.manageMarkers).filter(fn=>typeof fn === "function").forEach((fn, index) => fn(null))
+                }]
             }
         }
     };
