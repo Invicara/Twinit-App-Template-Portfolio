@@ -16,6 +16,8 @@ import CircularProgress from "@material-ui/core/CircularProgress";
 import { getFilter, setFilter } from "../../../redux/filters";
 import { useDispatch, useSelector as useReduxSelector, useStore } from 'react-redux';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils/index.js";
+import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
+import {getGlobalFilterFunctions} from "../../utils/filters.global.js";
 
 ChartJS.register(
   CategoryScale,
@@ -24,7 +26,6 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  ChartDataLabels,
 );
 
 const useStyles = makeStyles({
@@ -75,38 +76,45 @@ Tooltip.positioners.centerBar = function (items, eventPosition) {
 const GroupLabelPlugin = {
   id: 'groupLabelPlugin',
   afterDatasetsDraw(chart, _args, opts) {
-    const { ctx, scales, data } = chart;
+    const { ctx, scales, data, chartArea } = chart;
     const rows = opts?.data || [];                  // ← you pass this in options.plugins.groupLabelPlugin.data
     const fmt  = opts?.formatter || (b => b.label); // ← optional formatter
-
     if (!rows.length) return;
 
     ctx.save();
     ctx.fillStyle = opts?.color || '#1D1D1D';
     ctx.font = (opts?.font?.string) || (ChartJS.defaults.font && ChartJS.defaults.font.string) || '12px sans-serif';
     ctx.textBaseline = 'bottom';
+    const meta = chart.getDatasetMeta(0);
 
     const yScale = scales.y, xScale = scales.x;
     rows.forEach((bin, i) => {
+      const bar = meta.data[i];
+      if (!bar) return;
+      const y = yScale.getPixelForValue(i);
+      const labelX = chartArea.left;
+      const topY   = bar.y - bar.height / 2;
+      const labelY = topY - 4; // label baseline just above bar
+
+      const circleColor = bin.color || "#7e7e7e";
+      const circleRadius = 4;
+      ctx.fillStyle = circleColor;
+      ctx.beginPath();
+      ctx.arc(labelX + circleRadius, labelY - 6, circleRadius, 0, 2 * Math.PI);
+      ctx.fill();
+
+      ctx.fillStyle = "#000";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic"; // good for labelY alignment
+
       const label = fmt(bin);
-      const y = yScale.getPixelForValue(i) - 6;     // a bit above the bar
-      const total = chart.getSortedVisibleDatasetMetas().reduce((s, m) => {
-        const v = m.controller.getParsed(i)?.x ?? 0;
-        return s + (chart.isDatasetVisible(m.index) ? Number(v) : 0);
-      }, 0);
-      const x = xScale.getPixelForValue(total);
-      ctx.textAlign = 'left';
-      ctx.fillText(label, x + 8, y);
+      const textX =  labelX + circleRadius * 2 + 4;
+      ctx.fillText(label, textX, labelY);
     });
 
     ctx.restore();
   }
 };
-
-// one-time global registration (module scope)
-if (!ChartJS.registry.plugins.get('groupLabelPlugin')) {
-  ChartJS.register(GroupLabelPlugin);
-}
 
 const get = (obj, path, dflt) => {
   if (typeof path === 'function') return path(obj);
@@ -135,7 +143,8 @@ const sanitizeColor = (c) => {
   return c;
 };
 
-export function deriveChartMatrix({ data, ctx, chartCfg }) {
+export function deriveChartMatrix({ data, fns, chartCfg }) {
+  const ctx = {};
   // items
   const items =
       typeof chartCfg?.itemsOf === 'function'
@@ -158,10 +167,17 @@ export function deriveChartMatrix({ data, ctx, chartCfg }) {
   const rows = bins.map(b => ({ ...b, buckets: {} }));
 
   // choose bin for a feature:
-  const getRow = (f) => {
+  const getRow = (fns,f) => {
     // priority: explicit bin.test(feature) takes precedence
-    const byTest = rows.find(r => typeof r.test === 'function' && r.test(f, ctx));
-    if (byTest) return byTest;
+    const byFilterTest = rows.find(r => {
+      if(typeof r.test === 'string' ) {
+        const pred = fns[r.test] && fns[r.test]({ values: [r.id] });
+        return pred(f);
+      } else if (typeof r.test === 'function'){
+        return r.test(f, r);
+      }
+    });
+    if (byFilterTest) return byFilterTest;
 
     // fallback: numeric bins via valueProp
     if (typeof chartCfg?.group?.valueProp === 'function') {
@@ -182,7 +198,7 @@ export function deriveChartMatrix({ data, ctx, chartCfg }) {
 
   // accumulate
   for (const f of items) {
-    const row = getRow(f);
+    const row = getRow(fns, f);
     if (!row) continue;
 
     const w = weightOf(f);
@@ -218,85 +234,6 @@ export function deriveChartMatrix({ data, ctx, chartCfg }) {
 }
 
 
-
-//TODO: move that to external script
-const defaultChartCfg =  {
-  // 1) where items come from (no childPath)
-  itemsOf: (data /* context.data */) => {
-    const sites = Array.isArray(data?.site) ? data.site : [];
-    return sites.flatMap(s => Array.isArray(s.buildings) ? s.buildings : []);
-  },
-
-  // 2) GROUP: Palier bins from ReactorModel, using ONLY bins[].test
-  group: {
-    id: 'palier',
-    bins: [
-      {
-        id: 'CP0/CPY', label: 'CP0/CPY Palier',
-        test: (b) => /CP0|CP1|CPY/i.test(String(b?.ReactorModel || '')),
-      },
-      {
-        id: "P4/P'4", label: "P4/P'4 Palier",
-        test: (b) => /P4|'?P4/i.test(String(b?.ReactorModel || '')),
-      },
-      {
-        id: 'N4', label: 'N4 Palier',
-        test: (b) => /N4/i.test(String(b?.ReactorModel || '')),
-      },
-      {
-        id: 'Other', label: 'Other',
-        test: () => true, // catch-all
-      },
-    ],
-    // optional pretty label
-    groupLabel: (bin) => bin.label,
-  },
-
-  // 3) SERIES: StatusId → stacks, with your label/color maps
-  series: {
-    id: 'status',
-    keyProp: (b) => String(b?.StatusId ?? 'unknown'),
-    config: {
-      colorMap: {
-        "1": "#d3d3d3",   // Not started / Planned (adjust if you want your old palette)
-        "2": "#f4b740",   // In Progress / Construction
-        "3": "#66bb6a",   // Completed / Operating
-        "4": "#e53935",   // At risk / Suspended Operation
-        "5": "#6B7280",   // Permanent Shutdown
-        "unknown": "#CCCCCC",
-      },
-      labelMap: {
-        "1": "Not started",
-        "2": "In Progress",
-        "3": "Completed",
-        "4": "At risk",
-        "5": "Permanent Shutdown",
-        "unknown": "Unknown",
-      },
-    },
-    // keep a stable legend order
-    order: (keys) => {
-      const pref = ['1','2','4','3','5','unknown']; // your desired sequence
-      return pref.filter(k => keys.includes(k)).concat(keys.filter(k => !pref.includes(k)));
-    },
-  },
-
-  // 4) METRIC
-  metric: { type: 'count' },
-
-  // 5) Click → filters (map back to your predicate registry)
-  filter: {
-    scope: 'site',
-    combine: 'and',
-    rules: {
-      series: (statusKey) =>
-          statusKey === 'unknown' ? null : ({ fn: 'statusIn', args: { values: [statusKey] } }),
-      group:  (bin) => ({ fn: 'reactorPalierIn', args: { values: [bin.id] } }),
-    },
-  },
-};
-
-
 export function buildChartData(matrix) {
   const { rows, legend, seriesKeys, labels } = matrix;
 
@@ -306,7 +243,7 @@ export function buildChartData(matrix) {
     data: rows.map(r => r.buckets[k] ?? 0),
     backgroundColor: (legend[k]?.color ?? '#999'),
     stack: 'stack1',
-    barThickness: 56,
+    maxBarThickness: 30,
   }));
 
   // drop all-zero series
@@ -330,41 +267,88 @@ export function buildChartData(matrix) {
  * @returns {{ [scope: string]: { op: 'and'|'or', rules: any[] } } | {}}
  */
 export const getChartFilters = (click, chartCfg) => {
-  const filterCfg = chartCfg?.filter;
-  if (!filterCfg?.rules) return {};
-  const scope = filterCfg.scope || 'site';
-  const op = (filterCfg.combine || 'and');
-  const rules = [];
+  const filterCfg = chartCfg?.filter || {};
+  const scope   = filterCfg.scope  || 'site';
+  const op      = filterCfg.combine || 'and';
+  const rules   = [];
 
-  if (typeof filterCfg.rules.series === 'function' && click?.seriesKey != null) {
-    const r = filterCfg.rules.series(click.seriesKey, { legend: click.series, ctx: click.ctx });
+  // helper: build a rule from a def:
+  // - function: (payload, ctx) => Rule|null
+  // - string:   treated as fn name; payload is turned into args.values
+  // - object:   already a rule
+  const makeRule = (def, payload, ctx) => {
+    if (!def) return null;
+    if (typeof def === 'function') return def(payload, ctx) || null;
+    if (typeof def === 'string') {
+      const values = payload == null
+          ? []
+          : Array.isArray(payload) ? payload : [payload];
+      return { fn: def, args: { values: values.map(String) } };
+    }
+    if (def && typeof def.fn === 'string') return def;
+    return null;
+  };
+
+  // build series rule (default to statusIn if mapper not provided)
+  if (click?.seriesKey != null) {
+    const seriesDef = filterCfg.rules?.series;
+    const r = makeRule(seriesDef, String(click.seriesKey), { legend: click.series, click, chartCfg });
     if (r) rules.push(r);
   }
-  if (typeof filterCfg.rules.group === 'function' && click?.bin) {
-    const r = filterCfg.rules.group(click.bin, { ctx: click.ctx });
+
+  // build group rule (default to bin.test or reactorPalierIn)
+  if (click?.bin) {
+    const groupDef = filterCfg.rules?.group ?? (click.bin.test);
+    const r = makeRule(groupDef, String(click.bin.id), { bin: click.bin, click, chartCfg });
     if (r) rules.push(r);
   }
+
   if (!rules.length) return {};
-  return { [scope]: { op, rules } };
+
+  // de-dupe same-fn rules by unioning args.values
+  const merged = [];
+  for (const rule of rules) {
+    const i = merged.findIndex(r => r.fn === rule.fn);
+    if (i === -1) {
+      merged.push(rule);
+    } else {
+      const a = merged[i].args || {};
+      const b = rule.args || {};
+      const av = Array.isArray(a.values) ? a.values : [];
+      const bv = Array.isArray(b.values) ? b.values : [];
+      merged[i] = {
+        fn: rule.fn,
+        args: { ...a, ...b, values: Array.from(new Set([...av, ...bv])) }
+      };
+    }
+  }
+
+
+
+  //return { [scope]: { op, rules: merged } };
+  return { op, rules: merged };
 };
 
 
 
-export default function DeployStatusChart({ userConfig, context, snapshot, send, stateKey }) {
-  const rowsCount = Object.keys(defaultChartCfg.series.config.labelMap).length;
-  const chartHeight = Math.max(240, rowsCount * 80);
-  const classes = useStyles({ chartHeight });
-  const chartTitle = userConfig.handlers.portfolioOverview.config.labels?.chartTitle || "Status";
 
-  const filter = useReduxSelector(getFilter);
+export default function DeployStatusChart({ handler, context, onFilterChange, chartCfg }) {
+
+  const chartTitle = handler.config.labels?.chartTitle || "Status";
+  const fns = getGlobalFilterFunctions("building", false)
+
 
   const matrix = useMemo(() => deriveChartMatrix({
-    data: context.data,       // plain array of features
-    ctx: {  },
-    chartCfg: defaultChartCfg,
+    data: context.data,
+    fns,
+    chartCfg
   }), [context.data]);
 
   const chartData = useMemo(() => buildChartData(matrix), [matrix]);
+
+  const rowsCount = Math.max(1, (matrix?.labels?.length || 0));
+  const chartHeight = Math.max(240, rowsCount * 80);
+  const classes = useStyles({ chartHeight });
 
   const dispatch = useDispatch();
 
@@ -379,8 +363,8 @@ export default function DeployStatusChart({ userConfig, context, snapshot, send,
     layout: { padding: { left: 0, right: 10, top: 40, bottom: 0 } },
     plugins: {
       groupLabelPlugin: {
-        data: matrix?.data || [],
-        formatter: defaultChartCfg?.groupLabel
+        data: matrix?.rows || [],
+        formatter: chartCfg?.group?.groupLabel
       },
       legend: {
         display: true,
@@ -458,7 +442,9 @@ export default function DeployStatusChart({ userConfig, context, snapshot, send,
       },
       y: {
         stacked: true,
+        // categoryPercentage < 1 → shrink the category band (adds space between groups)
         categoryPercentage: 0.4,
+        // barPercentage < 1 → shrink the bar within its band (adds space within group if multiple bars)
         barPercentage: 0.6,
         grid: { display: false, drawBorder: false },
         border: { display: false },
@@ -471,8 +457,8 @@ export default function DeployStatusChart({ userConfig, context, snapshot, send,
       const { datasetIndex, index } = elements[0];
       const seriesKey = chart.data.datasets[datasetIndex].key;
       const bin = matrix.rows[index];
-      const newFilter = getChartFilters({ seriesKey, series: matrix.legend[seriesKey], bin, ctx: {} }, defaultChartCfg);
-      // dispatch newFilter…
+      const newFilter = getChartFilters({ seriesKey, series: matrix.legend[seriesKey], bin, ctx: {} }, chartCfg);
+      onFilterChange(newFilter);
     },
   };
 

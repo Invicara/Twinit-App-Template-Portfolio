@@ -33,94 +33,14 @@ const useStyles = makeStyles(() => ({
     divider: { border: 'none', height: '1px', borderTop: '1px solid #EBEBEB', marginBottom: 24, width: 532, marginTop: 0, marginLeft: 'auto', marginRight: 'auto' },
 }));
 
-export const sampleFormConfig = {
-    initial: { search: '', group: '', structure: '', location: '', status: '' },
-    fields: {
-        status: {
-            label: 'Status',
-            type: 'select',
-            options: (ctx) => {
-                const labelMap = {
-                        "1": "Not started",
-                        "2": "In Progress",
-                        "3": "Completed",
-                        "4": "At risk",
-                        "5": "Permanent Shutdown",
-                        "unknown": "Unknown",
-                }
-                return Object.entries(labelMap).map(([id,label]) => ({ value: id, label: label || `Status ${id}` }));
-            },
-            toRule: (value) => (value !== '' ? { fn: 'statusIn', args: { values: [value] } } : null),
-            fromRule: (rule) => (rule.fn === 'statusIn' && Array.isArray(rule.args?.values) ? rule.args.values[0] : null),
-        },
-        group: {
-            label: 'Group',
-            type: 'select',
-            options: () => {
-                const bins = [
-                        { id: 'small',  min: 0,   max: 100,  label: '≤100',  unit: 'MW' },
-                        { id: 'medium', min: 100, max: 250,  label: '≤250',  unit: 'MW' },
-                        { id: 'large',  min: 250, max: 1000, label: '≤1000', unit: 'MW' },
-                        { id: 'xl',     min: 1000, max: null, label: '>1000', unit: 'MW' },
-                ];
-                return bins.map((bin, index) => ({ value: bin.id, label: bin.label, meta: { bin } }));
-            },
-            toRule: (value, _ctx, meta) => {
-                return value !== '' && meta?.bin
-                    ? {fn: 'capacityBetween', args: {min: meta.bin?.min ?? null, max: meta.bin?.max ?? null, id: value}}
-                    : null
-            },
-            fromRule: (rule) => {
-                const bins = [
-                    { id: 'small',  min: 0,   max: 100,  label: '≤100',  unit: 'MW' },
-                    { id: 'medium', min: 100, max: 250,  label: '≤250',  unit: 'MW' },
-                    { id: 'large',  min: 250, max: 1000, label: '≤1000', unit: 'MW' },
-                    { id: 'xl',     min: 1000, max: null, label: '>1000', unit: 'MW' },
-                ];
-                rule.fn === 'capacityBetween' ? bins.find(b => b.id == rule.args?.id) : null
-            }
-        },
-
-        group2: {
-            label: 'Group2',
-            type: 'select',
-            options: () => {
-                const edges = [0, 100, 250, 1000];
-                const names = ['Small', 'Medium', 'Large'];
-                return names.map((label, index) => ({ value: index, label, meta: { edges } }));
-            },
-            toRule: (value, _ctx, meta) =>
-                value !== '' && meta?.edges
-                    ? { fn: 'amountInBins', args: { edges: meta.edges, index: Number(value) } }
-                    : null,
-            fromRule: (rule) =>
-                rule.fn === 'amountInBins' && Number.isFinite(rule.args?.index) ? Number(rule.args.index) : null,
-        },
-
-        search: {
-            label: 'Search',
-            type: 'text',
-            toRule: (value) => (value?.trim() ? { fn: 'searchQuery', args: { q: value.trim() } } : null),
-            fromRule: (rule) => (rule.fn === 'searchQuery' ? rule.args?.q ?? '' : null),
-        },
-
-        // ...structure, location similarly...
-    },
-    compile(rules) {
-        const clean = rules.filter(Boolean);
-        return clean.length ? { op: 'and', rules: clean } : null;
-    },
-};
-
 export default function SearchPanel({
                                         context = {},
-                                        userConfig,
+                                        handler,
                                         initialFilter,
                                         onSubmit,
+                                        formConfig
                                     }) {
     const classes = useStyles();
-
-    const formConfig = sampleFormConfig;
 
     // Labels (formConfig.fields[key].label > userConfig override > defaults)
     const defaultLabels = {
@@ -130,7 +50,7 @@ export default function SearchPanel({
         location: 'Choose locations / regions',
         status: 'Status',
     };
-    const labelsFromUserConfig = userConfig?.handlers?.portfolioOverview?.config?.labels || {};
+    const labelsFromUserConfig = handler?.config?.labels || {};
     const labels = useMemo(() => {
         const map = { ...defaultLabels, ...labelsFromUserConfig };
         for (const key of Object.keys(formConfig?.fields || {})) {

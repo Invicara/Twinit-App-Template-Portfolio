@@ -1,8 +1,8 @@
 import mapboxgl from "mapbox-gl";
 import {markHandled} from "./mapEntryActions.mjs";
 import {get} from "lodash";
-import { IafScriptEngine } from "@dtplatform/iaf-script-engine";
-import {FilterCompiler} from "../../ipaCore/redux/filters.js";
+import {FilterCompiler} from "../../ipaCore/pageComponents/utils/filters.global.js";
+import {getGlobalFilterFunctions} from "../../ipaCore/pageComponents/utils/filters.global.js";
 
 const PIE_SIZE  = 48;
 const PIE_ALPHA = 0.7; // (lower -> more transparent)
@@ -221,34 +221,9 @@ export async function renderAllMarkers(e, {self}, markersInfo) {
     const {featureDef, config, ...restMarkerInfo} = markersInfo;
     const {path} = featureDef;
 
-    const fnsFactory = IafScriptEngine.getVar("loadedScripts")["filterRuleFns"];
-    const originalFns = fnsFactory();
-    const fns = {...originalFns,
-        capacityBetween:
-            ({ min, max }) =>
-                (feature) => {
-                    //original one is about the building
-                    const originalPredicate = originalFns.capacityBetween({min, max});
-                    if(path=="site"){
-                        return feature.properties.buildings.some(originalPredicate);
-                    } else {
-                        return originalPredicate(feature.properties);
-                    }
-
-                },
-        statusIn: ({values}) => (feature) => {
-            //original one is about the building
-            const originalPredicate = originalFns.statusIn({values});
-            if(path=="site"){
-                return feature.properties.buildings.some(originalPredicate);
-            } else {
-                return originalPredicate(feature.properties);
-            }
-        }
-
-    }
+    const fns = getGlobalFilterFunctions("site", true);
     let features;
-    let allFeatures;
+    let allFeatures = [];
     const filters = context?.filters?.[path];
     try {
         const src = context?.map?.getSource(markersInfo.sourceId);
