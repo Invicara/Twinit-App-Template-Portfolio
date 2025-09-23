@@ -34,7 +34,8 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
     const { send, actor } = portContext || {};
     const currentState = useXstateSelector(actor, state => state);
 
-    const [currentElementType, namedPathDict] = useMemo(() => {
+    const [currentElementType, namedPathDict, namedPath] = useMemo(() => {
+
         const namedPaths = currentState.context.namedPaths[0];
 
         const namedPathDict = Object.assign({}, ...namedPaths.map(p => ({[p.state]: p})));
@@ -43,7 +44,10 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
 
         const sPath = levels?.map(el => el.state).join(".");
         const cElementType = sPath?.split(".")?.slice(-1)?.[0];
-        return [cElementType, namedPathDict]
+
+        const namedPath = namedPaths.find(p => p.state === cElementType);
+
+        return [cElementType, namedPathDict, namedPath]
 
     }, [currentState])
 
@@ -74,7 +78,6 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
 
     // Handle site cancellation (remove draft site) - extracted from line 59
     const handleCancelSite = (siteToRemove) => {
-        console.log("handleCancelSite", {siteToRemove});
 
         // Remove the draft site from the data
         const currentData = currentState.context?.data || {};
@@ -163,7 +166,18 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             dispatch(setSelectedCoordinate([clickEvent.ground.longitude, clickEvent.ground.latitude]));
             dispatch(setIsSelectingPosition(false));
         }
-        if(selectedCoordinate?.length && !isSelectingPosition && draftType === "building"){
+
+        const draftNamedPath = namedPathDict[draftType];
+
+        if(selectedCoordinate?.length && !isSelectingPosition && draftNamedPath.feature === "mesh"){
+
+            const parentNamedPath = currentState.context.namedPaths[0].find(p => p.state === draftNamedPath.parentState);
+            const currentParentId = currentState.context[parentNamedPath.idKey];
+            const parentEntity = currentState.context.data[draftNamedPath.parentState].find(e => e[parentNamedPath.idKey] === currentParentId);
+
+            if(parentNamedPath.feature === "polygon" && parentEntity.coordinates){
+                console.log("FOUND_COORDINATES", parentEntity.coordinates);
+            }
 
             const [centerLng, centerLat] = selectedCoordinate;
             const newBuildingId = `${defaultNewBuildingId}-${+new Date()}`
@@ -205,8 +219,6 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 console.log('Retrieved geometry info for graphic:', graphicId, geometryInfo);
             }
 
-            const namedPath = currentState.context.namedPaths[0].find(p => p.state === "building"); // Use first named path
-
             // Add 3D model to map if geometry info is available
             if (mapInstance && graphicId && geometryInfo) {
                 const success3D = addBuildingToMap({
@@ -216,7 +228,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                     centroid: [centerLng, centerLat],
                     graphicId: graphicId,
                     geometryInfo: geometryInfo,
-                    namedPath: namedPath
+                    namedPath: draftNamedPath
                 });
                  
                 if (success3D) {
@@ -244,7 +256,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             dispatch(setSelectedCoordinate([]));
       
         }
-        if(selectedCoordinate?.length && !isSelectingPosition && draftType === "site"){
+        if(selectedCoordinate?.length && !isSelectingPosition && draftNamedPath.feature === "polygon"){
             const [centerLng, centerLat] = selectedCoordinate;
 
             // Generate square coordinates around the selected point (500m width)
@@ -275,12 +287,11 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
 
             // Add the new site to the map layer
             if (mapInstance && currentState.context?.namedPaths) {
-                const namedPath = currentState.context.namedPaths[0].find(p => p.state === "site"); // Use first named path
                 const success = addFeatureToMapLayer({
                     map: mapInstance,
                     levelState: 'site',
                     feature: newSite,
-                    namedPath: namedPath
+                    namedPath: draftNamedPath
                 });
 
                 if (success) {
@@ -306,7 +317,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             dispatch(setDraftType());
             dispatch(setSelectedCoordinate([]));
         }
-    }, [previousIsSelectingPosition, isSelectingPosition, selectedCoordinate, previousClick, clickEvent, draftTypeSchema, draftType, selectedGraphicReferecen, currentState, send, dispatch, mapInstance]);
+    }, [previousIsSelectingPosition, isSelectingPosition, selectedCoordinate, previousClick, clickEvent, draftTypeSchema, draftType, selectedGraphicReferecen, namedPathDict, currentState, send, dispatch, mapInstance]);
 
     return <></>
 };

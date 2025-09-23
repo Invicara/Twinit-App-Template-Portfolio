@@ -372,6 +372,7 @@ export default function BuildingDetails({ context }) {
                         originalEntity={cachedOriginalEntity}
                         disabled={!isInEditMode}
                         modifyTypeCallback={handleTypeModification}
+                        allowReadOnlyOverride={currentEntity?.isDraft}
                     />
                 </Box>
                 <Box p={2} style={{ marginTop: 12, display: 'flex', justifyContent: "space-between", gap: 14}}>

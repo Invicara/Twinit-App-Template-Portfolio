@@ -67,18 +67,16 @@ const isFieldRequired = (schema, fieldName) => {
     return schema?.required?.includes(fieldName) || false;
 };
 
-const isFieldEditable = (schema, fieldName) => {
+const isFieldEditable = (schema, fieldName, allowReadOnlyOverride = false) => {
     const fieldSchema = schema?.properties?.[fieldName];
-    return !fieldSchema?.readOnly;
+    return !fieldSchema?.readOnly || (fieldSchema?.readOnly && allowReadOnlyOverride);
 };
 
 const isFieldDeletable = (schema, fieldName) => {
     return !isFieldRequired(schema, fieldName);
 };
 
-export const InfoComponent = ({ entity, handleChange, type, entityType, originalEntity, disabled = false, onFieldRemove, modifyTypeCallback, debounceTime=700 }) => {
-
-    console.log("InfoComponent", {entity, handleChange, type, entityType, originalEntity, disabled, onFieldRemove, modifyTypeCallback, debounceTime})
+export const InfoComponent = ({ entity, handleChange, type, entityType, originalEntity, disabled = false, onFieldRemove, modifyTypeCallback, debounceTime=700, allowReadOnlyOverride = false }) => {
 
     // Modal states
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -160,23 +158,23 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
         useMemo(() => makeLayouts({
             getIsModifiable: (field) => {
                 const fieldSchema = type?.properties?.[field];
-                // modifiable if field exists and is not readOnly
-                const guard = !!fieldSchema && isFieldEditable(type, field);
+                // modifiable if field exists and is not readOnly (or readOnly override is allowed)
+                const guard = !!fieldSchema && isFieldEditable(type, field, allowReadOnlyOverride);
                 return guard;
             },
             getIsEditable: (field) => {
                 const fieldSchema = type?.properties?.[field];
-                // editable if field exists and is not readOnly
-                const guard = !!fieldSchema && isFieldEditable(type, field);
+                // editable if field exists and is not readOnly (or readOnly override is allowed)
+                const guard = !!fieldSchema && isFieldEditable(type, field, allowReadOnlyOverride);
                 return guard;
             },
             getIsDeletable: (field) => isFieldDeletable(type, field),
             onOpenModify: (field) => handleOpenModifyModal(field),
             onOpenDelete: (field) => handleOpenDeleteModal(field),
             disabledForm: disabled
-        }), [type, disabled, handleOpenModifyModal, handleOpenDeleteModal]);
+        }), [type, disabled, handleOpenModifyModal, handleOpenDeleteModal, allowReadOnlyOverride]);
 
-    const {uiSchema, renderers, optionsResolver, ajv, materialCells, materialRenderers} = useInfoComponentJsonForms({schema: type, layouts});
+    const {processedType, uiSchema, renderers, optionsResolver, ajv, materialCells, materialRenderers} = useInfoComponentJsonForms({schema: type, layouts, allowReadOnlyOverride});
 
     // track previous value so we can call your handleChange(name, value, meta)
     const prevRef = useRef(localValue);
@@ -204,7 +202,7 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
                         <ThemeProvider theme={formTheme}>
                             <JsonForms
                                 data={localValue}
-                                schema={type}
+                                schema={processedType}
                                 uischema={uiSchema}
                                 onChange={onJsonFormsChange}
                                 renderers={renderers}

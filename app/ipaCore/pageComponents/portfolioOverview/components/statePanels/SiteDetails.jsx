@@ -864,6 +864,7 @@ export default function SiteDetails({ context }) {
                     originalEntity={cachedOriginalEntity}
                     disabled={!isInEditMode}
                     modifyTypeCallback={handleTypeModification}
+                    allowReadOnlyOverride={currentEntity?.isDraft}
                 />
                 <Divider style={{ margin: '16px 0'}} />
                     <Box style={{ marginTop: 12, display: 'flex', justifyContent: "right", gap: 14}}>
