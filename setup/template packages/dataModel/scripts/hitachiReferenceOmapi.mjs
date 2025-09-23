@@ -198,8 +198,8 @@ async function searchEquipment(input, libraries, ctx) {
       query['Equipment Id'] = input.params.equipmentId
    }
 
-   let _pageSize = input._pageSize ? input._pageSize : 100
-   let _offset = input._offset ? input._offset : 0
+   let _pageSize = input.params._pageSize ? input.params._pageSize : 100
+   let _offset = input.params._offset ? input.params._offset : 0
 
    let collections = await IafItemSvc.getNamedUserItems({
 		query: { _userType: { $in: ["equipRefs", "equipRefRevs"]} , _itemClass: 'NamedUserCollection' }
