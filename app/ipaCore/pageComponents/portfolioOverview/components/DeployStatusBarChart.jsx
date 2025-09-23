@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
-import { makeStyles } from '@material-ui/core/styles';
-import { Bar } from 'react-chartjs-2';
+import React, {useMemo, useContext, useEffect, useState} from "react";
+import { makeStyles } from "@material-ui/core/styles";
+import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -9,147 +9,379 @@ import {
   Title,
   Tooltip,
   Legend,
-} from 'chart.js';
-import ChartDataLabels from 'chartjs-plugin-datalabels';
-import BarChartOutlinedIcon from '@material-ui/icons/BarChartOutlined';
+} from "chart.js";
+import ChartDataLabels from "chartjs-plugin-datalabels";
+import BarChartOutlinedIcon from "@material-ui/icons/BarChartOutlined";
+import CircularProgress from "@material-ui/core/CircularProgress";
+import { getFilter, setFilter } from "../../../redux/filters";
+import { useDispatch, useSelector as useReduxSelector, useStore } from 'react-redux';
+import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils/index.js";
+import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
+import {getGlobalFilterFunctions} from "../../utils/filters.global.js";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ChartDataLabels);
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend,
+);
 
 const useStyles = makeStyles({
   container: {
-    width: '100%',
-    overflowY: 'auto',
-    minHeight: '125vh',
-    display: 'flex',
-    flexDirection: 'column',
+    width: "100%",
+    overflowY: "auto",
+    minHeight: (props) => props.chartHeight + 300,
+    display: "flex",
+    flexDirection: "column",
   },
   header: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    marginBottom: 24,
+    display: "flex",
+    alignItems: "flex-start",
+    marginBottom: -20,
   },
   icon: {
-    color: '#5D5D5D',
+    color: "#5D5D5D",
     fontSize: 26,
     marginRight: 8,
     marginLeft: 0,
   },
   headerText: {
-    fontFamily: 'Inter',
+    fontFamily: "Inter",
     fontSize: 15,
     fontWeight: 700,
     marginTop: 4,
     color: '#000',
   },
   chartWrapper: {
-    width: '100%',
-    height: (props) => props.chartHeight,
+    width: "100%",
+    height: (props) => props.chartHeight + 40,
+    overflow: "visible",
   },
 });
 
-const groupLabelPlugin = {
+Tooltip.positioners.centerBar = function (items, eventPosition) {
+  if (!items.length) {
+    return false;
+  }
+  const element = items[0].element;
+  return {
+    x: (element.base + element.x) / 2,
+    y: element.y - element.height / 2.3,
+  };
+};
+
+// define the plugin once
+const GroupLabelPlugin = {
   id: 'groupLabelPlugin',
-  afterDatasetsDraw(chart) {
-    const { ctx, scales, chartArea } = chart;
-    const yScale = scales.y;
+  afterDatasetsDraw(chart, _args, opts) {
+    const { ctx, scales, data, chartArea } = chart;
+    const rows = opts?.data || [];                  // ← you pass this in options.plugins.groupLabelPlugin.data
+    const fmt  = opts?.formatter || (b => b.label); // ← optional formatter
+    if (!rows.length) return;
 
     ctx.save();
-    ctx.textBaseline = 'middle';
-    ctx.font = '14px Inter, sans-serif';
+    ctx.fillStyle = opts?.color || '#1D1D1D';
+    ctx.font = (opts?.font?.string) || (ChartJS.defaults.font && ChartJS.defaults.font.string) || '12px sans-serif';
+    ctx.textBaseline = 'bottom';
+    const meta = chart.getDatasetMeta(0);
 
-    mockDeployData.forEach((item, i) => {
+    const yScale = scales.y, xScale = scales.x;
+    rows.forEach((bin, i) => {
+      const bar = meta.data[i];
+      if (!bar) return;
       const y = yScale.getPixelForValue(i);
-      const barThickness = 30;
-      const labelGap = 24;
       const labelX = chartArea.left;
-      const labelY = y - barThickness / 2 - labelGap;
+      const topY   = bar.y - bar.height / 2;
+      const labelY = topY - 4; // label baseline just above bar
 
-      let circleColor = '#000';
-      if (item.capacityMW === 900) circleColor = '#1DC0F7';
-      else if (item.capacityMW === 1300) circleColor = '#0072BC';
-      else if (item.capacityMW === 1450) circleColor = '#1D1D1D';
-
+      const circleColor = bin.color || "#7e7e7e";
       const circleRadius = 4;
       ctx.fillStyle = circleColor;
       ctx.beginPath();
-      ctx.arc(labelX + circleRadius, labelY - 1, circleRadius, 0, 2 * Math.PI);
+      ctx.arc(labelX + circleRadius, labelY - 6, circleRadius, 0, 2 * Math.PI);
       ctx.fill();
 
-      ctx.fillStyle = '#000';
-      ctx.textAlign = 'left';
-      ctx.fillText(item.group, labelX + circleRadius * 2 + 4, labelY);
+      ctx.fillStyle = "#000";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic"; // good for labelY alignment
+
+      const label = fmt(bin);
+      const textX =  labelX + circleRadius * 2 + 4;
+      ctx.fillText(label, textX, labelY);
     });
 
     ctx.restore();
-  },
+  }
 };
 
-const hideLastXGridLinePlugin = {
-  id: 'hideLastXGridLine',
-  afterDraw: (chart) => {
-    const xScale = chart.scales.x;
-    const ctx = chart.ctx;
-    const lastPixel = xScale.getPixelForValue(xScale.max);
-
-    ctx.save();
-    ctx.strokeStyle = chart.options.plugins?.background?.color || '#fff';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(lastPixel, chart.chartArea.top);
-    ctx.lineTo(lastPixel, chart.chartArea.bottom + 5);
-    ctx.stroke();
-    ctx.restore();
-  },
+const get = (obj, path, dflt) => {
+  if (typeof path === 'function') return path(obj);
+  if (!path) return Array.isArray(obj) ? obj : dflt;
+  return path.split('.').reduce((o, k) => (o && k in o ? o[k] : undefined), obj) ?? dflt;
 };
 
-const mockDeployData = [
-  { group: 'CP0/CPY Palier', capacityMW: 900, status: { notStarted: 10, inProgress: 7, atRisk: 3, completed: 20 } },
-  { group: "P4/P'4 Palier", capacityMW: 1300, status: { notStarted: 5, inProgress: 6, atRisk: 2, completed: 7 } },
-  { group: 'N4 Palier', capacityMW: 1450, status: { notStarted: 4, inProgress: 1, atRisk: 0, completed: 0 } },
-];
-
-const STATUS_CONFIG = {
-  notStarted: { label: 'Not started', color: '#d3d3d3' },
-  inProgress: { label: 'In Progress', color: '#f4b740' },
-  atRisk: { label: 'At risk', color: '#e53935' },
-  completed: { label: 'Completed', color: '#66bb6a' },
+const inRange = (v, min, max) => {
+  if (v == null || Number.isNaN(+v)) return false;
+  if (min != null && +v < min) return false;
+  if (max != null && max !== Infinity && +v >= max) return false;
+  return true;
 };
 
-export default function DeployStatusChart() {
-  const chartHeight = mockDeployData.length * 120;
+const sanitizeColor = (c) => {
+  if (!c) return '#999';
+  const m = /^#([0-9a-f]{8})$/i.exec(String(c).trim());
+  if (m) {
+    const hex = m[1];
+    const r = parseInt(hex.slice(0,2),16);
+    const g = parseInt(hex.slice(2,4),16);
+    const b = parseInt(hex.slice(4,6),16);
+    const a = parseInt(hex.slice(6,8),16) / 255;
+    return `rgba(${r},${g},${b},${a})`;
+  }
+  return c;
+};
+
+export function deriveChartMatrix({ data, fns, chartCfg }) {
+  const ctx = {};
+  // items
+  const items =
+      typeof chartCfg?.itemsOf === 'function'
+          ? chartCfg.itemsOf(data, ctx)
+          : (Array.isArray(data) ? data : get(data, chartCfg?.dataPath, []));
+
+  const bins = (chartCfg?.group?.bins || []).map(b => ({ ...b }));
+
+  // legend from maps
+  const labelMap = chartCfg?.series?.config?.labelMap || {};
+  const colorMap = chartCfg?.series?.config?.colorMap || {};
+  const legend = Object.keys(labelMap).reduce((acc, k) => {
+    acc[k] = { label: labelMap[k], color: sanitizeColor(colorMap[k] || '#999') };
+    return acc;
+  }, {});
+  if (!legend.unknown) legend.unknown = { label: 'Unknown', color: '#CCCCCC' };
+
+  // rows
+  const seriesKeysSeen = new Set(Object.keys(legend));
+  const rows = bins.map(b => ({ ...b, buckets: {} }));
+
+  // choose bin for a feature:
+  const getRow = (fns,f) => {
+    // priority: explicit bin.test(feature) takes precedence
+    const byFilterTest = rows.find(r => {
+      if(typeof r.test === 'string' ) {
+        const pred = fns[r.test] && fns[r.test]({ values: [r.id] });
+        return pred(f);
+      } else if (typeof r.test === 'function'){
+        return r.test(f, r);
+      }
+    });
+    if (byFilterTest) return byFilterTest;
+
+    // fallback: numeric bins via valueProp
+    if (typeof chartCfg?.group?.valueProp === 'function') {
+      const v = chartCfg.group.valueProp(f, ctx);
+      return rows.find(r => inRange(v, r.min ?? -Infinity, r.max ?? Infinity));
+    }
+    return undefined;
+  };
+
+  // weight
+  const weightOf = (f) => {
+    if (chartCfg?.metric?.type === 'sum' && typeof chartCfg?.metric?.valueProp === 'function') {
+      const w = Number(chartCfg.metric.valueProp(f, ctx));
+      return Number.isFinite(w) ? w : 0;
+    }
+    return 1;
+  };
+
+  // accumulate
+  for (const f of items) {
+    const row = getRow(fns, f);
+    if (!row) continue;
+
+    const w = weightOf(f);
+    let key = chartCfg?.series?.keyProp?.(f, ctx);
+    if (!key) key = 'unknown';
+    key = String(key);
+
+    seriesKeysSeen.add(key);
+    row.buckets[key] = (row.buckets[key] || 0) + w;
+  }
+
+  // series order
+  const allKeys = Array.from(seriesKeysSeen);
+  const seriesKeys = (typeof chartCfg?.series?.order === 'function')
+      ? chartCfg.series.order(allKeys, legend)
+      : allKeys;
+
+  // sort rows by total desc
+  rows.sort((a, b) => {
+    const ta = Object.values(a.buckets).reduce((s, v) => s + (v || 0), 0);
+    const tb = Object.values(b.buckets).reduce((s, v) => s + (v || 0), 0);
+    return tb - ta;
+  });
+
+  // labels
+  const labels = rows.map(bin =>
+      typeof chartCfg?.group?.groupLabel === 'function'
+          ? chartCfg.group.groupLabel(bin)
+          : (bin.label ?? String(bin.id))
+  );
+
+  return { rows, legend, seriesKeys, labels };
+}
+
+
+export function buildChartData(matrix) {
+  const { rows, legend, seriesKeys, labels } = matrix;
+
+  let datasets = seriesKeys.map(k => ({
+    key: k,
+    label: (legend[k]?.label ?? k),
+    data: rows.map(r => r.buckets[k] ?? 0),
+    backgroundColor: (legend[k]?.color ?? '#999'),
+    stack: 'stack1',
+    maxBarThickness: 30,
+  }));
+
+  // drop all-zero series
+  datasets = datasets.filter(ds => ds.data.some(v => v > 0));
+
+  // drop empty bins
+  const keepRow = rows.map((_, i) => datasets.some(ds => (ds.data[i] || 0) > 0));
+  const finalLabels = labels.filter((_, i) => keepRow[i]);
+  datasets = datasets.map(ds => ({ ...ds, data: ds.data.filter((_, i) => keepRow[i]) }));
+
+  return { labels: finalLabels, datasets };
+}
+
+
+
+/**
+ * Build a scoped global-filter object from a chart click, using chartCfg.filter.
+ *
+ * @param {{ seriesKey: string, series?: any, bin?: {id:string,min?:number,max?:number,label?:string,unit?:string}, ctx?: any }} click
+ * @param {any} chartCfg  // popupConfig.chart
+ * @returns {{ [scope: string]: { op: 'and'|'or', rules: any[] } } | {}}
+ */
+export const getChartFilters = (click, chartCfg) => {
+  const filterCfg = chartCfg?.filter || {};
+  const scope   = filterCfg.scope  || 'site';
+  const op      = filterCfg.combine || 'and';
+  const rules   = [];
+
+  // helper: build a rule from a def:
+  // - function: (payload, ctx) => Rule|null
+  // - string:   treated as fn name; payload is turned into args.values
+  // - object:   already a rule
+  const makeRule = (def, payload, ctx) => {
+    if (!def) return null;
+    if (typeof def === 'function') return def(payload, ctx) || null;
+    if (typeof def === 'string') {
+      const values = payload == null
+          ? []
+          : Array.isArray(payload) ? payload : [payload];
+      return { fn: def, args: { values: values.map(String) } };
+    }
+    if (def && typeof def.fn === 'string') return def;
+    return null;
+  };
+
+  // build series rule (default to statusIn if mapper not provided)
+  if (click?.seriesKey != null) {
+    const seriesDef = filterCfg.rules?.series;
+    const r = makeRule(seriesDef, String(click.seriesKey), { legend: click.series, click, chartCfg });
+    if (r) rules.push(r);
+  }
+
+  // build group rule (default to bin.test or reactorPalierIn)
+  if (click?.bin) {
+    const groupDef = filterCfg.rules?.group ?? (click.bin.test);
+    const r = makeRule(groupDef, String(click.bin.id), { bin: click.bin, click, chartCfg });
+    if (r) rules.push(r);
+  }
+
+  if (!rules.length) return {};
+
+  // de-dupe same-fn rules by unioning args.values
+  const merged = [];
+  for (const rule of rules) {
+    const i = merged.findIndex(r => r.fn === rule.fn);
+    if (i === -1) {
+      merged.push(rule);
+    } else {
+      const a = merged[i].args || {};
+      const b = rule.args || {};
+      const av = Array.isArray(a.values) ? a.values : [];
+      const bv = Array.isArray(b.values) ? b.values : [];
+      merged[i] = {
+        fn: rule.fn,
+        args: { ...a, ...b, values: Array.from(new Set([...av, ...bv])) }
+      };
+    }
+  }
+
+
+
+  //return { [scope]: { op, rules: merged } };
+  return { op, rules: merged };
+};
+
+
+
+
+export default function DeployStatusChart({ handler, context, onFilterChange, chartCfg }) {
+
+  const chartTitle = handler.config.labels?.chartTitle || "Status";
+  const fns = getGlobalFilterFunctions("building", false)
+
+
+  const matrix = useMemo(() => deriveChartMatrix({
+    data: context.data,
+    fns,
+    chartCfg
+  }), [context.data]);
+
+  const chartData = useMemo(() => buildChartData(matrix), [matrix]);
+
+  const rowsCount = Math.max(1, (matrix?.labels?.length || 0));
+  const chartHeight = Math.max(240, rowsCount * 80);
   const classes = useStyles({ chartHeight });
 
-  const chartData = useMemo(() => {
-    const labels = mockDeployData.map(d => `${d.group} (${d.capacityMW} MW)`);
-    const datasets = Object.entries(STATUS_CONFIG).map(([key, { label, color }]) => ({
-      label,
-      data: mockDeployData.map(d => d.status[key]),
-      backgroundColor: color,
-      stack: 'stack1',
-      barThickness: 56,
-    }));
-    return { labels, datasets };
-  }, []);
+  const dispatch = useDispatch();
+
+  const isLoading =
+      !chartData?.datasets?.length ||
+      chartData.datasets.every((ds) => ds.data.every((v) => v === 0));
 
   const options = {
-    indexAxis: 'y',
+    indexAxis: "y",
     responsive: true,
     maintainAspectRatio: false,
-    layout: { padding: { left: 0, right: 10, top: 0, bottom: 0 } },
+    layout: { padding: { left: 0, right: 10, top: 40, bottom: 0 } },
     plugins: {
+      groupLabelPlugin: {
+        data: matrix?.rows || [],
+        formatter: chartCfg?.group?.groupLabel
+      },
       legend: {
         display: true,
-        position: 'bottom',
+        position: "bottom",
         labels: {
           usePointStyle: true,
-          pointStyle: 'circle',
+          pointStyle: "circle",
           boxWidth: 8,
           boxHeight: 8,
           padding: 20,
-          font: { family: 'Inter', size: 10, weight: '400' },
+          font: { family: "Inter", size: 10, weight: "400" },
           generateLabels(chart) {
             const datasets = chart.data.datasets;
-            const total = datasets.reduce((sum, ds) => sum + ds.data.reduce((a, b) => a + b, 0), 0);
+            const total = datasets.reduce(
+                (sum, ds) => sum + ds.data.reduce((a, b) => a + b, 0),
+                0,
+            );
             return datasets.map((ds, i) => {
               const statusTotal = ds.data.reduce((a, b) => a + b, 0);
               const percent = ((statusTotal / total) * 100).toFixed(0);
@@ -158,54 +390,108 @@ export default function DeployStatusChart() {
                 fillStyle: ds.backgroundColor,
                 strokeStyle: ds.backgroundColor,
                 hidden: !chart.isDatasetVisible(i),
-                pointStyle: 'circle',
+                pointStyle: "circle",
               };
             });
           },
         },
       },
-      tooltip: { enabled: false },
+      tooltip: {
+        position: "centerBar",
+        yAlign: "bottom",
+        xAlign: "center",
+        displayColors: false,
+        padding: 12,
+        backgroundColor: "#000",
+        titleColor: "#fff",
+        bodyColor: "#fff",
+        bodyFont: { family: "Inter", size: 12 },
+        callbacks: {
+          title: () => null,
+          label: (context) => {
+            const datasetLabel = context.dataset.label || "";
+            const value = context.parsed.x;
+            return `${datasetLabel}: ${value}`;
+          },
+        },
+      },
       datalabels: false,
     },
     scales: {
       x: {
         stacked: true,
-        grid: { display: true, drawBorder: false, color: '#d3d3d3' },
+        grid: {
+          display: true,
+          drawBorder: false,
+          //color: "#d3d3d3",
+          color: (ctx) => {
+            return ctx.tick.value === ctx.chart.scales.x.max ? 'transparent' : '#d3d3d3';
+          },
+
+        },
         ticks: {
-          color: '#555',
+          color: "#555",
           font: { size: 12 },
-          callback: function(value) {
+          callback: function (value) {
             const maxValue = this.max;
-            return value === maxValue ? '' : value;
+            return value === maxValue ? "" : value;
           },
         },
         border: { display: false },
+        clip: false,
       },
       y: {
         stacked: true,
+        // categoryPercentage < 1 → shrink the category band (adds space between groups)
         categoryPercentage: 0.4,
+        // barPercentage < 1 → shrink the bar within its band (adds space within group if multiple bars)
         barPercentage: 0.6,
         grid: { display: false, drawBorder: false },
         border: { display: false },
         ticks: { display: false },
+        clip: false,
       },
+    },
+    onClick: (evt, elements, chart) => {
+      if (!elements.length) return;
+      const { datasetIndex, index } = elements[0];
+      const seriesKey = chart.data.datasets[datasetIndex].key;
+      const bin = matrix.rows[index];
+      const newFilter = getChartFilters({ seriesKey, series: matrix.legend[seriesKey], bin, ctx: {} }, chartCfg);
+      onFilterChange(newFilter);
     },
   };
 
   return (
-    <div className={classes.container}>
-      {/* Header */}
-      <div className={classes.header}>
-        <BarChartOutlinedIcon className={classes.icon} />
-        <span className={classes.headerText}>
-          Deploy Status by Palier Group
-        </span>
-      </div>
+      <div className={classes.container}>
+        {/* Header */}
+        <div className={classes.header}>
+          <BarChartOutlinedIcon className={classes.icon} />
+          <span className={classes.headerText}>{chartTitle}</span>
+        </div>
 
-      {/* Chart */}
-      <div className={classes.chartWrapper}>
-        <Bar data={chartData} options={options} plugins={[ChartDataLabels, groupLabelPlugin, hideLastXGridLinePlugin]} />
+        {/* Chart */}
+        <div
+            className={classes.chartWrapper}
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+        >
+          {isLoading ? (
+              <CircularProgress />
+          ) : (
+              <Bar
+                  data={chartData}
+                  options={options}
+                  plugins={[
+                    ChartDataLabels,
+                    GroupLabelPlugin
+                  ]}
+              />
+          )}
+        </div>
       </div>
-    </div>
   );
 }
