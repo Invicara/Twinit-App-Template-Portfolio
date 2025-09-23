@@ -1,0 +1,74 @@
+[
+   {
+      "unitType": "900 MW",
+      "systemId": "RCS",
+      "equipmentType": "Pump",
+      "Equipment Id": "RCP-900-011",
+      "Equipment Name": "Reactor Coolant Pump 900MW",
+      "tipRevision": "002"
+   },
+   {
+      "unitType": "900 MW",
+      "systemId": "RCS",
+      "equipmentType": "Pump",
+      "Equipment Id": "RCP-900-012",
+      "Equipment Name": "Reactor Coolant Pump 900MW",
+      "tipRevision": "002"
+   },
+   {
+      "unitType": "900 MW",
+      "systemId": "RCS",
+      "equipmentType": "Pump",
+      "Equipment Id": "RCP-900-013",
+      "Equipment Name": "Reactor Coolant Pump 900MW",
+      "tipRevision": "002"
+   },
+   {
+      "unitType": "900 MW",
+      "systemId": "RCS",
+      "equipmentType": "Pump",
+      "Equipment Id": "RCP-900-014",
+      "Equipment Name": "Reactor Coolant Pump 900MW",
+      "tipRevision": "002"
+   },
+   {
+      "unitType": "900 MW",
+      "systemId": "SS",
+      "equipmentType": "Heat Exchanger",
+      "Equipment Id": "CND-900-001",
+      "Equipment Name": "Condenser 900MW",
+      "tipRevision": "000"
+   },
+   {
+      "unitType": "900 MW",
+      "systemId": "SS",
+      "equipmentType": "Heat Exchanger",
+      "Equipment Id": "SG-900-001",
+      "Equipment Name": "Steam Generator 900MW",
+      "tipRevision": "000"
+   },
+   {
+      "unitType": "900 MW",
+      "systemId": "TS",
+      "equipmentType": "Pressure Vessel",
+      "Equipment Id": "PRZ-900-001",
+      "Equipment Name": "Pressurizer",
+      "tipRevision": "000"
+   },
+   {
+      "unitType": "900 MW",
+      "systemId": "FW",
+      "equipmentType": "Pump",
+      "Equipment Id": "FWP-900-001",
+      "Equipment Name": "Main Feedwater Pump",
+      "tipRevision": "000"
+   },
+   {
+      "unitType": "900 MW",
+      "systemId": "TS",
+      "equipmentType": "Turbine",
+      "Equipment Id": "TG-900-001",
+      "Equipment Name": "Turbine Generator",
+      "tipRevision": "000"
+   }
+]
