@@ -4,7 +4,7 @@ import CustomButton from '../../../../../components/atoms/CustomButton.jsx';
 import { useDispatch, useSelector } from 'react-redux';
 import { getMapTypes, setMapTypes } from '../../../../../redux/pageComponentState.js';
 import { MapMachineContext, MapContext } from '../../../PortfolioOverview.jsx';
-import { addFeatureToMapLayer, removeFeatureFromMapLayer, removeBuildingFromMap } from '../../../../../../client/scripts/mapEntryActions.mjs';
+import { addFeatureToMapLayer, removeFeatureFromMapLayer, removeMeshElementFromMap } from '../../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache } from "@invicara/ipa-core/modules/IpaUtils";
 import { InfoComponent } from '../../../../../components/InfoComponent/InfoComponent.jsx';
 import { IafItemSvc } from '@dtplatform/platform-api';
@@ -161,13 +161,13 @@ export default function BuildingDetails({ context }) {
 
             console.log('Canceling draft entity, removing from map:', {mapInstance, entityId, namedPath});
 
-            // Remove the draft entity from the map using removeBuildingFromMap
+            // Remove the draft entity from the map using removeMeshElementFromMap
             if (mapInstance && namedPath) {
-                removeBuildingFromMap({
+                removeMeshElementFromMap({
                     entityType: currentElementType,
                     map: mapInstance,
-                    [idKey]: entityId,
-                    namedPath: namedPath
+                    featureId: entityId,
+                    namedPath
                 });
             }
 
