@@ -23,6 +23,7 @@ import {flushSync} from "react-dom";
 import PopupPortal from "./components/map/popup/PopupPortal.jsx";
 import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
+import { getChartStatus } from '../../../client/scripts/mapEntryActions.mjs';
 import { useGraphicsVisibility } from '../../hooks/useGraphicsVisibility.js';
 import { useNewEntityManagement } from '../../hooks/useEntityManagement.js';
 
@@ -122,7 +123,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
 
     const classes = useStyles({ stateKey });
     const dispatch = useDispatch();
-    
 
     // MMV Configuration state -> this should be removed to a user config or a script
     const [mmvConfig, setMmvConfig] = useState();
@@ -244,12 +244,17 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         // Handle MMV events as needed
     },[]);
 
+
     const onMapReady = useCallback((map) => {
+
+
         setMapInstance(map); // Store map instance for refresh
         actor.send({ type: 'MAP_READY', map, mmvSend: setCommand, setPopupState });
     },[actor, setCommand])
 
     const mapMachineContextValue = useMemo(() => {
+               console.log('actor', actor)
+
         return { actor, send: actor.send }
     }, [actor]);
 
@@ -276,7 +281,15 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                         </div>
                     </div>
                     <Grid container className={classes.mainContent}>
-                        <StatePanel currentState={currentState} context={currentState.context} send={actor.send} className={classes.statePanel} />
+                        <StatePanel
+                            handler={handler}
+                            currentState={currentState}
+                            context={currentState.context}
+                            send={actor.send}
+                            className={classes.statePanel}
+                            userConfig={userConfig}
+                            snapshot={snapshot}
+                        />
                         <Grid item xs className={classes.viewerContainer}>
                             <div
                                 className={clsx(classes.mmvContainer, "dark-map", {'map-selecting-position' : isSelectingPosition})}
