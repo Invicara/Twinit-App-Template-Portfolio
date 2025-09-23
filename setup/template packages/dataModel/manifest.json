@@ -1,6 +1,6 @@
 {
    "Template Name": "Hitachi Fleet POC Data Model",
-   "Template Version": "0.0.1",
+   "Template Version": "0.0.5",
    "setupScript": "deployHitachiDataModel.mjs",
    "scripts": [
       {
