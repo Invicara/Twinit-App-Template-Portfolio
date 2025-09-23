@@ -51,7 +51,7 @@ let scriptModule = {
                   testResults.push({testUrl, message: `ERROR: OMAPI ${testUrl} call returned status other than 200`})
                }
             } else {
-               testResults.push({utestUrlrl, message: `ERROR: OMAPI ${testUrl} call failed`})
+               testResults.push({testUrl, message: `ERROR: OMAPI ${testUrl} call failed`})
                console.log(response)
             }
 
@@ -79,7 +79,7 @@ let scriptModule = {
                   testResults.push({testUrl, message: `ERROR: OMAPI ${testUrl} call returned status other than 200`})
                }
             } else {
-               testResults.push({utestUrlrl, message: `ERROR: OMAPI ${testUrl} call failed`})
+               testResults.push({testUrl, message: `ERROR: OMAPI ${testUrl} call failed`})
                console.log(response)
             }
 
