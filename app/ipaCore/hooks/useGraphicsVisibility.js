@@ -27,7 +27,7 @@ export function useGraphicsVisibility({mapInstance, portContext}){
         const lowerNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel + 1);
 
 
-        const meshLevels = levels.concat([lowerNamedPath]).filter(l => l.feature === "mesh");
+        const meshLevels = levels.concat([lowerNamedPath]).filter(l => l?.feature === "mesh");
         const meshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
             const featureIds = currentState.context.data[l.state]
                 .filter(el => valuesPerLevelKey.some(([k, v]) => el[k] === v))
