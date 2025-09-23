@@ -3,7 +3,8 @@ let scriptModule = {
 
       return [
          {name: 'Run Reference Equipment API Tests', script: 'testReferenceEquipmentAPIs'},
-         {name: 'Run Site Equipment API Tests', script: 'testSiteEquipmentAPIs'}
+         {name: 'Run Site Equipment API Tests', script: 'testSiteEquipmentAPIs'},
+         {name: 'Run Engineering Changes API Tests', script: 'testEngineeringChangesAPIs'}
       ]
 
    },
@@ -112,6 +113,87 @@ let scriptModule = {
          { url: `${baseOmapiUrl}/siteequip/search`, body: { facility: 'B', unit: '01', systemId: 'TS' } },
          { url: `${baseOmapiUrl}/siteequip/search`, body: { facility: 'B', unit: '01', equipmentId: 'SG-900-001', equipmentType: "Heat Exchanger" } },
       ]
+
+      let testResults = []
+
+      try {
+
+         for ( const testUrl of getUrls) {
+
+            let response = await fetch(testUrl, {
+               method: 'GET',
+               mode: 'cors',
+               headers: {
+                  Authorization: 'Bearer ' + ctx.authToken,
+                  'Content-Type': 'application/json'
+               }
+            })
+
+            if (response.ok) {
+               let result = await response.json()
+               if (result._result.status === 200) {
+                  console.log(testUrl)
+                  console.log(result)
+                  testResults.push({testUrl, result})
+               } else {
+                  testResults.push({testUrl, message: `ERROR: OMAPI ${testUrl} call returned status other than 200`})
+                  console.log(result)
+               }
+            } else {
+               testResults.push({testUrl, message: `ERROR: OMAPI ${testUrl} call failed`})
+               console.log(response)
+            }
+
+         }
+
+         for ( const testUrl of postUrls) {
+
+            let response = await fetch(testUrl.url, {
+               method: 'POST',
+               mode: 'cors',
+               headers: {
+                  Authorization: 'Bearer ' + ctx.authToken,
+                  'Content-Type': 'application/json'
+               },
+               body: JSON.stringify(testUrl.body)
+            })
+
+            if (response.ok) {
+               let result = await response.json()
+               if (result._result.status === 200) {
+                  console.log(testUrl)
+                  console.log(result)
+                  testResults.push({testUrl, result})
+               } else {
+                  testResults.push({testUrl, message: `ERROR: OMAPI ${testUrl} call returned status other than 200`})
+                   console.log(result)
+               }
+            } else {
+               testResults.push({testUrl, message: `ERROR: OMAPI ${testUrl} call failed`})
+               console.log(response)
+            }
+
+         }
+
+      } catch (error) {
+         testResults.push({message: `ERROR: OMAPI failed`})
+         console.log('omapi error', error, ctx)
+      }
+      
+      return testResults
+
+   },
+
+   async testEngineeringChangesAPIs(input, libraries, ctx, callback) {
+
+      const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx.project._namespaces[0]}`
+
+      let getUrls = [
+         `${baseOmapiUrl}/engineeringchanges`,
+         `${baseOmapiUrl}/engineeringchanges/001/logs?pageSize=5`
+      ]
+
+      let postUrls = []
 
       let testResults = []
 
