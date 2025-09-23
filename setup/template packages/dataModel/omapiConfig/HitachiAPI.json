@@ -133,6 +133,14 @@
             "paths": [
                {
                   "path": "/engineeringchanges",
+                  "method": "OPTIONS",
+                  "script": {
+                     "_userType": "hitachi-ecs-omapi",
+                     "_scriptName": "returnStatus"
+                  }
+               },
+               {
+                  "path": "/engineeringchanges",
                   "method": "GET",
                   "script": {
                      "_userType": "hitachi-ecs-omapi",
