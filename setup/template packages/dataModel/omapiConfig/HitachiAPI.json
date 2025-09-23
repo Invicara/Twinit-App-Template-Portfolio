@@ -68,6 +68,34 @@
                   }
                }
             ]
+         },
+         "engineeringchanges": {
+            "paths": [
+               {
+                  "path": "/engineeringchanges",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-ecs-omapi",
+                     "_scriptName": "getEcs"
+                  }
+               },
+               {
+                  "path": "/engineeringchanges/statuses",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-ecs-omapi",
+                     "_scriptName": "getEcStatuses"
+                  }
+               },
+               {
+                  "path": "/engineeringchanges/search",
+                  "method": "POST",
+                  "script": {
+                     "_userType": "hitachi-ecs-omapi",
+                     "_scriptName": "searchEcs"
+                  }
+               }
+            ]
          }
       },
       "schema_version": 2,
