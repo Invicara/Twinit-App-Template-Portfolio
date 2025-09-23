@@ -159,7 +159,7 @@ export default function SiteDetails({ context }) {
         const lowerLevelState = Object.assign({}, ...levels
             .filter(l => l.idKey && l.scopeLevel < namedPath.scopeLevel)
             .map(l => ({[l.idKey]: currentState.context[l.idKey]})
-        ));
+            ));
 
         const higherNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel - 1);
         const lowerNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel + 1);
@@ -404,7 +404,7 @@ export default function SiteDetails({ context }) {
 
         // Update map layer if needed
         if (mapInstance && namedPath) {
-            
+
             // Remove current feature and add restored one
             removeFeatureFromMapLayer({
                 map: mapInstance,
@@ -598,7 +598,7 @@ export default function SiteDetails({ context }) {
     }, [mapInstance, isDrawingMode]);
 
     useEffect(() => {
-       currentDrawingPinsTracker.current =  currentDrawingPins;
+        currentDrawingPinsTracker.current =  currentDrawingPins;
     }, [currentDrawingPins])
 
     // Handle map clicks for drawing
@@ -866,28 +866,28 @@ export default function SiteDetails({ context }) {
                     modifyTypeCallback={handleTypeModification}
                 />
                 <Divider style={{ margin: '16px 0'}} />
-                    <Box style={{ marginTop: 12, display: 'flex', justifyContent: "right", gap: 14}}>
-                        <CustomButton
-                            variant="outlined"
-                            color="primary"
-                            onClick={handleAddEntityInfo}
-                            style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
-                            startIcon={<Add/>}
-                            disabled={!isInEditMode}
-                        >
-                            Add {namedPath?.displayName} Info
-                        </CustomButton>
-                        <CustomButton
-                            variant="contained"
-                            color="primary"
-                            onClick={handleStartNewBuildingMode}
-                            style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
-                            startIcon={<Dashboard/>}
-                            disabled={!isInEditMode}
-                        >
-                            Add Structure
-                        </CustomButton>
-                    </Box>
+                <Box style={{ marginTop: 12, display: 'flex', justifyContent: "right", gap: 14}}>
+                    <CustomButton
+                        variant="outlined"
+                        color="primary"
+                        onClick={handleAddEntityInfo}
+                        style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
+                        startIcon={<Add/>}
+                        disabled={!isInEditMode}
+                    >
+                        Add {namedPath?.displayName} Info
+                    </CustomButton>
+                    <CustomButton
+                        variant="contained"
+                        color="primary"
+                        onClick={handleStartNewBuildingMode}
+                        style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
+                        startIcon={<Dashboard/>}
+                        disabled={!isInEditMode}
+                    >
+                        Add Structure
+                    </CustomButton>
+                </Box>
             </Box>
 
             {isInEditMode && (

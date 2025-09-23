@@ -283,7 +283,30 @@ let scriptModule = {
         ]
 
         return commands;
-    }
+    },
+    filterRuleFns(input) {
+        return {
+            statusIn:
+            ({ values }) =>
+            (building) => {
+                if (building.StatusId == null) return false;
+                return values.map(String).includes(String(building.StatusId));
+            },
+
+            capacityBetween:
+            ({ min, max }) =>
+            (building) => {
+                const cap = building.Capacity;
+                if (typeof cap !== "number") return false;
+
+                if (max == null) {
+                return cap >= min;
+                }
+
+                return cap >= min && cap < max;
+            },
+        };
+    },
 }
 
 export default scriptModule
