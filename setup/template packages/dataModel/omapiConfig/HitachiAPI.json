@@ -80,19 +80,11 @@
                   }
                },
                {
-                  "path": "/engineeringchanges/statuses",
+                  "path": "/engineeringchanges/:ecid/logs",
                   "method": "GET",
                   "script": {
                      "_userType": "hitachi-ecs-omapi",
-                     "_scriptName": "getEcStatuses"
-                  }
-               },
-               {
-                  "path": "/engineeringchanges/search",
-                  "method": "POST",
-                  "script": {
-                     "_userType": "hitachi-ecs-omapi",
-                     "_scriptName": "searchEcs"
+                     "_scriptName": "getEcLogs"
                   }
                }
             ]
