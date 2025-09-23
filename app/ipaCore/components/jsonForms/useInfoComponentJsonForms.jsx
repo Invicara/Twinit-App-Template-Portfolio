@@ -21,7 +21,7 @@ const buildUiFromSchema = (schema) => {
     };
 };
 
-export function useInfoComponentJsonForms({schema, layouts}) {
+export function useInfoComponentJsonForms({schema, layouts, allowReadOnlyOverride}) {
 
     // Ajv (validation)
     const ajv = useMemo(() => {
@@ -42,6 +42,20 @@ export function useInfoComponentJsonForms({schema, layouts}) {
     // Build UI schema from your type definition (keeps propertyOrder)
     const uiSchema = useMemo(() => buildUiFromSchema(schema), [schema]);
 
+    const processedType = useMemo(() => {
+        const type = _.cloneDeep(schema);
+
+        if(allowReadOnlyOverride) {
+            Object.entries(type.properties).forEach(([k, v]) => {
+                if(v.readOnly){
+                    v.readOnly = false; 
+                }
+            });
+        }
+
+        return type
+    }, [schema, allowReadOnlyOverride])
+
     // External options resolver (optional): supply options per path
     const optionsResolver = useCallback(async ({ path /*, data*/ }) => {
 
@@ -53,6 +67,6 @@ export function useInfoComponentJsonForms({schema, layouts}) {
     }, []);
 
 
-    return {renderers, optionsResolver, uiSchema, ajv, materialCells, materialRenderers};
+    return {processedType, renderers, optionsResolver, uiSchema, ajv, materialCells, materialRenderers};
 
 }
