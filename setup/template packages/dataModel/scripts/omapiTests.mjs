@@ -227,6 +227,85 @@ let scriptModule = {
          testResults.push({url, message: `ERROR: OMAPI ${url} call failed`})
          console.log(response, response.headers)
       }
+
+      // get paginated ecs
+      url = `${baseOmapiUrl}/engineeringchanges?pageSize=5`
+
+      response = await fetch(url, {
+         method: 'GET',
+         mode: 'cors',
+         headers: {
+            Authorization: 'Bearer ' + ctx.authToken,
+            'Content-Type': 'application/json'
+         }
+      })
+
+      if (response.ok) {
+         let result = await response.json()
+         if (result._result.status === 200) {
+            console.log(`${url}`, result)
+            testResults.push({url, result})
+         } else {
+            testResults.push({url, message: `ERROR: OMAPI ${url} call returned status other than 200`})
+         }
+      } else {
+         testResults.push({url, message: `ERROR: OMAPI ${url} call failed`})
+         console.log(response, response.headers)
+      }
+
+      // get engineering status
+      url = `${baseOmapiUrl}/engineeringchanges/statuses`
+
+      response = await fetch(url, {
+         method: 'GET',
+         mode: 'cors',
+         headers: {
+            Authorization: 'Bearer ' + ctx.authToken,
+            'Content-Type': 'application/json'
+         }
+      })
+
+      if (response.ok) {
+         let result = await response.json()
+         if (result._result.status === 200) {
+            console.log(`${url}`, result)
+            testResults.push({url, result})
+         } else {
+            testResults.push({url, message: `ERROR: OMAPI ${url} call returned status other than 200`})
+         }
+      } else {
+         testResults.push({url, message: `ERROR: OMAPI ${url} call failed`})
+         console.log(response, response.headers)
+      }
+
+      // search engineering changes
+      url = `${baseOmapiUrl}/engineeringchanges/search`
+
+      response = await fetch(url, {
+         method: 'POST',
+         mode: 'cors',
+         headers: {
+            Authorization: 'Bearer ' + ctx.authToken,
+            'Content-Type': 'application/json'
+         },
+         body: JSON.stringify({
+            title: 'RCP with',
+            status: 'REGISTERED'
+         })
+      })
+
+      if (response.ok) {
+         let result = await response.json()
+         if (result._result.status === 200) {
+            console.log(`${url}`, result)
+            testResults.push({url, result})
+         } else {
+            testResults.push({url, message: `ERROR: OMAPI ${url} call returned status other than 200`})
+         }
+      } else {
+         testResults.push({url, message: `ERROR: OMAPI ${url} call failed`})
+         console.log(response, response.headers)
+      }
    
    } catch (error) {
 

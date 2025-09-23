@@ -10,6 +10,12 @@
          "_userType": "hitachi-refequip-omapi"
       },
       {
+         "_name": "hitachiEngineeringChangesOmapi",
+         "_shortName": "hitachiecsomapi",
+         "_description": "OMAPI for engineering changes",
+         "_userType": "hitachi-ecs-omapi"
+      },
+      {
          "_name": "omapiTests",
          "_shortName": "omapiTests",
          "_description": "OMAPI endpoint tests",
