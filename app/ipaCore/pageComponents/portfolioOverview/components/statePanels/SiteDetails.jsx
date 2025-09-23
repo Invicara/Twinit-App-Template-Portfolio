@@ -16,7 +16,7 @@ import { getActiveLevels, getCachedFile } from '../../../../../services/utils';
 
 
 
-const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath}) => {
+const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath, send}) => {
     const dispatch = useDispatch();
 
     const [thumbnailUrls, setThumbnailUrls] = useState({});
@@ -36,10 +36,12 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
             dispatch(setDraftType(lowerNamedPath.state));
             dispatch(setIsSelectingPosition(true));
             dispatch(setSelectedGraphicReference(graphicReference));
+            send({ type: "START_DRAFT" });
         } else {
             dispatch(setDraftType());
             dispatch(setIsSelectingPosition(false));
             dispatch(setSelectedGraphicReference());
+            send({ type: "END_DRAFT" });
         }
     };
 
@@ -931,7 +933,7 @@ export default function SiteDetails({ context }) {
             <Divider style={{ margin: '16px 0px', marginTop: 25}} />
 
             {isNewBuildingMode ? (
-                <BuildingThumbnails {...{mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath}} />
+                <BuildingThumbnails {...{mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath, send}} />
             ) : (
                 <>
                     <Typography variant="body2">Buildings: {buildings.length}</Typography>
