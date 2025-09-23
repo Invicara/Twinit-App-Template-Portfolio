@@ -1749,7 +1749,7 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
                 }
 
                 const {graphics, visibleFeatures, allFeaturesMarkerIds, previousMarkerIds, currentMarkerIds, filters} = await renderAllMarkers(e, {self}, markersInfo);
-                console.log("UPDATE_FILTERS renderAllMarkers", {graphics, visibleFeatures, previousMarkerIds, currentMarkerIds, filters: JSON.stringify(filters)});
+                //console.log("UPDATE_FILTERS renderAllMarkers", {graphics, visibleFeatures, previousMarkerIds, currentMarkerIds, filters: filters});
 
                 if (previousMarkerIds && previousMarkerIds.length > 0) {
                     const toRemove = previousMarkerIds.filter(id=>!currentMarkerIds.includes(id));
