@@ -68,6 +68,94 @@
                   }
                }
             ]
+         },
+         "siteequip": {
+            "paths": [
+               {
+                  "path": "/siteequip",
+                  "method": "OPTIONS",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "returnStatus"
+                  }
+               },
+               {
+                  "path": "/siteequip/search",
+                  "method": "POST",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "searchEquipment"
+                  }
+               },
+               {
+                  "path": "/siteequip/facilities",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "getSiteFacilities"
+                  }
+               },
+               {
+                  "path": "/siteequip/facilities/:facility/units",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "getFacilityUnits"
+                  }
+               },
+               {
+                  "path": "/siteequip/facilities/:facility/units/:unit/systems",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "getUnitSystems"
+                  }
+               },
+               {
+                  "path": "/siteequip/facilities/:facility/units/:unit/systems/:systemId/equipmenttypes",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "getUnitSystemEquipmentTypes"
+                  }
+               },
+               {
+                  "path": "/siteequip/facilities/:facility/units/:unit/systems/:systemId/equipmenttypes/:equipmentType/equipment",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "getUnitEquipment"
+                  }
+               }
+            ]
+         },
+         "engineeringchanges": {
+            "paths": [
+               {
+                  "path": "/engineeringchanges",
+                  "method": "OPTIONS",
+                  "script": {
+                     "_userType": "hitachi-ecs-omapi",
+                     "_scriptName": "returnStatus"
+                  }
+               },
+               {
+                  "path": "/engineeringchanges",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-ecs-omapi",
+                     "_scriptName": "getEcs"
+                  }
+               },
+               {
+                  "path": "/engineeringchanges/:ecid/logs",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-ecs-omapi",
+                     "_scriptName": "getEcLogs"
+                  }
+               }
+            ]
          }
       },
       "schema_version": 2,
