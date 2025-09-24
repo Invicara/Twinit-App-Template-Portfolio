@@ -39,7 +39,14 @@ async function getEcs(input, libraries, ctx) {
 
 
         const siteEquipMap = {}
+        let lastDateReviewed = ""
         for (const log of relatedLogs) {
+            if (!lastDateReviewed && log.dateReviewed) {
+                lastDateReviewed = log.dateReviewed
+            } else if (log.dateReviewed && new Date(log.dateReviewed) > new Date(lastDateReviewed)) {
+                lastDateReviewed = log.dateReviewed
+            }
+
             if (!siteEquipMap[log['Site Equipment Id']]) {
                 siteEquipMap[log['Site Equipment Id']] = log
                 continue
@@ -54,6 +61,7 @@ async function getEcs(input, libraries, ctx) {
             }
         }
 
+        ec.lastDateReviewed = lastDateReviewed
         ec.logs = siteEquipMap
         ec.status = {
             REGISTERED: registeredCount,
