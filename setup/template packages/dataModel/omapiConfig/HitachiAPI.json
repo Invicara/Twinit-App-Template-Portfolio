@@ -208,6 +208,14 @@
                   }
                },
                {
+                  "path": "/engineeringchanges/:ecid",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-ecs-omapi",
+                     "_scriptName": "getEcs"
+                  }
+               },
+               {
                   "path": "/engineeringchanges/:ecid/logs",
                   "method": "GET",
                   "script": {
