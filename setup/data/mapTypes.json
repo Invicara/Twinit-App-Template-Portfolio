@@ -178,6 +178,7 @@
             "siteId": {
                 "type": "string",
                 "title": "Site Id",
+                "readOnly": true,
                 "description": "ID identifier value for the site",
                 "propertyOrder": 3
             },

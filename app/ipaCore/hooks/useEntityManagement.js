@@ -10,8 +10,8 @@ import {
     setSelectedCoordinate 
 } from "../redux/siteSetup";
 import { v4 as uuid } from "uuid";
-import { getClickEvent, getMapTypes, getSelectedGraphicReference } from "../redux/pageComponentState";
-import { addFeatureToMapLayer, removeFeatureFromMapLayer, addBuildingToMap, getGeometryInfo } from "../../client/scripts/mapEntryActions.mjs";
+import { getClickEvent, getMapTypes, getSelectedGraphicReference, setSelectedGraphicReference } from "../redux/pageComponentState";
+import { addFeatureToMapLayer, removeFeatureFromMapLayer, addBuildingToMap, getGeometryInfo, removeMeshElementFromMap } from "../../client/scripts/mapEntryActions.mjs";
 import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from "lodash";
 import { getActiveLevels } from "../../services/utils";
@@ -34,7 +34,8 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
     const { send, actor } = portContext || {};
     const currentState = useXstateSelector(actor, state => state);
 
-    const [currentElementType, namedPathDict] = useMemo(() => {
+    const [currentElementType, namedPathDict, namedPath] = useMemo(() => {
+
         const namedPaths = currentState.context.namedPaths[0];
 
         const namedPathDict = Object.assign({}, ...namedPaths.map(p => ({[p.state]: p})));
@@ -43,7 +44,10 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
 
         const sPath = levels?.map(el => el.state).join(".");
         const cElementType = sPath?.split(".")?.slice(-1)?.[0];
-        return [cElementType, namedPathDict]
+
+        const namedPath = namedPaths.find(p => p.state === cElementType);
+
+        return [cElementType, namedPathDict, namedPath]
 
     }, [currentState])
 
@@ -72,33 +76,40 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
         ];
     }
 
-    // Handle site cancellation (remove draft site) - extracted from line 59
-    const handleCancelSite = (siteToRemove) => {
-        console.log("handleCancelSite", {siteToRemove});
+    // Handle element cancellation (remove draft element)
+    const handleCancelElement = (elementToRemove, draftingType, namedPath) => {
+
+        const {idKey} = namedPath
 
         // Remove the draft site from the data
         const currentData = currentState.context?.data || {};
-        const currentSites = currentData.site || [];
+        const currentEntities = currentData[draftingType] || [];
 
-        if(siteToRemove.isDraft){
-            const filteredSites = currentSites.filter(s => s.siteId !== siteToRemove.siteId);
-            const updatedData = {
-                ...currentData,
-                site: filteredSites
-            };
+        if(elementToRemove.isDraft){
+            const filteredSites = currentEntities.filter(s => s[idKey] !== elementToRemove[idKey]);
+            const updatedData = { ...currentData, [draftingType]: filteredSites };
 
-            const namedPath = currentState.context.namedPaths[0].find(p => p.state === "site"); // Use first named path
+            let removeSuccess;
 
-            const removeSuccess = removeFeatureFromMapLayer({
-                map: mapInstance,
-                levelState: 'site',
-                featureId: siteToRemove.siteId,
-                idKey: 'siteId', // explicitly specify the key for site identification
-                namedPath: namedPath
-            });
+            if(namedPath.feature === "mesh"){
+                removeSuccess = removeMeshElementFromMap({
+                    entityType: draftingType,
+                    map: mapInstance,
+                    featureId: elementToRemove[idKey],
+                    namedPath
+                })
+            } else {
+                removeSuccess = removeFeatureFromMapLayer({
+                    map: mapInstance,
+                    levelState: draftingType,
+                    featureId: elementToRemove[idKey],
+                    idKey, 
+                    namedPath
+                });
+            }
 
             if (!removeSuccess) {
-                console.warn('Failed to remove draft site feature from map layer');
+                console.warn(`Failed to remove draft ${draftingType} feature from map layer`);
             }
 
             // Send event to update XState context (removing the site)
@@ -106,28 +117,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 type: 'UPDATE_DATA',
                 data: updatedData
             });
-        } else {
-            
-            const finalizedSite = {...siteToRemove}
-            delete finalizedSite.isEditing;
-
-            const updatedSites = currentSites.map(s => 
-                s.siteId === currentState.context.siteId ? finalizedSite : s
-            );
-
-            const updatedData = {
-                ...currentData,
-                site: updatedSites
-            };
-
-            send({
-                type: 'UPDATE_DATA',
-                data: updatedData
-            });
-        }
-
-        dispatch(setSelectedCoordinate());
-        dispatch(setIsSelectingPosition(false));
+        } 
     };
     
     // Function to generate square coordinates around a centroid
@@ -148,14 +138,17 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
 
     // First useEffect - extracted from line 117
     useEffect(() => {
-        const draftSites = currentState?.context?.data?.site.filter(s => s.isDraft) || [];
+        const [draftingType, draftElement] = Object.entries(currentState?.context?.data || {}).map(([k, v]) => {
+            const entity = v.find(el => el.isDraft);
 
-        if(draftSites.length && prevElementType === "site" && currentElementType !== "site"){
-            for(let s of draftSites){
-                handleCancelSite(s);
-            }
+            if(entity) return [k, entity]
+            else return [];
+        }).find(el => el[1]) || [];
+
+        if(draftElement && prevElementType === draftingType && currentElementType !== draftingType){
+            handleCancelElement(draftElement, draftingType, namedPathDict[draftingType]);
         }
-    }, [currentState, prevElementType, currentElementType]);
+    }, [currentState, prevElementType, currentElementType, namedPathDict]);
 
     // Second useEffect - extracted from line 138
     useEffect(() => {
@@ -163,9 +156,28 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             dispatch(setSelectedCoordinate([clickEvent.ground.longitude, clickEvent.ground.latitude]));
             dispatch(setIsSelectingPosition(false));
         }
-        if(selectedCoordinate?.length && !isSelectingPosition && draftType === "building"){
+
+        const draftNamedPath = namedPathDict[draftType];
+
+        if(selectedCoordinate?.length && !isSelectingPosition && draftNamedPath?.feature === "mesh"){
 
             const [centerLng, centerLat] = selectedCoordinate;
+
+            const parentNamedPath = currentState.context.namedPaths[0].find(p => p.state === draftNamedPath.parentState);
+            const currentParentId = currentState.context[parentNamedPath.idKey];
+
+            const positionMatchesParent = clickEvent.elements
+                .some(el => el?.extra?.attributeName === parentNamedPath.idKey && el?.extra?.attributeValue === currentParentId);
+
+            send({ type: "END_DRAFT" });
+
+            if(!positionMatchesParent){
+                dispatch(setDraftType());
+                dispatch(setIsSelectingPosition(false));
+                dispatch(setSelectedGraphicReference());
+                return;
+            }
+
             const newBuildingId = `${defaultNewBuildingId}-${+new Date()}`
             
             // Create new building data with mandatory fields
@@ -205,8 +217,6 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 console.log('Retrieved geometry info for graphic:', graphicId, geometryInfo);
             }
 
-            const namedPath = currentState.context.namedPaths[0].find(p => p.state === "building"); // Use first named path
-
             // Add 3D model to map if geometry info is available
             if (mapInstance && graphicId && geometryInfo) {
                 const success3D = addBuildingToMap({
@@ -216,7 +226,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                     centroid: [centerLng, centerLat],
                     graphicId: graphicId,
                     geometryInfo: geometryInfo,
-                    namedPath: namedPath
+                    namedPath: draftNamedPath
                 });
                  
                 if (success3D) {
@@ -244,7 +254,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             dispatch(setSelectedCoordinate([]));
       
         }
-        if(selectedCoordinate?.length && !isSelectingPosition && draftType === "site"){
+        if(selectedCoordinate?.length && !isSelectingPosition && draftNamedPath?.feature === "polygon"){
             const [centerLng, centerLat] = selectedCoordinate;
 
             // Generate square coordinates around the selected point (500m width)
@@ -275,12 +285,11 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
 
             // Add the new site to the map layer
             if (mapInstance && currentState.context?.namedPaths) {
-                const namedPath = currentState.context.namedPaths[0].find(p => p.state === "site"); // Use first named path
                 const success = addFeatureToMapLayer({
                     map: mapInstance,
                     levelState: 'site',
                     feature: newSite,
-                    namedPath: namedPath
+                    namedPath: draftNamedPath
                 });
 
                 if (success) {
@@ -306,7 +315,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             dispatch(setDraftType());
             dispatch(setSelectedCoordinate([]));
         }
-    }, [previousIsSelectingPosition, isSelectingPosition, selectedCoordinate, previousClick, clickEvent, draftTypeSchema, draftType, selectedGraphicReferecen, currentState, send, dispatch, mapInstance]);
+    }, [previousIsSelectingPosition, isSelectingPosition, selectedCoordinate, previousClick, clickEvent, draftTypeSchema, draftType, selectedGraphicReferecen, namedPathDict, currentState, send, dispatch, mapInstance]);
 
     return <></>
 };
