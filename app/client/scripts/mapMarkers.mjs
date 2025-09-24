@@ -111,7 +111,8 @@ function wrapToView(lng, centerLng) {
 
 function createSingleMarker(context, feature, {bins, property, showLabel = true, pieAlpha=true, getCounts = getBinCounts, popupConfig, send, featureDef, setPopupState, markerId}){
     const {map, namedPaths} = context;
-    const namedPath = namedPaths[0]
+    const namedPath = namedPaths[0];
+    const {path} = featureDef;
     let entry = markers.get(markerId);
     if(entry){
         return null;
