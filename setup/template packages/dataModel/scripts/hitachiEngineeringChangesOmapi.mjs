@@ -13,20 +13,30 @@ async function getEcs(input, libraries, ctx) {
     let _offset = input?.params?.offset ? input.params.offset : 0
     let options = {page: { _pageSize, _offset }}
 
+    let query = {}
+    if (input?.ecid) {
+        query = { id: input.ecid }
+    }
+
     let collections = await IafItemSvc.getNamedUserItems({
         query: { _userType: { $in: ["ecs", "ecs-logs"]} , _itemClass: 'NamedUserCollection' }
-        }, ctx, { page: {_pageSize: 10, _offset: 0}  
+        }, ctx, { page: {_pageSize: 10, _offset: 0} 
     })
 
     const ecsColl =  collections._list.find(c => c._userType === "ecs")
     const ecsLogsColl =  collections._list.find(c => c._userType === "ecs-logs")
 
-    const ecs = (await IafItemSvc.getRelatedItems(ecsColl._userItemId, {}, ctx, options))?._list
+    const ecs = (await IafItemSvc.getRelatedItems(ecsColl._userItemId, {query}, ctx, options))?._list
 
     const statusHierarchy = ['REGISTERED', 'APPROVED', 'CLOSED']
 
     for (const ec of ecs) {
-        let relatedLogs = (await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, { query: {ecid: ec.id } }, ctx))?._list
+        let relatedLogs = (await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, { query: {ecid: ec.id } }, ctx, { page: { getAllItems: true }}))?._list
+
+        let closedCount = relatedLogs.filter(log => log.status === "CLOSED").length
+        let approvedCount = relatedLogs.filter(log => log.status === "APPROVED").length - closedCount
+        let registeredCount = relatedLogs.filter(log => log.status === "REGISTERED").length - closedCount - approvedCount
+
 
         const siteEquipMap = {}
         for (const log of relatedLogs) {
@@ -45,6 +55,11 @@ async function getEcs(input, libraries, ctx) {
         }
 
         ec.logs = siteEquipMap
+        ec.status = {
+            REGISTERED: registeredCount,
+            APPROVED: approvedCount,
+            CLOSED: closedCount
+        }
     }
 
     return {

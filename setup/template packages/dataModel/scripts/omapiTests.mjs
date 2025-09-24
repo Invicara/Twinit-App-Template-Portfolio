@@ -433,6 +433,7 @@ let scriptModule = {
 
       let getUrls = [
          `${baseOmapiUrl}/engineeringchanges`,
+         `${baseOmapiUrl}/engineeringchanges/001`,
          `${baseOmapiUrl}/engineeringchanges/001/logs?pageSize=5`
       ]
 
