@@ -53,6 +53,7 @@ const CONFIG = {
     }),
     new CopyWebpackPlugin({
       patterns: [
+        {from: 'app/public/icons', to: 'icons/', toType: 'dir'},
         {from: 'app/public/config.js', to: 'config.js'},
         {from: 'app/public/version.js', to: 'version.js'},
         {from: 'app/public/helpers.js', to: 'helpers.js'},
