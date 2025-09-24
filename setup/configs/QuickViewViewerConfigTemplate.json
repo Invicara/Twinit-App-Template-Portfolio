@@ -9,6 +9,15 @@
       "path": "/modelcomparison",
       "config": {}
     },
+    "animations2D": {
+      "title": "2D Animations",
+      "icon": "fa fa-ruler-combined fa-2x",
+      "shortName": "animations2D",
+      "description": "2D Animations",
+      "pageComponent": "animations2D/Animations2DView",
+      "path": "/animations2D",
+      "config": {}
+    },
     "modelView": {
       "title": "Model View",
       "icon": "fas fa-building fa-2x",
@@ -54,6 +63,10 @@
         {
           "page": "Model Comparison",
           "handler": "modelComparison"
+        },
+        {
+          "page": "2D Animations",
+          "handler": "animations2D"
         }
       ]
     }
