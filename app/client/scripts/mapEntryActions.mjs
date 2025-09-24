@@ -1950,49 +1950,50 @@ function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, ge
  * Remove both 3D graphic and cube wrapper for a building
  * @param {Object} params - Parameters for removal
  * @param {mapboxgl.Map} params.map - Mapbox map instance
- * @param {string} params.buildingId - Building ID to remove
- * @param {Array} params.namedPath - Named path configuration
+ * @param {string} params.featureId - Feature ID to remove
+ * @param {string} params.entityType - Map Entity ID
+ * @param {Object} params.namedPath - Named path configuration
  * @returns {boolean} - Success status
  */
-export function removeBuildingFromMap({ map, buildingId, entityType, namedPath }) {
-    console.log(`Removing building ${buildingId} from map`);
+export function removeMeshElementFromMap({ map, featureId, entityType, namedPath }) {
+    console.log(`Removing mesh element ${featureId} from map`);
 
     let success = true;
 
     // Remove from 3D graphics layer
-    const buildingLayerId = `${entityType}-features-3d-graphics`;
-    const buildingLayer = map.getLayer(buildingLayerId);
+    const LayerId = `${entityType}-features-3d-graphics`;
+    const meshLayer = map.getLayer(LayerId);
 
-    if (buildingLayer && buildingLayer.features) {
+    if (meshLayer && meshLayer.features) {
         // Find and remove the feature from the 3D layer
-        const featureIndex = buildingLayer.features.findIndex(
-            feature => feature.properties?.buildingId === buildingId
+        const featureIndex = meshLayer.features.findIndex(
+            feature => feature.properties?.[namedPath.idKey] === featureId
         );
 
         if (featureIndex !== -1) {
-            const feature = buildingLayer.features[featureIndex];
+            const feature = meshLayer.features[featureIndex];
 
             // Properly dispose of resources and remove the model from the scene
-            if (feature.model && buildingLayer.scene) {
+            if (feature.model && meshLayer.scene) {
                 // Dispose of THREE.js resources before removing from scene
                 disposeObject3D(feature.model);
-                buildingLayer.scene.remove(feature.model);
+                meshLayer.scene.remove(feature.model);
             }
 
             // Remove from features array
-            buildingLayer.features.splice(featureIndex, 1);
-            console.log(`Removed building ${buildingId} from 3D graphics layer`);
+            meshLayer.features.splice(featureIndex, 1);
+            console.log(`Removed mesh element ${featureId} from 3D graphics layer`);
         } else {
-            console.warn(`Building ${buildingId} not found in 3D graphics layer`);
+            console.warn(`mesh element ${featureId} not found in 3D graphics layer`);
             success = false;
         }
     } else {
-        console.warn(`Building 3D layer not found: ${buildingLayerId}`);
+        console.warn(`Mesh element 3D layer not found: ${LayerId}`);
         success = false;
     }
 
-    // Remove cube wrapper from building-features source
-    const sourceId = 'building-features';
+    // Remove cube wrapper from features source
+    const sourceId = `${entityType}-features`;
     const existingSource = map.getSource(sourceId);
 
     if (existingSource) {
@@ -2000,8 +2001,8 @@ export function removeBuildingFromMap({ map, buildingId, entityType, namedPath }
 
         // Filter out the cube wrapper feature
         const filteredFeatures = (currentData.features || []).filter(feature => {
-            const featureBuildingId = feature.properties?.buildingId || feature.id;
-            return featureBuildingId !== buildingId;
+            const foundFeatureId = feature.properties?.[namedPath.idKey] || feature.id;
+            return foundFeatureId !== featureId;
         });
 
         // Update the source with filtered data
@@ -2011,7 +2012,7 @@ export function removeBuildingFromMap({ map, buildingId, entityType, namedPath }
         };
         existingSource.setData(updatedFeatureCollection);
 
-        console.log(`Removed cube wrapper for building ${buildingId}`);
+        console.log(`Removed cube wrapper for building ${featureId}`);
     } else {
         console.warn(`Source not found: ${sourceId}`);
         success = false;
@@ -2021,9 +2022,9 @@ export function removeBuildingFromMap({ map, buildingId, entityType, namedPath }
     map.triggerRepaint();
 
     if (success) {
-        console.log(`Successfully removed building ${buildingId} from map`);
+        console.log(`Successfully removed building ${featureId} from map`);
     } else {
-        console.error(`Failed to completely remove building ${buildingId} from map`);
+        console.error(`Failed to completely remove building ${featureId} from map`);
     }
 
     return success;
