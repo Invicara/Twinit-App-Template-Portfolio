@@ -28,8 +28,8 @@ const ModelComparisonPage = () => {
 
     const [selectModelOne, setSelectModelOne] = useState("");
     const [selectModelTwo, setSelectModelTwo] = useState("");
-    const [selectModelOneVersion, setSelectModelOneVersion] = useState("");
-    const [selectModelTwoVersion, setSelectModelTwoVersion] = useState("");
+    // const [selectModelOneVersion, setSelectModelOneVersion] = useState("");
+    // const [selectModelTwoVersion, setSelectModelTwoVersion] = useState("");
 
     const [modelOne, setModelOne] = useState(null);
     const [modelTwo, setModelTwo] = useState(null);
@@ -90,7 +90,7 @@ const ModelComparisonPage = () => {
             }
         };
 
-        setSelectModelOneVersion("");
+        // setSelectModelOneVersion("");
 
         if (modelOne) { getModelVersion(modelOne); }
     }, [modelOne]);
@@ -104,7 +104,7 @@ const ModelComparisonPage = () => {
             }
         };
 
-        setSelectModelTwoVersion("");
+        // setSelectModelTwoVersion("");
 
         if (modelTwo) { getModelVersion(modelTwo); }
     }, [modelTwo]);
@@ -120,7 +120,7 @@ const ModelComparisonPage = () => {
     }, [modelOneSliceIDs, modelTwoSliceIDs]);
 
     return (
-        availableModelComposites?.length > 1 && (
+        availableModelComposites?.length > 0 && (
             <div className="viewerWrapper">
                 <PanelGroup autoSaveId="modelComp" direction="vertical">
                     <Panel id="model-comp-panel" collapsible={false} order={1}>
@@ -133,7 +133,7 @@ const ModelComparisonPage = () => {
                                         {availableModelComposites.map(({ _name }, key) => <option key={key} value={_name}>{_name}</option>)}
                                     </select>
                                 </div>
-                                {modelOneWithVersions?.fetchedVersions?._list?.length > 0 && (
+                                {/* {modelOneWithVersions?.fetchedVersions?._list?.length > 0 && (
                                     <div className='viewer-sidebar'>
                                         <label htmlFor="model-one-version" className="model-select-label">Select Model One Version:</label>
                                         <select id="model-one-version" value={selectModelOneVersion} onChange={(e) => setSelectModelOneVersion(e.target.value)}>
@@ -141,7 +141,7 @@ const ModelComparisonPage = () => {
                                             {modelOneWithVersions.fetchedVersions._list.map(({ _version }, key) => <option key={key} value={_version}>{_version}</option>)}
                                         </select>
                                     </div>
-                                )}
+                                )} */}
                                 <div className='viewer-sidebar'>
                                     <label htmlFor="model-two" className="model-select-label">Select Model Two:</label>
                                     <select id="model-two" value={selectModelTwo} onChange={(e) => setSelectModelTwo(e.target.value)}>
@@ -149,14 +149,15 @@ const ModelComparisonPage = () => {
                                         {availableModelComposites.map(({ _name }, key) => <option key={key} value={_name}>{_name}</option>)}
                                     </select>
                                 </div>
-                                {modelTwoWithVersions?.fetchedVersions?._list?.length > 0 && (
+                                {/* {modelTwoWithVersions?.fetchedVersions?._list?.length > 0 && (
                                     <div className='viewer-sidebar'>
                                         <label htmlFor="model-two-version" className="model-select-label">Select Model Two Version:</label>
                                         <select id="model-two-version" value={selectModelTwoVersion} onChange={(e) => setSelectModelTwoVersion(e.target.value)}>
                                             <option value="">--Please choose an option--</option>
                                             {modelTwoWithVersions.fetchedVersions._list.map(({ _version }, key) => <option key={key} value={_version}>{_version}</option>)}
                                         </select>
-                                    </div>)}
+                                    </div>
+                                )} */}
                                 <div className="viewer-sidebar">
                                     <label htmlFor="camera-synch" className="synch-check">Enable Camera Sync</label>
                                     <input
@@ -190,16 +191,16 @@ const ModelComparisonPage = () => {
                                     {
                                         modelOneWithVersions &&
                                         modelTwoWithVersions &&
-                                        selectModelOneVersion !== "" &&
-                                        selectModelTwoVersion !== "" &&
+                                        // selectModelOneVersion !== "" &&
+                                        // selectModelTwoVersion !== "" &&
                                         <ElementSearch
                                             modelOne={{
                                                 ...modelOneWithVersions,
-                                                selectedVersion: modelOneWithVersions.fetchedVersions._list.find(({ _version }) => _version == selectModelOneVersion)
+                                                selectedVersion: modelOneWithVersions.fetchedVersions._list.find(({ _isTip }) => _isTip === true)
                                             }}
                                             modelTwo={{
                                                 ...modelTwoWithVersions,
-                                                selectedVersion: modelTwoWithVersions.fetchedVersions._list.find(({ _version }) => _version == selectModelTwoVersion)
+                                                selectedVersion: modelTwoWithVersions.fetchedVersions._list.find(({ _isTip }) => _isTip === true)
                                             }}
                                             setModelOneSliceIDs={setModelOneSliceIDs}
                                             setModelTwoSliceIDs={setModelTwoSliceIDs}
@@ -215,63 +216,69 @@ const ModelComparisonPage = () => {
                                     </div>
                                 </div>
                             </StackableDrawer>
-                            {modelOneWithVersions && modelTwoWithVersions && selectModelOneVersion !== "" && selectModelTwoVersion !== "" &&
-                                <div className="viewers">
-                                    <CompareView mode={viewerMode}>
-                                        <IafViewerDBM
-                                            ref={viewerOne}
-                                            serverUri={endPointConfig.graphicsServiceOrigin}
-                                            model={modelOneWithVersions}
-                                            modelVersionId={modelOneWithVersions.fetchedVersions._list.find(({ _version }) => _version == selectModelOneVersion)._id}
-                                            sliceElementIds={modelOneSliceIDs.map(se => [se.package_id, se.source_id]).flat()}
-                                            highlightedElementIds={[]}
-                                            isolatedElementIds={[]}
-                                            spaceElementIds={[]}
-                                            selection={[]}
-                                            OnSelectedElementChangeCallback={async (pkgids) => {
-                                                const modelColls = await loadModelCollections(null, {
-                                                    ...modelOneWithVersions,
-                                                    selectedVersion: modelOneWithVersions.fetchedVersions._list.find(({ _version }) => _version == selectModelOneVersion)
-                                                });
+                            {
+                                modelOneWithVersions
+                                && modelTwoWithVersions
+                                // && selectModelOneVersion !== ""
+                                // && selectModelTwoVersion !== ""
+                                && (
+                                    <div className="viewers">
+                                        <CompareView mode={viewerMode}>
+                                            <IafViewerDBM
+                                                ref={viewerOne}
+                                                serverUri={endPointConfig.graphicsServiceOrigin}
+                                                model={modelOneWithVersions}
+                                                modelVersionId={modelOneWithVersions.fetchedVersions._list.find(({ _isTip }) => _isTip === true)._id}
+                                                sliceElementIds={modelOneSliceIDs.map(se => [se.package_id, se.source_id]).flat()}
+                                                highlightedElementIds={[]}
+                                                isolatedElementIds={[]}
+                                                spaceElementIds={[]}
+                                                selection={[]}
+                                                OnSelectedElementChangeCallback={async (pkgids) => {
+                                                    const modelColls = await loadModelCollections(null, {
+                                                        ...modelOneWithVersions,
+                                                        selectedVersion: modelOneWithVersions.fetchedVersions._list.find(({ _isTip }) => _isTip === true)
+                                                    });
 
-                                                const element = await getSelectedElement(pkgids, modelColls);
+                                                    const element = await getSelectedElement(pkgids, modelColls);
 
-                                                setModelOneSelectedElement(element);
-                                            }}
-                                            title={"Left Model"}
-                                            view3d={viewerCamera}
-                                            view2d={{
-                                                enable: false
-                                            }}
-                                        />
-                                        <IafViewerDBM
-                                            ref={viewerTwo}
-                                            serverUri={endPointConfig.graphicsServiceOrigin}
-                                            model={modelTwoWithVersions}
-                                            modelVersionId={modelTwoWithVersions.fetchedVersions._list.find(({ _version }) => _version == selectModelTwoVersion)._id}
-                                            sliceElementIds={modelTwoSliceIDs.map(se => [se.package_id, se.source_id]).flat()}
-                                            highlightedElementIds={[]}
-                                            isolatedElementIds={[]}
-                                            spaceElementIds={[]}
-                                            selection={[]}
-                                            OnSelectedElementChangeCallback={async (pkgids) => {
-                                                const modelColls = await loadModelCollections(null, {
-                                                    ...modelTwoWithVersions,
-                                                    selectedVersion: modelTwoWithVersions.fetchedVersions._list.find(({ _version }) => _version == selectModelTwoVersion)
-                                                });
+                                                    setModelOneSelectedElement(element);
+                                                }}
+                                                title={"Left Model"}
+                                                view3d={viewerCamera}
+                                                view2d={{
+                                                    enable: false
+                                                }}
+                                            />
+                                            <IafViewerDBM
+                                                ref={viewerTwo}
+                                                serverUri={endPointConfig.graphicsServiceOrigin}
+                                                model={modelTwoWithVersions}
+                                                modelVersionId={modelTwoWithVersions.fetchedVersions._list.find(({ _isTip }) => _isTip === true)._id}
+                                                sliceElementIds={modelTwoSliceIDs.map(se => [se.package_id, se.source_id]).flat()}
+                                                highlightedElementIds={[]}
+                                                isolatedElementIds={[]}
+                                                spaceElementIds={[]}
+                                                selection={[]}
+                                                OnSelectedElementChangeCallback={async (pkgids) => {
+                                                    const modelColls = await loadModelCollections(null, {
+                                                        ...modelTwoWithVersions,
+                                                        selectedVersion: modelTwoWithVersions.fetchedVersions._list.find(({ _isTip }) => _isTip === true)
+                                                    });
 
-                                                const element = await getSelectedElement(pkgids, modelColls);
+                                                    const element = await getSelectedElement(pkgids, modelColls);
 
-                                                setModelTwoSelectedElement(element);
-                                            }}
-                                            title={"Right Model"}
-                                            view3d={viewerCamera}
-                                            view2d={{
-                                                enable: false
-                                            }}
-                                        />
-                                    </CompareView>
-                                </div>
+                                                    setModelTwoSelectedElement(element);
+                                                }}
+                                                title={"Right Model"}
+                                                view3d={viewerCamera}
+                                                view2d={{
+                                                    enable: false
+                                                }}
+                                            />
+                                        </CompareView>
+                                    </div>
+                                )
                             }
                         </div>
                     </Panel>

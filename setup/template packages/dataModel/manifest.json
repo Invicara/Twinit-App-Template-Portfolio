@@ -1,0 +1,67 @@
+{
+   "Template Name": "Hitachi Fleet POC Data Model",
+   "Template Version": "0.0.5",
+   "setupScript": "deployHitachiDataModel.mjs",
+   "scripts": [
+      {
+         "_name": "hitachiReferenceOmapi",
+         "_shortName": "hitachirefomapi",
+         "_description": "OMAPI for reference equipment",
+         "_userType": "hitachi-refequip-omapi"
+      },
+      {
+         "_name": "hitachiSiteEquipOmapi",
+         "_shortName": "hitachisiteomapi",
+         "_description": "OMAPI for site equipment",
+         "_userType": "hitachi-siteequip-omapi"
+      },
+      {
+         "_name": "hitachiEngineeringChangesOmapi",
+         "_shortName": "hitachiecsomapi",
+         "_description": "OMAPI for engineering changes",
+         "_userType": "hitachi-ecs-omapi"
+      },
+      {
+         "_name": "omapiTests",
+         "_shortName": "omapiTests",
+         "_description": "OMAPI endpoint tests",
+         "_userType": "omapi-test"
+      }
+   ],
+   "omapiConfig": [
+      {
+         "_name": "HitachiAPI",
+         "_shortName": "Hitachi API",
+         "_description": "Hitachi API"
+      }
+   ],
+   "custom": {
+      "collections": "custom/collections.json",
+      "referenceEquipment": "custom/referenceEquipment.json",
+      "referenceEquipmentRevisions": "custom/referenceEquipmentRevisions.json",
+      "sites": [
+         {
+            "_shortName": "A01",
+            "siteEquipment": "custom/siteEquipmentA1.json",
+            "siteEquipmentRevisions": "custom/siteEquipmentRevsA1.json"
+         },
+         {
+            "_shortName": "A02",
+            "siteEquipment": "custom/siteEquipmentA2.json",
+            "siteEquipmentRevisions": "custom/siteEquipmentRevsA2.json"
+         },
+         {
+            "_shortName": "B01",
+            "siteEquipment": "custom/siteEquipmentB1.json",
+            "siteEquipmentRevisions": "custom/siteEquipmentRevsB1.json"
+         },
+         {
+            "_shortName": "B02",
+            "siteEquipment": "custom/siteEquipmentB2.json",
+            "siteEquipmentRevisions": "custom/siteEquipmentRevsB2.json"
+         }
+      ],
+      "engineeringChanges": "custom/engineeringChanges.json",
+      "engineeringChangesAuditLogs": "custom/engineeringChangesAuditLogs.json"
+   }
+}
