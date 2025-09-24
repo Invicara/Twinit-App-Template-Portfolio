@@ -1,0 +1,347 @@
+[
+   {
+      "equipmentIds": ["RCP-900-011", "RCP-900-012", "RCP-900-013", "RCP-900-014"],
+      "revision": {
+         "revision": "000",
+         "revision status": "REVISED",
+         "revision status date": "2008-03-16T00:00:00Z",
+         "properties": [
+            {
+               "name": "Manufacturer",
+               "val": "Westinghouse",
+               "type": "string"
+            },
+            {
+               "name": "Model",
+               "val": "RCP-900",
+               "type": "string"
+            },
+            {
+               "name": "Safety Class",
+               "val": "Class 1",
+               "type": "string"
+            },
+            {
+               "name": "Operating Status",
+               "val": "Operational",
+               "type": "string"
+            },
+            {
+               "name": "Operational Status Date",
+               "val": "2025-01-22T00:00:00Z",
+               "type": "date"
+            }
+         ],
+         "TechnicalParameters": [
+            {
+               "name": "FlowRate",
+               "val": 2000,
+               "unit": "gpm",
+               "type": "number"
+            },
+            {
+               "name": "Power",
+               "val": 10,
+               "unit": "MW",
+               "type": "number"
+            }
+         ]
+      }
+
+   },
+   {
+      "equipmentIds": ["RCP-900-011", "RCP-900-012", "RCP-900-013", "RCP-900-014"],
+      "revision": {
+         "revision": "001",
+         "revision status": "REVISED",
+         "revision status date": "2011-03-15T00:00:00Z",
+         "properties": [
+            {
+               "name": "Manufacturer",
+               "val": "Westinghouse",
+               "type": "string"
+            },
+            {
+               "name": "Model",
+               "val": "RCP-900",
+               "type": "string"
+            },
+            {
+               "name": "Safety Class",
+               "val": "Class 1",
+               "type": "string"
+            },
+            {
+               "name": "Operating Status",
+               "val": "Operational",
+               "type": "string"
+            },
+            {
+               "name": "Operational Status Date",
+               "val": "2025-01-22T00:00:00Z",
+               "type": "date"
+            }
+         ],
+         "TechnicalParameters": [
+            {
+               "name": "FlowRate",
+               "val": 2100,
+               "unit": "gpm",
+               "type": "number"
+            },
+            {
+               "name": "Power",
+               "val": 10,
+               "unit": "MW",
+               "type": "number"
+            }
+         ]
+      }
+   },
+   {
+      "equipmentIds": ["CND-900-001"],
+      "revision": {
+         "revision": "000",
+         "revision status": "REVISED",
+         "revision status date": "2008-03-16T00:00:00Z",
+         "properties": [
+            {
+               "name": "Manufacturer",
+               "val": "Combustion Engineering",
+               "type": "string"
+            },
+            {
+               "name": "Model",
+               "val": "COND-900",
+               "type": "string"
+            },
+            {
+               "name": "Safety Class",
+               "val": "Class 3",
+               "type": "string"
+            },
+            {
+               "name": "Operating Status",
+               "val": "Operational",
+               "type": "string"
+            },
+            {
+               "name": "Operational Status Date",
+               "val": "2025-01-22T00:00:00Z",
+               "type": "date"
+            }
+         ],
+         "TechnicalParameters": [
+            {
+               "name": "CoolingCapacity",
+               "val": 700,
+               "unit": "MW",
+               "type": "number"
+            },
+            {
+               "name": "Surface Area",
+               "val": 1000,
+               "unit": "m2",
+               "type": "number"
+            }
+         ]
+      }
+   },
+   {
+      "equipmentIds": ["SG-900-001"],
+      "revision": {
+         "revision": "000",
+         "revision status": "ISSUED",
+         "revision status date": "2008-03-16T00:00:00Z",
+         "properties": [
+            {
+               "name": "Manufacturer",
+               "val": "Westinghouse",
+               "type": "string"
+            },
+            {
+               "name": "Model",
+               "val": "SG-900",
+               "type": "string"
+            },
+            {
+               "name": "Safety Class",
+               "val": "Class 1",
+               "type": "string"
+            },
+            {
+               "name": "Operating Status",
+               "val": "Operational",
+               "type": "string"
+            },
+            {
+               "name": "Operational Status Date",
+               "val": "2025-01-22T00:00:00Z",
+               "type": "date"
+            }
+         ],
+         "TechnicalParameters": [
+            {
+               "name": "HeatTransfer",
+               "val": 500,
+               "unit": "MW",
+               "type": "number"
+            },
+            {
+               "name": "Volume",
+               "val": 150,
+               "unit": "m3",
+               "type": "number"
+            }
+         ]
+      }
+
+   },
+   {
+      "equipmentIds": ["PRZ-900-001"],
+      "revision": {
+         "revision": "000",
+         "revision status": "ISSUED",
+         "revision status date": "2008-03-16T00:00:00Z",
+         "properties": [
+            {
+               "name": "Manufacturer",
+               "val": "ElectricBoat",
+               "type": "string"
+            },
+            {
+               "name": "Model",
+               "val": "PRZ-2K",
+               "type": "string"
+            },
+            {
+               "name": "Safety Class",
+               "val": "Class 1",
+               "type": "string"
+            },
+            {
+               "name": "Operating Status",
+               "val": "Operational",
+               "type": "string"
+            },
+            {
+               "name": "Operational Status Date",
+               "val": "2025-01-22T00:00:00Z",
+               "type": "date"
+            }
+         ],
+         "TechnicalParameters": [
+            {
+               "name": "Volume",
+               "val": 50,
+               "unit": "m3",
+               "type": "number"
+            },
+            {
+               "name": "PressureLimit",
+               "val": 2250,
+               "unit": "psi",
+               "type": "number"
+            }
+         ]
+      }
+   },
+   {
+      "equipmentIds": ["FWP-900-001"],
+      "revision": {
+         "revision": "000",
+         "revision status": "ISSUED",
+         "revision status date": "2008-03-16T00:00:00Z",
+         "properties": [
+            {
+               "name": "Manufacturer",
+               "val": "Allis-Chalmers Ltd.",
+               "type": "string"
+            },
+            {
+               "name": "Model",
+               "val": "MFWP-450",
+               "type": "string"
+            },
+            {
+               "name": "Safety Class",
+               "val": "Class 2",
+               "type": "string"
+            },
+            {
+               "name": "Operating Status",
+               "val": "Operational",
+               "type": "string"
+            },
+            {
+               "name": "Operational Status Date",
+               "val": "2025-01-22T00:00:00Z",
+               "type": "date"
+            }
+         ],
+         "TechnicalParameters": [
+            {
+               "name": "FlowRate",
+               "val": 500,
+               "unit": "gpm",
+               "type": "number"
+            },
+            {
+               "name": "Power",
+               "val": 5,
+               "unit": "MW",
+               "type": "number"
+            }
+         ]
+      }
+   },
+   {
+      "equipmentIds": ["TG-900-001"],
+      "revision": {
+         "revision": "000",
+         "revision status": "ISSUED",
+         "revision status date": "2008-03-16T00:00:00Z",
+         "properties": [
+            {
+               "name": "Manufacturer",
+               "val": "General Electric",
+               "type": "string"
+            },
+            {
+               "name": "Model",
+               "val": "TG-900",
+               "type": "string"
+            },
+            {
+               "name": "Safety Class",
+               "val": "Class 2",
+               "type": "string"
+            },
+            {
+               "name": "Operating Status",
+               "val": "Operational",
+               "type": "string"
+            },
+            {
+               "name": "Operational Status Date",
+               "val": "2025-01-22T00:00:00Z",
+               "type": "date"
+            }
+         ],
+         "TechnicalParameters": [
+            {
+               "name": "Output",
+               "val": 1000,
+               "unit": "MW",
+               "type": "number"
+            },
+            {
+               "name": "Speed",
+               "val": 3000,
+               "unit": "rpm",
+               "type": "number"
+            }
+         ]
+      }
+   }
+]

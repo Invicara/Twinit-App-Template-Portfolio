@@ -1,0 +1,122 @@
+[
+   {
+      "_name": "Reference Equipment",
+      "_shortName": "refequips",
+      "_userType": "equipRefs",
+      "_description": "Collection of all Reference Equipment for all Reactors"
+   },
+   {
+      "_name": "Reference Equipment Revisions",
+      "_shortName": "refequiprevs",
+      "_userType": "equipRefRevs",
+      "_description": "Collection of all Reference Equipment Revisions"
+   },
+   {
+      "_name": "Facility A Unit 01 Site Equipment",
+      "_shortName": "A01-siteequip",
+      "_userType": "siteEquip",
+      "_description": "Collection of all Site Equipment for Facility A Unit 1",
+      "_version": {
+         "_userAttributes": {
+            "facility": "A",
+            "unit": "01" 
+         }
+      }
+   },
+   {
+      "_name": "Facility A Unit 01 Site Equipment Revisions",
+      "_shortName": "A01-siteequiprevs",
+      "_userType": "siteEquipRevs",
+      "_description": "Collection of all Site Equipment Revisions for Facility A Unit 1",
+      "_version": {
+         "_userAttributes": {
+            "facility": "A",
+            "unit": "01" 
+         }
+      }
+   },
+   {
+      "_name": "Facility A Unit 02 Site Equipment",
+      "_shortName": "A02-siteequip",
+      "_userType": "siteEquip",
+      "_description": "Collection of all Site Equipment for Facility A Unit 2",
+      "_version": {
+         "_userAttributes": {
+            "facility": "A",
+            "unit": "02"
+         }
+      }
+   },
+   {
+      "_name": "Facility A Unit 02 Site Equipment Revisions",
+      "_shortName": "A02-siteequiprevs",
+      "_userType": "siteEquipRevs",
+      "_description": "Collection of all Site Equipment Revisions for Facility A Unit 2",
+      "_version": {
+         "_userAttributes": {
+            "facility": "A",
+            "unit": "02"
+         }
+      }
+   },
+   {
+      "_name": "Facility B Unit 01 Site Equipment",
+      "_shortName": "B01-siteequip",
+      "_userType": "siteEquip",
+      "_description": "Collection of all Site Equipment for Facility B Unit 1",
+      "_version": {
+         "_userAttributes": {
+            "facility": "B",
+            "unit": "01"
+         }
+      }
+   },
+   {
+      "_name": "Facility B Unit 01 Site Equipment Revisions",
+      "_shortName": "B01-siteequiprevs",
+      "_userType": "siteEquipRevs",
+      "_description": "Collection of all Site Equipment Revisions for Facility B Unit 1",
+      "_version": {
+         "_userAttributes": {
+            "facility": "B",
+            "unit": "01"
+         }
+      }
+   },
+   {
+      "_name": "Facility B Unit 02 Site Equipment",
+      "_shortName": "B02-siteequip",
+      "_userType": "siteEquip",
+      "_description": "Collection of all Site Equipment for Facility B Unit 2",
+      "_version": {
+         "_userAttributes": {
+            "facility": "B",
+            "unit": "02"
+         }
+      }
+   },
+   {
+      "_name": "Facility B Unit 02 Site Equipment Revisions",
+      "_shortName": "B02-siteequiprevs",
+      "_userType": "siteEquipRevs",
+      "_description": "Collection of all Site Equipment Revisions for Facility B Unit 2",
+      "_version": {
+         "_userAttributes": {
+            "facility": "B",
+            "unit": "02"
+         }
+      }
+   },
+   {
+      "_name": "Engineering Changes",
+      "_shortName": "ecs",
+      "_userType": "ecs",
+      "_description": "Collection of all Engineering Changes"
+   },
+   {
+      "_name": "Engineering Changes Audit Logs",
+      "_shortName": "ecs-logs",
+      "_userType": "ecs-logs",
+      "_description": "Collection of all Engineering Change Audit Logs"
+   }
+]

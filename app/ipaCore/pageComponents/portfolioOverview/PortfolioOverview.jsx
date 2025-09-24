@@ -91,9 +91,9 @@ export const MapContext = createContext();
 const DEFAULT_PATHS = [
     [
         { displayName: "Portfolio", state: 'portfolio', idKey: null, scopeLevel: 0 },
-        { displayName: "Site", state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all", scopeLevel: 1, collShortName: "geo_sites_coll" },
-        { displayName: "Building", state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all", scopeLevel: 2, collShortName: "building_coll" },
-        { displayName: "Model Element", state: 'modelElement', idKey: 'modelElementId', scopeLevel: 3 },
+        { displayName: "Site", state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all", scopeLevel: 1, collShortName: "geo_sites_coll", parentState: "portfolio" },
+        { displayName: "Building", state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all", scopeLevel: 2, collShortName: "building_coll", parentState: "site" },
+        { displayName: "Model Element", state: 'modelElement', idKey: 'modelElementId', scopeLevel: 3, parentState: "building" },
     ]
 ]
 
