@@ -9,6 +9,7 @@ import {v4 as uuid} from "uuid"
 import bbox from "@turf/bbox";
 import centroid from "@turf/centroid";
 import {
+    clearStaleMarkers,
     clearStaleMarkersByPath,
     makeMarkerShell,
     makePieCanvas,
@@ -21,6 +22,14 @@ import { getCachedFile } from "../../services/utils.js";
 
 // Global Map to store loaded geometries, accessible throughout the application
 const globalLoadedGeometries = new Map();
+// stable snapshot of what we’ve mirrored downstream per layer
+const globalFilterKeys = new Map(); // layerId -> string
+
+function makeGlobalFilterKey({ layer, field, ids, invert, filter }) {
+    // sort ids for stable equality
+    const sorted = (ids || []).slice().sort();
+    return JSON.stringify({ layer, field, sorted, filter, invert: !!invert });
+}
 
 /**
  * Get geometry info for a specific graphic ID
@@ -49,6 +58,7 @@ export function getLoadedGeometryIds() {
 }
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
 
 /**
  * Properly dispose of THREE.js resources to prevent memory leaks
@@ -92,8 +102,8 @@ function disposeMaterial(material) {
 
     // Dispose common texture types
     const textureProperties = ['map', 'normalMap', 'roughnessMap', 'metalnessMap',
-                              'emissiveMap', 'bumpMap', 'displacementMap', 'aoMap',
-                              'lightMap', 'envMap', 'alphaMap'];
+        'emissiveMap', 'bumpMap', 'displacementMap', 'aoMap',
+        'lightMap', 'envMap', 'alphaMap'];
 
     textureProperties.forEach(prop => {
         if (material[prop] && material[prop].dispose) {
@@ -106,6 +116,7 @@ function disposeMaterial(material) {
 }
 
 const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
+let activeFilter = null;
 
 function makeBinColorExpression(config) {
     const expr = ["case"];
@@ -564,54 +575,54 @@ export async function loadGraphics(graphicReferences) {
 
                 return new Promise((resolve, reject) => {
                     loader.load(modelUrl, (gltf) => {
-                        console.log(`Graphic loaded successfully: ${graphicId}`);
+                            console.log(`Graphic loaded successfully: ${graphicId}`);
 
-                        // Calculate model statistics
-                        let totalVertices = 0;
-                        let meshCount = 0;
-                        let boundingBox = new THREE.Box3();
+                            // Calculate model statistics
+                            let totalVertices = 0;
+                            let meshCount = 0;
+                            let boundingBox = new THREE.Box3();
 
-                        gltf.scene.traverse((node) => {
-                            if (node.isMesh) {
-                                meshCount++;
-                                totalVertices += node.geometry.attributes.position.count;
-                                boundingBox.expandByObject(node);
-                            }
+                            gltf.scene.traverse((node) => {
+                                if (node.isMesh) {
+                                    meshCount++;
+                                    totalVertices += node.geometry.attributes.position.count;
+                                    boundingBox.expandByObject(node);
+                                }
+                            });
+
+                            // Get the size of the bounding box in model units
+                            const boxSize = new THREE.Vector3();
+                            boundingBox.getSize(boxSize);
+
+                            // Convert to meters (approximate)
+                            const modelToMetersScale = 1;
+                            const sizeInMeters = {
+                                width: boxSize.x * modelToMetersScale,
+                                depth: boxSize.z * modelToMetersScale,
+                                height: boxSize.y * modelToMetersScale
+                            };
+
+                            const geometryInfo = {
+                                scene: gltf.scene,
+                                sizeInMeters,
+                                boundingBox,
+                                meshCount,
+                                totalVertices,
+                                bbox: boundingBox.min.toArray().concat(boundingBox.max.toArray()),
+                                modelUrl,
+                                graphicId
+                            };
+
+                            globalLoadedGeometries.set(graphicId, geometryInfo);
+                            resolve(geometryInfo);
+                        },
+                        (progress) => {
+                            console.log(`Loading progress for ${graphicId}: ${(progress.loaded / progress.total * 100).toFixed(2)}%`);
+                        },
+                        (error) => {
+                            console.error(`Error loading graphic ${graphicId}:`, error);
+                            reject(error);
                         });
-
-                        // Get the size of the bounding box in model units
-                        const boxSize = new THREE.Vector3();
-                        boundingBox.getSize(boxSize);
-
-                        // Convert to meters (approximate)
-                        const modelToMetersScale = 1;
-                        const sizeInMeters = {
-                            width: boxSize.x * modelToMetersScale,
-                            depth: boxSize.z * modelToMetersScale,
-                            height: boxSize.y * modelToMetersScale
-                        };
-
-                        const geometryInfo = {
-                            scene: gltf.scene,
-                            sizeInMeters,
-                            boundingBox,
-                            meshCount,
-                            totalVertices,
-                            bbox: boundingBox.min.toArray().concat(boundingBox.max.toArray()),
-                            modelUrl,
-                            graphicId
-                        };
-
-                        globalLoadedGeometries.set(graphicId, geometryInfo);
-                        resolve(geometryInfo);
-                    },
-                    (progress) => {
-                        console.log(`Loading progress for ${graphicId}: ${(progress.loaded / progress.total * 100).toFixed(2)}%`);
-                    },
-                    (error) => {
-                        console.error(`Error loading graphic ${graphicId}:`, error);
-                        reject(error);
-                    });
                 });
             } catch (error) {
                 console.error(`Error getting URL for graphic ${graphicId}:`, error);
@@ -1723,29 +1734,128 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
     }
 
     if(markersConfig){
-        manageMarkers = async (e) => {
-            const {graphics} = await renderAllMarkers(e, {context, self}, markersConfig);
 
-            if (graphics && graphics.length > 0) {
-                const commands = [{
-                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
-                    commandRef: uuid(),
-                    params: {
-                        ids: graphics.map(g => g.id),//remove stale
+        manageMarkers = async (e) => {
+
+            for (const markersInfo of markersConfig) {
+                const {featureDef, config, ...restMarkerInfo} = markersInfo;
+                const {path} = featureDef;
+
+                const sourceId = path + "-features";
+                if (e && e.sourceId === sourceId && e.hasOwnProperty("isSourceLoaded") && !e.isSourceLoaded) {
+                    continue;
+                } else if (e && e.sourceId !== sourceId && e.type == "sourcedata") {
+                    continue;
+                }
+
+                const {graphics, visibleFeatures, allFeaturesMarkerIds, previousMarkerIds, currentMarkerIds, filters} = await renderAllMarkers(e, {self}, markersInfo);
+                //console.log("UPDATE_FILTERS renderAllMarkers", {graphics, visibleFeatures, previousMarkerIds, currentMarkerIds, filters: filters});
+
+                if (previousMarkerIds && previousMarkerIds.length > 0) {
+                    const toRemove = previousMarkerIds.filter(id=>!currentMarkerIds.includes(id));
+                    if(toRemove.length>0){
+                        const commands = [{
+                            commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                            commandRef: uuid(),
+                            params: {
+                                ids: toRemove,//remove stale
+                            }
+                        }]
+                        context.mmvSend(commands);
+                        clearStaleMarkers(toRemove);
                     }
-                }, {
-                    commandName: MMV_COMMANDS.ADD_GRAPHICS,
-                    commandRef: uuid(),
-                    params: {
-                        graphics: graphics
+                }
+                if (graphics && graphics.length > 0) {
+                    const commands = [{
+                        commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                        commandRef: uuid(),
+                        params: {
+                            ids: allFeaturesMarkerIds,//remove stale
+                        }
+                    },{
+                        commandName: MMV_COMMANDS.ADD_GRAPHICS,
+                        commandRef: uuid(),
+                        params: {
+                            graphics: graphics
+                        }
+                    }]
+                    context.mmvSend(commands);
+                }
+
+
+                if (path == "site" && visibleFeatures && visibleFeatures.length > 0) {
+
+                    const ids = visibleFeatures.map(f => f.properties["siteId"]);
+                    const key = makeGlobalFilterKey({
+                        layer: 'site-features-layer',
+                        field: 'siteId',
+                        ids,
+                        invert: false,
+                        filter: context.filters?.["site"]
+                    });
+                    if (ids.length && globalFilterKeys.get('site-features-layer') !== key) {
+                        try {
+                            context.mmvSend([
+                                {
+                                    commandName: MMV_COMMANDS.CUSTOM,
+                                    commandRef: uuid(),
+                                    params: {
+                                        commandName: 'filtermodel',
+                                        commandRef: uuid(),
+                                        params: {
+                                            clear: false,
+                                            ids: ids,
+                                            invert: false,
+                                            extra: {
+                                                //layerNames: ['site-features-layer','site-features-centroids-layer-circle'],
+                                                layerNames: 'site-features-layer',
+                                                field: 'siteId',
+                                                fieldType: 'string'
+                                            }
+                                        }
+                                    }
+
+                                },
+                                {
+                                    commandName: MMV_COMMANDS.CUSTOM,
+                                    commandRef: uuid(),
+                                    params: {
+                                        commandName: 'filtermodel',
+                                        commandRef: uuid(),
+                                        params: {
+                                            clear: false,
+                                            ids: ids,
+                                            invert: false,
+                                            extra: {
+                                                //layerNames: ['site-features-layer','site-features-centroids-layer-circle'],
+                                                layerNames: 'site-features-centroids-layer-circle',
+                                                field: 'siteId',
+                                                fieldType: 'string'
+                                            }
+                                        }
+                                    }
+
+                                }
+                            ]);
+                        } catch (e) {
+                            console.error(e)
+                        }
                     }
-                }]
-                context.mmvSend(commands);
-            };
+
+                    globalFilterKeys.set('site-features-layer', key);
+                    globalFilterKeys.set('site-features-centroids-layer-circle', key);
+
+                }
+
+            }
         }
-        context.map.on('moveend', manageMarkers);
-        context.map.on('idle', manageMarkers);
-        context.map.on('sourcedata', manageMarkers);
+
+
+        if(context.map) {
+            context.map.on('moveend', manageMarkers);
+            context.map.on('idle', manageMarkers);
+            context.map.on('sourcedata', manageMarkers);
+        }
         manageMarkers();
     }
 
@@ -1756,7 +1866,6 @@ export async function getInitAction({mapMachineInput }) {
     return addLayers(mapMachineInput)
 }
 export async function getEntryAction({mapMachineInput }) {
-    console.log("getEntryAction", {mapMachineInput});
     const {stateValue, context, event, self} = mapMachineInput;
 
     const {suppressEntryActions} = context;
@@ -1764,6 +1873,7 @@ export async function getEntryAction({mapMachineInput }) {
     if (suppressEntryActions) {
         return { suppressEntryActions: false };
     }
+
     switch (stateValue) {
         case 'portfolio': {
 
@@ -1802,6 +1912,43 @@ export async function getEntryAction({mapMachineInput }) {
 
             const markersConfig = singleMarkers;
             const {manageMarkers} = await handleMarkers(stateValue, markersConfig, {context, self});
+
+            if(globalFilterKeys.get('site-features-layer')){
+                context.mmvSend([{
+                    commandName: MMV_COMMANDS.CUSTOM,
+                    commandRef: uuid(),
+                    params: {
+                        commandName: 'filtermodel',
+                        commandRef: uuid(),
+                        params: {
+                            clear: true,
+                            extra: {
+                                //layerNames: ['site-features-layer','site-features-centroids-layer-circle'],
+                                layerNames: 'site-features-centroids-layer-circle',
+                            }
+                        }
+                    }
+                }])
+            }
+            if(globalFilterKeys.get('site-features-centroids-layer-circle')){
+                context.mmvSend([{
+                    commandName: MMV_COMMANDS.CUSTOM,
+                    commandRef: uuid(),
+                    params: {
+                        commandName: 'filtermodel',
+                        commandRef: uuid(),
+                        params: {
+                            clear: true,
+                            extra: {
+                                //layerNames: ['site-features-layer','site-features-centroids-layer-circle'],
+                                layerNames: 'site-features-layer',
+                                field: 'siteId',
+                                fieldType: 'string'
+                            }
+                        }
+                    }
+                }])
+            }
 
             return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme, legend };
         }
@@ -2083,14 +2230,16 @@ export async function getExitAction({mapMachineInput }) {
                 context.map.off('sourcedata', context.manageMarkers[stateValue]);
             }
             const markerIds = clearStaleMarkersByPath("site")
-            const commands = [{
-                commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
-                commandRef: uuid(),
-                params: {
-                    ids: [...markerIds],
-                }
-            }]
-            context.mmvSend(commands);
+            if(markerIds && markerIds.length) {
+                const commands = [{
+                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                    commandRef: uuid(),
+                    params: {
+                        ids: [...markerIds],
+                    }
+                }]
+                context.mmvSend(commands);
+            }
 
             return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
         }
@@ -2101,15 +2250,17 @@ export async function getExitAction({mapMachineInput }) {
                 context.map.off('idle', context.manageMarkers[stateValue]);
                 context.map.off('sourcedata', context.manageMarkers[stateValue]);
             }
-            const markerIds = clearStaleMarkersByPath("building")
-            const commands = [{
-                commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
-                commandRef: uuid(),
-                params: {
-                    ids: [...markerIds],
-                }
-            }]
-            context.mmvSend(commands);
+            const markerIds = clearStaleMarkersByPath("building");
+            if(markerIds && markerIds.length) {
+                const commands = [{
+                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                    commandRef: uuid(),
+                    params: {
+                        ids: [...markerIds],
+                    }
+                }]
+                context.mmvSend(commands);
+            }
 
             return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
         }
