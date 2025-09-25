@@ -11,6 +11,7 @@ const NO_MODELS = []
 
 const ModelContextProvider = ({ children, project, appContext }) => {
 
+
    // availableModelComposites: Array[<Object>] the array of imported models in the project
    const [availableModelComposites, setAvailableModelComposites] = useState([])
 
@@ -506,6 +507,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
 
             let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(tempCollections.instanceProps, instanceQueryPartials, true, tempCollections.elements))
 
+            console.log('EC3 result', result);
             let instElemIds = []
             result._list.forEach(i => i.elements._list.forEach(e => instElemIds.push(e._id)))
 
@@ -517,6 +519,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
 
             let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(tempCollections.typeProps, typeQueryPartials, true, tempCollections.elements))
             console.log('result ----->', result)
+               console.log('EC3 result 2', result);
             let typeElemIds = []
             result._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
 
@@ -552,6 +555,8 @@ const ModelContextProvider = ({ children, project, appContext }) => {
             bothPromises.push(IafScriptEngine.findWithRelated(makeElementByPropQuery(tempCollections.typeProps, typeQueryPartials, true, tempCollections.elements)).then((typeResult) => {
                typeResult._list.forEach(i => i.elements._list.forEach(e => typeElemIds.push(e._id)))
             }))
+
+               console.log('EC3 promises', bothPromises);
 
             await Promise.all(bothPromises)
 
@@ -609,6 +614,25 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          setSliceElements(simplifyElementItems(allElements));
       }
    }
+
+      useEffect(() => {
+  if (modelRelatedCollections?.instanceProps) {
+    (async () => {
+      try {
+        const page = await IafItemSvc.getRelatedItems(
+          modelRelatedCollections.instanceProps._userItemId,
+          { query: {} },
+          null,
+          { page: { _pageSize: 200, _offset: 0 }, userItemVersionId: modelRelatedCollections.instanceProps._userItemVersionId }
+        )
+
+        console.log('EC4 Sample instanceProps items:', page._list)
+      } catch (err) {
+        console.error('ERROR: fetching instanceProps for debug', err)
+      }
+    })()
+  }
+}, [modelRelatedCollections]);
 
    const memoizedContextValue = useMemo(() => {
       return {
