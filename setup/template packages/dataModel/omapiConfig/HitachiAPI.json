@@ -1,6 +1,66 @@
 [
    {
       "endpoints": {
+         "status": {
+            "paths": [
+               {
+                  "path": "/status",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "omapi_entities",
+                     "_scriptName": "returnStatus"
+                  }
+               },
+               {
+                  "path": "/status",
+                  "method": "OPTIONS",
+                  "script": {
+                     "_userType": "omapi_entities",
+                     "_scriptName": "returnStatus"
+                  }
+               }
+            ]
+         },
+         "site": {
+            "paths": [
+               {
+                  "path": "/site/all",
+                  "method": "OPTIONS",
+                  "script": {
+                     "_userType": "omapi_entities",
+                     "_scriptName": "returnStatus"
+                  }
+               },
+               {
+                  "path": "/site/all",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "omapi_entities",
+                     "_scriptName": "getSitesWithRelated"
+                  }
+               }
+            ]
+         },
+         "building": {
+            "paths": [
+               {
+                  "path": "/building/all",
+                  "method": "OPTIONS",
+                  "script": {
+                     "_userType": "omapi_entities",
+                     "_scriptName": "returnStatus"
+                  }
+               },
+               {
+                  "path": "/building/all",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "omapi_entities",
+                     "_scriptName": "getBuildingsWithRelated"
+                  }
+               }
+            ]
+         },
          "references": {
             "paths": [
                {
@@ -65,6 +125,102 @@
                   "script": {
                      "_userType": "hitachi-refequip-omapi",
                      "_scriptName": "getReferenceEquipment"
+                  }
+               }
+            ]
+         },
+         "siteequip": {
+            "paths": [
+               {
+                  "path": "/siteequip",
+                  "method": "OPTIONS",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "returnStatus"
+                  }
+               },
+               {
+                  "path": "/siteequip/search",
+                  "method": "POST",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "searchEquipment"
+                  }
+               },
+               {
+                  "path": "/siteequip/facilities",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "getSiteFacilities"
+                  }
+               },
+               {
+                  "path": "/siteequip/facilities/:facility/units",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "getFacilityUnits"
+                  }
+               },
+               {
+                  "path": "/siteequip/facilities/:facility/units/:unit/systems",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "getUnitSystems"
+                  }
+               },
+               {
+                  "path": "/siteequip/facilities/:facility/units/:unit/systems/:systemId/equipmenttypes",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "getUnitSystemEquipmentTypes"
+                  }
+               },
+               {
+                  "path": "/siteequip/facilities/:facility/units/:unit/systems/:systemId/equipmenttypes/:equipmentType/equipment",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "getUnitEquipment"
+                  }
+               }
+            ]
+         },
+         "engineeringchanges": {
+            "paths": [
+               {
+                  "path": "/engineeringchanges",
+                  "method": "OPTIONS",
+                  "script": {
+                     "_userType": "hitachi-ecs-omapi",
+                     "_scriptName": "returnStatus"
+                  }
+               },
+               {
+                  "path": "/engineeringchanges",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-ecs-omapi",
+                     "_scriptName": "getEcs"
+                  }
+               },
+               {
+                  "path": "/engineeringchanges/:ecid",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-ecs-omapi",
+                     "_scriptName": "getEcs"
+                  }
+               },
+               {
+                  "path": "/engineeringchanges/:ecid/logs",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-ecs-omapi",
+                     "_scriptName": "getEcLogs"
                   }
                }
             ]
