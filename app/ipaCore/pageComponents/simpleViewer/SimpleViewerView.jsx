@@ -44,7 +44,12 @@ const SimpleViewerView = ({ handler }) => {
       sliceElements
    } = useContext(ModelContext)
 
-   console.log('EC1 sliceElements', sliceElements);
+
+   useEffect(()=> {
+
+      console.log('EC1 sliceElements', sliceElements);
+   }, [sliceElements])
+
    console.log('EC1 selectedModelComposite', selectedModelComposite);
    console.log('EC1 modelRelatedCollections', modelRelatedCollections);
    console.log('EC1 getSelectedElement', getSelectedElement);
