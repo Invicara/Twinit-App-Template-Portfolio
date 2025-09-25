@@ -347,13 +347,7 @@ export async function fetchFeaturesForLevel(levelDef, parentFeatures) {
         return data.map(d => ({
             type: 'Feature',
             geometry: d.coordinates,
-            properties: { ...d,
-                /*ecsByStatus: {
-                    "REGISTERED": {_total: Math.floor(Math.random() * 10) + 1},
-                    "APPROVED": {_total: Math.floor(Math.random() * 10) + 1},
-                    "CLOSED": {_total: Math.floor(Math.random() * 10) + 1}
-                }*/
-            }
+            properties: { ...d}
         }));
     }
     if (levelDef.feature === 'mesh') {
