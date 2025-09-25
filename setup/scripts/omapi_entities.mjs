@@ -51,6 +51,40 @@ const entityCollections = {
     },
 }
 
+
+/* --------------------- small utils --------------------- */
+
+function chunk(arr, size) {
+    const out = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+}
+
+function uniq(arr) {
+    return Array.from(new Set(arr));
+}
+
+// Deduplicate by a key function
+function uniqBy(arr, keyFn) {
+    const seen = new Set();
+    const out = [];
+    for (const item of arr) {
+        const key = keyFn(item);
+        if (!seen.has(key)) {
+            seen.add(key);
+            out.push(item);
+        }
+    }
+    return out;
+}
+
+function serializeErr(err) {
+    return {
+        message: err?.message || String(err),
+        stack: err?.stack,
+    };
+}
+
 function uuidv4() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
         var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
@@ -93,6 +127,103 @@ async function createRelation(IafItemSvc, relation, parentUserItemId, ctx) {
         ctx
     );
     return relationsResult;
+}
+async function getRelations(IafItemSvc, criteria, parentUserItemId, ctx) {
+    if (!parentUserItemId) return null;
+
+    let relationsResult = await IafItemSvc.getRelations(
+        parentUserItemId,
+        criteria,
+        ctx
+    );
+    return relationsResult;
+}
+async function deleteRelations(IafItemSvc, body, parentUserItemId, ctx) {
+    if (!parentUserItemId) return null;
+
+    let relationsResult = await IafItemSvc.deleteRelations(
+        parentUserItemId,
+        body,
+        ctx
+    );
+    return relationsResult;
+}
+
+async function updateRelations(
+    IafItemSvc,
+    payload,
+    parentUserItemId,
+    ctx,
+    opts = {}
+) {
+    const {
+        order = "create-then-remove",
+        chunkSize = 100,
+    } = opts;
+
+    if (!IafItemSvc) throw new Error("IafItemSvc is required");
+    if (!parentUserItemId) throw new Error("parentUserItemId is required");
+
+    const toCreate = Array.isArray(payload?.toCreate) ? payload.toCreate.filter(Boolean) : [];
+    const toRemoveRaw = Array.isArray(payload?.toRemove) ? payload.toRemove.filter(Boolean) : [];
+
+    // Normalize removes to IDs
+    const toRemoveIds = uniq(
+        toRemoveRaw.map(r => (typeof r === "string" ? r : r?._id)).filter(Boolean)
+    );
+
+    // Deduplicate creates (by a stable signature)
+    const toCreateDeduped = uniqBy(
+        toCreate,
+        (r) =>
+            `${r._relatedFromId}__${r._relatedUserItemDbId}__${JSON.stringify(
+                (Array.isArray(r._relatedToIds) ? [...new Set(r._relatedToIds)] : [])
+                    .slice().sort()
+            )}`
+    ).map(r => ({
+        _relatedFromId: r._relatedFromId,
+        _relatedToIds: Array.isArray(r._relatedToIds) ? uniq(r._relatedToIds) : [],
+        _relatedUserItemDbId: r._relatedUserItemDbId,
+    }));
+
+    const result = { created: [], removed: [], errors: [] };
+
+    const runCreates = async () => {
+        for (const part of chunk(toCreateDeduped, chunkSize)) {
+            if (part.length === 0) continue;
+            try {
+                // createRelation expects an array of relation objects
+                const created = await createRelation(IafItemSvc, part, parentUserItemId, ctx);
+                // Some APIs return created rows; collect if available
+                if (created) result.created.push(...(Array.isArray(created) ? created : [created]));
+            } catch (err) {
+                result.errors.push({ op: "createRelation", payload: part, error: serializeErr(err) });
+            }
+        }
+    };
+
+    const runDeletes = async () => {
+        for (const part of chunk(toRemoveIds, chunkSize)) {
+            if (part.length === 0) continue;
+            try {
+                await deleteRelations(IafItemSvc, part, parentUserItemId, ctx);
+                result.removed.push(...part);
+            } catch (err) {
+                result.errors.push({ op: "deleteRelations", payload: part, error: serializeErr(err) });
+            }
+        }
+    };
+
+    if (order === "remove-then-create") {
+        await runDeletes();
+        await runCreates();
+    } else {
+        // default: "create-then-remove"
+        await runCreates();
+        await runDeletes();
+    }
+
+    return result;
 }
 
 const collectionsCache = {}
@@ -312,13 +443,11 @@ const createAndAttachToEntityFactory = (entityName, parentEntityName) => async (
     let { PlatformApi } = libraries
     const { IafItemSvc } = PlatformApi
 
-
     const createFactory = createEntityFactory(entityName);
 
     const parentColl = (await getCollections(IafItemSvc, entityCollections[parentEntityName].entity?._userType, ctx))[0]
     const entityColl = (await getCollections(IafItemSvc, entityCollections[entityName].entity?._userType, ctx))[0]
     const persisted = (await createFactory(entity,libraries, ctx, callback));
-
 
     let relationData = [{
         _relatedFromId: parent._id, //parentid
@@ -329,6 +458,347 @@ const createAndAttachToEntityFactory = (entityName, parentEntityName) => async (
     const relation = await createRelation(IafItemSvc, relationData, parentColl._userItemId, ctx)
     return persisted
 }
+
+// Factory: create a new entity, then attach it to exactly one parent resolved by a key on the entity.
+// If multiple parents match, keeps the canonical one and removes relations to the others.
+const createAndAttachToOneParentFactory = (entityName, parentEntityName) => async ({ parentKeyId= "siteId", entity }, libraries, ctx, callback) => {
+    const { PlatformApi } = libraries;
+    const { IafItemSvc } = PlatformApi;
+
+    // Helper: pick exactly one canonical parent deterministically
+    function chooseCanonicalParent(parents) {
+        if (!Array.isArray(parents) || parents.length === 0) return null;
+        // Prefer most recently updated; fallback to created; then array order
+        const score = (p) => {
+            const u = p._updatedAt ? new Date(p._updatedAt).getTime() : 0;
+            const c = p._createdAt ? new Date(p._createdAt).getTime() : 0;
+            return Math.max(u, c);
+        };
+        return parents.slice().sort((a, b) => score(b) - score(a))[0];
+    }
+
+    if (!parentKeyId) {
+        throw new Error("parentKeyId is required");
+    }
+    if (!entity || entity[parentKeyId] == null) {
+        throw new Error(`entity.${parentKeyId} is required to resolve the parent. Entity: ${JSON.stringify(entity)}`);
+    }
+
+    // 1) Create the new entity
+    const createEntity = createEntityFactory(entityName);
+    const persisted = await createEntity(entity, libraries, ctx, callback);
+
+    // 2) Resolve collections
+    const parentColl = (await getCollections(
+        IafItemSvc,
+        entityCollections[parentEntityName].entity?._userType,
+        ctx
+    ))?.[0];
+    const entityColl = (await getCollections(
+        IafItemSvc,
+        entityCollections[entityName].entity?._userType,
+        ctx
+    ))?.[0];
+
+    if (!parentColl?.[ "_userItemId" ]) {
+        throw new Error(`Parent collection not found for ${parentEntityName}`);
+    }
+    if (!entityColl?.[ "_userItemId" ]) {
+        throw new Error(`Entity collection not found for ${entityName}`);
+    }
+
+    // 3) Fetch ALL candidate parents by key on the entity
+    const getParent = getEntityFactory(parentEntityName);
+    const parentQuery = { [parentEntityName]: { [parentKeyId]: entity[parentKeyId] } };
+    const parentsResult = await getParent({ query: parentQuery }, libraries, ctx, callback);
+    const parentList = Array.isArray(parentsResult)
+        ? parentsResult
+        : (parentsResult ? [parentsResult] : []);
+
+    if (parentList.length === 0) {
+        throw new Error(
+            `No ${parentEntityName} found where ${parentKeyId} == ${String(entity[parentKeyId])}`
+        );
+    }
+
+    // 4) Choose canonical parent, treat the rest as "unnecessary"
+    const canonicalParent = chooseCanonicalParent(parentList);
+    const unnecessaryParents = parentList.filter(p => p._id !== canonicalParent._id);
+
+    // 5) Find existing relations (any parent → this child, within this relation space & child collection)
+    let existingRels = (await getRelations(
+        IafItemSvc,
+        parentColl._userItemId,
+        ctx,
+        {
+            _relatedToId: persisted._id,                         // SDK should match where child id is in _relatedToIds
+            _relatedUserItemDbId: entityColl._userItemId,        // make sure it's the same child collection binding
+        }
+    )) || [];
+    existingRels = existingRels._list ? existingRels._list : []
+
+    // 6) Ensure no attachments to unnecessary parents
+    //    - If a relation row from an unnecessary parent contains this child, remove it (update or delete if empty)
+    for (const rel of existingRels) {
+        if (rel._relatedFromId && unnecessaryParents.some(p => p._id === rel._relatedFromId)) {
+            const toIds = Array.isArray(rel._relatedToIds) ? rel._relatedToIds.slice() : [];
+            const idx = toIds.indexOf(persisted._id);
+            if (idx !== -1) toIds.splice(idx, 1);
+
+            if (toIds.length === 0) {
+                await deleteRelations(IafItemSvc, [rel], parentColl._userItemId, ctx);
+            } else {
+                const updated = { ...rel, _relatedToIds: toIds };
+                await updateRelations(IafItemSvc, {toRemove: [rel], toCreate: [updated]}, parentColl._userItemId, ctx);
+            }
+        }
+    }
+
+    // 7) Also proactively sweep any relation rows *owned by the unnecessary parents* that might include this child,
+    //    even if they weren't caught above (defensive clean-up).
+    for (const badParent of unnecessaryParents) {
+        let badParentRows = (await getRelations(
+            IafItemSvc,
+            parentColl._userItemId,
+            ctx,
+            {
+                _relatedFromId: badParent._id,
+                _relatedUserItemDbId: entityColl._userItemId,
+            }
+        )) || [];
+        badParentRows = badParentRows._list ? badParentRows._list : badParentRows;
+
+        for (const rel of badParentRows) {
+            if (Array.isArray(rel._relatedToIds) && rel._relatedToIds.includes(persisted._id)) {
+                const toIds = rel._relatedToIds.filter(id => id !== persisted._id);
+                if (toIds.length === 0) {
+                    await deleteRelations(IafItemSvc, [rel], parentColl._userItemId, ctx);
+                } else {
+                    await updateRelations(
+                        IafItemSvc,
+                        { toRemove: [rel], toCreate: [{...rel, _relatedToIds: toIds}] },
+                        parentColl._userItemId,
+                        ctx
+                    );
+                }
+            }
+        }
+    }
+
+    // 8) Now ensure attachment to the canonical parent
+    let canonicalRows = (await getRelations(
+        IafItemSvc,
+        parentColl._userItemId,
+        ctx,
+        {
+            _relatedFromId: canonicalParent._id,
+            _relatedUserItemDbId: entityColl._userItemId,
+        }
+    )) || [];
+    canonicalRows = canonicalRows._list ? canonicalRows._list : canonicalRows;
+
+    // If there's already a row for canonical parent → child-collection, append child id if missing
+    const parentRow = canonicalRows.find(r => r._relatedFromId === canonicalParent._id);
+    if (parentRow) {
+        const toIds = new Set(parentRow._relatedToIds || []);
+        if (!toIds.has(persisted._id)) {
+            toIds.add(persisted._id);
+            await updateRelations(
+                IafItemSvc,
+                { toRemove: [parentRow], toCreate: [{ ...parentRow, _relatedToIds: Array.from(toIds) }] },
+                parentColl._userItemId,
+                ctx
+            );
+        }
+    } else {
+        const relationData = [
+            {
+                _relatedFromId: canonicalParent._id,
+                _relatedToIds: [persisted._id],
+                _relatedUserItemDbId: entityColl._userItemId,
+            },
+        ];
+        await createRelation(IafItemSvc, relationData, parentColl._userItemId, ctx);
+    }
+
+    // Optional: return extra metadata so callers can see what was cleaned up
+    persisted.__parentResolution = {
+        canonicalParentId: canonicalParent._id,
+        removedParentIds: unnecessaryParents.map(p => p._id),
+    };
+
+    return persisted;
+};
+
+const updateAndAttachToOneParentFactory = (entityName, parentEntityName) => async ({ parentKeyId= "siteId", entity }, libraries, ctx, callback) => {
+    const { PlatformApi } = libraries;
+    const { IafItemSvc } = PlatformApi;
+
+    // Helper: pick exactly one canonical parent deterministically
+    function chooseCanonicalParent(parents) {
+        if (!Array.isArray(parents) || parents.length === 0) return null;
+        // Prefer most recently updated; fallback to created; then array order
+        const score = (p) => {
+            const u = p._updatedAt ? new Date(p._updatedAt).getTime() : 0;
+            const c = p._createdAt ? new Date(p._createdAt).getTime() : 0;
+            return Math.max(u, c);
+        };
+        return parents.slice().sort((a, b) => score(b) - score(a))[0];
+    }
+
+    if (!parentKeyId) {
+        throw new Error("parentKeyId is required");
+    }
+    if (!entity || entity[parentKeyId] == null) {
+        throw new Error(`entity.${parentKeyId} is required to resolve the parent. Entity: ${JSON.stringify(entity)}`);
+    }
+
+    // 1) Update the entity
+    const updateEntity = updateEntityFactory(entityName);
+    const persisted = await updateEntity(entity, libraries, ctx, callback);
+
+    // 2) Resolve collections
+    const parentColl = (await getCollections(
+        IafItemSvc,
+        entityCollections[parentEntityName].entity?._userType,
+        ctx
+    ))?.[0];
+    const entityColl = (await getCollections(
+        IafItemSvc,
+        entityCollections[entityName].entity?._userType,
+        ctx
+    ))?.[0];
+
+    if (!parentColl?.[ "_userItemId" ]) {
+        throw new Error(`Parent collection not found for ${parentEntityName}`);
+    }
+    if (!entityColl?.[ "_userItemId" ]) {
+        throw new Error(`Entity collection not found for ${entityName}`);
+    }
+
+    // 3) Fetch ALL candidate parents by key on the entity
+    const getParent = getEntityFactory(parentEntityName);
+    const parentQuery = { [parentEntityName]: { [parentKeyId]: entity[parentKeyId] } };
+    const parentsResult = await getParent({ query: parentQuery }, libraries, ctx, callback);
+    const parentList = Array.isArray(parentsResult)
+        ? parentsResult
+        : (parentsResult ? [parentsResult] : []);
+
+    if (parentList.length === 0) {
+        throw new Error(
+            `No ${parentEntityName} found where ${parentKeyId} == ${String(entity[parentKeyId])}`
+        );
+    }
+
+    // 4) Choose canonical parent, treat the rest as "unnecessary"
+    const canonicalParent = chooseCanonicalParent(parentList);
+    const unnecessaryParents = parentList.filter(p => p._id !== canonicalParent._id);
+
+    // 5) Find existing relations (any parent → this child, within this relation space & child collection)
+    let existingRels = (await getRelations(
+        IafItemSvc,
+        parentColl._userItemId,
+        ctx,
+        {
+            _relatedToId: persisted._id,                         // SDK should match where child id is in _relatedToIds
+            _relatedUserItemDbId: entityColl._userItemId,        // make sure it's the same child collection binding
+        }
+    )) || [];
+    existingRels = existingRels._list ? existingRels._list : []
+
+    // 6) Ensure no attachments to unnecessary parents
+    //    - If a relation row from an unnecessary parent contains this child, remove it (update or delete if empty)
+    for (const rel of existingRels) {
+        if (rel._relatedFromId && unnecessaryParents.some(p => p._id === rel._relatedFromId)) {
+            const toIds = Array.isArray(rel._relatedToIds) ? rel._relatedToIds.slice() : [];
+            const idx = toIds.indexOf(persisted._id);
+            if (idx !== -1) toIds.splice(idx, 1);
+
+            if (toIds.length === 0) {
+                await deleteRelations(IafItemSvc, [rel], parentColl._userItemId, ctx);
+            } else {
+                const updated = { ...rel, _relatedToIds: toIds };
+                await updateRelations(IafItemSvc, {toRemove: [rel], toCreate: [updated]}, parentColl._userItemId, ctx);
+            }
+        }
+    }
+
+    // 7) Also proactively sweep any relation rows *owned by the unnecessary parents* that might include this child,
+    //    even if they weren't caught above (defensive clean-up).
+    for (const badParent of unnecessaryParents) {
+        let badParentRows = (await getRelations(
+            IafItemSvc,
+            parentColl._userItemId,
+            ctx,
+            {
+                _relatedFromId: badParent._id,
+                _relatedUserItemDbId: entityColl._userItemId,
+            }
+        )) || [];
+        badParentRows = badParentRows._list ? badParentRows._list : badParentRows;
+
+        for (const rel of badParentRows) {
+            if (Array.isArray(rel._relatedToIds) && rel._relatedToIds.includes(persisted._id)) {
+                const toIds = rel._relatedToIds.filter(id => id !== persisted._id);
+                if (toIds.length === 0) {
+                    await deleteRelations(IafItemSvc, [rel], parentColl._userItemId, ctx);
+                } else {
+                    await updateRelations(
+                        IafItemSvc,
+                        { toRemove: [rel], toCreate: [{...rel, _relatedToIds: toIds}] },
+                        parentColl._userItemId,
+                        ctx
+                    );
+                }
+            }
+        }
+    }
+
+    // 8) Now ensure attachment to the canonical parent
+    let canonicalRows = (await getRelations(
+        IafItemSvc,
+        parentColl._userItemId,
+        ctx,
+        {
+            _relatedFromId: canonicalParent._id,
+            _relatedUserItemDbId: entityColl._userItemId,
+        }
+    )) || [];
+    canonicalRows = canonicalRows._list ? canonicalRows._list : canonicalRows;
+
+    // If there's already a row for canonical parent → child-collection, append child id if missing
+    const parentRow = canonicalRows.find(r => r._relatedFromId === canonicalParent._id);
+    if (parentRow) {
+        const toIds = new Set(parentRow._relatedToIds || []);
+        if (!toIds.has(persisted._id)) {
+            toIds.add(persisted._id);
+            await updateRelations(
+                IafItemSvc,
+                { toRemove: [parentRow], toCreate: [{ ...parentRow, _relatedToIds: Array.from(toIds) }] },
+                parentColl._userItemId,
+                ctx
+            );
+        }
+    } else {
+        const relationData = [
+            {
+                _relatedFromId: canonicalParent._id,
+                _relatedToIds: [persisted._id],
+                _relatedUserItemDbId: entityColl._userItemId,
+            },
+        ];
+        await createRelation(IafItemSvc, relationData, parentColl._userItemId, ctx);
+    }
+
+    // Optional: return extra metadata so callers can see what was cleaned up
+    persisted.__parentResolution = {
+        canonicalParentId: canonicalParent._id,
+        removedParentIds: unnecessaryParents.map(p => p._id),
+    };
+
+    return persisted;
+};
+
 
 const getRelatedDistinctFieldsFactory = (entityName) => async (input, libraries, ctx, callback) => {
 
@@ -553,22 +1023,231 @@ const withDecimalFix = (originalFn) => async (input, libraries, ctx, callback) =
     return fixedResult;
 }
 
+const statusHierarchy = ['REGISTERED', 'APPROVED', 'CLOSED'];
+const rank = s => statusHierarchy.indexOf(s);
+
+function computeSiteECStats(sites, ecs, logs, siteRollup = 'all-closed' /* 'all-closed' | 'any-closed' */ ) {
+    // 1) Per-target aggregation: site:unit:equipment:ecid -> highest status
+    const perTarget = new Map(); // key -> { site, unit, equip, ecid, status }
+    for (const log of logs) {
+        const site = log.site;
+        const unit = log.unit ?? '';
+        const equip = log['Site Equipment Id'] || log['Equipment Id'] || '';
+        const ecid = log.ecid;
+        const status = log.status;
+
+        if (!site || !ecid || !status) continue;
+
+        const key = `${site}:${unit}:${equip}:${ecid}`;
+        const cur = perTarget.get(key);
+        if (!cur || rank(status) > rank(cur.status)) {
+            perTarget.set(key, { site, unit, equip, ecid, status });
+        }
+    }
+
+    // 2) Build site → unit → equipment structures
+    const bySite = new Map();
+    for (const { site, unit, equip, ecid, status } of perTarget.values()) {
+        if (!bySite.has(site)) bySite.set(site, { targets: [], byUnit: new Map() });
+        const S = bySite.get(site);
+        S.targets.push({ unit, equip, ecid, status });
+
+        if (!S.byUnit.has(unit)) S.byUnit.set(unit, []);
+        S.byUnit.get(unit).push({ equip, ecid, status });
+    }
+
+    // 3) Per-unit statusCounts (counts per equipment target)
+    function emptyCounts() { return { REGISTERED: { _total: 0 }, APPROVED: { _total: 0 }, CLOSED: { _total: 0 } }; }
+
+    const results = sites.map(({ siteId }) => {
+        const siteData = bySite.get(siteId);
+        const statusCountsPerUnit = {};
+        const siteLevelECStatus = new Map(); // ecid -> rolled-up site status for that EC
+
+        if (!siteData) {
+            return {
+                siteId,
+                totalEC: 0,
+                statusCounts: emptyCounts(),
+                statusCountsPerUnit: {}
+            };
+        }
+
+        // Per-unit
+        for (const [unit, items] of siteData.byUnit.entries()) {
+            const counts = emptyCounts();
+            for (const { status } of items) counts[status]._total += 1;
+            statusCountsPerUnit[unit] = counts;
+        }
+
+        // 4) Roll-up to site-level EC status (one status per EC per site)
+        // Group targets by ecid
+        const byEcid = new Map();
+        for (const t of siteData.targets) {
+            if (!byEcid.has(t.ecid)) byEcid.set(t.ecid, []);
+            byEcid.get(t.ecid).push(t.status);
+        }
+
+        for (const [ecid, statuses] of byEcid.entries()) {
+            const r = statuses.map(rank);
+            const siteStatus =
+                siteRollup === 'all-closed'
+                    ? statusHierarchy[Math.min(...r)] // lowest wins; CLOSED only if all closed
+                    : statusHierarchy[Math.max(...r)]; // highest wins
+            siteLevelECStatus.set(ecid, siteStatus);
+        }
+
+        // 5) Per-site statusCounts over ECs (not per equipment)
+        const siteCounts = emptyCounts();
+        for (const s of siteLevelECStatus.values()) siteCounts[s]._total += 1;
+
+        return {
+            siteId,
+            totalEC: siteLevelECStatus.size,
+            statusCounts: siteCounts,
+            statusCountsPerUnit
+        };
+    });
+
+    return results;
+}
+
+
+
+function computeSiteECStats2(sites, engineeringChanges, logs) {
+
+    const statusHierarchy = ['REGISTERED', 'APPROVED', 'CLOSED'];
+
+    const siteUnitECStatus = {};
+
+    for (const log of logs) {
+        const { site, unit, ecid, status } = log;
+        const key = `${site}:${unit}:${ecid}`;
+        const current = siteUnitECStatus[key];
+
+        if (!current || statusHierarchy.indexOf(status) > statusHierarchy.indexOf(current)) {
+            siteUnitECStatus[key] = status;
+        }
+    }
+
+    // Aggregate per site
+    const result = sites.map(({ siteId }) => {
+
+        const statuses = { REGISTERED: { _total: 0 }, APPROVED: { _total: 0 }, CLOSED: { _total: 0 } };
+        const statusesPerUnit = {};
+
+
+        const rendomFacility = Math.random() < 0.5 ? "A" : "B";
+
+        const ecForSite = Object.entries(siteUnitECStatus).filter(([key]) => key.startsWith(/*siteId*/ rendomFacility + ":"));
+
+        for (const [key, status] of ecForSite) {
+            const [, unit] = key.split(":"); // extract unit
+            statuses[status]._total++;
+            if (!statusesPerUnit[unit]) {
+                statusesPerUnit[unit] = { REGISTERED:  { _total: 0 }, APPROVED:  { _total: 0 }, CLOSED:  { _total: 0 } };
+            }
+            statusesPerUnit[unit][status]._total++;
+        }
+
+        return {
+            siteId,
+            totalEC: ecForSite.length,
+            statusCounts: statuses,
+            statusCountsPerUnit: statusesPerUnit
+        };
+    });
+
+    return result;
+}
+
+
 //SITE ENTITY
-const createSite = createEntityFactory("site");
-const updateSite = updateEntityFactory("site");
-const deleteSite = deleteEntityFactory("site");
-const getSitesWithRelated = withDecimalFix(getEntityWithRelatedFactory("site"));
+const createSite =  (input, libraries, ctx) => createEntityFactory("site")(input?.params || {}, libraries, ctx);
+const updateSite =  (input, libraries, ctx) => updateEntityFactory("site")(input?.params || {}, libraries, ctx);
+const deleteSite =  (input, libraries, ctx) => deleteEntityFactory("site")(input?.params || {}, libraries, ctx);
+const getSitesWithRelated = async (input, libraries, ctx) => {
+
+
+    const { IafItemSvc } = libraries.PlatformApi;
+
+    const sites = await withDecimalFix(getEntityWithRelatedFactory("site"))(input?.params || {}, libraries, ctx);
+
+    let collections = await IafItemSvc.getNamedUserItems({
+        query: { _userType: { $in: ["ecs", "ecs-logs"]} , _itemClass: 'NamedUserCollection' }
+    }, ctx, { page: {_pageSize: 10, _offset: 0}
+    })
+
+    const ecsColl =  collections._list.find(c => c._userType === "ecs")
+    const ecsLogsColl =  collections._list.find(c => c._userType === "ecs-logs")
+
+
+    const ecs = (await IafItemSvc.getRelatedItems(ecsColl._userItemId, {}, ctx, { page: { getAllItems: true }}))?._list
+    let relatedLogs = (await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, { query: {} }, ctx, { page: { getAllItems: true }}))?._list
+
+    const ecStats = computeSiteECStats([{siteId:"A"},{siteId:"B"}], ecs, relatedLogs);
+
+    sites.forEach(site=>{
+        const randomFacility = Math.random() < 0.5 ? "A" : "B";
+        const siteECStats = ecStats.find(stat=>stat.siteId==randomFacility);
+        site.ecsByStatus = siteECStats.statusCounts;
+        if(site.buildings){
+            site.buildings.forEach(building=>{
+                const randomUnit = Math.random() < 0.5 ? "01" : "02";
+                building.ecsByStatus = siteECStats.statusCountsPerUnit[randomUnit]
+            });
+        }
+    });
+
+    return sites;
+
+
+
+}
+
+const getBuildingsWithRelated = async (input, libraries, ctx) => {
+    const buildings = await withDecimalFix(getEntityWithRelatedFactory("building"))(input?.params || {}, libraries, ctx);
+
+    let collections = await IafItemSvc.getNamedUserItems({
+        query: { _userType: { $in: ["ecs", "ecs-logs"]} , _itemClass: 'NamedUserCollection' }
+    }, ctx, { page: {_pageSize: 10, _offset: 0}
+    })
+
+    const ecsColl =  collections._list.find(c => c._userType === "ecs")
+    const ecsLogsColl =  collections._list.find(c => c._userType === "ecs-logs")
+
+
+    const ecs = (await IafItemSvc.getRelatedItems(ecsColl._userItemId, {}, ctx, { page: { getAllItems: true }}))?._list
+    let relatedLogs = (await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, { query: {} }, ctx, { page: { getAllItems: true }}))?._list
+
+    const siteIds = buildings.map(b=>b.siteId).filter(siteId=>!!siteId)
+    const sites = [...new Set(siteIds)].map(siteId=>({siteId}));
+    const ecStats = computeSiteECStats([{siteId:"A"},{siteId:"B"}], ecs, relatedLogs);
+
+    buildings.forEach(building=>{
+        const randomFacility = Math.random() < 0.5 ? "A" : "B";
+        const randomUnit = Math.random() < 0.5 ? "01" : "02";
+        const siteECStats = ecStats.find(stat=>randomFacility==stat.siteId);
+        building.ecsByStatus = siteECStats?.statusCountsPerUnit?.[randomUnit]
+    });
+
+    return buildings;
+
+}
+
 
 //BUILDING ENTITY
-const createBuilding = createEntityFactory("building");
-const updateBuilding = updateEntityFactory("building");
-const deleteBuilding = deleteEntityFactory("building");
-const getBuildingsWithRelated = withDecimalFix(getEntityWithRelatedFactory("building"));
-const attachBuildingToSite = createAndAttachToEntityFactory("building","site");
-const createBuildingAndAttachToSite = createAndAttachToEntityFactory("building","site");
+const createBuilding =  (input, libraries, ctx) => createEntityFactory("building")(input?.params || {}, libraries, ctx);
+const updateBuilding =  (input, libraries, ctx) => updateEntityFactory("building")(input?.params || {}, libraries, ctx);
+const deleteBuilding =  (input, libraries, ctx) => deleteEntityFactory("building")(input?.params || {}, libraries, ctx);
+const attachBuildingToSite =  (input, libraries, ctx) => createAndAttachToEntityFactory("building","site")(input?.params || {}, libraries, ctx);
+const createBuildingAndAttachToSite = (input, libraries, ctx) => createAndAttachToEntityFactory("building","site")(input?.params || {}, libraries, ctx);
+const createBuildingAndAttachToOneSite = (input, libraries, ctx) => createAndAttachToOneParentFactory("building","site")(input?.params || {}, libraries, ctx);
+const updateBuildingAndAttachToOneSite = (input, libraries, ctx) =>  updateAndAttachToOneParentFactory("building","site")(input?.params || {}, libraries, ctx);
+
 
 //MODEL
-const getModelElementsWithRelated = getEntityWithRelatedFactory("modelElement");
+const getModelElementsWithRelated = (input, libraries, ctx) => getEntityWithRelatedFactory("modelElement")(input?.params || {}, libraries, ctx);
 
 
 function getRunnableScripts() {
