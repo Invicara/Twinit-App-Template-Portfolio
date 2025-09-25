@@ -46,10 +46,17 @@ const useStyles = makeStyles((theme) => ({
   expandIcon: {
     marginLeft: 'auto',
   },
-  row: {
+    row: {
     display: 'flex',
-    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: '2px 0',
+  },
+  bodyText: {
+    flex: '0 0 200px', // fixed width for Equipment Id column
+    fontWeight: 500,
+    fontSize: 14,
+    fontFamily: 'Inter, sans-serif',
+    marginBottom: 2,
   },
   title: {
     fontWeight: 700,
@@ -57,71 +64,44 @@ const useStyles = makeStyles((theme) => ({
     fontFamily: 'Inter, sans-serif',
     marginBottom: theme.spacing(1),
   },
-  bodyText: {
-    fontWeight: 500,
-    fontSize: 14,
-    fontFamily: 'Inter, sans-serif',
-    marginBottom: 2,
+  chipSmall: {
+    height: 18,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    border: '1px solid #ccc',
+    backgroundColor: 'transparent',
+    '& .MuiChip-label': {
+      paddingLeft: theme.spacing(0.5),
+      paddingRight: theme.spacing(0.5),
+      fontSize: 12,
+    },
   },
 }));
 
-const statusConfig = {
-  APPROVED: { color: '#4caf50', label: 'Approved' },
-  REGISTERED: { color: '#9c27b0', label: 'Registered' },
-  CLOSED: { color: '#9e9e9e', label: 'Closed' },
+// Text-only colors
+const statusConfig = { 
+  APPROVED: { 
+    bg: '#D1E7D1', 
+    text: '#1A8817', 
+    label: 'Approved' 
+  },
+  REGISTERED: { 
+    bg: '#E6C7F0', 
+    text: '#8E11BA', 
+    label: 'Registered' 
+  },
+  CLOSED: { 
+    bg: '#DCDCDC', 
+    text: '#5D5D5D', 
+    label: 'Closed' 
+  },
 };
 
-const filterOptions = [
-  'All',
-  ...Object.keys(statusConfig).map((s) => `Only ${statusConfig[s].label}`),
-  ...Object.keys(statusConfig).map((s) => `Includes ${statusConfig[s].label}`),
-];
+const filterOptions = ['All', ...Object.keys(statusConfig)];
 
-const engineeringChangesData = [
-  {
-    'EC ID': '001',
-    AffectedEquipIDs:
-      'RCP-A-011; RCP-A-012; RCP-A-013; RCP-A-014; RCP-A-021; RCP-A-022; RCP-A-023; RCP-A-024',
-    'EC Status': 'APPROVED',
-    DateProposed: '18/07/2010',
-    DateReviewed: '25/08/2010',
-    DateImplemented: '',
-    'Base Revision': '000',
-    Revision: '000A',
-    'EC Type': 'Technical Parameters',
-    'EC Title': 'Adjusted flow rate by +100 gpm',
-  },
-  {
-    'EC ID': '002',
-    AffectedEquipIDs: 'RCP-A-023',
-    'EC Status': 'REGISTERED',
-    DateProposed: '20/04/2019',
-    DateReviewed: '',
-    DateImplemented: '',
-    'Base Revision': '001',
-    Revision: '001A',
-    'EC Type': 'Equipment Change/Redesign',
-    'EC Title': 'Replace RCP with KSB RSR Model',
-  },
-  {
-    'EC ID': '005',
-    AffectedEquipIDs: 'RCP-B-011',
-    'EC Status': 'CLOSED',
-    DateProposed: '18/07/2010',
-    DateReviewed: '25/08/2010',
-    DateImplemented: '01/09/2010',
-    'Base Revision': '000',
-    Revision: '001A',
-    'EC Type': 'Safety Class',
-    'EC Title': 'Increase Safety Class 3 to Class 2',
-  },
-];
+export default function EngineeringChangesTab({ data }) {
 
-// helper to split camelCase or PascalCase
-const formatFieldName = (name) =>
-  name.replace(/([a-z])([A-Z])/g, '$1 $2');
-
-export default function EngineeringChangesTab() {
+  console.log('ec data', data);
   const classes = useStyles();
   const [filter, setFilter] = useState('All');
   const [expanded, setExpanded] = useState({});
@@ -130,29 +110,38 @@ export default function EngineeringChangesTab() {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+
+    const handleCardClick = (ec) => {
+    console.log('Clicked card:', ec); 
+
+    // setSelectedCard(ec);
+  };
+
   const filterByLabel =
     filter === 'All' ? 'Filter by' : `Filter by (${filter})`;
 
   const filteredData =
-    filter === 'All'
-      ? engineeringChangesData
-      : engineeringChangesData.filter((ec) => {
-          const statusKeys = Object.keys(statusConfig);
+  !data || data.length === 0
+    ? []
+    : filter === 'All'
+    ? data
+    : data.filter((ec) => {
+        if (!ec.status) return false;
+        switch (filter) {
+          case 'APPROVED':
+            return ec.status.APPROVED > 0;
+          case 'CLOSED':
+            return ec.status.CLOSED > 0;
+          case 'REGISTERED':
+            return ec.status.REGISTERED > 0;
+          default:
+            return true;
+        }
+      });
 
-          // Handle "Only X"
-          const onlyMatch = statusKeys.find(
-            (s) => `Only ${statusConfig[s].label}` === filter
-          );
-          if (onlyMatch) return ec['EC Status'] === onlyMatch;
-
-          // Handle "Includes X"
-          const includesMatch = statusKeys.find(
-            (s) => `Includes ${statusConfig[s].label}` === filter
-          );
-          if (includesMatch) return ec['EC Status'] === includesMatch;
-
-          return true;
-        });
+  // helper to split camelCase or PascalCase
+  const formatFieldName = (name) =>
+    name.replace(/([a-z])([A-Z])/g, '$1 $2');
 
   return (
     <Box>
@@ -181,73 +170,116 @@ export default function EngineeringChangesTab() {
       </Box>
 
       {/* Cards */}
-      {filteredData.map((ec, index) => {
-        const status = ec['EC Status'];
-        const statusInfo = statusConfig[status] || {
-          color: '#ccc',
-          label: status,
-        };
+            {filteredData.map((ec, index) => {
+              const orderedFields = [
+                'Base Revision',
+                  'Equipment Revision',
+                  'EC Type',
+                  'EC ID',          
+                  'Date Reviewed',  
+              ];
 
-        const orderedFields = [
-          'Base Revision',
-          'Revision',
-          'EC Type',
-          'EC ID',
-          'DateProposed',
-        ];
+              return (
+              <Card
+        key={index}
+        className={classes.card}
+        onClick={() => handleCardClick(ec)} // 👈 click anywhere selects card
+        style={{ cursor: 'pointer' }}
+      >
+      <CardContent>
+        {/* Status chips + expand */}
+        <Box display="flex" alignItems="center" marginBottom={1}>
+          {Object.entries(ec.status || {}).map(([status, count]) => {
+            return (
+              <Chip
+                key={status}
+                label={`${status} ${count}`}
+                className={classes.chipSmall}
+                style={{
+                  backgroundColor: statusConfig[status]?.bg || '#EBEBEB',
+                  color: statusConfig[status]?.text || '#000',
+                  marginRight: 4,
+                }}
+                size="small"
+              />
+            );
+          })}
+          <IconButton
+            className={classes.expandIcon}
+            onClick={(e) => {
+              e.stopPropagation(); // prevent triggering handleCardClick
+              handleExpandClick(index);
+            }}
+            size="small"
+          >
+            {expanded[index] ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+          </IconButton>
+        </Box>
 
-        return (
-          <Card key={index} className={classes.card}>
+        {/* EC Title */}
+        <Typography className={classes.title}>
+          {ec['EC Title']}
+        </Typography>
+
+        {/* Ordered fields */}
+        {orderedFields.map((field) => {
+          const value = ec[field] || '-';
+          return (
+            <Typography key={field} className={classes.bodyText}>
+              <strong>{formatFieldName(field)}:</strong> {value}
+            </Typography>
+          );
+        })}
+      </CardContent>
+
+            {/* Expandable logs list */}
+        <Collapse in={expanded[index]} timeout='auto' unmountOnExit>
             <CardContent>
-              {/* ✅ Chip + expand button at the very top */}
-              <Box display='flex' alignItems='center' marginBottom={1}>
-                <Chip
-                  label={`Only ${statusInfo.label}`}
-                  style={{ backgroundColor: statusInfo.color, color: '#fff' }}
-                  size='small'
-                />
-                <IconButton
-                  className={classes.expandIcon}
-                  onClick={() => handleExpandClick(index)}
-                  size='small'
-                >
-                  {expanded[index] ? (
-                    <KeyboardArrowUpIcon />
-                  ) : (
-                    <KeyboardArrowDownIcon />
-                  )}
-                </IconButton>
-              </Box>
+              {(() => {
+                let logsArray = [];
 
-              {/* EC Title */}
-              <Typography className={classes.title}>
-                {ec['EC Title']}
-              </Typography>
+                if (Array.isArray(ec.logs)) {
+                  logsArray = ec.logs.map((log, i) => ({
+                    name: log['Equipment Id'] || `Log ${i + 1}`,
+                    ...log,
+                  }));
+                } else if (ec.logs && typeof ec.logs === 'object') {
+                  logsArray = Object.entries(ec.logs).map(([key, details]) => ({
+                    name: details['Equipment Id'] || key,
+                    ...details,
+                  }));
+                }
 
-              {/* Ordered fields */}
-              {orderedFields.map((field) => {
-                const value = ec[field] || '-';
-                return (
-                  <Typography key={field} className={classes.bodyText}>
-                    <strong>{formatFieldName(field)}:</strong> {value}
-                  </Typography>
-                );
-              })}
-            </CardContent>
+                return logsArray.map((log, logIdx) => (
+                  <Box key={logIdx} mb={1} pb={1} borderBottom="1px solid #e0e0e0">
+                    {/* Label */}
+                    <Typography
+                      variant="caption"
+                      style={{ color: '#777', fontSize: 12, marginBottom: 2 }}
+                    >
+                      Name id
+                    </Typography>
 
-            {/* Expandable AffectedEquipIDs list */}
-            <Collapse in={expanded[index]} timeout='auto' unmountOnExit>
-              <CardContent>
-                {ec.AffectedEquipIDs &&
-                  ec.AffectedEquipIDs.split(';').map((id, idx) => (
-                    <Box key={idx} className={classes.row}>
+                    {/* Value + Chip */}
+                    <Box display="flex" alignItems="center" justifyContent="space-between">
                       <Typography className={classes.bodyText}>
-                        name_id: {id.trim()}
+                        {log.name}
                       </Typography>
+                      <Chip
+                        label={log.status || 'Unknown'}
+                        className={classes.chipSmall}
+                        style={{
+                          backgroundColor: statusConfig[log.status]?.bg || '#EBEBEB',
+                          color: statusConfig[log.status]?.text || '#000',
+                        }}
+                        size="small"
+                      />
                     </Box>
-                  ))}
-              </CardContent>
-            </Collapse>
+                  </Box>
+                ));
+              })()}
+            </CardContent>
+          </Collapse>
           </Card>
         );
       })}
