@@ -1,35 +1,32 @@
 import React, {useEffect, useState} from 'react';
-import DeployStatusChart from '../DeployStatusBarChart';
-import SearchPanel from '../SearchPanel';
+import DeployStatusChart from './DeployStatusBarChart.jsx';
+import SearchPanel from '../../SearchPanel.jsx';
 import {Box} from "@mui/material";
 import {useDispatch, useSelector} from "react-redux";
-import {getFilter, setFilter} from "../../../../redux/filters.js";
-import {mergeFiltersGeneric} from "../../../utils/filters.global.js";
+import {getFilter, setFilter} from "../../../../../redux/filters.js";
+import {mergeFiltersGeneric} from "../../../../utils/filters.global.js";
 
 
 const sampleFormConfig = {
     initial: { search: '', group: '', structure: '', location: '', status: '' },
     fields: {
         status: {
-            label: 'Status',
+            label: 'Engineering Changes Status',
             type: 'select',
-            rule: "statusIn",
+            rule: "EC_statusIn",
             options: (ctx) => {
                 const labelMap = {
-                    "1": "Not started",
-                    "2": "In Progress",
-                    "3": "Completed",
-                    "4": "At risk",
-                    "5": "Permanent Shutdown",
-                    "unknown": "Unknown",
+                    "REGISTERED": "Registered",
+                    "APPROVED": "Approved",
+                    "CLOSED": "Closed",
                 }
                 return Object.entries(labelMap).map(([id,label]) => ({ value: id, label: label || `Status ${id}` }));
             },
-            toRule: (value) => (value !== '' ? { fn: 'statusIn', args: { values: [value] } } : null),
-            fromRule: (rule) => (rule.fn === 'statusIn' && Array.isArray(rule.args?.values) ? rule.args.values[0] : null),
+            toRule: (value) => (value !== '' ? { fn: 'EC_statusIn', args: { values: [value] } } : null),
+            fromRule: (rule) => (rule.fn === 'EC_statusIn' && Array.isArray(rule.args?.values) ? rule.args.values[0] : null),
         },
         group: {
-            label: 'Group',
+            label: 'Palier Group',
             type: 'select',
             rule: "reactorPalierIn",
             options: () => {
@@ -48,6 +45,42 @@ const sampleFormConfig = {
             },
             fromRule: (rule, _context, selectOptions = []) => {
                 if (rule?.fn !== 'reactorPalierIn') return null;
+
+                // normalize the values coming from the rule
+                const ids = Array.isArray(rule.args?.values)
+                    ? rule.args.values.map(String)
+                    : rule.args?.id != null
+                        ? [String(rule.args.id)]
+                        : [];
+
+                if (!ids.length) return null;
+
+                // Try to match by option.value first, then by meta.bin.id
+                const opt = selectOptions.find(opt => {
+                    const v = String(opt.value);
+                    const binId = String(opt.meta?.bin?.id ?? '');
+                    return ids.includes(v) || (binId && ids.includes(binId));
+                });
+
+                return opt ? opt.value : null;
+            }
+        },
+
+        location: {
+            label: 'Site Location',
+            type: 'select',
+            rule: "facilityIn",
+            options: (context) => {
+                const bins = context?.data?.["site"] || [];
+                return bins.map((bin, index) => ({ value: bin.siteId, label: bin.name, meta: { bin } }));
+            },
+            toRule: (value, _ctx, meta) => {
+                return value !== '' && meta?.bin
+                    ? {fn: 'facilityIn', args: {values: [value]}}
+                    : null
+            },
+            fromRule: (rule, _context, selectOptions = []) => {
+                if (rule?.fn !== 'facilityIn') return null;
 
                 // normalize the values coming from the rule
                 const ids = Array.isArray(rule.args?.values)
@@ -104,6 +137,7 @@ const sampleFormConfig = {
 
 const defaultChartCfg =  {
     // 1) where items come from
+    itemType: "building",
     itemsOf: (data /* context.data */) => {
         const sites = Array.isArray(data?.site) ? data.site : [];
         return sites.flatMap(s => Array.isArray(s.buildings) ? s.buildings : []);
@@ -168,7 +202,100 @@ const defaultChartCfg =  {
     },
 };
 
-export default function PortfolioDetails({ context, userConfig, snapshot, send, stateKey, handler }) {
+const ec1_ChartCfg =  {
+    // 1) where items come from
+    title: "Top 5 EC Status per Facility",
+    itemType: "ec",
+    itemsOf: (data /* context.data */) => {
+        const sites = Array.isArray(data?.site) ? data.site : [];
+        const top5 = sites
+            .map(item => ({
+                ...item,
+                openECs: [item?.properties?.ecsByStatus?.REGISTERED?._total || 0 + item?.properties?.ecsByStatus?.APPROVED?._total || 0],
+                id: item.name
+            }))
+            .sort((a, b) => b.openECs - a.openECs) // descending order
+            .slice(0, 5);
+        const ecs = top5.flatMap(s=>{
+            const hydratedEcs = [];
+            for(const status in s.ecsByStatus){
+                for(const n of new Array(s.ecsByStatus[status]._total)){
+                    hydratedEcs.push({
+                        site: s,
+                        status,
+                        facility: s.siteId,
+                        label: s.name
+                    })
+                }
+            }
+            return hydratedEcs;
+        });
+
+        return ecs;
+        //TODO: alterantively call Platfrom go get full ECs data
+    },
+
+    // 2) GROUP
+    group: {
+        id: 'facilityIn',
+        valueProp: (ec) => String(ec?.siteId ?? 'unknown'),
+        getBins: (data, items) => {
+            const sites = Array.isArray(data?.site) ? data.site : [];
+            const top5 = sites
+                .map(s => ({
+                    ...s,
+                    openECs: [s?.properties?.ecsByStatus?.REGISTERED?._total || 0 + s?.properties?.ecsByStatus?.APPROVED?._total || 0],
+                    id: s.siteId,
+                    label: s.name,
+                    test: "facilityIn"
+                }))
+                .sort((a, b) => b.openECs - a.openECs) // descending order
+                .slice(0, 5);
+            return top5;
+        },
+        // optional pretty label
+        groupLabel: (bin) => bin.label,
+    },
+
+    // 3) SERIES: StatusId → stacks, with label/color maps
+    series: {
+        id: 'EC_statusIn',
+        keyProp: (ecs) => String(ecs?.status ?? 'unknown'),
+        config: {
+            colorMap: {
+                "REGISTERED": "#b8b8b8",
+                "APPROVED": "#f4b740",
+                "CLOSED": "#66bb6a",
+            },
+            labelMap: {
+                "REGISTERED": "Registered",
+                "APPROVED": "Approved",
+                "CLOSED": "Closed",
+            },
+        },
+        // keep a stable legend order
+        order: (keys) => {
+            const pref = ['REGISTERED','APPROVED','CLOSED']; // your desired sequence
+            return pref.filter(k => keys.includes(k)).concat(keys.filter(k => !pref.includes(k)));
+        },
+    },
+
+    // 4) METRIC
+    metric: { type: 'count' },
+
+    // 5) Click → filters
+    filter: {
+        scope: 'site',
+        combine: 'and',
+        rules: {
+            series: (statusKey) =>
+                statusKey === 'unknown' ? null : ({ fn: 'EC_statusIn', args: { values: [statusKey] } }),
+            group:  (id, ctx) => ({ fn: 'facilityIn', args: { values: [ctx.bin.id] } }),
+        },
+    },
+};
+
+export default function PortfolioDetails({ context, userConfig, send, stateKey, handler }) {
 
     const globalFilters = useSelector(getFilter)
     const dispatch = useDispatch();
@@ -203,7 +330,24 @@ export default function PortfolioDetails({ context, userConfig, snapshot, send, 
                     initialFilter={globalFilters["site"]}
                     handler={handler}
                     context={context}
-                    snapshot={snapshot}
+                    send={send}
+                    stateKey={stateKey}
+                    chartCfg={ec1_ChartCfg}
+                    onFilterChange={(filter) => {
+                        const mergingOptions = {
+                            dropMissing: [defaultChartCfg.group.id, defaultChartCfg.series.id],
+                            replace: true
+                        }
+                        const merged = mergeFiltersGeneric(globalFilters, filter, "site",  mergingOptions);
+                        console.log("mergeFiltersGeneric DeployStatusChart", {merged, filter, globalFilters, mergingOptions})
+                        dispatch(setFilter(merged));
+                    }}
+                />
+
+                <DeployStatusChart
+                    initialFilter={globalFilters["site"]}
+                    handler={handler}
+                    context={context}
                     send={send}
                     stateKey={stateKey}
                     chartCfg={defaultChartCfg}
@@ -217,6 +361,7 @@ export default function PortfolioDetails({ context, userConfig, snapshot, send, 
                         dispatch(setFilter(merged));
                     }}
                 />
+
             </Box>
         </div>
     );

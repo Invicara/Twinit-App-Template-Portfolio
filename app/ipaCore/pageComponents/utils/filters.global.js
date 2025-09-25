@@ -28,6 +28,18 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
                 return originalPredicate(entity);
             }
         },
+        EC_statusIn: ({values}) => (e) => {
+            const entity = isMapFeatures ? e.properties : e;
+            let ecsByStatus = {};
+            if (entityType == "es") {
+                ecsByStatus[entity.status] = 1;
+            } else {
+                ecsByStatus = entity.ecsByStatus;
+            }
+            const set = new Set(values.map(v => String(v).toUpperCase()));
+            const statuses = new Set(Object.entries(ecsByStatus).filter(([k,v])=>v._total > 0).map(([k,v]) => String(k).toUpperCase()));
+            return set.intersection(statuses).size>0;
+        },
         reactorPalierIn:
             ({ values = [] }) =>
                 (e) => {
@@ -77,12 +89,29 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
                 const entity = isMapFeatures ? e.properties : e;
                 let models;
                 if (entityType == "site") {
-                    models = entity.buildings.map(b=>String(b.ReactorModel).toUpperCase());
+                    models = new Set(entity.buildings.map(b=>String(b.ReactorModel).toUpperCase()));
                 } else {
-                    models = [String(e.ReactorModel).toUpperCase()];
+                    models = new Set([String(entity.ReactorModel).toUpperCase()]);
                 }
                 const set = new Set(values.map(v => String(v).toUpperCase()));
                 return set.intersection(models).size>0;
+            },
+        facilityIn:
+            ({values = []}) => (e) => {
+                const entity = isMapFeatures ? e.properties : e;
+                let facilityIds = [];
+                if (entityType == "ec") {
+                    facilityIds = new Set([entity.facility.toUpperCase()]);
+                } else {
+                    facilityIds = new Set([String(entity.siteId).toUpperCase()]);
+                }
+                const set = new Set(values.map(v => String(v).toUpperCase()));
+                try {
+                    const inter = set.intersection(facilityIds);
+                    return inter.size;
+                } catch (e) {
+                    return false;
+                }
             },
     }
     return fns;
