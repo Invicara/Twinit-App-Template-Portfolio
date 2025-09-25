@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
 import Box from '@material-ui/core/Box';
 import CardContent from '@material-ui/core/CardContent';
@@ -7,6 +7,7 @@ import Tab from '@material-ui/core/Tab';
 
 import EngineeringChangesTab from './EngineeringChangesTab';
 import SiteEquipmentTab from './SiteEquipmentTab';
+import { engineeringChangesAPIs } from '../../../services/engineeringChanges';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -28,11 +29,23 @@ const useStyles = makeStyles((theme) => ({
 
 export default function EquipmentDetails() {
   const classes = useStyles();
-  const [tab, setTab] = React.useState(0);
+  const [tab, setTab] = useState(0);
 
+  const [ECs, setECs] = useState(null);
   const handleChange = (event, newValue) => {
     setTab(newValue);
   };
+
+    useEffect(() => {
+          const run = async () => {
+              const result = await engineeringChangesAPIs();
+
+              setECs(result);
+              console.log('engineeringchangesresult', result);
+
+          };
+          run();
+      }, []);
 
   return (
     <Box>
@@ -51,7 +64,7 @@ export default function EquipmentDetails() {
 
       {/* Tab Panels */}
       <div>
-        {tab === 0 && <EngineeringChangesTab className={classes.tab} />}
+        {tab === 0 && <EngineeringChangesTab data={ECs} className={classes.tab} />}
         {tab === 1 && <SiteEquipmentTab className={classes.tab} />}
       </div>
     </Box>

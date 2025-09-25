@@ -44,6 +44,11 @@ const SimpleViewerView = ({ handler }) => {
       sliceElements
    } = useContext(ModelContext)
 
+   console.log('EC1 sliceElements', sliceElements);
+   console.log('EC1 selectedModelComposite', selectedModelComposite);
+   console.log('EC1 modelRelatedCollections', modelRelatedCollections);
+   console.log('EC1 getSelectedElement', getSelectedElement);
+
    // the file _id and version _id of the file to display in the document viewer
    // the doc viewer renders if this has a value
    const [docView, setDocView] = useState()
