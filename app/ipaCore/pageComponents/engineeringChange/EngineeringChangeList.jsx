@@ -23,7 +23,7 @@ const EngineeringChangeList = ({ rows }) => {
     };
 
     return (
-        <div style={{ maxHeight: 1200, overflow: 'auto' }}>
+        <div>
             <TableContainer>
                 <Table>
                     <TableHead>
@@ -59,7 +59,7 @@ const EngineeringChangeList = ({ rows }) => {
                                         </Box>
                                     </TableCell>
                                     <TableCell>{row.baseRevision}</TableCell>
-                                    <TableCell>{"-"}</TableCell>
+                                    <TableCell>{row.equipmentRevision}</TableCell>
                                     <TableCell>{row.type}</TableCell>
                                     <TableCell>{row.id}</TableCell>
                                     <TableCell>{row.dateProposed.split('T')[0]}</TableCell>

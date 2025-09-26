@@ -52,7 +52,7 @@ const EngineeringChangeView = () => {
   };
 
   return (
-    <div style={{ height: 820, overflowY: 'scroll', padding: 2 }}>
+    <div style={{ height: 820, overflowY: 'scroll', padding: '15px' }}>
       <Typography variant="h4" gutterBottom>Engineering Changes</Typography>
       <div style={{ display: "flex", marginBottom: "1rem" }}>
         <TextField
