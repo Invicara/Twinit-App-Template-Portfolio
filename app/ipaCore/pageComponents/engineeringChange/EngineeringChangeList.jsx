@@ -6,20 +6,15 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    Paper,
     TablePagination,
-    TextField,
-    Button,
     Badge,
     Box
 } from "@mui/material";
-import AdvancedFilter from "./AdvancedFilter";
 
-const EngineeringChangeList = ({ rows, onSearch }) => {
+
+const EngineeringChangeList = ({ rows }) => {
     const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(5);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [openFilter, setOpenFilter] = useState(false);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
 
     const handleChangePage = (_, newPage) => setPage(newPage);
     const handleChangeRowsPerPage = (e) => {
@@ -27,31 +22,8 @@ const EngineeringChangeList = ({ rows, onSearch }) => {
         setPage(0);
     };
 
-    const handleSearchChange = (e) => {
-        const value = e.target.value;
-        setSearchQuery(value);
-        onSearch(value);
-    };
-
     return (
-        <Paper sx={{ p: 2 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem" }}>
-                <TextField
-                    label="Search by EC Title"
-                    variant="outlined"
-                    size="small"
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    style={{ width: "60%" }}
-                />
-                <Button
-                    variant="outlined"
-                    onClick={() => setOpenFilter(true)}
-                >
-                    Advanced Filter
-                </Button>
-            </div>
-
+        <div style={{ maxHeight: 1200, overflow: 'auto' }}>
             <TableContainer>
                 <Table>
                     <TableHead>
@@ -61,7 +33,7 @@ const EngineeringChangeList = ({ rows, onSearch }) => {
                             <TableCell>Base Revision</TableCell>
                             <TableCell>Revision</TableCell>
                             <TableCell sx={{ width: '15%' }}>EC Type</TableCell>
-                            <TableCell sx={{ width: 70 }}>EC ID</TableCell>
+                            <TableCell sx={{ width: 80 }}>EC ID</TableCell>
                             <TableCell>Date Proposed</TableCell>
                             <TableCell>Date Reviewed</TableCell>
                             <TableCell>Date Implemented</TableCell>
@@ -107,9 +79,7 @@ const EngineeringChangeList = ({ rows, onSearch }) => {
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
             />
-
-            <AdvancedFilter openFilter={openFilter} setOpenFilter={setOpenFilter} />
-        </Paper>
+        </div>
     );
 };
 

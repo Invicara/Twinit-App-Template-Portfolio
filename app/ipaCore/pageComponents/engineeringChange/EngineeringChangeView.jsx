@@ -1,10 +1,18 @@
 import React, { useEffect, useState } from "react";
 import EngineeringChangeList from "./EngineeringChangeList";
 import ecData from "./data/ecData.json"
+import AdvancedFilter from "./AdvanceFilter";
+import {
+  Button,
+  TextField,
+  Typography
+} from "@mui/material";
 
 const EngineeringChangeView = () => {
   const [rows, setRows] = useState([]);
   const [filteredRows, setFilteredRows] = useState([]);
+  const [openFilter, setOpenFilter] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const getEcData = (ecData) => {
     return ecData.flatMap((ec) =>
@@ -26,24 +34,41 @@ const EngineeringChangeView = () => {
 
   useEffect(() => {
     const processed = getEcData(ecData.ecs);
-    console.log("processed", processed)
     setRows(processed);
     setFilteredRows(processed);
   }, []);
 
-   const handleSearch = (query) => {
-    if (!query) {
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    if (!value) {
       setFilteredRows(rows);
       return;
     }
     const result = rows.filter((row) =>
-      row.title.toLowerCase().includes(query.toLowerCase())
+      row.title.toLowerCase().includes(value.toLowerCase())
     );
-      console.log("result", result)
     setFilteredRows(result);
   };
 
-  return <EngineeringChangeList rows={filteredRows} onSearch={handleSearch} />;
+  return (
+    <div style={{ height: 820, overflowY: 'scroll', padding: 2 }}>
+      <Typography variant="h4" gutterBottom>Engineering Changes</Typography>
+      <div style={{ display: "flex", marginBottom: "1rem" }}>
+        <TextField
+          label="Search EC Title"
+          variant="outlined"
+          // size="small"
+          value={searchQuery}
+          onChange={handleSearchChange}
+          style={{ width: "25%", marginRight: "10px" }}
+        />
+        <Button variant="outlined" onClick={() => setOpenFilter(true)}>Advance Filter</Button>
+      </div>
+      <EngineeringChangeList rows={filteredRows} />
+      <AdvancedFilter openFilter={openFilter} setOpenFilter={setOpenFilter} />
+    </div>
+  )
 };
 
 export default EngineeringChangeView;
