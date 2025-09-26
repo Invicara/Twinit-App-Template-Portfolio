@@ -434,7 +434,16 @@ let scriptModule = {
       let getUrls = [
          `${baseOmapiUrl}/engineeringchanges`,
          `${baseOmapiUrl}/engineeringchanges/001`,
-         `${baseOmapiUrl}/engineeringchanges/001/logs?pageSize=5`
+         `${baseOmapiUrl}/engineeringchanges/001/logs?pageSize=5`,
+         // fetches all site equipment and revisions and reference equipment revisions and referenece equipment for an EC
+         `${baseOmapiUrl}/engineeringchanges/001/equipment`,
+         // same as above but filtered to a facility
+         `${baseOmapiUrl}/engineeringchanges/001/equipment?facility=A`,
+         // same as above but filtered to a specific unit at a facility
+         `${baseOmapiUrl}/engineeringchanges/001/equipment?facility=A&unit=02`,
+         // same as above but producing a comparison between the tip site equipment and the cs reference revision
+         `${baseOmapiUrl}/engineeringchanges/001/equipment?facility=B&compare=true`,
+         `${baseOmapiUrl}/engineeringchanges/001/equipment?facility=A&unit=02&compare=true`
       ]
 
       let postUrls = []

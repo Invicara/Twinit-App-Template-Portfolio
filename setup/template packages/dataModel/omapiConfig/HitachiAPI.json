@@ -222,6 +222,14 @@
                      "_userType": "hitachi-ecs-omapi",
                      "_scriptName": "getEcLogs"
                   }
+               },
+               {
+                  "path": "/engineeringchanges/:ecid/equipment",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-ecs-omapi",
+                     "_scriptName": "getEcEquipment"
+                  }
                }
             ]
          }
