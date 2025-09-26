@@ -21,7 +21,6 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
     },[])
 
     const [mapboxToken, setMapboxToken] = useState();
-    window.mapboxToken = mapboxToken
     const intervalRef = useRef();
 
     const getMapboxToken = async () => {

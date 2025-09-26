@@ -118,6 +118,43 @@ function disposeMaterial(material) {
 const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
 let activeFilter = null;
 
+/**
+ * Helper function to get graphic ID using the new lookup chain:
+ * structureName -> structures -> mapGraphicRefId -> graphicReferencesMap
+ * @param {string} structureName - The structure name from feature properties
+ * @param {Object} reduxState - Redux state containing structures and mapGraphicReferences
+ * @returns {string|null} - The graphic ID or null if not found
+ */
+function getGraphicIdFromStructureName(structureName, reduxState) {
+    if (!structureName || !reduxState) return null;
+    
+    const structures = reduxState?.pageComponentState?.structures || {};
+    const mapGraphicReferences = reduxState?.pageComponentState?.mapGraphicReferences || [];
+    
+    // Step 1: structureName -> structure
+    const structure = structures[structureName];
+    if (!structure) {
+        console.warn(`No structure found for structureName: ${structureName}`);
+        return null;
+    }
+    
+    // Step 2: structure -> mapGraphicRefId
+    const mapGraphicRefId = structure.mapGraphicRefId;
+    if (!mapGraphicRefId) {
+        console.warn(`No mapGraphicRefId found in structure: ${structureName}`, structure);
+        return null;
+    }
+    
+    // Step 3: mapGraphicRefId -> graphicReferencesMap -> graphic
+    const graphicReference = mapGraphicReferences.find(ref => ref._id === mapGraphicRefId);
+    if (!graphicReference) {
+        console.warn(`No graphic reference found for mapGraphicRefId: ${mapGraphicRefId}`);
+        return null;
+    }
+    
+    return graphicReference.graphic;
+}
+
 function makeBinColorExpression(config) {
     const expr = ["case"];
 
@@ -760,16 +797,9 @@ export function deepCloneScene(scene) {
 async function createCubeWrapperFeatures(features, loadedGraphics, getContext) {
     const cubeWrapperFeatures = [];
 
-    // Get graphic references from Redux state
+    // Get Redux state for structure lookup
     const contextData = getContext ? getContext() : {};
     const { reduxState } = contextData;
-    const graphicReferences = reduxState?.pageComponentState?.mapGraphicReferences || [];
-
-    // Create lookup map for graphicReferences: graphicRefId -> graphic
-    const graphicReferencesMap = new Map();
-    graphicReferences.forEach(ref => {
-        graphicReferencesMap.set(ref._id, ref.graphic);
-    });
 
     // Default cube size and height
     const defaultCubeSizeMeters = 20; // square footprint side length
@@ -794,13 +824,13 @@ async function createCubeWrapperFeatures(features, loadedGraphics, getContext) {
         const lng = parseFloat(longitude);
         const lat = parseFloat(latitude);
 
-        // Get graphic information for sizing (optional - use defaults if not available)
-        const graphicRefId = feature.properties?.graphicRefId;
+        // Get graphic information for sizing using new lookup chain (optional - use defaults if not available)
+        const structureName = feature.properties?.structureName;
         let height = defaultHeightMeters;
         let cubeSize = defaultCubeSizeMeters;
 
-        if (graphicRefId) {
-            const graphicId = graphicReferencesMap.get(graphicRefId);
+        if (structureName) {
+            const graphicId = getGraphicIdFromStructureName(structureName, reduxState);
             if (graphicId) {
                 const geometryInfo = loadedGraphics.get(graphicId);
                 if (geometryInfo && geometryInfo.sizeInMeters) {
@@ -1225,18 +1255,12 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             });
             this.features = [];
 
-            // Get graphic references from Redux state
+            // Get Redux state for structure lookup
             const contextData = contextGetter ? contextGetter() : {};
             const { reduxState } = contextData;
-            const graphicReferences = reduxState?.pageComponentState?.mapGraphicReferences || [];
 
-            // Create lookup map for graphicReferences: graphicRefId -> graphic
-            const graphicReferencesMap = new Map();
-            graphicReferences.forEach(ref => {
-                graphicReferencesMap.set(ref._id, ref.graphic);
-            });
-
-            console.log(`Processing ${newFeatures.length} features with ${graphicReferences.length} graphic references`);
+            const structures = reduxState?.pageComponentState?.structures || {};
+            console.log(`Processing ${newFeatures.length} features with ${Object.keys(structures).length} structures`);
 
             // Process each feature using the new approach
             newFeatures.forEach(feature => {
@@ -1251,17 +1275,17 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
 
                 const centroid = [parseFloat(longitude), parseFloat(latitude)];
 
-                // Get graphicRefId from feature
-                const graphicRefId = feature.properties?.graphicRefId;
-                if (!graphicRefId) {
-                    console.warn(`Feature ${feature.properties?.id} missing graphicRefId:`, feature.properties);
+                // Get structureName from feature and lookup graphic using new chain
+                const structureName = feature.properties?.structureName;
+                if (!structureName) {
+                    console.warn(`Feature ${feature.properties?.id} missing structureName:`, feature.properties);
                     return;
                 }
 
-                // Lookup graphic using graphicRefId
-                const graphicId = graphicReferencesMap.get(graphicRefId);
+                // Lookup graphic using new chain: structureName -> structures -> mapGraphicRefId -> graphicReferencesMap
+                const graphicId = getGraphicIdFromStructureName(structureName, reduxState);
                 if (!graphicId) {
-                    console.warn(`No graphic reference found for graphicRefId ${graphicRefId}`);
+                    console.warn(`No graphic found for structureName ${structureName}`);
                     return;
                 }
 
@@ -1285,7 +1309,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                             ...addedFeature.properties,
                             ...feature.properties,
                             centroid: centroid,
-                            graphicRefId: graphicRefId,
+                            structureName: structureName,
                             graphicId: graphicId
                         };
                     }
