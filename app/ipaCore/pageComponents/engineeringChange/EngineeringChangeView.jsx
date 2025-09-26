@@ -52,8 +52,8 @@ const EngineeringChangeView = () => {
   };
 
   return (
-    <div style={{ height: 820, overflowY: 'scroll', padding: '15px' }}>
-      <Typography variant="h4" gutterBottom>Engineering Changes</Typography>
+    <div style={{ padding: '15px' }}>
+      <Typography variant="h5" gutterBottom>Engineering Changes</Typography>
       <div style={{ display: "flex", marginBottom: "1rem" }}>
         <TextField
           label="Search EC Title"

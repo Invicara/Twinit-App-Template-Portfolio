@@ -8,9 +8,27 @@ import {
     TableRow,
     TablePagination,
     Badge,
-    Box
+    Box,
+    Paper
 } from "@mui/material";
+import { styled } from '@mui/material/styles';
 
+const StyledTableHeadRow = styled(TableRow)(({ theme }) => ({
+    backgroundColor: '#eaeaea',
+    '& .MuiTableCell-root': {
+        color: theme.palette.common.black, // Header text color
+        fontWeight: 'bold',
+    },
+}));
+
+const StyledTableRow = styled(TableRow)(({ theme }) => ({
+    '&:nth-of-type(odd)': {
+        backgroundColor: theme.palette.background.paper, // Odd row color
+    },
+    '&:nth-of-type(even)': {
+        backgroundColor: theme.palette.action.hover, // Even row color
+    },
+}));
 
 const EngineeringChangeList = ({ rows }) => {
     const [page, setPage] = useState(0);
@@ -23,11 +41,20 @@ const EngineeringChangeList = ({ rows }) => {
     };
 
     return (
-        <div>
-            <TableContainer>
-                <Table>
+        <Paper>
+            <TablePagination
+                style={{ display: 'flex', justifyContent: 'flex-start' }}
+                component="div"
+                count={rows.length}
+                page={page}
+                onPageChange={handleChangePage}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+            />
+            <TableContainer style={{ maxHeight: 570, overflowY: 'auto' }}>
+                <Table stickyHeader aria-label="scrollable table">
                     <TableHead>
-                        <TableRow>
+                        <StyledTableHeadRow>
                             <TableCell sx={{ width: '20%' }}>EC Title</TableCell>
                             <TableCell>Status</TableCell>
                             <TableCell>Base Revision</TableCell>
@@ -37,13 +64,13 @@ const EngineeringChangeList = ({ rows }) => {
                             <TableCell>Date Proposed</TableCell>
                             <TableCell>Date Reviewed</TableCell>
                             <TableCell>Date Implemented</TableCell>
-                        </TableRow>
+                        </StyledTableHeadRow>
                     </TableHead>
                     <TableBody>
                         {rows
                             .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                             .map((row, idx) => (
-                                <TableRow key={idx}>
+                                <StyledTableRow key={idx}>
                                     <TableCell>{row.title}</TableCell>
                                     <TableCell>
                                         <Box
@@ -55,7 +82,7 @@ const EngineeringChangeList = ({ rows }) => {
                                         >
                                             <Badge badgeContent={`R:${row.statusSummary.REGISTERED}`} color="primary" />&nbsp;
                                             <Badge badgeContent={`A:${row.statusSummary.APPROVED}`} color="success" />&nbsp;
-                                            <Badge badgeContent={`C:${row.statusSummary.CLOSED}`} color="error" />
+                                            <Badge badgeContent={`C:${row.statusSummary.CLOSED}`} color="warning" />
                                         </Box>
                                     </TableCell>
                                     <TableCell>{row.baseRevision}</TableCell>
@@ -65,21 +92,12 @@ const EngineeringChangeList = ({ rows }) => {
                                     <TableCell>{row.dateProposed.split('T')[0]}</TableCell>
                                     <TableCell>{row.dateReviewed.split('T')[0]}</TableCell>
                                     <TableCell>{row.dateImplemented.split('T')[0]}</TableCell>
-                                </TableRow>
+                                </StyledTableRow>
                             ))}
                     </TableBody>
                 </Table>
             </TableContainer>
-
-            <TablePagination
-                component="div"
-                count={rows.length}
-                page={page}
-                onPageChange={handleChangePage}
-                rowsPerPage={rowsPerPage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-            />
-        </div>
+        </Paper>
     );
 };
 
