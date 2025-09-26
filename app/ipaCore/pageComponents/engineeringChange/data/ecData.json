@@ -1,0 +1,44 @@
+{
+  "ecs": [
+        {
+            "_id": "68d2c61671aa127e59848728", "id": "002", "type": "Equipment Change/Redesign", "title": "Replace RCP with KSB RSR Model",
+            "logs": {
+                "RCP-A-023": { "Base Revision": "001", "Equipment Revision": "001A", "dateImplemented": "2019-04-28T00:00:00Z", "dateProposed": "2019-04-20T00:00:00Z", "dateReviewed": "2019-04-23T00:00:00Z", "status": "CLOSED" },
+                "RCP-A-024": { "Base Revision": "001", "Equipment Revision": "001A", "dateImplemented": "N/A", "dateProposed": "2019-05-20T00:00:00Z", "dateReviewed": "2019-05-23T00:00:00Z", "status": "APPROVED" }
+            },
+            "status": { "REGISTERED": 0, "APPROVED": 1, "CLOSED": 1 }
+        },
+        {
+            "_id": "68d2c61671aa127e5984872b", "id": "005", "type": "Safety Class", "title": "Increase Safety Class 3 to Class 2",
+            "logs": {
+                "CND-A-01": { "Base Revision": "001", "Equipment Revision": "001A", "dateImplemented": "N/A", "dateProposed": "2025-08-25T00:00:00Z", "dateReviewed": "N/A", "status": "REGISTERED" },
+                "CND-A-02": { "Base Revision": "001", "Equipment Revision": "001A", "dateImplemented": "N/A", "dateProposed": "2025-08-25T00:00:00Z", "dateReviewed": "N/A", "status": "REGISTERED" }
+            },
+            "status": { "REGISTERED": 2, "APPROVED": 0, "CLOSED": 0 }
+        },
+        {
+            "_id": "68d2c61671aa127e59848727", "id": "001", "type": "Technical Parameters", "title": "Adjusted flow rate by +100 gpm",
+            "logs": {
+                "RCP-A-011": { "Base Revision": "000", "Equipment Revision": "001", "dateImplemented": "2010-09-01T00:00:00Z", "dateProposed": "2010-07-18T00:00:00Z", "dateReviewed": "2010-08-25T00:00:00Z", "status": "CLOSED" },
+                "RCP-A-012": { "Base Revision": "000", "Equipment Revision": "001", "dateImplemented": "2010-09-01T00:00:00Z", "dateProposed": "2010-07-18T00:00:00Z", "dateReviewed": "2010-08-25T00:00:00Z", "status": "CLOSED" },
+                "RCP-A-013": { "Base Revision": "000", "Equipment Revision": "001", "dateImplemented": "2010-09-01T00:00:00Z", "dateProposed": "2010-07-18T00:00:00Z", "dateReviewed": "2010-08-25T00:00:00Z", "status": "CLOSED" },
+                "RCP-A-014": { "Base Revision": "000", "Equipment Revision": "001", "dateImplemented": "2010-09-01T00:00:00Z", "dateProposed": "2010-07-18T00:00:00Z", "dateReviewed": "2010-08-25T00:00:00Z", "status": "CLOSED" },
+                "RCP-A-021": { "Base Revision": "000", "Equipment Revision": "001", "dateImplemented": "2010-09-12T00:00:00Z", "dateProposed": "2010-07-18T00:00:00Z", "dateReviewed": "2010-08-25T00:00:00Z", "status": "CLOSED" },
+                "RCP-B-011": { "Base Revision": "000", "Equipment Revision": "001", "dateImplemented": "2011-03-15T00:00:00Z", "dateProposed": "2010-07-18T00:00:00Z", "dateReviewed": "2011-02-13T00:00:00Z", "status": "CLOSED" }
+            },
+            "status": { "REGISTERED": 0, "APPROVED": 0, "CLOSED": 6 }
+        },
+        {
+            "_id": "68d2c61671aasdsd48727", "id": "001", "type": "Technical Parameters 2", "title": "Adjusted flow rate by +150 gpm",
+            "logs": {
+                "RCP-A-011": { "Base Revision": "000", "Equipment Revision": "001", "dateImplemented": "2010-09-01T00:00:00Z", "dateProposed": "2010-07-18T00:00:00Z", "dateReviewed": "2010-08-25T00:00:00Z", "status": "CLOSED" },
+                "RCP-A-012": { "Base Revision": "000", "Equipment Revision": "001", "dateImplemented": "2010-09-01T00:00:00Z", "dateProposed": "2010-07-18T00:00:00Z", "dateReviewed": "2010-08-25T00:00:00Z", "status": "CLOSED" },
+                "RCP-A-013": { "Base Revision": "000", "Equipment Revision": "001", "dateImplemented": "2010-09-01T00:00:00Z", "dateProposed": "2010-07-18T00:00:00Z", "dateReviewed": "2010-08-25T00:00:00Z", "status": "CLOSED" },
+                "RCP-A-014": { "Base Revision": "000", "Equipment Revision": "001", "dateImplemented": "2010-09-01T00:00:00Z", "dateProposed": "2010-07-18T00:00:00Z", "dateReviewed": "2010-08-25T00:00:00Z", "status": "CLOSED" },
+                "RCP-A-021": { "Base Revision": "000", "Equipment Revision": "001", "dateImplemented": "2010-09-12T00:00:00Z", "dateProposed": "2010-07-18T00:00:00Z", "dateReviewed": "2010-08-25T00:00:00Z", "status": "CLOSED" },
+                "RCP-B-011": { "Base Revision": "000", "Equipment Revision": "001", "dateImplemented": "2011-03-15T00:00:00Z", "dateProposed": "2010-07-18T00:00:00Z", "dateReviewed": "2011-02-13T00:00:00Z", "status": "CLOSED" }
+            },
+            "status": { "REGISTERED": 0, "APPROVED": 0, "CLOSED": 6 }
+        }
+  ]
+}
