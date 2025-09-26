@@ -7,7 +7,7 @@ import {
     DialogActions
 } from "@mui/material";
 
-const AdvancedFilter = ({ openFilter, setOpenFilter }) => {
+const AdvanceFilter = ({ openFilter, setOpenFilter }) => {
     return (
         <>
             <Dialog open={openFilter} onClose={() => setOpenFilter(false)}>
@@ -23,4 +23,4 @@ const AdvancedFilter = ({ openFilter, setOpenFilter }) => {
     )
 }
 
-export default AdvancedFilter;
+export default AdvanceFilter;
