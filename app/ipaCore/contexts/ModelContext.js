@@ -621,9 +621,9 @@ const ModelContextProvider = ({ children, project, appContext }) => {
       try {
         const page = await IafItemSvc.getRelatedItems(
           modelRelatedCollections.instanceProps._userItemId,
-          { query: {} },
+          { query: {'properties.BA Name.val': "MainPump::MainPump"} },
           null,
-          { page: { _pageSize: 200, _offset: 0 }, userItemVersionId: modelRelatedCollections.instanceProps._userItemVersionId }
+          { page: { _pageSize: 900, _offset: 0 }, userItemVersionId: modelRelatedCollections.instanceProps._userItemVersionId }
         )
 
         console.log('EC4 Sample instanceProps items:', page._list)
@@ -633,6 +633,46 @@ const ModelContextProvider = ({ children, project, appContext }) => {
     })()
   }
 }, [modelRelatedCollections]);
+
+      useEffect(() => {
+  if (modelRelatedCollections?.elements) {
+   
+    (async () => {
+      try {
+        const page = await IafItemSvc.getRelatedItems(
+          modelRelatedCollections.elements._userItemId,
+          { query: {'properties.BA Name.val': "Basic Wall::E_OPC_Vertical Wood Panels"} },
+          null,
+          { page: { _pageSize: 1000, _offset: 0 }, userItemVersionId: modelRelatedCollections.elements._userItemVersionId }
+        )
+
+        console.log('EC4 Sample elements items:', page._list)
+      } catch (err) {
+        console.error('ERROR: fetching instanceProps for debug', err)
+      }
+    })()
+  }
+}, [modelRelatedCollections]);
+
+//       useEffect(() => {
+//   if (modelRelatedCollections?.dataCache) {
+   
+//     (async () => {
+//       try {
+//         const page = await IafItemSvc.getRelatedItems(
+//           modelRelatedCollections.dataCache._userItemId,
+//           { query: {} },
+//           null,
+//           { page: { _pageSize: 1000, _offset: 0 }, userItemVersionId: modelRelatedCollections.dataCache._userItemVersionId }
+//         )
+
+//         console.log('EC4 Sample datacache items:', page._list)
+//       } catch (err) {
+//         console.error('ERROR: fetching instanceProps for debug', err)
+//       }
+//     })()
+//   }
+// }, [modelRelatedCollections]);
 
    const memoizedContextValue = useMemo(() => {
       return {

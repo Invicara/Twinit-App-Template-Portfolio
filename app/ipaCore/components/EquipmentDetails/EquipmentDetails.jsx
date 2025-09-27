@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
 import Box from '@material-ui/core/Box';
 import CardContent from '@material-ui/core/CardContent';
@@ -8,6 +8,8 @@ import Tab from '@material-ui/core/Tab';
 import EngineeringChangesTab from './EngineeringChangesTab';
 import SiteEquipmentTab from './SiteEquipmentTab';
 import { engineeringChangesAPIs } from '../../../services/engineeringChanges';
+import { MapMachineContext } from '../../pageComponents/portfolioOverview/PortfolioOverview';
+import { useActor, useSelector as useXstateSelector, useMachine } from '@xstate/react';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -18,9 +20,9 @@ const useStyles = makeStyles((theme) => ({
     borderBottom: `1px solid ${theme.palette.divider}`,
   },
   tab: {
-    minWidth: 0,             // prevent Material-UI from forcing a wide min-width
-    whiteSpace: 'nowrap',    // prevent wrapping
-    textTransform: 'none',   // optional: keep capitalization as-is
+    minWidth: 0,            
+    whiteSpace: 'nowrap',    
+    textTransform: 'none',   
   },
   tabPanel: {
     padding: theme.spacing(2),
@@ -35,6 +37,14 @@ export default function EquipmentDetails() {
   const handleChange = (event, newValue) => {
     setTab(newValue);
   };
+
+        const { send, actor } = useContext(MapMachineContext);
+        const currentState = useXstateSelector(actor, state => state);
+    
+        const context = currentState?.context ?? {};
+  
+        console.log('EC2 currentState', currentState);
+  
 
     useEffect(() => {
           const run = async () => {
