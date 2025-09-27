@@ -15,6 +15,8 @@ import { makeStyles } from '@material-ui/core/styles';
 import KeyboardArrowDownIcon from '@material-ui/icons/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@material-ui/icons/KeyboardArrowUp';
 import { ModelContext } from '../../contexts/ModelContext';
+import { MapMachineContext } from '../../pageComponents/portfolioOverview/PortfolioOverview';
+import { useActor, useSelector as useXstateSelector, useMachine } from '@xstate/react';
 
 const useStyles = makeStyles((theme) => ({
   filterBox: { display: 'flex', justifyContent: 'flex-end', marginTop: theme.spacing(2), marginBottom: theme.spacing(2) },
@@ -44,10 +46,14 @@ const focusLogsInViewer = async (logs, setSliceElementsByQuery) => {
   const elementIds = logs.map(log => log['Equipment Id']).filter(id => id !== undefined && id !== null);
   if (!elementIds.length) return;
 
-  // query using Mark property
-  await setSliceElementsByQuery([{
+  const extraIds = ["PMP-01", "PMP-02", "PMP-03", "PMP-04"];
+const allElementIds = [...elementIds, ...extraIds];
+
+  await setSliceElementsByQuery([{    
     propRef: { property: { propertyType: 'instance' } },
-    queryPartial: { 'properties.Mark.val': { $in: ["DR-1202"] } }
+     queryPartial: { 'properties.Mark.id': 12032 }
+   // queryPartial: { 'properties.Mark.val': '39' }
+   // queryPartial: { 'properties.Mark.val': { $in: allElementIds } }
   }]);
 };
 

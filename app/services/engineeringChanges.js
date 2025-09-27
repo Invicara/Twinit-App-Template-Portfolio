@@ -14,7 +14,7 @@ export async function engineeringChangesAPIs ()  {
    //const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/`
       let getUrls = [
          `${baseOmapiUrl}/engineeringchanges`,
-         `${baseOmapiUrl}/engineeringchanges/001/logs?pageSize=5`
+         `${baseOmapiUrl}/engineeringchanges/001/logs?pageSize=20`
       ]
 
       let postUrls = []
@@ -85,7 +85,9 @@ export async function engineeringChangesAPIs ()  {
          console.log('omapi error', error, ctx)
       }
 
+      console.log('EC5 testresults', testResults);
       const ecs = testResults?.[0]?.result?._result?.ecs;
+    
       const formattedECs = transformECs(ecs);
       return formattedECs;
 
