@@ -1,28 +1,32 @@
-import React, { useEffect, useState, useContext } from 'react';
-import { makeStyles } from '@material-ui/core/styles';
-import Box from '@material-ui/core/Box';
-import CardContent from '@material-ui/core/CardContent';
-import Tabs from '@material-ui/core/Tabs';
-import Tab from '@material-ui/core/Tab';
+import React, { useEffect, useState, useContext } from "react";
+import { makeStyles } from "@material-ui/core/styles";
+import Box from "@material-ui/core/Box";
+import Tabs from "@material-ui/core/Tabs";
+import Tab from "@material-ui/core/Tab";
 
-import EngineeringChangesTab from './EngineeringChangesTab';
-import SiteEquipmentTab from './SiteEquipmentTab';
-import { engineeringChangesAPIs } from '../../../services/engineeringChanges';
-import { MapMachineContext } from '../../pageComponents/portfolioOverview/PortfolioOverview';
-import { useActor, useSelector as useXstateSelector, useMachine } from '@xstate/react';
+import EngineeringChangesTab from "./EngineeringChangesTab";
+import SiteEquipmentTab from "./SiteEquipmentTab";
+import { engineeringChangesAPIs } from "../../../services/engineeringChanges";
+import { MapMachineContext } from "../../pageComponents/portfolioOverview/PortfolioOverview";
+import {
+  useActor,
+  useSelector as useXstateSelector,
+  useMachine,
+} from "@xstate/react";
+import { ModelContext } from "../../contexts/ModelContext";
 
 const useStyles = makeStyles((theme) => ({
   root: {
     minWidth: 150,
-    backdropFilter: 'blur(5px)',
+    backdropFilter: "blur(5px)",
   },
   tabs: {
     borderBottom: `1px solid ${theme.palette.divider}`,
   },
   tab: {
-    minWidth: 0,            
-    whiteSpace: 'nowrap',    
-    textTransform: 'none',   
+    minWidth: 0,
+    whiteSpace: "nowrap",
+    textTransform: "none",
   },
   tabPanel: {
     padding: theme.spacing(2),
@@ -34,28 +38,44 @@ export default function EquipmentDetails() {
   const [tab, setTab] = useState(0);
 
   const [ECs, setECs] = useState(null);
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (event, newValue) => {
     setTab(newValue);
   };
 
-        const { send, actor } = useContext(MapMachineContext);
-        const currentState = useXstateSelector(actor, state => state);
-    
-        const context = currentState?.context ?? {};
-  
-        console.log('EC2 currentState', currentState);
-  
+  const { actor } = useContext(MapMachineContext);
+  const currentState = useXstateSelector(actor, (state) => state);
 
-    useEffect(() => {
-          const run = async () => {
-              const result = await engineeringChangesAPIs();
+  const context = currentState?.context ?? {};
+  const { selectedModelComposite } = useContext(ModelContext);
 
-              setECs(result);
-              console.log('engineeringchangesresult', result);
+  const match = selectedModelComposite?._name?.match(/_(\d+)$/);
+  const buildingId = match ? match?.[1]?.substring(0, 2) : null;
 
-          };
-          run();
-      }, []);
+  useEffect(() => {
+    if (!selectedModelComposite || !buildingId) {
+      setECs([]);
+      return;
+    }
+
+    const fetchData = async () => {
+      setLoading(true); // show spinner
+      setECs(null); // reset previous data
+
+      try {
+        const result = await engineeringChangesAPIs({ buildingId });
+        setECs(result || []);
+      } catch (err) {
+        console.error("Failed to fetch ECS:", err);
+        setECs([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [selectedModelComposite, buildingId]);
 
   return (
     <Box>
@@ -74,7 +94,14 @@ export default function EquipmentDetails() {
 
       {/* Tab Panels */}
       <div>
-        {tab === 0 && <EngineeringChangesTab data={ECs} className={classes.tab} />}
+        {tab === 0 && (
+          <EngineeringChangesTab
+            data={ECs}
+            loading={loading}
+            buildingId={buildingId}
+            className={classes.tab}
+          />
+        )}
         {tab === 1 && <SiteEquipmentTab className={classes.tab} />}
       </div>
     </Box>

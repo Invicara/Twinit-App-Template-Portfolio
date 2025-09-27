@@ -179,7 +179,6 @@ const ModelQuery = () => {
 
       setGettingFilteredElements(true)
 
-      console.log('EC2 FILTERS', filters);
       setSliceElementsByQuery(filters).catch(() => {
          
       }).finally(() => {
