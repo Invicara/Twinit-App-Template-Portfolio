@@ -45,6 +45,9 @@ const ModelContextProvider = ({ children, project, appContext }) => {
    // setSliceElements: <function> the function to set the sliceElements
    const [sliceElements, setSliceElements] = useState([])
 
+
+   const [isBottomECPanelOpen, setIsBottomECPanelOpen] = useState(false);
+
    useEffect(() => {
       loadAllModels(project)
    }, [project])
@@ -648,6 +651,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          getSelectedElement,
          allPropRefs,
          selectedPropRefs,
+         isBottomECPanelOpen, 
          setSelectedPropRefs,
          getElementCount,
          sliceElements,
@@ -656,6 +660,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          setSelectedElement,
          getPropertyReferences,
          getTotalElementCount,
+         setIsBottomECPanelOpen,
          project,
          appContext,
       }
@@ -669,6 +674,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
       selectedElement,
       allPropRefs,
       selectedPropRefs,
+      isBottomECPanelOpen, 
       sliceElements,
       project,
       appContext

@@ -110,7 +110,7 @@ const statusConfig = {
 
 const filterOptions = ["All", ...Object.keys(statusConfig)];
 
-const focusLogsInViewer = async (logs, setSliceElementsByQuery) => {
+const focusLogsInViewer = async (logs, setSliceElementsByQuery, setTriggeredByFocusLogs) => {
   if (!logs || !logs.length) return;
 
   const elementIds = logs
@@ -121,7 +121,9 @@ const focusLogsInViewer = async (logs, setSliceElementsByQuery) => {
   const extraIds = ["PMP-01", "PMP-02", "PMP-03", "PMP-04"];
   const allElementIds = [...elementIds, ...extraIds];
 
-  await setSliceElementsByQuery([
+  setTriggeredByFocusLogs(true);
+
+  const result = await setSliceElementsByQuery([
     {
       propRef: { property: { propertyType: "instance" } },
       queryPartial: { "properties.Mark.id": 12032 },
@@ -129,17 +131,20 @@ const focusLogsInViewer = async (logs, setSliceElementsByQuery) => {
       // queryPartial: { 'properties.Mark.val': { $in: allElementIds } }
     },
   ]);
+
+  console.log('EC4 result', result);
 };
 
 export default function EngineeringChangesTab({ data, loading }) {
   const classes = useStyles();
-  const { setSliceElementsByQuery, sliceElements } = useContext(ModelContext);
+  const { setSliceElementsByQuery, sliceElements, isBottomECPanelOpen, setIsBottomECPanelOpen } = useContext(ModelContext);
 
   const [filter, setFilter] = useState("All");
   const [expanded, setExpanded] = useState({});
   const [activeCardId, setActiveCardId] = useState(null);
   const [clickedCardIndex, setClickedCardIndex] = useState(null);
   const [ecsData, setEcsData] = useState(null);
+  const [triggeredByFocusLogs, setTriggeredByFocusLogs] = useState(false);
 
   const handleExpandClick = (id) =>
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -162,7 +167,7 @@ export default function EngineeringChangesTab({ data, loading }) {
 
     const ecLogs = Array.isArray(ec.logs) ? ec.logs : Object.values(ec.logs);
     setClickedCardIndex(index);
-    await focusLogsInViewer(ecLogs, setSliceElementsByQuery);
+    await focusLogsInViewer(ecLogs, setSliceElementsByQuery, setTriggeredByFocusLogs);
   };
 
   useEffect(() => {
@@ -172,6 +177,15 @@ export default function EngineeringChangesTab({ data, loading }) {
       setActiveCardId(null);
     }
   }, [sliceElements, clickedCardIndex]);
+
+  useEffect(() => {
+  if (triggeredByFocusLogs && sliceElements && sliceElements.length > 0) {
+    setIsBottomECPanelOpen(true);
+    setTriggeredByFocusLogs(false);
+  } else {
+    setIsBottomECPanelOpen(false);
+  }
+}, [sliceElements, triggeredByFocusLogs]);
 
   const filterByLabel =
     filter === "All" ? "Filter by" : `Filter by (${filter})`;
@@ -192,8 +206,8 @@ export default function EngineeringChangesTab({ data, loading }) {
                 return ec.status.REGISTERED > 0;
               default:
                 return true;
-            }
-          });
+          }
+      });
 
   const formatFieldName = (name) => name.replace(/([a-z])([A-Z])/g, "$1 $2");
 
