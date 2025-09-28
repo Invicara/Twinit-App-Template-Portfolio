@@ -60,8 +60,8 @@ export default function EquipmentDetails() {
     }
 
     const fetchData = async () => {
-      setLoading(true); // show spinner
-      setECs(null); // reset previous data
+      setLoading(true); 
+      setECs(null); 
 
       try {
         const result = await engineeringChangesAPIs({ buildingId });

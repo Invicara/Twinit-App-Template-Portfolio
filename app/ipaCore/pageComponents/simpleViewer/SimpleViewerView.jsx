@@ -41,7 +41,8 @@ const SimpleViewerView = ({ handler }) => {
       selectedElement,
       getSelectedElement,
       setSelectedPropRefs,
-      sliceElements
+      sliceElements,
+      isBottomECPanelOpen
    } = useContext(ModelContext)
 
    // the file _id and version _id of the file to display in the document viewer
