@@ -77,7 +77,12 @@ const isFieldDeletable = (schema, fieldName) => {
 };
 
 export const InfoComponent = ({ entity, handleChange, type, entityType, originalEntity, disabled = false, onFieldRemove, modifyTypeCallback, debounceTime=700, allowReadOnlyOverride = false }) => {
-
+ console.log('infcomponent entity', entity);
+ console.log('infocomponent handlechange', handleChange);
+ console.log('infocomponent type', type );
+  console.log('infocomponent entitytype', entityType)
+   console.log('infocomponent originalEntity',originalEntity );
+    console.log('infocomponent modifyTypecallback',modifyTypeCallback )
     // Modal states
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [modifyModalOpen, setModifyModalOpen] = useState(false);

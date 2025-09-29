@@ -1,0 +1,74 @@
+.apply-button {
+  margin: 16px;
+  background-color: #C71784;
+  color: white;
+  cursor: pointer;
+  height: 40px; 
+  border: solid #C71784;
+  border-radius: 4px;
+  padding: 8px 20px 8px 20px; 
+  text-transform: capitalize; 
+}
+
+  .apply-button:disabled {
+    margin: 16px;
+    background-color: #EBEBEB;
+    color: white;
+    cursor: not-allowed !important;
+    height: 40px; 
+    border: solid #EBEBEB;
+    border-radius: 4px;
+    padding: 8px 20px 8px 20px; 
+    text-transform: capitalize; 
+  }
+
+.apply-button:disabled {
+  margin: 16px;
+  background-color: #EBEBEB;
+  color: white;
+  cursor: not-allowed !important;
+  height: 40px; 
+  border: solid #EBEBEB;
+  border-radius: 4px;
+  padding: 8px 20px 8px 20px; 
+  text-transform: capitalize; 
+}
+
+.delete-button {
+  margin: 16px;
+  height: 40px; 
+  padding: 8px 20px 8px 20px; 
+  color: #C71784;
+  border: none;
+  border-radius: 4px;
+  background-color: white;
+}
+
+.delete-button:hover {
+background-color: #FAE5F3;
+}
+
+.cancel-button {
+    margin: 16px;
+    height: 40px; 
+    padding: 8px 20px 8px 20px; 
+    color: #C71784;
+    border: 1px solid #B8B8B8;
+    border-radius: 4px;
+    background-color: white;
+}
+
+.cancel-button:hover {
+  border: 1px solid #C71784;
+}
+
+.cancel-button:disabled {
+  margin: 16px;
+  height: 40px; 
+  padding: 8px 20px 8px 20px; 
+  cursor: not-allowed !important;
+  color: #EBEBEB;
+  border: none;
+  border-radius: 4px;
+  background-color: white;
+}
