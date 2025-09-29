@@ -53,7 +53,7 @@ export default function EquipmentDetails() {
 
   const match = selectedModelComposite?._name?.match(/_(\d+)$/);
   const buildingId = match ? match[1].slice(-2) : null;
-
+ const facilityId = buildingId == '01' ? 'A' : 'B';
 
   useEffect(() => {
     if (!selectedModelComposite || !buildingId) {
@@ -66,7 +66,7 @@ export default function EquipmentDetails() {
       setECs(null); 
 
       try {
-        const result = await engineeringChangesAPIs({ buildingId });
+        const result = await engineeringChangesAPIs({ buildingId, facilityId });
         setECs(result || []);
       } catch (err) {
         console.error("Failed to fetch ECS:", err);

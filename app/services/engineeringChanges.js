@@ -3,7 +3,7 @@ import { IafProj, IafSession, IafItemSvc } from "@dtplatform/platform-api";
 import { convertFieldResponseIntoMuiTextFieldProps } from "@mui/x-date-pickers/internals";
 
 // used to access viewer commands, not used in this example
-export async function engineeringChangesAPIs({ buildingId }) {
+export async function engineeringChangesAPIs({ buildingId, facilityId }) {
   const ctx = IafProj.getCurrent();
 
   const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
@@ -80,11 +80,11 @@ export async function engineeringChangesAPIs({ buildingId }) {
 
   const ecs = testResults?.[0]?.result?._result?.ecs;
 
-  const formattedECs = transformECs(ecs, buildingId);
+  const formattedECs = transformECs(ecs, buildingId, facilityId);
   return formattedECs;
 }
 
-function transformECs(ecsObj, buildingId) {
+function transformECs(ecsObj, buildingId, facilityId) {
   if (!buildingId) buildingId = 0;
   const ecs = Object.values(ecsObj);
 
@@ -108,7 +108,7 @@ function transformECs(ecsObj, buildingId) {
         ? Object.values(updated.logs)
         : [];
 
-    logs = logs.filter((log) => log.unit == buildingId);
+    logs = logs.filter((log) => (log.unit == buildingId) && (log.site == facilityId));
 
     if (logs.length > 0) {
       const lastLog = logs[logs.length - 1];
