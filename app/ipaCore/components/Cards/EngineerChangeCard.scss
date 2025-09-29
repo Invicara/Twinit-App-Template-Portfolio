@@ -1,0 +1,29 @@
+.engineer-change-card {
+    border: 1px solid #EBEBEB;
+    border-radius: 4px;
+    background-color: #F9F9F9;
+    padding: 16px;
+
+    .status-dropdown {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .engineer-status-tag {
+        width: max-content;
+        border-radius: 4px;
+        padding: 4px 8px;
+    }
+
+    .engineer-site-equipment-id {
+        margin-top: 16px;
+        border-bottom: 1px solid #EBEBEB;
+        padding: 6px 8px;
+
+        .engineer-equipment-id {
+            font-size: 9px;
+            color: #999999;
+            margin: 0px
+        } 
+    }
+}
