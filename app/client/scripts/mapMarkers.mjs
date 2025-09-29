@@ -109,7 +109,7 @@ function wrapToView(lng, centerLng) {
     return lng;
 }
 
-function createSingleMarker(context, feature, {bins, property, showLabel = true, pieAlpha=true, getCounts = getBinCounts, popupConfig, send, featureDef, setPopupState, markerId}){
+function createSingleMarker(context, feature, {bins, property, showLabel = true, pieAlpha=true, getCounts = getBinCounts, getTotalCounts, popupConfig, send, featureDef, setPopupState, markerId}){
     const {map, namedPaths} = context;
     const namedPath = namedPaths[0];
     const {path} = featureDef;
@@ -120,7 +120,8 @@ function createSingleMarker(context, feature, {bins, property, showLabel = true,
     const coordinates = feature.geometry.coordinates;
 
     const counts = getCounts(map, feature, { bins, property});
-    const total = Object.values(counts).reduce((acc, cur) => acc+cur, 0);
+    const totalCounts = getTotalCounts ? getTotalCounts(map, feature, { bins, property}) : counts;
+    const total = Object.values(totalCounts).reduce((acc, cur) => acc+cur, 0);
     const color = total == 1 ? getBinColorFromCounts(counts, bins) : undefined;
     const { labelWrap, badge } = makeMarkerShell(PIE_SIZE, showLabel ? total : "", !showLabel ? color : undefined);
     const wrap = document.createElement('div');

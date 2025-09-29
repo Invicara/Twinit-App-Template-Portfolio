@@ -59,6 +59,7 @@ export function getLoadedGeometryIds() {
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
+import scriptModule from "../../../setup/scripts/mmv_config.mjs";
 
 /**
  * Properly dispose of THREE.js resources to prevent memory leaks
@@ -383,7 +384,7 @@ export async function fetchFeaturesForLevel(levelDef, parentFeatures) {
         return data.map(d => ({
             type: 'Feature',
             geometry: d.coordinates,
-            properties: { ...d }
+            properties: { ...d}
         }));
     }
     if (levelDef.feature === 'mesh') {
@@ -1903,7 +1904,9 @@ export async function getEntryAction({mapMachineInput }) {
 
             //we are calling the mapbox API imperatively here, we will replace that with commands in next task
 
-            let { commands, theme = {}, singleMarkers, legend } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
+            //using local script not global due to development mode
+            //let { commands, theme = {}, singleMarkers, legend } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
+            let { commands, theme = {}, singleMarkers, legend } = await scriptModule.getEntryActionTheme( {suppressEntryActions, stateValue})
             //zoom out to all features
             zoomToFeature({map: context.map, context});
             const namedPath = context.namedPaths[0];//TODO, select correct namedPath index
