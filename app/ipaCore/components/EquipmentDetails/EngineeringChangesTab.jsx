@@ -53,7 +53,7 @@ const useStyles = makeStyles((theme) => ({
     cursor: "pointer",
   },
   activeCard: {
-    backgroundColor: "#F2A1D1",
+    backgroundColor: "#feeff7",
   },
   expandIcon: {
     marginLeft: "auto",
@@ -83,6 +83,7 @@ const useStyles = makeStyles((theme) => ({
     fontWeight: 500,
   },
   title: {
+    color: "#5D5D5D",
     fontWeight: 700,
     fontSize: 14,
     fontFamily: "Inter, sans-serif",
@@ -118,17 +119,14 @@ const focusLogsInViewer = async (logs, setSliceElementsByQuery, setTriggeredByFo
     .filter((id) => id !== undefined && id !== null);
   if (!elementIds.length) return;
 
-  const extraIds = ["PMP-01", "PMP-02", "PMP-03", "PMP-04"];
-  const allElementIds = [...elementIds, ...extraIds];
-
   setTriggeredByFocusLogs(true);
 
   const result = await setSliceElementsByQuery([
     {
       propRef: { property: { propertyType: "instance" } },
-      queryPartial: { "properties.Mark.val": 'RCP-900-012' },
+      // queryPartial: { "properties.Mark.val": 'RCP-900-012' },
       // queryPartial: { 'properties.Mark.val': '39' }
-      // queryPartial: { 'properties.Mark.val': { $in: allElementIds } }
+       queryPartial: { 'properties.Mark.val': { $in: elementIds } }
     },
   ]);
 };
@@ -211,7 +209,8 @@ export default function EngineeringChangesTab({ data, loading }) {
 
   return (
     <Box>
-      <Box className={classes.filterBox}>
+      {!loading && (
+        <Box className={classes.filterBox}>
         <FormControl className={classes.formControl}>
           <Select
             value={filter}
@@ -260,7 +259,7 @@ export default function EngineeringChangesTab({ data, loading }) {
           </Select>
         </FormControl>
       </Box>
-
+      )}
       {loading ? (
         <Box display="flex" justifyContent="center" alignItems="center" py={6}>
           <CircularProgress />
@@ -330,7 +329,7 @@ export default function EngineeringChangesTab({ data, loading }) {
                 </Box>
 
                 <Typography className={classes.title}>
-                  {ec["EC Title"]}
+                  EC Title: {ec["EC Title"]}
                 </Typography>
 
                 {orderedFields.map((field) => {
@@ -349,13 +348,13 @@ export default function EngineeringChangesTab({ data, loading }) {
                     let logsArray = [];
                     if (Array.isArray(ec.logs))
                       logsArray = ec.logs.map((log, i) => ({
-                        name: log["Equipment Id"] || `Log ${i + 1}`,
+                        name: log["Site Equipment Id"] || `Log ${i + 1}`,
                         ...log,
                       }));
                     else if (ec.logs && typeof ec.logs === "object")
                       logsArray = Object.entries(ec.logs).map(
                         ([key, details]) => ({
-                          name: details["Equipment Id"] || key,
+                          name: details["Site Equipment Id"] || key,
                           ...details,
                         }),
                       );

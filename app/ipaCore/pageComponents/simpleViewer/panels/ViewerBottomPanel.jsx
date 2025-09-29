@@ -3,7 +3,7 @@ import { makeStyles } from '@material-ui/core/styles'
 import { Paper, Typography, Button, Divider } from '@material-ui/core'
 import { Edit as EditIcon, Save as SaveIcon, KeyboardArrowUp, KeyboardArrowDown } from '@material-ui/icons'
 import { ModelContext } from '../../../contexts/ModelContext'
-
+import { InfoComponent } from '../../../components/InfoComponent/InfoComponent'
 
 const useStyles = makeStyles((theme) => ({
   panel: {
@@ -98,17 +98,69 @@ const useStyles = makeStyles((theme) => ({
 },
 }))
 
+
+const equipment = {
+  _id: "68d64f9771aa127e59875140",
+  equipmentId: "RCP-900-014",
+  properties: {
+    Manufacturer: { val: "Westinghouse", type: "string" },
+    Model: { val: "RCP-900", type: "string" },
+    "Safety Class": { val: "Class 1", type: "string" },
+  },
+  TechnicalParameters: {
+    FlowRate: { val: 2100, type: "number", unit: "gpm" },
+    Power: { val: 10, type: "number", unit: "MW" },
+  },
+};
+
+function flattenEquipment(e) {
+    return {
+    _id: e._id,
+    equipmentId: e.equipmentId,
+    siteEquipmentId: e.siteEquipmentId,
+    equipmentType: e.equipmentType,
+    revision: e.revision,
+    Manufacturer: e.properties?.Manufacturer?.val || '',
+    Model: e.properties?.Model?.val || '',
+    'Safety Class': e.properties?.['Safety Class']?.val || '',
+    'Operating Status': e.properties?.['Operating Status']?.val || '',
+    'Operational Status Date': e.properties?.['Operational Status Date']?.val || '',
+    FlowRate: e.TechnicalParameters?.FlowRate?.val || '',
+    Power: e.TechnicalParameters?.Power?.val || '',
+  };
+}
+
+const equipmentSchema = {
+  type: 'object',
+  properties: {
+    equipmentId: { type: 'string', title: 'Equipment ID' },
+    Manufacturer: { type: 'string', title: 'Manufacturer' },
+    Model: { type: 'string', title: 'Model' },
+    'Safety Class': { type: 'string', title: 'Safety Class' },
+    FlowRate: { type: 'number', title: 'Flow Rate' },
+    Power: { type: 'number', title: 'Power' },
+  },
+};
 const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
   const classes = useStyles()
   const { sliceElements } = useContext(ModelContext)
   const [isOpen, setIsOpen] = useState(false)
   const [properties, setProperties] = useState([])
 
+  const flattened = items?.map(flattenEquipment);
+
   useEffect(() => {
     if (items) {
       setProperties(items.map((el) => ({ ...el, isEditing: false })))
     }
   }, [items])
+
+  const handleInfoChange = (value, fieldName, meta) => {
+    const updatedFlat = { ...flat, [fieldName]: value };
+    const expanded = expandEquipment(updatedFlat, equipment);
+    onChange?.(expanded);
+  };
+
 
   useEffect(() => {
     if (isBottomECPanelOpen) setIsOpen(true)
@@ -154,74 +206,44 @@ const handleChange = (index, path, value) => {
       </div>
 
       {isOpen && (
-        <div className={classes.content}>
-          {properties && properties.length > 0 ? (
-            properties.map((prop, index) => (
-              <Paper key={prop._id || index} className={classes.card}>
-                <div className={classes.headerRow}>
-                  <Typography variant='subtitle1' style={{ fontWeight: 'bold' }}>
-                    Current Properties: {prop.siteEquipmentId || prop.equipmentId} ({prop.revision})
-                  </Typography>
-                  <Button
-                    className={classes.editButton}
-                    startIcon={prop.isEditing ? <SaveIcon /> : <EditIcon />}
-                    onClick={() => toggleEdit(index)}
-                  >
-                    {prop.isEditing ? 'Save' : 'Edit'}
-                  </Button>
-                </div>
+  <div className={classes.content}>
+    {properties && properties.length > 0 ? (
+      properties.map((prop, index) => {
+        const flat = flattenEquipment(prop) // ✅ flatten each prop here
 
-                <Property
-                  editable={prop.isEditing}
-                  label='Name ID'
-                  value={prop.siteEquipmentId || prop.equipmentId}
-                  onChange={(val) => handleChange(index, 'siteEquipmentId', val)}
-                />
-                <Property
-                  editable={prop.isEditing}
-                  label='Model'
-                  value={prop.properties?.Model?.val}
-                  onChange={(val) => handleChange(index, 'properties.Model.val', val)}
-                />
-                <Property
-                  editable={prop.isEditing}
-                  label='Equipment Type'
-                  value={prop.equipmentType}
-                  onChange={(val) => handleChange(index, 'equipmentType', val)}
-                />
-                <Property
-                  editable={prop.isEditing}
-                  label='Manufacturer'
-                  value={prop.properties?.Manufacturer?.val}
-                  onChange={(val) => handleChange(index, 'properties.Manufacturer.val', val)}
-                />
-                <Property
-                  editable={prop.isEditing}
-                  label='Safety Class'
-                  value={prop.properties?.['Safety Class']?.val}
-                  onChange={(val) => handleChange(index, 'properties.Safety Class.val', val)}
-                />
-                <Property
-                  editable={prop.isEditing}
-                  label='Flow Rate'
-                  value={`${prop.TechnicalParameters?.FlowRate?.val} ${prop.TechnicalParameters?.FlowRate?.unit || ''}`}
-                  onChange={(val) => handleChange(index, 'TechnicalParameters.FlowRate.val', val)}
-                />
-                <Property
-                  editable={prop.isEditing}
-                  label='Power'
-                  value={`${prop.TechnicalParameters?.Power?.val} ${prop.TechnicalParameters?.Power?.unit || ''}`}
-                  onChange={(val) => handleChange(index, 'TechnicalParameters.Power.val', val)}
-                />
-              </Paper>
-            ))
-          ) : (
-            <Typography variant='body2' color='textSecondary'>
-              No engineering change data available
-            </Typography>
-          )}
-        </div>
-      )}
+        return (
+          <Paper key={prop._id || index} className={classes.card}>
+            <div className={classes.headerRow}>
+              <Typography variant='subtitle1' style={{ fontWeight: 'bold' }}>
+                Current Properties: {prop.siteEquipmentId || prop.equipmentId} ({prop.revision})
+              </Typography>
+              <Button
+                className={classes.editButton}
+                startIcon={prop.isEditing ? <SaveIcon /> : <EditIcon />}
+                onClick={() => toggleEdit(index)}
+              >
+                {prop.isEditing ? 'Save' : 'Edit'}
+              </Button>
+            </div>
+
+            <InfoComponent
+              entity={flat}                 // ✅ per-card flattened entity
+              type={equipmentSchema}        // ✅ schema matches fields
+              entityType="equipment"
+              handleChange={(val, name) =>
+                console.log('changed', prop._id, name, val)
+              }
+            />
+          </Paper>
+        )
+      })
+    ) : (
+      <Typography variant='body2' color='textSecondary'>
+        No engineering change data available
+      </Typography>
+    )}
+  </div>
+)}
     </div>
   )
 }
