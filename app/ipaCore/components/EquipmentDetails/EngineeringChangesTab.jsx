@@ -111,29 +111,29 @@ const statusConfig = {
 
 const filterOptions = ["All", ...Object.keys(statusConfig)];
 
-const focusLogsInViewer = async (logs, setSliceElementsByQuery, setTriggeredByFocusLogs) => {
+const focusLogsInViewer = async (ec, logs, setSliceElementsByQuery, setTriggeredByFocusLogs, setSiteEquipment) => {
   if (!logs || !logs.length) return;
 
+  setSiteEquipment({data: logs, EC: ec});
   const elementIds = logs
     .map((log) => log["Equipment Id"])
     .filter((id) => id !== undefined && id !== null);
   if (!elementIds.length) return;
+
 
   setTriggeredByFocusLogs(true);
 
   const result = await setSliceElementsByQuery([
     {
       propRef: { property: { propertyType: "instance" } },
-      // queryPartial: { "properties.Mark.val": 'RCP-900-012' },
-      // queryPartial: { 'properties.Mark.val': '39' }
-       queryPartial: { 'properties.Mark.val': { $in: elementIds } }
+      queryPartial: { 'properties.Mark.val': { $in: elementIds } }
     },
   ]);
 };
 
 export default function EngineeringChangesTab({ data, loading }) {
   const classes = useStyles();
-  const { setSliceElementsByQuery, sliceElements, isBottomECPanelOpen, setIsBottomECPanelOpen } = useContext(ModelContext);
+  const { setSliceElementsByQuery, sliceElements, isBottomECPanelOpen, setIsBottomECPanelOpen, setSiteEquipment } = useContext(ModelContext);
 
   const [filter, setFilter] = useState("All");
   const [expanded, setExpanded] = useState({});
@@ -163,7 +163,7 @@ export default function EngineeringChangesTab({ data, loading }) {
 
     const ecLogs = Array.isArray(ec.logs) ? ec.logs : Object.values(ec.logs);
     setClickedCardIndex(index);
-    await focusLogsInViewer(ecLogs, setSliceElementsByQuery, setTriggeredByFocusLogs);
+    await focusLogsInViewer(ec, ecLogs, setSliceElementsByQuery, setTriggeredByFocusLogs, setSiteEquipment);
   };
 
   useEffect(() => {

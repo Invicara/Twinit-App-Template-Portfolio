@@ -3,7 +3,7 @@ import { IafProj, IafSession, IafItemSvc } from "@dtplatform/platform-api";
 import { convertFieldResponseIntoMuiTextFieldProps } from "@mui/x-date-pickers/internals";
 
 // used to access viewer commands, not used in this example
-export async function engineeringChangesAPIs({ buildingId, facilityId }) {
+export async function siteEquipmentService({ buildingId, facilityId }) {
   const ctx = IafProj.getCurrent();
 
   const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;

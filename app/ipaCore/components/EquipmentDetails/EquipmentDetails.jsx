@@ -49,11 +49,14 @@ export default function EquipmentDetails() {
   const currentState = useXstateSelector(actor, (state) => state);
 
   const context = currentState?.context ?? {};
+  //TODO use real facility/site id
+
   const { selectedModelComposite } = useContext(ModelContext);
 
   const match = selectedModelComposite?._name?.match(/_(\d+)$/);
   const buildingId = match ? match[1].slice(-2) : null;
-
+//TODO FIX
+  const facilityId = buildingId == '01' ? 'A' : 'B';
   useEffect(() => {
     if (!selectedModelComposite || !buildingId) {
       setECs([]);
@@ -65,7 +68,7 @@ export default function EquipmentDetails() {
       setECs(null); 
 
       try {
-        const result = await engineeringChangesAPIs({ buildingId });
+        const result = await engineeringChangesAPIs({ buildingId, facilityId });
         setECs(result || []);
       } catch (err) {
         console.error("Failed to fetch ECS:", err);

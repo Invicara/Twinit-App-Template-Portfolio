@@ -4,6 +4,7 @@ import { Paper, Typography, Button, Divider } from '@material-ui/core'
 import { Edit as EditIcon, Save as SaveIcon, KeyboardArrowUp, KeyboardArrowDown } from '@material-ui/icons'
 import { ModelContext } from '../../../contexts/ModelContext'
 import { InfoComponent } from '../../../components/InfoComponent/InfoComponent'
+import { siteEquipmentService } from '../../../../services/siteEquipment';
 
 const useStyles = makeStyles((theme) => ({
   panel: {
@@ -143,7 +144,7 @@ const equipmentSchema = {
 };
 const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
   const classes = useStyles()
-  const { sliceElements } = useContext(ModelContext)
+  const { sliceElements, siteEquipment } = useContext(ModelContext)
   const [isOpen, setIsOpen] = useState(false)
   const [properties, setProperties] = useState([])
 
@@ -154,6 +155,22 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
       setProperties(items.map((el) => ({ ...el, isEditing: false })))
     }
   }, [items])
+
+   useEffect(() => {
+    if(siteEquipment && siteEquipment?.length > 0) {
+        console.log('EC8 siteEquipment', siteEquipment);
+        const facilityId = siteEquipment.data[0].site;
+        const EC = siteEquipment.ec;
+
+        const run = async () => {
+            
+            const data = await siteEquipmentService(EC, facilityId);
+            
+        }
+
+        run();
+    }
+  }, [siteEquipment])
 
   const handleInfoChange = (value, fieldName, meta) => {
     const updatedFlat = { ...flat, [fieldName]: value };
@@ -209,7 +226,7 @@ const handleChange = (index, path, value) => {
   <div className={classes.content}>
     {properties && properties.length > 0 ? (
       properties.map((prop, index) => {
-        const flat = flattenEquipment(prop) // ✅ flatten each prop here
+        const flat = flattenEquipment(prop) 
 
         return (
           <Paper key={prop._id || index} className={classes.card}>
@@ -227,8 +244,8 @@ const handleChange = (index, path, value) => {
             </div>
 
             <InfoComponent
-              entity={flat}                 // ✅ per-card flattened entity
-              type={equipmentSchema}        // ✅ schema matches fields
+              entity={flat}               
+              type={equipmentSchema}       
               entityType="equipment"
               handleChange={(val, name) =>
                 console.log('changed', prop._id, name, val)
