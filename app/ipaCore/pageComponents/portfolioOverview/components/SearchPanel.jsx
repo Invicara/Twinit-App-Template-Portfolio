@@ -198,30 +198,6 @@ export default function SearchPanel({
                             </FormControl>
                         </Grid>
 
-                        {/* STRUCTURE */}
-                        <Grid item>
-                            <Typography variant="body1" className={classes.label}>{labels.structure}</Typography>
-                            <FormControl variant="outlined" className={classes.formControl}>
-                                <Select
-                                    name="structure"
-                                    value={filters.structure ?? ''}
-                                    onChange={handleChange}
-                                    displayEmpty
-                                    IconComponent={KeyboardArrowDownIcon}
-                                    renderValue={(selected) =>
-                                        selected === '' || selected == null
-                                            ? <span className={classes.placeholder}>Choose</span>
-                                            : (selectOptions.structure?.find(o => String(o.value) === String(selected))?.label ?? selected)
-                                    }
-                                >
-                                    <MenuItem key={'all'} value=''>All</MenuItem>
-                                    {(selectOptions.structure || []).map((opt) => (
-                                        <MenuItem key={String(opt.value)} value={opt.value}>{opt.label}</MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-
                         {/* LOCATION */}
                         <Grid item>
                             <Typography variant="body1" className={classes.label}>{labels.location}</Typography>
@@ -240,6 +216,30 @@ export default function SearchPanel({
                                 >
                                     <MenuItem key={'all'} value=''>All</MenuItem>
                                     {(selectOptions.location || []).map((opt) => (
+                                        <MenuItem key={String(opt.value)} value={opt.value}>{opt.label}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Grid>
+
+                        {/* STRUCTURE */}
+                        <Grid item>
+                            <Typography variant="body1" className={classes.label}>{labels.structure}</Typography>
+                            <FormControl variant="outlined" className={classes.formControl}>
+                                <Select
+                                    name="structure"
+                                    value={filters.structure ?? ''}
+                                    onChange={handleChange}
+                                    displayEmpty
+                                    IconComponent={KeyboardArrowDownIcon}
+                                    renderValue={(selected) =>
+                                        selected === '' || selected == null
+                                            ? <span className={classes.placeholder}>Choose</span>
+                                            : (selectOptions.structure?.find(o => String(o.value) === String(selected))?.label ?? selected)
+                                    }
+                                >
+                                    <MenuItem key={'all'} value=''>All</MenuItem>
+                                    {(selectOptions.structure || []).map((opt) => (
                                         <MenuItem key={String(opt.value)} value={opt.value}>{opt.label}</MenuItem>
                                     ))}
                                 </Select>

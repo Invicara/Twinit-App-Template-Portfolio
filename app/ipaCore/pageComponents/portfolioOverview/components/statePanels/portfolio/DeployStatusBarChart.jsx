@@ -13,11 +13,8 @@ import {
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import BarChartOutlinedIcon from "@material-ui/icons/BarChartOutlined";
 import CircularProgress from "@material-ui/core/CircularProgress";
-import { getFilter, setFilter } from "../../../redux/filters";
 import { useDispatch, useSelector as useReduxSelector, useStore } from 'react-redux';
-import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils/index.js";
-import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
-import {getGlobalFilterFunctions} from "../../utils/filters.global.js";
+import {getGlobalFilterFunctions} from "../../../../utils/filters.global.js";
 
 ChartJS.register(
     CategoryScale,
@@ -32,7 +29,7 @@ const useStyles = makeStyles({
   container: {
     width: "100%",
     overflowY: "auto",
-    minHeight: (props) => props.chartHeight + 300,
+    minHeight: (props) => props.chartHeight,
     display: "flex",
     flexDirection: "column",
   },
@@ -151,7 +148,12 @@ export function deriveChartMatrix({ data, fns, chartCfg }) {
           ? chartCfg.itemsOf(data, ctx)
           : (Array.isArray(data) ? data : get(data, chartCfg?.dataPath, []));
 
-  const bins = (chartCfg?.group?.bins || []).map(b => ({ ...b }));
+  let bins = [];
+  if(chartCfg?.group?.bins){
+    bins = (chartCfg?.group?.bins || []).map(b => ({ ...b }));
+  } else if (typeof chartCfg?.group?.getBins === 'function'){
+    bins = (chartCfg?.group?.getBins(data, ctx))
+  }
 
   // legend from maps
   const labelMap = chartCfg?.series?.config?.labelMap || {};
@@ -182,8 +184,15 @@ export function deriveChartMatrix({ data, fns, chartCfg }) {
     // fallback: numeric bins via valueProp
     if (typeof chartCfg?.group?.valueProp === 'function') {
       const v = chartCfg.group.valueProp(f, ctx);
-      return rows.find(r => inRange(v, r.min ?? -Infinity, r.max ?? Infinity));
+      return rows.find(r => {
+        if(r.min && r.max) {
+          return inRange(v, r.min ?? -Infinity, r.max ?? Infinity);
+        }
+        return undefined
+      })
     }
+    // fallback: propertyMatch
+
     return undefined;
   };
 
@@ -334,8 +343,8 @@ export const getChartFilters = (click, chartCfg) => {
 
 export default function DeployStatusChart({ handler, context, onFilterChange, chartCfg }) {
 
-  const chartTitle = handler.config.labels?.chartTitle || "Status";
-  const fns = getGlobalFilterFunctions("building", false)
+  const chartTitle = handler.config.labels?.chartTitle || chartCfg.title || "Status";
+  const fns = getGlobalFilterFunctions(chartCfg.itemType, false)
 
 
   const matrix = useMemo(() => deriveChartMatrix({
