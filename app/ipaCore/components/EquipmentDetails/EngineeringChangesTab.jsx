@@ -126,7 +126,7 @@ const focusLogsInViewer = async (logs, setSliceElementsByQuery, setTriggeredByFo
   const result = await setSliceElementsByQuery([
     {
       propRef: { property: { propertyType: "instance" } },
-      queryPartial: { "properties.Mark.id": 12032 },
+      queryPartial: { "properties.Mark.val": 'RCP-900-012' },
       // queryPartial: { 'properties.Mark.val': '39' }
       // queryPartial: { 'properties.Mark.val': { $in: allElementIds } }
     },
