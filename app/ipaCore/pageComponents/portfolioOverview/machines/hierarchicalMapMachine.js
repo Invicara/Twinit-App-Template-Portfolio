@@ -1,5 +1,5 @@
 // generateMapMachine.js (XState v5 compatible)
-import {assign, fromPromise, setup, spawnChild} from 'xstate';
+import {assign, fromPromise, setup, sendTo} from 'xstate';
 import {getEntryAction, getInitAction, getExitAction} from './utils/scriptedEntryActions';
 
 export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
@@ -224,7 +224,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                                     //console.log("exitService output", {event,stateKey})
                                     return event.output || {}
                                 })
-                        ]}))
+                            ]}))
                     }
                 },
                 ...childState
@@ -292,10 +292,9 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                         return { stateValue, context, event, self, sendBack: self.send }
                     },
                     onDone: {
-                        actions: assign(({ event }) => {
-                            //console.log("entryService output", event)
-                            return event.output || {}
-                        })
+                        actions: assign(({ context, event }) => ({
+                            ...(event.output || {})
+                        }))
                     },
                 },
                 on: {
@@ -341,10 +340,9 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                                 pendingEvent: null,
                                 suppressEntryActions: false
                             })),
-                            assign(({ event }) => {
-                                //console.log("exitService output", event)
-                                return event.output || {}
-                            })
+                            assign(({ _, event }) => ({
+                                ...(event.output || {})
+                            }))
                         ]
                     }))
                 }
@@ -361,7 +359,8 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
             namedPaths: paths,
             pendingEvent: null,
             suppressEntryActions: false,
-            manageMarkers: {}
+            manageMarkers: {},
+            filters: null
         },
         states: {
             ...topLevelStates,
@@ -374,8 +373,8 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
         },
         on: {
             '*': { actions: [({context, event}) => {
-                //console.log('[machine event]', event)
-            }] },
+                    //console.log('[machine event]', event)
+                }] },
             GO_TO: {
                 actions: assign(({ event }) => ({ pendingEvent: event }))
             },
@@ -383,6 +382,19 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                 actions: assign(({ event }) => ({
                     data: event.data
                 }))
+            },
+            UPDATE_FILTERS: {
+                actions: [
+                    assign(({ event }) => ({
+                        filters: event.filters
+                    })),
+                    sendTo(({ self }) => self, { type: 'APPLY_FILTERS' }, { delay: 0 })],
+
+            },
+            APPLY_FILTERS: {
+                actions: [({context, self})=>{
+                    context.manageMarkers && Object.values(context.manageMarkers).filter(fn=>typeof fn === "function").forEach((fn, index) => fn(null))
+                }]
             }
         }
     };

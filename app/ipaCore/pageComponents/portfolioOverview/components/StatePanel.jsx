@@ -4,7 +4,7 @@ import ipaConfig from "../../../ipaConfig.js";
 
 const fallback = <div>Loading details…</div>;
 
-export default function StatePanel({ currentState, context, className }) {
+export default function StatePanel({ handler, currentState, userConfig, className, send, context }) {
 
     const states = useMemo(()=>Object.keys(ipaConfig.mapPortfolio.statePanel.componentPaths || {}),[]);
     const stateKey = useMemo(()=>states.toReversed().find(state=>currentState.matches(state)),[states, currentState]);
@@ -24,8 +24,14 @@ export default function StatePanel({ currentState, context, className }) {
             <Paper elevation={3} sx={{ height: '100%', overflowY: 'auto' }}>
                 <Box p={0}>
                     <Suspense fallback={fallback}>
-                        <LazyComponent context={context} />
-                    </Suspense>
+                    <LazyComponent
+                        userConfig={userConfig}
+                        context={context}
+                        send={send}
+                        stateKey={stateKey}
+                        handler={handler}
+                    />
+                </Suspense>
                 </Box>
             </Paper>
         </Grid>

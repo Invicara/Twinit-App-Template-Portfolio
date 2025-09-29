@@ -27,6 +27,7 @@ const useStyles = makeStyles((theme) => ({
     minWidth: 0,
     whiteSpace: "nowrap",
     textTransform: "none",
+    fontSize: 13,
   },
   tabPanel: {
     padding: theme.spacing(2),
@@ -51,7 +52,6 @@ export default function EquipmentDetails() {
   const { selectedModelComposite } = useContext(ModelContext);
 
   const match = selectedModelComposite?._name?.match(/_(\d+)$/);
-  console.log('building name match', match);
   const buildingId = match ? match[1].slice(-2) : null;
 
   useEffect(() => {
@@ -87,7 +87,7 @@ export default function EquipmentDetails() {
         indicatorColor="primary"
         textColor="primary"
         className={classes.tabs}
-        variant="fullWidth"
+        variant="standard"
       >
         <Tab label="Engineering Changes" />
         <Tab label="Site Equipment" />

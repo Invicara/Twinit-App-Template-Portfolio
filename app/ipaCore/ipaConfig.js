@@ -1,5 +1,6 @@
 import { STATE_KEY } from "./redux/pageComponentState"
 import { SETUP_SITE_KEY } from "./redux/siteSetup"
+import { FILTERS_KEY } from "./redux/filters"
 
 const ipaConfig = {
    appName: "Model Quick View",
@@ -11,6 +12,7 @@ const ipaConfig = {
         slices: [
             {name: STATE_KEY, file: 'pageComponentState.js'},
             {name: SETUP_SITE_KEY, file: 'siteSetup.js'},
+            {name: FILTERS_KEY, file: 'filters.js'}
         ]
     },
    components: {
@@ -22,9 +24,9 @@ const ipaConfig = {
       statePanel: {
          componentPaths:
              {
-                "portfolio": "PortfolioDetails.jsx",
+                "portfolio": "portfolio/PortfolioDetails.jsx",
                 "portfolio.site": "SiteDetails.jsx",
-                "portfolio.site.building": "tabs/BuildingTabs.jsx",
+                "portfolio.site.building": "building/tabs/BuildingTabs.jsx",
                 "portfolio.site.building.modelElement": undefined,
              }
       }

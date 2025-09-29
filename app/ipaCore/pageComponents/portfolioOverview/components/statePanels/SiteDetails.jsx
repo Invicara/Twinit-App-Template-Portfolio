@@ -1,8 +1,8 @@
 import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
-import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent } from '@mui/material';
+import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent, Tooltip } from '@mui/material';
 import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
-import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference } from '../../../../redux/pageComponentState';
+import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference, getStructures } from '../../../../redux/pageComponentState';
 import { MapMachineContext, MapContext } from '../../PortfolioOverview';
 import { addFeatureToMapLayer, removeFeatureFromMapLayer } from '../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache, usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
@@ -16,11 +16,62 @@ import { getActiveLevels, getCachedFile } from '../../../../../services/utils';
 
 
 
-const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath, send}) => {
+const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath, send, currentEntity}) => {
     const dispatch = useDispatch();
 
     const [thumbnailUrls, setThumbnailUrls] = useState({});
     const selectedGraphicReferece = useSelector(getSelectedGraphicReference);
+    const structures = useSelector(getStructures);
+
+    // Helper function to check compatibility and get detailed reasons
+    const getStructureCompatibility = (structure) => {
+        if (!currentEntity || !structure.requiredBackgroundProperties) {
+            return { compatible: true, reasons: [] }; // If no requirements or no entity, allow all
+        }
+
+        const requirements = structure.requiredBackgroundProperties;
+        const reasons = [];
+        let compatible = true;
+        
+        // Check each required property
+        for (const [propertyKey, requirement] of Object.entries(requirements)) {
+            const entityValue = currentEntity[propertyKey];
+            const requiredValues = requirement.values || [];
+            
+            // If entity doesn't have the property or its value is not in required values, it's incompatible
+            if (!entityValue || !requiredValues.includes(entityValue)) {
+                compatible = false;
+                const reason = entityValue 
+                    ? `${propertyKey}: "${entityValue}" not in [${requiredValues.join(', ')}]`
+                    : `${propertyKey}: not set (required: [${requiredValues.join(', ')}])`;
+                reasons.push(reason);
+            }
+        }
+        
+        return { compatible, reasons };
+    };
+
+    // Get available structures with their corresponding graphic references
+    const availableStructures = useMemo(() => {
+        if (!structures || !mapGraphicReferences) return [];
+        
+        return Object.values(structures)
+            .map(structure => {
+                // Find matching graphic reference by _id === mapGraphicRefId
+                const graphicRef = mapGraphicReferences.find(ref => ref._id === structure.mapGraphicRefId);
+                if (!graphicRef) return null;
+                
+                const { compatible, reasons } = getStructureCompatibility(structure);
+                
+                return {
+                    structure,
+                    graphicRef,
+                    compatible,
+                    incompatibilityReasons: reasons
+                };
+            })
+            .filter(item => item !== null); // Remove structures without matching graphic references
+    }, [structures, mapGraphicReferences, currentEntity]);
 
     useEffect(() => {
         return () => {
@@ -31,7 +82,10 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
     }, [])
 
     // Handle thumbnail click for building selection
-    const handleThumbnailClick = (graphicReference) => {
+    const handleThumbnailClick = (graphicReference, compatible) => {
+        // Don't allow selection of incompatible structures
+        if (!compatible) return;
+        
         if(selectedGraphicReferece !== graphicReference){
             dispatch(setDraftType(lowerNamedPath.state));
             dispatch(setIsSelectingPosition(true));
@@ -49,7 +103,8 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
     useEffect(() => {
         const loadThumbnails = async () => {
             const urls = {};
-            for (const ref of mapGraphicReferences) {
+            for (const item of availableStructures) {
+                const ref = item.graphicRef;
                 if (ref.thumbnail) {
                     try {
                         const url = await getCachedFile(ref.thumbnail);
@@ -64,10 +119,10 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
             setThumbnailUrls(urls);
         };
 
-        if (mapGraphicReferences && mapGraphicReferences.length > 0) {
+        if (availableStructures && availableStructures.length > 0) {
             loadThumbnails();
         }
-    }, [mapGraphicReferences]);
+    }, [availableStructures]);
 
     return (
         <Box sx={{ mt: 2 }}>
@@ -86,33 +141,55 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
                 </CustomButton>
             </div>
 
-            {mapGraphicReferences.length === 0 ? (
+            {availableStructures.length === 0 ? (
                 <Typography variant="body2" color="textSecondary">
-                    No building types available
+                    No structure types available
                 </Typography>
             ) : (
                 <Grid container spacing={2}>
-                    {mapGraphicReferences.map((ref, index) => (
-                        <Grid item xs={6} sm={4} md={3} key={index}>
+                    {availableStructures.map((item, index) => {
+                        const { structure, graphicRef, compatible, incompatibilityReasons } = item;
+                        const isSelected = graphicRef === selectedGraphicReferece;
+                        
+                        // Create tooltip content for incompatible structures
+                        const tooltipTitle = compatible ? '' : (
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                    Requirements not met:
+                                </Typography>
+                                {incompatibilityReasons.map((reason, idx) => (
+                                    <Typography key={idx} variant="body2" sx={{ fontSize: '0.75rem' }}>
+                                        • {reason}
+                                    </Typography>
+                                ))}
+                            </Box>
+                        );
+                        
+                        const cardComponent = (
                             <Card
                                 style={{
-                                    cursor: 'pointer',
-                                    backgroundColor: ref === selectedGraphicReferece ? 'rgba(223, 21, 140, 0.1)' : 'transparent',
-                                    border: ref === selectedGraphicReferece ? '2px solid #DF158C' : '2px solid transparent',
-                                    '&:hover': {
-                                        transform: ref === selectedGraphicReferece ? 'scale(1.02) translateY(-2px)' : 'translateY(-2px)',
-                                        boxShadow: ref === selectedGraphicReferece ? '0 6px 16px rgba(223, 21, 140, 0.4)' : '0 4px 8px rgba(0,0,0,0.15)'
-                                    }
+                                    cursor: compatible ? 'pointer' : 'not-allowed',
+                                    opacity: compatible ? 1 : 0.5,
+                                    backgroundColor: isSelected ? 'rgba(223, 21, 140, 0.1)' : 'transparent',
+                                    border: isSelected ? '2px solid #DF158C' : '2px solid transparent',
+                                    transition: 'all 0.2s ease-in-out',
+                                    '&:hover': compatible ? {
+                                        transform: isSelected ? 'scale(1.02) translateY(-2px)' : 'translateY(-2px)',
+                                        boxShadow: isSelected ? '0 6px 16px rgba(223, 21, 140, 0.4)' : '0 4px 8px rgba(0,0,0,0.15)'
+                                    } : {}
                                 }}
-                                onClick={() => handleThumbnailClick(ref)}
+                                onClick={() => handleThumbnailClick(graphicRef, compatible)}
                             >
-                                {ref.thumbnail && thumbnailUrls[ref.thumbnail] ? (
+                                {graphicRef.thumbnail && thumbnailUrls[graphicRef.thumbnail] ? (
                                     <CardMedia
                                         component="img"
                                         height="80"
-                                        image={thumbnailUrls[ref.thumbnail]}
-                                        alt={ref.name || 'Building thumbnail'}
-                                        sx={{ objectFit: 'cover' }}
+                                        image={thumbnailUrls[graphicRef.thumbnail]}
+                                        alt={structure.name || 'Structure thumbnail'}
+                                        sx={{ 
+                                            objectFit: 'cover',
+                                            filter: compatible ? 'none' : 'grayscale(100%)'
+                                        }}
                                     />
                                 ) : (
                                     <Box
@@ -121,20 +198,68 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            backgroundColor: '#f5f5f5'
+                                            backgroundColor: '#f5f5f5',
+                                            filter: compatible ? 'none' : 'grayscale(100%)'
                                         }}
                                     >
-                                        <Dashboard sx={{ fontSize: 32, color: '#ccc' }} />
+                                        <Dashboard sx={{ fontSize: 32, color: compatible ? '#ccc' : '#999' }} />
                                     </Box>
                                 )}
                                 <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
-                                    <Typography variant="caption" display="block" sx={{ textAlign: 'center', fontSize: '0.75rem' }}>
-                                        {ref.name || `Building ${index + 1}`}
+                                    <Typography 
+                                        variant="caption" 
+                                        display="block" 
+                                        sx={{ 
+                                            textAlign: 'center', 
+                                            fontSize: '0.75rem',
+                                            color: compatible ? 'inherit' : 'text.disabled'
+                                        }}
+                                    >
+                                        {structure.name || `Structure ${index + 1}`}
                                     </Typography>
+                                    {!compatible && (
+                                        <Typography 
+                                            variant="caption" 
+                                            display="block" 
+                                            sx={{ 
+                                                textAlign: 'center', 
+                                                fontSize: '0.65rem',
+                                                color: 'error.main',
+                                                fontStyle: 'italic'
+                                            }}
+                                        >
+                                            Requirements not met
+                                        </Typography>
+                                    )}
                                 </CardContent>
                             </Card>
-                        </Grid>
-                    ))}
+                        );
+                        
+                        return (
+                            <Grid item xs={6} sm={4} md={3} key={structure._id || index}>
+                                {compatible ? (
+                                    cardComponent
+                                ) : (
+                                    <Tooltip 
+                                        title={tooltipTitle} 
+                                        arrow 
+                                        placement="top"
+                                        componentsProps={{
+                                            tooltip: {
+                                                sx: {
+                                                    maxWidth: 300,
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: 'rgba(200, 200, 200, 0.9)'
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <span>{cardComponent}</span>
+                                    </Tooltip>
+                                )}
+                            </Grid>
+                        );
+                    })}
                 </Grid>
             )}
         </Box>
@@ -161,7 +286,7 @@ export default function SiteDetails({ context }) {
         const lowerLevelState = Object.assign({}, ...levels
             .filter(l => l.idKey && l.scopeLevel < namedPath.scopeLevel)
             .map(l => ({[l.idKey]: currentState.context[l.idKey]})
-        ));
+            ));
 
         const higherNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel - 1);
         const lowerNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel + 1);
@@ -406,7 +531,7 @@ export default function SiteDetails({ context }) {
 
         // Update map layer if needed
         if (mapInstance && namedPath) {
-            
+
             // Remove current feature and add restored one
             removeFeatureFromMapLayer({
                 map: mapInstance,
@@ -600,7 +725,7 @@ export default function SiteDetails({ context }) {
     }, [mapInstance, isDrawingMode]);
 
     useEffect(() => {
-       currentDrawingPinsTracker.current =  currentDrawingPins;
+        currentDrawingPinsTracker.current =  currentDrawingPins;
     }, [currentDrawingPins])
 
     // Handle map clicks for drawing
@@ -869,28 +994,28 @@ export default function SiteDetails({ context }) {
                     allowReadOnlyOverride={currentEntity?.isDraft}
                 />
                 <Divider style={{ margin: '16px 0'}} />
-                    <Box style={{ marginTop: 12, display: 'flex', justifyContent: "right", gap: 14}}>
-                        <CustomButton
-                            variant="outlined"
-                            color="primary"
-                            onClick={handleAddEntityInfo}
-                            style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
-                            startIcon={<Add/>}
-                            disabled={!isInEditMode}
-                        >
-                            Add {namedPath?.displayName} Info
-                        </CustomButton>
-                        <CustomButton
-                            variant="contained"
-                            color="primary"
-                            onClick={handleStartNewBuildingMode}
-                            style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
-                            startIcon={<Dashboard/>}
-                            disabled={!isInEditMode}
-                        >
-                            Add Structure
-                        </CustomButton>
-                    </Box>
+                <Box style={{ marginTop: 12, display: 'flex', justifyContent: "right", gap: 14}}>
+                    <CustomButton
+                        variant="outlined"
+                        color="primary"
+                        onClick={handleAddEntityInfo}
+                        style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
+                        startIcon={<Add/>}
+                        disabled={!isInEditMode}
+                    >
+                        Add {namedPath?.displayName} Info
+                    </CustomButton>
+                    <CustomButton
+                        variant="contained"
+                        color="primary"
+                        onClick={handleStartNewBuildingMode}
+                        style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
+                        startIcon={<Dashboard/>}
+                        disabled={!isInEditMode}
+                    >
+                        Add Structure
+                    </CustomButton>
+                </Box>
             </Box>
 
             {isInEditMode && (
@@ -933,7 +1058,7 @@ export default function SiteDetails({ context }) {
             <Divider style={{ margin: '16px 0px', marginTop: 25}} />
 
             {isNewBuildingMode ? (
-                <BuildingThumbnails {...{mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath, send}} />
+                <BuildingThumbnails {...{mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath, send, currentEntity}} />
             ) : (
                 <>
                     <Typography variant="body2">Buildings: {buildings.length}</Typography>

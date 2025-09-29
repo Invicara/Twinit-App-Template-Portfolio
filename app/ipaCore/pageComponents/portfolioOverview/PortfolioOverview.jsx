@@ -15,8 +15,7 @@ import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
 import clsx from "clsx";
 import {Custom2D3DToggle} from "./components/map/control/Custom2D3DToggle";
-import { IafItemSvc } from '@dtplatform/platform-api';
-import { setMapGraphicReferences, setMapTypes } from '../../redux/pageComponentState.js';
+import { setMapGraphicReferences, setMapTypes, setStructures } from '../../redux/pageComponentState.js';
 import {useSelector} from "react-redux";
 import {Legend} from "./components/map/control/Legend.jsx";
 import {flushSync} from "react-dom";
@@ -98,8 +97,6 @@ const DEFAULT_PATHS = [
 ]
 
 export default function PortfolioOverview({handler, userConfig, selectedItems}) {
-    window.handler = handler;
-    window.userConfig = userConfig;
     const store = useStore();
 
     const componentConfig = handler?.componentConfig;
@@ -124,7 +121,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
 
     const classes = useStyles({ stateKey });
     const dispatch = useDispatch();
-    
 
     // MMV Configuration state -> this should be removed to a user config or a script
     const [mmvConfig, setMmvConfig] = useState();
@@ -159,9 +155,15 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             dispatch(setMapGraphicReferences(mapGraphicReferences));
         }
 
+        const fetchStructures = async () => {
+            const mapStructures = await ScriptCache.runScript("getMapStructures", {namedPaths});
+            dispatch(setStructures(mapStructures));
+        }
+
         fetchGisConfig();
         fetchMapTypes();
         fetchMapRepresentations();
+        fetchStructures();
     },[namedPaths])
 
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
@@ -246,12 +248,17 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         // Handle MMV events as needed
     },[]);
 
+
     const onMapReady = useCallback((map) => {
+
+
         setMapInstance(map); // Store map instance for refresh
         actor.send({ type: 'MAP_READY', map, mmvSend: setCommand, setPopupState });
     },[actor, setCommand])
 
     const mapMachineContextValue = useMemo(() => {
+        console.log('actor', actor)
+
         return { actor, send: actor.send }
     }, [actor]);
 
@@ -278,7 +285,15 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                         </div>
                     </div>
                     <Grid container className={classes.mainContent}>
-                        <StatePanel currentState={currentState} context={currentState.context} send={actor.send} className={classes.statePanel} />
+                        <StatePanel
+                            handler={handler}
+                            currentState={currentState}
+                            context={currentState.context}
+                            send={actor.send}
+                            className={classes.statePanel}
+                            userConfig={userConfig}
+                            snapshot={snapshot}
+                        />
                         <Grid item xs className={classes.viewerContainer}>
                             <div
                                 className={clsx(classes.mmvContainer, "dark-map", {'map-selecting-position' : isSelectingPosition})}
