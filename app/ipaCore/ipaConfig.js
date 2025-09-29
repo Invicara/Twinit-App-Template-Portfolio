@@ -24,9 +24,9 @@ const ipaConfig = {
       statePanel: {
          componentPaths:
              {
-                "portfolio": "PortfolioDetails.jsx",
+                "portfolio": "portfolio/PortfolioDetails.jsx",
                 "portfolio.site": "SiteDetails.jsx",
-                "portfolio.site.building": "tabs/BuildingTabs.jsx",
+                "portfolio.site.building": "building/tabs/BuildingTabs.jsx",
                 "portfolio.site.building.modelElement": undefined,
              }
       }
