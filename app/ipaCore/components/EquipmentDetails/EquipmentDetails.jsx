@@ -51,7 +51,8 @@ export default function EquipmentDetails() {
   const { selectedModelComposite } = useContext(ModelContext);
 
   const match = selectedModelComposite?._name?.match(/_(\d+)$/);
-  const buildingId = match ? match?.[1]?.substring(0, 2) : null;
+  const buildingId = match ? match[1].slice(-2) : null;
+
 
   useEffect(() => {
     if (!selectedModelComposite || !buildingId) {
