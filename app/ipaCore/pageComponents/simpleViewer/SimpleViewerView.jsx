@@ -1,4 +1,3 @@
-
 import React, { useRef, useContext, useState, useEffect } from 'react'
 
 // https://github.com/bvaughn/react-resizable-panels
@@ -23,6 +22,12 @@ import { getTemporaryMapBoxToken } from '../utils/mapboxUtils'
 import { ModelContext } from '../../contexts/ModelContext'
 
 import TablePanel from './panels/TablePanel'
+
+import EngineerChangePanel from '../../components/panels/EngineerChangePanel'
+import ViewerBottomPanel from './panels/ViewerBottomPanel'
+
+import ArrowDownwardIcon from '@material-ui/icons/ArrowDownward';
+import ArrowUpwardIcon from '@material-ui/icons/ArrowUpward';
 
 import "@dtplatform/iaf-viewer/dist/iaf-viewer.css";
 import './SimpleViewerView.scss'
@@ -64,6 +69,12 @@ const SimpleViewerView = ({ handler }) => {
          Infrastructural: true
       }
    })
+
+   const [isBottomECPanelOpen, setBottomECPanelIsOpen] = useState(true)
+
+   const panelControl = () => {
+      setBottomECPanelIsOpen(!isBottomECPanelOpen)
+   }
 
    useEffect(() => {
 
@@ -112,7 +123,15 @@ const SimpleViewerView = ({ handler }) => {
 
                   </div>
                </StackableDrawer>
-               <div className='viewer'>
+
+{/* // TODO Do we want this panel to always appear when clicking into the Model View page? This might only be rendered from the Portfolio overview*/}
+               <StackableDrawer level={4} iconKey='fa-compress-alt' tooltip='Engineering Change' isDrawerOpen={false} fixedWidth={'460px'}>
+                  <div className='viewer-sidebar'>
+                     <EngineerChangePanel />
+                  </div>
+               </StackableDrawer>
+
+               <div className={`viewer`}  style={{height: isBottomECPanelOpen ? 'calc(100% - 460px)' : ''}}>
                   {selectedModelComposite && selectedModelCompositeVersion && <IafViewerDBM
                      ref={viewerRef}
                      model={{ ...selectedModelComposite, _versions: [selectedModelCompositeVersion] }}
@@ -127,17 +146,25 @@ const SimpleViewerView = ({ handler }) => {
                         token: mapboxToken
                      }}
                   />}
-               </div>
 
-            </div>
+               {/* // TODO this panel should only appear after we have selected an EC from the left panel */}
+                   <div className={`viewer-bottom-panel-header ${!isBottomECPanelOpen ? 'closed' : ''}`}>
+                     {isBottomECPanelOpen ? <ArrowDownwardIcon style={{ color: '#5D5D5D' }} onClick={panelControl} />
+                     : <ArrowUpwardIcon style={{ color: '#5D5D5D' }} onClick={panelControl} />}
+                  </div>
+                   <ViewerBottomPanel style={{left: '360px', display: 'none'}} isBottomECPanelOpen={isBottomECPanelOpen}/>
+               </div>
+            </div> 
          </Panel>
-         <ResizeHandle />
+
+         {/* // TODO we might want to hide this panel if we are dislaying the EC bottom panel */}
+          {/* <ResizeHandle />
          <Panel id="table-panel" collapsible={true} order={2} defaultSize={1} className='table-panel'>
             <TablePanel
                readOnly={!handler?.config?.manageFiles}
                onView={(docInfo) => setDocView(docInfo)}
             />
-         </Panel>
+         </Panel> */}
       </PanelGroup>
 
    </div>
