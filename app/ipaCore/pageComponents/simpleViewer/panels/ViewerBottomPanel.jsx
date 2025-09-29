@@ -114,23 +114,47 @@ const equipment = {
   },
 };
 
+function normalizeProperties(arrOrObj) {
+  if (!arrOrObj) return {};
+  if (Array.isArray(arrOrObj)) {
+    return arrOrObj.reduce((acc, { name, val, ...rest }) => {
+      acc[name] = { val, ...rest };
+      return acc;
+    }, {});
+  }
+  return arrOrObj; // already in old object format
+}
+
+function normalizeTechParams(arrOrObj) {
+  if (!arrOrObj) return {};
+  if (Array.isArray(arrOrObj)) {
+    return arrOrObj.reduce((acc, { name, val, ...rest }) => {
+      acc[name] = { val, ...rest };
+      return acc;
+    }, {});
+  }
+  return arrOrObj;
+}
+
 function flattenEquipment(e) {
-    return {
+  const props = normalizeProperties(e.properties);
+  const tech = normalizeTechParams(e.TechnicalParameters);
+
+  return {
     _id: e._id,
     equipmentId: e.equipmentId,
     siteEquipmentId: e.siteEquipmentId,
     equipmentType: e.equipmentType,
     revision: e.revision,
-    Manufacturer: e.properties?.Manufacturer?.val || '',
-    Model: e.properties?.Model?.val || '',
-    'Safety Class': e.properties?.['Safety Class']?.val || '',
-    'Operating Status': e.properties?.['Operating Status']?.val || '',
-    'Operational Status Date': e.properties?.['Operational Status Date']?.val || '',
-    FlowRate: e.TechnicalParameters?.FlowRate?.val || '',
-    Power: e.TechnicalParameters?.Power?.val || '',
+    Manufacturer: props?.Manufacturer?.val || '',
+    Model: props?.Model?.val || '',
+    'Safety Class': props?.['Safety Class']?.val || '',
+    'Operating Status': props?.['Operating Status']?.val || '',
+    'Operational Status Date': props?.['Operational Status Date']?.val || '',
+    FlowRate: tech?.FlowRate?.val || '',
+    Power: tech?.Power?.val || '',
   };
 }
-
 const equipmentSchema = {
   type: 'object',
   properties: {
@@ -142,30 +166,59 @@ const equipmentSchema = {
     Power: { type: 'number', title: 'Power' },
   },
 };
+
+function buildSchema(flat, editableFields = []) {
+  const properties = Object.keys(flat).reduce((acc, key) => {
+    if (['_id', 'siteEquipmentId', 'equipmentType'].includes(key)) {
+      return acc; // skip metadata
+    }
+
+    acc[key] = {
+      type: typeof flat[key] === 'number' ? 'number' : 'string',
+      title: key.replace(/([A-Z])/g, ' $1').trim(),
+      readOnly: !editableFields.includes(key),
+    };
+
+    return acc;
+  }, {});
+
+  return {
+    type: 'object',
+    properties,
+    required: Object.keys(properties), // mark all included fields as required
+  };
+}
+
 const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
   const classes = useStyles()
   const { sliceElements, siteEquipment } = useContext(ModelContext)
   const [isOpen, setIsOpen] = useState(false)
   const [properties, setProperties] = useState([])
+  const [data, setData] = useState(null);
 
   const flattened = items?.map(flattenEquipment);
 
   useEffect(() => {
     if (items) {
-      setProperties(items.map((el) => ({ ...el, isEditing: false })))
+    //   setProperties(items.map((el) => ({ ...el, isEditing: false })))
     }
   }, [items])
 
    useEffect(() => {
-    if(siteEquipment && siteEquipment?.length > 0) {
-        console.log('EC8 siteEquipment', siteEquipment);
-        const facilityId = siteEquipment.data[0].site;
+
+    if(siteEquipment && siteEquipment?.data?.length > 0) {
+        const facilityId = siteEquipment.data[0]?.site;
         const EC = siteEquipment.ec;
+        const buildingId = siteEquipment.data[0]?.unit;
+        const equipmentId = siteEquipment.data[0]?.['Equipment Id'];
 
         const run = async () => {
-            
-            const data = await siteEquipmentService(EC, facilityId);
-            
+            const siteEqResponse = await siteEquipmentService(EC, facilityId, buildingId, equipmentId);
+           // const  flattenSiteEq = flattenEquipment(siteEq?.revisions?._list);
+            const revisions = siteEqResponse?.revisions?._list;
+            console.log('EC9 revisions', JSON.stringify(revisions));
+            setProperties(revisions.map((el) => ({ ...el, isEditing: false })));
+            setData(siteEqResponse?.revisions?._list);
         }
 
         run();
@@ -217,7 +270,7 @@ const handleChange = (index, path, value) => {
   if (!isBottomECPanelOpen) return null
 
   return (
-    <div className={classes.panel} style={{ height: isOpen ? 427 : 32 }}>
+    <div className={classes.panel} style={{ height: isOpen ? 350 : 32 }}>
       <div className={classes.handle} onClick={() => setIsOpen(!isOpen)}>
         {isOpen ? <KeyboardArrowDown /> : <KeyboardArrowUp />}
       </div>
@@ -226,7 +279,10 @@ const handleChange = (index, path, value) => {
   <div className={classes.content}>
     {properties && properties.length > 0 ? (
       properties.map((prop, index) => {
-        const flat = flattenEquipment(prop) 
+
+        const flat = flattenEquipment(prop);
+        console.log('EC8 flat', flat);
+        const dynamicSchema = buildSchema(flat, []);
 
         return (
           <Paper key={prop._id || index} className={classes.card}>
@@ -245,8 +301,10 @@ const handleChange = (index, path, value) => {
 
             <InfoComponent
               entity={flat}               
-              type={equipmentSchema}       
+              type={dynamicSchema}   // use dynamic schema instead of fixed one
               entityType="equipment"
+              hidePropertyActions={true}
+              disabled={true}
               handleChange={(val, name) =>
                 console.log('changed', prop._id, name, val)
               }
