@@ -30,6 +30,22 @@ function countsForSiteBuildings(map, feature, config) {
     return counts;
 }
 
+function countsForSiteECs(map, feature, config) {
+    let bins = config.bins;
+    const counts = new Array(bins.length).fill(0);
+    for (let i = 0; i < bins.length; i++) {
+        const bin = bins[i];
+        const val = bin.id && feature.properties?.ecsByStatus?.[bin.id]?._total;
+        if(val) {
+            counts[i] = val;
+        }
+    }
+    return counts;
+}
+
+function countsForSiteOpenECs(map, feature, config) {
+    return [feature.properties?.ecsByStatus?.REGISTERED?._total || 0 + feature.properties?.ecsByStatus?.APPROVED?._total || 0];
+}
 
 
 const statusConfig = {
@@ -60,6 +76,14 @@ const THEMES = {
             { id: "mid",   min: 900,  max: 1300, color: "#1DC0F7", label: "900–1299" },
             { id: "high",  min: 1300, max: 1450, color: "#0072BC", label: "1300–1449" },
             { id: "ultra", min: 1450, max: null, color: "#1D1D1D", label: "≥1450" }
+        ],
+        "circle-radius": 7
+    },
+    BY_EC_STATUS: {
+        bins: [
+            { id: "REGISTERED", color: "#b8b8b8", label: "Registered" },
+            { id: "APPROVED", color: "#f3be5a", label: "Approved"},
+            { id: "CLOSED", color: "#80b777", label: "Closed" }
         ],
         "circle-radius": 7
     }
@@ -130,14 +154,15 @@ let scriptModule = {
         switch (stateValue) {
             case 'portfolio': {
 
-                const legend = THEMES.BY_CAPACITY;
+                //legend will use "getCounts" if property is not in the config
+                const legend = THEMES.BY_EC_STATUS;
 
                 const theme = {
-                    ////we will kepp site invisible by default and only show marker instead
+                    ////we will keep building invisible by default and only show marker instead
                     /*
                     "building-features-layer": THEMES.BY_CAPACITY,
                     */
-                    //we will kepp site invisible by default and only show marker instead
+                    //we will keep site invisible by default and only show marker instead
                     /*"site-features-layer": {
                         property: "buildings_count",
                         bins: [
@@ -152,13 +177,14 @@ let scriptModule = {
 
                 const singleMarkers = [{
                     featureDef: {
-                        //this is used to generate graphic ID
+                        //this is used to generate marker graphic ID
                         path: "site",
                         idKey: "siteId"
                     },
                     sourceId: "site-features-centroids",
-                    getCounts: countsForSiteBuildings,//this will overwrite the default bin assignment to feature
-                    config: THEMES.BY_CAPACITY,
+                    getCounts: countsForSiteECs,//this will overwrite the default bin assignment to feature
+                    getTotalCounts: countsForSiteOpenECs,//this will overwrite the default bin assignment to feature
+                    config: THEMES.BY_EC_STATUS,
                     "popupConfig": {
                         "statusPopup": {
                             titleProp: "properties.name",
@@ -283,7 +309,30 @@ let scriptModule = {
         ]
 
         return commands;
-    }
+    },
+    filterRuleFns(input) {
+        return {
+            statusIn:
+            ({ values }) =>
+            (building) => {
+                if (building.StatusId == null) return false;
+                return values.map(String).includes(String(building.StatusId));
+            },
+
+            capacityBetween:
+            ({ min, max }) =>
+            (building) => {
+                const cap = building.Capacity;
+                if (typeof cap !== "number") return false;
+
+                if (max == null) {
+                return cap >= min;
+                }
+
+                return cap >= min && cap < max;
+            },
+        };
+    },
 }
 
 export default scriptModule

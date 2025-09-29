@@ -14,9 +14,13 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
 
     const mmvContainerRef = useRef();
+    useEffect(()=>{
+        return () => {
+            mmvContainerRef.current?.remove()
+        }
+    },[])
 
     const [mapboxToken, setMapboxToken] = useState();
-    window.mapboxToken = mapboxToken
     const intervalRef = useRef();
 
     const getMapboxToken = async () => {
