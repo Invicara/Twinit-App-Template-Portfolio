@@ -12,6 +12,7 @@ import {
     Paper
 } from "@mui/material";
 import { styled } from '@mui/material/styles';
+import {formatDateOnly} from './common/utility.js';
 
 const StyledTableHeadRow = styled(TableRow)(({ theme }) => ({
     backgroundColor: '#eaeaea',
@@ -81,17 +82,17 @@ const EngineeringChangeList = ({ rows }) => {
                                             }}
                                         >
                                             <Badge badgeContent={`R:${row.statusSummary.REGISTERED}`} color="primary" />&nbsp;
-                                            <Badge badgeContent={`A:${row.statusSummary.APPROVED}`} color="success" />&nbsp;
-                                            <Badge badgeContent={`C:${row.statusSummary.CLOSED}`} color="warning" />
+                                            <Badge badgeContent={`A:${row.statusSummary.APPROVED}`} color="warning" />&nbsp;
+                                            <Badge badgeContent={`C:${row.statusSummary.CLOSED}`} color="success" />
                                         </Box>
                                     </TableCell>
                                     <TableCell>{row.baseRevision}</TableCell>
                                     <TableCell>{row.equipmentRevision}</TableCell>
                                     <TableCell>{row.type}</TableCell>
                                     <TableCell>{row.id}</TableCell>
-                                    <TableCell>{row.dateProposed.split('T')[0]}</TableCell>
-                                    <TableCell>{row.dateReviewed.split('T')[0]}</TableCell>
-                                    <TableCell>{row.dateImplemented.split('T')[0]}</TableCell>
+                                    <TableCell>{formatDateOnly(row.dateProposed)}</TableCell>
+                                    <TableCell>{formatDateOnly(row.dateReviewed)}</TableCell>
+                                    <TableCell>{formatDateOnly(row.dateImplemented)}</TableCell>
                                 </StyledTableRow>
                             ))}
                     </TableBody>
