@@ -1,9 +1,9 @@
 import * as React from "react";
 import { Tabs, Tab, Box, CircularProgress } from "@mui/material";
-import BuildingInfo from "../building/BuildingInfo.jsx";
+import BuildingInfo from "../BuildingInfo.jsx";
 
 // Pretend this is your heavy chart tab component
-const DashboardTab = React.lazy(() => import("../building/BuildingDashboard.jsx"));
+const DashboardTab = React.lazy(() => import("../BuildingDashboard.jsx"));
 
 function TabPanel({
                       value,
