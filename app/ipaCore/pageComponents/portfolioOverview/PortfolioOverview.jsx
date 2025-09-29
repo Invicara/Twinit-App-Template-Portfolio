@@ -15,7 +15,7 @@ import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
 import clsx from "clsx";
 import {Custom2D3DToggle} from "./components/map/control/Custom2D3DToggle";
-import { setMapGraphicReferences, setMapTypes } from '../../redux/pageComponentState.js';
+import { setMapGraphicReferences, setMapTypes, setStructures } from '../../redux/pageComponentState.js';
 import {useSelector} from "react-redux";
 import {Legend} from "./components/map/control/Legend.jsx";
 import {flushSync} from "react-dom";
@@ -155,9 +155,15 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             dispatch(setMapGraphicReferences(mapGraphicReferences));
         }
 
+        const fetchStructures = async () => {
+            const mapStructures = await ScriptCache.runScript("getMapStructures", {namedPaths});
+            dispatch(setStructures(mapStructures));
+        }
+
         fetchGisConfig();
         fetchMapTypes();
         fetchMapRepresentations();
+        fetchStructures();
     },[namedPaths])
 
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
