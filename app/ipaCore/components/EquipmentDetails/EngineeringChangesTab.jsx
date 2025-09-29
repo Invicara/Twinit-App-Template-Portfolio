@@ -131,8 +131,6 @@ const focusLogsInViewer = async (logs, setSliceElementsByQuery, setTriggeredByFo
       // queryPartial: { 'properties.Mark.val': { $in: allElementIds } }
     },
   ]);
-
-  console.log('EC4 result', result);
 };
 
 export default function EngineeringChangesTab({ data, loading }) {
@@ -183,7 +181,7 @@ export default function EngineeringChangesTab({ data, loading }) {
     setIsBottomECPanelOpen(true);
     setTriggeredByFocusLogs(false);
   } else {
-    setIsBottomECPanelOpen(false);
+   // setIsBottomECPanelOpen(false);
   }
 }, [sliceElements, triggeredByFocusLogs]);
 
