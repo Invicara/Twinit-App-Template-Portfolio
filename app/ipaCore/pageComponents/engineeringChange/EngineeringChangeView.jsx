@@ -5,8 +5,11 @@ import AdvancedFilter from "./AdvanceFilter";
 import {
   Button,
   TextField,
-  Typography
+  Typography,
+  InputAdornment
 } from "@mui/material";
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
 
 const EngineeringChangeView = () => {
   const [rows, setRows] = useState([]);
@@ -51,6 +54,8 @@ const EngineeringChangeView = () => {
     setFilteredRows(result);
   };
 
+  const handleClose = () => setOpenFilter(false);
+
   return (
     <div style={{ padding: '15px' }}>
       <Typography variant="h5" gutterBottom>Engineering Changes</Typography>
@@ -58,15 +63,22 @@ const EngineeringChangeView = () => {
         <TextField
           label="Search EC Title"
           variant="outlined"
-          // size="small"
+          size="small"
           value={searchQuery}
           onChange={handleSearchChange}
           style={{ width: "25%", marginRight: "10px" }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
         />
-        <Button variant="outlined" onClick={() => setOpenFilter(true)}>Advance Filter</Button>
+        <Button startIcon={<FilterListIcon />}  variant="outlined" onClick={() => setOpenFilter(true)}>Advance Filter</Button>
       </div>
       <EngineeringChangeList rows={filteredRows} />
-      <AdvancedFilter openFilter={openFilter} setOpenFilter={setOpenFilter} />
+      <AdvancedFilter openFilter={openFilter} handleClose={handleClose} />
     </div>
   )
 };
