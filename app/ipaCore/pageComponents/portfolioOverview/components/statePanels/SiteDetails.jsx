@@ -274,7 +274,7 @@ export default function SiteDetails({ context }) {
     const { send, actor } = useContext(MapMachineContext);
     const currentState = useXstateSelector(actor, state => state);
 
-    const [levels, currentElementType, namedPath, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath] = useMemo(() => {
+    const [levels, currentElementType, namedPath, namedPaths, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath] = useMemo(() => {
         const levels = getActiveLevels(currentState);
 
         const sPath = levels?.map(el => el.state).join(".");
@@ -296,7 +296,7 @@ export default function SiteDetails({ context }) {
         const entityId = currentState.context[idKey]
         const currentEntity = currentState.context.data[namedPath.state].find(e => e[idKey] === entityId);
 
-        return [levels, cElementType, namedPath, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath];
+        return [levels, cElementType, namedPath, namedPaths, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath];
 
     }, [currentState]);
 
@@ -445,6 +445,21 @@ export default function SiteDetails({ context }) {
             ...lowerLevelState,
             [idKey]: finalizedEntity[idKey]
         });
+
+        if(namedPath.parentState){
+            const parentPath = namedPaths.find(el => el.state === namedPath.parentState);
+            const parentColl = (await IafItemSvc.getNamedUserItems({query: {_shortName: parentPath.collShortName}}))._list[0];
+
+            const parentEntity = currentState.context.data[parentPath.state]
+                .find(el => [currentState.context[parentPath.idKey], finalizedEntity[parentPath.idKey]].includes(el[parentPath.idKey]))
+
+            finalizedEntity._relationships = [{
+                "_relatedUserItemId": parentColl._userItemId,
+                "_relatedToIds": [
+                    parentEntity._id
+                ]
+            }]
+        }
 
         //item service creation side effect
         const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];

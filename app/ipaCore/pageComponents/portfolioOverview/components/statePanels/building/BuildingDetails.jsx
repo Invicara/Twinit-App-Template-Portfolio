@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState, useMemo } from 'react';
-import { Typography, Divider, Box } from '@material-ui/core';
+import { Typography, Divider, Box, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@material-ui/core';
 import CustomButton from '../../../../../components/atoms/CustomButton.jsx';
 import { useDispatch, useSelector } from 'react-redux';
 import { getMapTypes, setMapTypes } from '../../../../../redux/pageComponentState.js';
@@ -10,7 +10,7 @@ import { InfoComponent } from '../../../../../components/InfoComponent/InfoCompo
 import { IafItemSvc } from '@dtplatform/platform-api';
 import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from 'lodash';
-import { Add } from '@material-ui/icons';
+import { Add, Delete } from '@material-ui/icons';
 import { getActiveLevels } from '../../../../../../services/utils.js';
 
 export default function BuildingDetails({ context }) {
@@ -19,7 +19,7 @@ export default function BuildingDetails({ context }) {
     const { send, actor } = useContext(MapMachineContext);
     const currentState = useXstateSelector(actor, state => state);
 
-    const [levels, currentElementType, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath] = useMemo(() => {
+    const [levels, currentElementType, namedPaths, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath] = useMemo(() => {
         const levels = getActiveLevels(currentState);
 
         const sPath = levels?.map(el => el.state).join(".");
@@ -40,7 +40,7 @@ export default function BuildingDetails({ context }) {
         const entityId = currentState.context[idKey]
         const currentEntity = currentState.context.data[namedPath.state].find(e => e[idKey] === entityId);
 
-        return [levels, cElementType, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath];
+        return [levels, cElementType, namedPaths, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath];
 
     }, [currentState]);
 
@@ -52,6 +52,9 @@ export default function BuildingDetails({ context }) {
 
     // Cache for original entity when entering editing mode
     const [cachedOriginalEntity, setCachedOriginalEntity] = useState(null);
+
+    // Delete modal state
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
     // Check if this entity is a draft that needs perimeter drawing
     const isDraftEntity = currentEntity?.isDraft === true;
@@ -251,6 +254,21 @@ export default function BuildingDetails({ context }) {
             [idKey]: finalizedEntity[idKey]
         });
 
+        if(namedPath.parentState){
+            const parentPath = namedPaths.find(el => el.state === namedPath.parentState);
+            const parentColl = (await IafItemSvc.getNamedUserItems({query: {_shortName: parentPath.collShortName}}))._list[0];
+
+            const parentEntity = currentState.context.data[parentPath.state]
+                .find(el => [currentState.context[parentPath.idKey], finalizedEntity[parentPath.idKey]].includes(el[parentPath.idKey]))
+
+            finalizedEntity._relationships = [{
+                "_relatedUserItemId": parentColl._userItemId,
+                "_relatedToIds": [
+                    parentEntity._id
+                ]
+            }]
+        }
+
         //item service creation side effect
         const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
         const result = await IafItemSvc.createRelatedItems(coll._userItemId, [finalizedEntity]);
@@ -336,6 +354,67 @@ export default function BuildingDetails({ context }) {
         console.log(`New field added to ${currentElementType}:`, { fieldName: newFieldName, updatedType });
     };
 
+    // Handle delete modal
+    const handleOpenDeleteModal = () => {
+        setDeleteModalOpen(true);
+    };
+
+    const handleCloseDeleteModal = () => {
+        setDeleteModalOpen(false);
+    };
+
+    // Handle entity deletion
+    const handleDeleteEntity = async () => {
+        if (!currentEntity || !mapInstance || !namedPath) return;
+
+        try {
+            console.log('Deleting entity:', { entityId, currentEntity });
+
+            // 1. Apply UPDATE_DATA action removing the entity
+            const currentData = currentState.context?.data || {};
+            const currentEntities = currentData[currentElementType] || [];
+            const filteredEntities = currentEntities.filter(e => e[idKey] !== entityId);
+            const updatedData = {
+                ...currentData,
+                [currentElementType]: filteredEntities
+            };
+
+            // Update XState context with filtered data
+            send({
+                type: 'UPDATE_DATA',
+                data: updatedData
+            });
+
+            // 2. Apply 'removeMeshElementFromMap' to remove the actual map feature
+            removeMeshElementFromMap({
+                entityType: currentElementType,
+                map: mapInstance,
+                featureId: entityId,
+                namedPath
+            });
+
+            // 3. Get the collection and delete from backend
+            const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
+            const result = await IafItemSvc.deleteRelatedItem(coll._userItemId, currentEntity._id);
+
+            console.log('Entity deleted successfully:', { entityId, result });
+
+            // Navigate back to higher level since the entity no longer exists
+            send({
+                type: 'GO_TO',
+                ...lowerLevelState,
+                [idKey]: null
+            });
+
+            // Close the modal
+            setDeleteModalOpen(false);
+
+        } catch (error) {
+            console.error('Error deleting entity:', error);
+            // You might want to show an error message to the user here
+        }
+    };
+
     return (
         <div>
 
@@ -350,14 +429,26 @@ export default function BuildingDetails({ context }) {
                             </Typography>
                         </div>
                         {!isInEditMode && (
-                            <CustomButton
-                                variant="contained"
-                                color="primary"
-                                onClick={setEntityForEdition}
-                                size="small"
-                            >
-                                Edit {namedPath.displayName}
-                            </CustomButton>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <CustomButton
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={setEntityForEdition}
+                                    size="small"
+                                >
+                                    Edit {namedPath.displayName}
+                                </CustomButton>
+                                <CustomButton
+                                    variant="contained"
+                                    color="secondary"
+                                    onClick={handleOpenDeleteModal}
+                                    size="small"
+                                    startIcon={<Delete />}
+                                    style={{ backgroundColor: '#d32f2f', color: 'white' }}
+                                >
+                                    Delete
+                                </CustomButton>
+                            </div>
                         )}
                     </div>
                     {currentState.context?.[higherNamedPath?.idKey] && <Typography variant="body2">{higherNamedPath.displayName}: {currentState.context[higherNamedPath.idKey]}</Typography>}
@@ -413,6 +504,30 @@ export default function BuildingDetails({ context }) {
                     </Box>
                 </div>
             )}
+
+            {/* Delete Confirmation Modal */}
+            <Dialog open={deleteModalOpen} onClose={handleCloseDeleteModal} maxWidth="sm" fullWidth>
+                <DialogTitle>Delete {namedPath?.displayName || 'Entity'}</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Are you sure you want to delete <strong>"{currentEntity?.name}"</strong>?
+                        This action cannot be undone and will permanently remove the entity from the system.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseDeleteModal} color="primary">
+                        Cancel
+                    </Button>
+                    <Button 
+                        onClick={handleDeleteEntity} 
+                        color="secondary" 
+                        variant="contained"
+                        style={{ backgroundColor: '#d32f2f', color: 'white' }}
+                    >
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 }
