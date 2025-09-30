@@ -235,11 +235,11 @@ let scriptModule = {
             }
             case 'portfolio.site': {
 
-                const legend = THEMES.BY_CAPACITY;
+                const legend = THEMES.BY_EC_STATUS;
 
                 const theme = {
                     //theme building features by Capacity property
-                    "building-features-layer": THEMES.BY_CAPACITY,
+                    "building-features-layer": THEMES.BY_EC_STATUS,
                     //we will keep site features invisible by default
                     /*"site-features-layer": {
                         property: "buildings_count",//TODO: addept property to be a function
@@ -275,7 +275,7 @@ let scriptModule = {
                 return { commands: null, theme, singleMarkers, legend };
             }
             case 'portfolio.site.building': {
-                const legend = THEMES.BY_CAPACITY;
+                const legend = THEMES.BY_EC_STATUS;
                 return {legend}
             }
 
