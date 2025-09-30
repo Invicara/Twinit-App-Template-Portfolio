@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
 import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent, Tooltip } from '@mui/material';
 import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
-import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference, getStructures } from '../../../../redux/pageComponentState';
+import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference, getStructures, setSelectedStructure } from '../../../../redux/pageComponentState';
 import { MapMachineContext, MapContext } from '../../PortfolioOverview';
 import { addFeatureToMapLayer, removeFeatureFromMapLayer } from '../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache, usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
@@ -82,18 +82,20 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
     }, [])
 
     // Handle thumbnail click for building selection
-    const handleThumbnailClick = (graphicReference, compatible) => {
+    const handleThumbnailClick = (structure, graphicReference, compatible) => {
         // Don't allow selection of incompatible structures
         if (!compatible) return;
         
         if(selectedGraphicReferece !== graphicReference){
             dispatch(setDraftType(lowerNamedPath.state));
             dispatch(setIsSelectingPosition(true));
+            dispatch(setSelectedStructure(structure));
             dispatch(setSelectedGraphicReference(graphicReference));
             send({ type: "START_DRAFT" });
         } else {
             dispatch(setDraftType());
             dispatch(setIsSelectingPosition(false));
+            dispatch(setSelectedStructure());            
             dispatch(setSelectedGraphicReference());
             send({ type: "END_DRAFT" });
         }
@@ -178,7 +180,7 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
                                         boxShadow: isSelected ? '0 6px 16px rgba(223, 21, 140, 0.4)' : '0 4px 8px rgba(0,0,0,0.15)'
                                     } : {}
                                 }}
-                                onClick={() => handleThumbnailClick(graphicRef, compatible)}
+                                onClick={() => handleThumbnailClick(structure, graphicRef, compatible)}
                             >
                                 {graphicRef.thumbnail && thumbnailUrls[graphicRef.thumbnail] ? (
                                     <CardMedia
