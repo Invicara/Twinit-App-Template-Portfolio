@@ -10,7 +10,7 @@ import { InfoComponent } from '../../../../../components/InfoComponent/InfoCompo
 import { IafItemSvc } from '@dtplatform/platform-api';
 import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from 'lodash';
-import { Add, Delete } from '@material-ui/icons';
+import { Add, Delete, Edit } from '@material-ui/icons';
 import { getActiveLevels } from '../../../../../../services/utils.js';
 
 export default function BuildingDetails({ context }) {
@@ -435,10 +435,11 @@ export default function BuildingDetails({ context }) {
                                     color="primary"
                                     onClick={setEntityForEdition}
                                     size="small"
+                                    startIcon={<Edit />}
                                 >
-                                    Edit {namedPath.displayName}
+                                    Edit
                                 </CustomButton>
-                                <CustomButton
+                                {!currentEntity?.isDraft && <CustomButton
                                     variant="contained"
                                     color="secondary"
                                     onClick={handleOpenDeleteModal}
@@ -447,7 +448,7 @@ export default function BuildingDetails({ context }) {
                                     style={{ backgroundColor: '#d32f2f', color: 'white' }}
                                 >
                                     Delete
-                                </CustomButton>
+                                </CustomButton>}
                             </div>
                         )}
                     </div>
