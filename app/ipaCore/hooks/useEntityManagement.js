@@ -28,7 +28,9 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
     const selectedCoordinate = useSelector(selectSelectedCoordinate);
     const draftType = useSelector(selectDraftType);
-    const selectedGraphicReferecen = useSelector(getSelectedGraphicReference);
+    const selectedGraphicReference = useSelector(getSelectedGraphicReference);
+    const selectedStructure = useSelector(getSelectedGraphicReference);
+    window.selectedStructure = selectedStructure;
     const types = useSelector(getMapTypes);
 
     const { send, actor } = portContext || {};
@@ -189,7 +191,8 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 Longitude: centerLng,
                 latitude: centerLat,
                 Latitude: centerLat,
-                graphicRefId: selectedGraphicReferecen._id,
+                structureName: selectedStructure.name,
+                graphicRefId: selectedGraphicReference._id,
                 isDraft: true
             };
 
@@ -211,8 +214,8 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             let geometryInfo = null;
             let graphicId = null;
             
-            if (selectedGraphicReferecen && selectedGraphicReferecen._id) {
-                graphicId = selectedGraphicReferecen.graphic;
+            if (selectedGraphicReference && selectedGraphicReference._id) {
+                graphicId = selectedGraphicReference.graphic;
                 geometryInfo = getGeometryInfo(graphicId);
                 console.log('Retrieved geometry info for graphic:', graphicId, geometryInfo);
             }
@@ -315,7 +318,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             dispatch(setDraftType());
             dispatch(setSelectedCoordinate([]));
         }
-    }, [previousIsSelectingPosition, isSelectingPosition, selectedCoordinate, previousClick, clickEvent, draftTypeSchema, draftType, selectedGraphicReferecen, namedPathDict, currentState, send, dispatch, mapInstance]);
+    }, [previousIsSelectingPosition, isSelectingPosition, selectedCoordinate, previousClick, clickEvent, draftTypeSchema, draftType, selectedGraphicReference, namedPathDict, currentState, send, dispatch, mapInstance]);
 
     return <></>
 };
