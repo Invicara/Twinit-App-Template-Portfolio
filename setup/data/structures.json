@@ -5,11 +5,6 @@
         "structureMetadata": {},
         "name": "tower",
         "requiredBackgroundProperties": {
-            "siteType": {
-                "values": [
-                    "900MW"
-                ]
-            }
         }
     },
     {
@@ -18,11 +13,6 @@
         "structureMetadata": {},
         "name": "antena",
         "requiredBackgroundProperties": {
-            "siteType": {
-                "values": [
-                    "1300MW"
-                ]
-            }
         }
     },
     {
@@ -31,11 +21,6 @@
         "structureMetadata": {},
         "name": "exchange",
         "requiredBackgroundProperties": {
-            "siteType": {
-                "values": [
-                    "1450MW"
-                ]
-            }
         }
     }
 ]
