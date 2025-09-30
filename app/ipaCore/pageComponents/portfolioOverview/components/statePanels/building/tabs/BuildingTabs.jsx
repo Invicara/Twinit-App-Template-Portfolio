@@ -44,7 +44,7 @@ export default function LazyTabs({context}) {
         <Box sx={{ p: 0, m: 0 }}>
             <Tabs value={value} onChange={handleChange} aria-label="building tabs" variant="fullWidth">
                 <Tab id="tab-0" label="Info" aria-controls="tabpanel-0" />
-                <Tab id="tab-1" label="Dashboard" aria-controls="tabpanel-1" />
+                {/* <Tab id="tab-1" label="Dashboard" aria-controls="tabpanel-1" />*/}
             </Tabs>
 
             {/* Tab 0: lightweight, mounts immediately */}
@@ -52,12 +52,13 @@ export default function LazyTabs({context}) {
                 <BuildingInfo context={context}></BuildingInfo>
             </TabPanel>
 
-            {/* Tab 1: heavy, code-split + only mounts on first open */}
+            {/* Tab 1: heavy, code-split + only mounts on first open
             <TabPanel value={value} index={1} mounted={visited.has(1)}>
                 <React.Suspense fallback={<CircularProgress />}>
                     <DashboardTab />
                 </React.Suspense>
             </TabPanel>
+             */}
         </Box>
     );
 }

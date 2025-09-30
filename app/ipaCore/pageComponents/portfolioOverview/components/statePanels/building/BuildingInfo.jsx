@@ -61,7 +61,7 @@ export default function BuildingInfo({context}) {
 
         return (
         <Box p={0} mb={2}>
-            <Accordion>
+            <Accordion defaultExpanded={currentBuilding?.isDraft || currentBuilding?.isEditing}>
                 <AccordionSummary
                     expandIcon={<ExpandMoreIcon />}
                     aria-controls="panel1-content"
