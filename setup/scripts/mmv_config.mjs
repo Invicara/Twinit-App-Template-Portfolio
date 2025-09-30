@@ -67,6 +67,19 @@ const statusConfig = {
     },
 }
 
+const EC_statusConfig = {
+    colorMap: {
+        "REGISTERED": "#b8b8b8",
+        "APPROVED": "#f4b740",
+        "CLOSED": "#66bb6a",
+    },
+    labelMap: {
+        "REGISTERED": "Registered",
+        "APPROVED": "Approved",
+        "CLOSED": "Closed",
+    },
+}
+
 
 const THEMES = {
     BY_CAPACITY: {
@@ -190,41 +203,21 @@ let scriptModule = {
                             titleProp: "properties.name",
                             descriptionProp: "properties.region",
                             statusProp: (feature, ctx) => {
-                                // feature.properties.buildings is an array of building features or plain objects
-                                const buildings = get(feature, "properties.buildings", []) || [];
-                                // Extract each building's StatusId (stringify for map keys)
-                                const ids = buildings
-                                    .map(b => String(get(b, "StatusId", "unknown")))
-                                    .filter(Boolean);
-
-                                if (!ids.length) return "unknown";
-
-                                const mode = ctx.aggregation?.mode ?? "priority";
-                                const order = ctx.aggregation?.priorityOrder ?? ["4","2","1","3","5"];
-
-                                if (mode === "multi") {
-                                    // return counts for multi-status rendering
-                                    const counts = ids.reduce((acc, id) => {
-                                        acc[id] = (acc[id] || 0) + 1;
-                                        return acc;
-                                    }, {});
-                                    return { mode: "multi", counts };
-                                }
-
-                                // "mostActive": if at least one OP (4) → 4, else if at least one UC (2) → 2, else fallback...
-                                // "priority": walk the order and pick the first present
-                                for (const id of order) {
-                                    if (ids.includes(id)) return id;
-                                }
-                                // if we got here, pick the first concrete id or 'unknown'
-                                return ids[0] ?? "unknown";
+                                // return counts for multi-status rendering
+                                const counts = countsForSiteECs(null, feature, THEMES.BY_EC_STATUS);
+                                const countsMap = counts.reduce((acc, val, idx) => {
+                                    const id = THEMES.BY_EC_STATUS.bins[idx].id;
+                                    acc[id] = val;
+                                    return acc;
+                                }, {});
+                                return { mode: "multi", counts: countsMap };
                             },
                             statusAggregation: {
                                 //mode: "priority",
                                 mode: "multi",                  // "mostActive" | "priority" | "multi"
-                                priorityOrder: ["3","2","1","4","5"]
+                                priorityOrder: ["CLOSED","APPROVED","REGISTERED"]
                             },
-                            statusConfig: statusConfig,
+                            statusConfig: EC_statusConfig,
                             maxWidth: 280,
                         }
                     }
