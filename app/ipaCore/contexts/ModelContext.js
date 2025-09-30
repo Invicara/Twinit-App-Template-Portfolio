@@ -11,6 +11,7 @@ const NO_MODELS = []
 
 const ModelContextProvider = ({ children, project, appContext }) => {
 
+
    // availableModelComposites: Array[<Object>] the array of imported models in the project
    const [availableModelComposites, setAvailableModelComposites] = useState([])
 
@@ -43,6 +44,9 @@ const ModelContextProvider = ({ children, project, appContext }) => {
    // sliceElements: Array[<Object>] the array of elements to isolate in the viewer
    // setSliceElements: <function> the function to set the sliceElements
    const [sliceElements, setSliceElements] = useState([])
+
+
+   const [isBottomECPanelOpen, setIsBottomECPanelOpen] = useState(false);
 
    useEffect(() => {
       loadAllModels(project)
@@ -610,6 +614,27 @@ const ModelContextProvider = ({ children, project, appContext }) => {
       }
    }
 
+
+//       useEffect(() => {
+//   if (modelRelatedCollections?.dataCache) {
+   
+//     (async () => {
+//       try {
+//         const page = await IafItemSvc.getRelatedItems(
+//           modelRelatedCollections.dataCache._userItemId,
+//           { query: {} },
+//           null,
+//           { page: { _pageSize: 1000, _offset: 0 }, userItemVersionId: modelRelatedCollections.dataCache._userItemVersionId }
+//         )
+
+//         console.log('EC4 Sample datacache items:', page._list)
+//       } catch (err) {
+//         console.error('ERROR: fetching instanceProps for debug', err)
+//       }
+//     })()
+//   }
+// }, [modelRelatedCollections]);
+
    const memoizedContextValue = useMemo(() => {
       return {
          availableModelComposites,
@@ -626,6 +651,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          getSelectedElement,
          allPropRefs,
          selectedPropRefs,
+         isBottomECPanelOpen, 
          setSelectedPropRefs,
          getElementCount,
          sliceElements,
@@ -634,6 +660,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          setSelectedElement,
          getPropertyReferences,
          getTotalElementCount,
+         setIsBottomECPanelOpen,
          project,
          appContext,
       }
@@ -647,6 +674,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
       selectedElement,
       allPropRefs,
       selectedPropRefs,
+      isBottomECPanelOpen, 
       sliceElements,
       project,
       appContext
