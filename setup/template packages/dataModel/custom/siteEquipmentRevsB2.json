@@ -53,7 +53,7 @@
       "equipmentIds": ["RCP-900-011", "RCP-900-012", "RCP-900-013", "RCP-900-014"],
       "revision": {
          "revision": "001",
-         "revision status": "REVISED",
+         "revision status": "ISSUED",
          "revision status date": "2011-03-15T00:00:00Z",
          "properties": [
             {
