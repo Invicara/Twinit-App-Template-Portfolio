@@ -110,7 +110,7 @@
   },
   "settings": {
     "appTitle": "Quick Model View",
-    "appImage": {},
+    "appImage": { "url": "https://lib.invicara.io/hitachi/Hitachi%20Logo%20white.png" },
     "headerComponent": "components/HeaderBar/HeaderBar",
     "styles": {
       "--app-accent-color": "#C71784",
