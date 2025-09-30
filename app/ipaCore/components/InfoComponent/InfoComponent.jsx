@@ -165,7 +165,7 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
                 const fieldSchema = type?.properties?.[field];
                 // modifiable if field exists and is not readOnly (or readOnly override is allowed)
                 const guard = !!fieldSchema && isFieldEditable(type, field, allowReadOnlyOverride);
-                return guard;
+                return guard && entityType !== 'equipment' ;
             },
             getIsEditable: (field) => {
                 const fieldSchema = type?.properties?.[field];

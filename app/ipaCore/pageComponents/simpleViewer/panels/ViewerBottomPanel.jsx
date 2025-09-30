@@ -282,7 +282,12 @@ const handleChange = (index, path, value) => {
 
         const flat = flattenEquipment(prop);
         console.log('EC8 flat', flat);
-        const dynamicSchema = buildSchema(flat, []);
+
+        const editableFields = prop.isEditing
+            ? ['Manufacturer', 'Model', 'FlowRate', 'Power']
+            : [];
+
+        const dynamicSchema = buildSchema(flat, editableFields);
 
         return (
           <Paper key={prop._id || index} className={classes.card}>
@@ -304,7 +309,7 @@ const handleChange = (index, path, value) => {
               type={dynamicSchema}   // use dynamic schema instead of fixed one
               entityType="equipment"
               hidePropertyActions={true}
-              disabled={true}
+              disabled={!prop.isEditing} 
               handleChange={(val, name) =>
                 console.log('changed', prop._id, name, val)
               }

@@ -85,8 +85,6 @@ export async function engineeringChangesAPIs({ buildingId, facilityId }) {
 }
 
 function transformECs(ecsObj, buildingId, facilityId) {
-
-   console.log('EC8 ecsObj', ecsObj);
   if (!buildingId) buildingId = 0;
   const ecs = Object.values(ecsObj);
 
@@ -95,11 +93,11 @@ function transformECs(ecsObj, buildingId, facilityId) {
 
     // Rename title and type
     if (updated.title) {
-      updated["EC Title"] = updated.title;
+      updated['EC Title'] = updated.title;
       delete updated.title;
     }
     if (updated.type) {
-      updated["EC Type"] = updated.type;
+      updated['EC Type'] = updated.type;
       delete updated.type;
     }
 
@@ -107,33 +105,39 @@ function transformECs(ecsObj, buildingId, facilityId) {
     let logs = Array.isArray(updated.logs)
       ? updated.logs
       : updated.logs
-        ? Object.values(updated.logs)
-        : [];
+      ? Object.values(updated.logs)
+      : [];
 
-    logs = logs.filter((log) => (log.unit == buildingId) && (log.site == facilityId));
+    logs = logs.filter((log) => log.unit == buildingId && log.site == facilityId);
+
+    updated.status = { REGISTERED: 0, APPROVED: 0, CLOSED: 0 };
+
+    logs.forEach((log) => {
+      if (log.status && updated.status.hasOwnProperty(log.status)) {
+        updated.status[log.status] += 1;
+      }
+    });
 
     if (logs.length > 0) {
       const lastLog = logs[logs.length - 1];
 
       // Transform dateReviewed
       if (lastLog.dateReviewed) {
-        const rawDate = lastLog.dateReviewed.replace(":T", "T"); // fix API typo
+        const rawDate = lastLog.dateReviewed.replace(':T', 'T'); 
         const dateObj = new Date(rawDate);
-        const day = String(dateObj.getUTCDate()).padStart(2, "0");
-        const month = String(dateObj.getUTCMonth() + 1).padStart(2, "0");
+        const day = String(dateObj.getUTCDate()).padStart(2, '0');
+        const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
         const year = dateObj.getUTCFullYear();
-        updated["Date Reviewed"] = `${day}/${month}/${year}`;
+        updated['Date Reviewed'] = `${day}/${month}/${year}`;
       } else {
-        updated["Date Reviewed"] = "";
+        updated['Date Reviewed'] = '';
       }
 
       // Transform ecid
-      updated["EC ID"] = lastLog.ecid ?? "";
+      updated['EC ID'] = lastLog.ecid ?? '';
 
-      if (lastLog["Base Revision"])
-        updated["Base Revision"] = lastLog["Base Revision"];
-      if (lastLog["Equipment Revision"])
-        updated["Equipment Revision"] = lastLog["Equipment Revision"];
+      if (lastLog['Base Revision']) updated['Base Revision'] = lastLog['Base Revision'];
+      if (lastLog['Equipment Revision']) updated['Equipment Revision'] = lastLog['Equipment Revision'];
     }
 
     updated.logs = logs;
