@@ -8,11 +8,6 @@ import EngineeringChangesTab from "./EngineeringChangesTab";
 import SiteEquipmentTab from "./SiteEquipmentTab";
 import { engineeringChangesAPIs } from "../../../services/engineeringChanges";
 import { MapMachineContext } from "../../pageComponents/portfolioOverview/PortfolioOverview";
-import {
-  useActor,
-  useSelector as useXstateSelector,
-  useMachine,
-} from "@xstate/react";
 import { ModelContext } from "../../contexts/ModelContext";
 
 const useStyles = makeStyles((theme) => ({
@@ -45,10 +40,6 @@ export default function EquipmentDetails() {
     setTab(newValue);
   };
 
-  const { actor } = useContext(MapMachineContext);
-  const currentState = useXstateSelector(actor, (state) => state);
-
-  const context = currentState?.context ?? {};
   //TODO use real facility/site id
 
   const { selectedModelComposite } = useContext(ModelContext);
@@ -56,7 +47,7 @@ export default function EquipmentDetails() {
   const match = selectedModelComposite?._name?.match(/_(\d+)$/);
   const buildingId = match ? match[1].slice(-2) : null;
 //TODO FIX
-  const facilityId = buildingId == '01' ? 'A' : 'B';
+  const facilityId = buildingId == '01' ? 'B' : 'A';
   useEffect(() => {
     if (!selectedModelComposite || !buildingId) {
       setECs([]);

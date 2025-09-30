@@ -8,51 +8,54 @@ export async function siteEquipmentService(changes, facilityId, buildingId, equi
 
   const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
 
-  console.log('EC8 ec', changes);
-  const type = changes?.EC?.['EC TYPE'];
-  console.log('EC8 buildingId', buildingId);
-  console.log('E8 type', type);
-  let getUrls = [
-    `${baseOmapiUrl}/engineeringchanges`,
-    `${baseOmapiUrl}/engineeringchanges/001/logs?pageSize=20`,
-  ];
+  const type = changes?.['EC TYPE'];
+  const ecid = changes?.['EC ID'];
+
+      let getUrls = [
+        `${baseOmapiUrl}/engineeringchanges/${ecid}/equipment?facility=${facilityId}&unit=${buildingId}`
+      ]
+
+
 
    let postUrl = { url: `${baseOmapiUrl}/siteequip/search`, body: { facility: facilityId, unit: buildingId, equipmentId: equipmentId, equipmentType: type } };
-      
-  let results = [];
+   let referenceUrl = { url: `${baseOmapiUrl}/references/search`, body: { equipmentId: equipmentId, equipmentType: type } }
+
+   let results = [];
+   let refResults = [];
+   let getResults = [];
 
 
-    // for (const testUrl of getUrls) {
-    //   let response = await fetch(testUrl, {
-    //     method: "GET",
-    //     mode: "cors",
-    //     headers: {
-    //       Authorization: "Bearer " + IafSession.getAuthToken(ctx),
-    //       "Content-Type": "application/json",
-    //     },
-    //   });
+    for (const testUrl of getUrls) {
+      let response = await fetch(testUrl, {
+        method: "GET",
+        mode: "cors",
+        headers: {
+          Authorization: "Bearer " + IafSession.getAuthToken(ctx),
+          "Content-Type": "application/json",
+        },
+      });
 
-    //   if (response.ok) {
-    //     let result = await response.json();
-    //     if (result._result.status === 200) {
-    //       testResults.push({ testUrl, result });
-    //     } else {
-    //       testResults.push({
-    //         testUrl,
-    //         message: `ERROR: OMAPI ${testUrl} call returned status other than 200`,
-    //       });
-    //     }
-    //   } else {
-    //     testResults.push({
-    //       testUrl,
-    //       message: `ERROR: OMAPI ${testUrl} call failed`,
-    //     });
-    //   }
-    // }
-
-    // for (const testUrl of postUrls) {
+      if (response.ok) {
+        let result = await response.json();
+        if (result._result.status === 200) {
+          getResults.push({ testUrl, result });
+        } else {
+          getResults.push({
+            testUrl,
+            message: `ERROR: OMAPI ${testUrl} call returned status other than 200`,
+          });
+        }
+      } else {
+        getResults.push({
+          testUrl,
+          message: `ERROR: OMAPI ${testUrl} call failed`,
+        });
+      }
+    }
 
     const passUrl = postUrl.url;
+    const refUrl = referenceUrl.url;
+
       try {
       let response = await fetch(postUrl.url, {
         method: "POST",
@@ -85,12 +88,78 @@ export async function siteEquipmentService(changes, facilityId, buildingId, equi
     results.push({ message: error });
   }
 
-  console.log('EC9 results', results);
+      try {
+      let response = await fetch(referenceUrl.url, {
+        method: "POST",
+        mode: "cors",
+        headers: {
+          Authorization: "Bearer " + IafSession.getAuthToken(ctx),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(referenceUrl.body),
+      });
+
+      if (response.ok) {
+        let result = await response.json();
+        if (result._result.status === 200) {
+          refResults.push({ refUrl, result });
+        } else {
+          refResults.push({
+            refUrl,
+            message: `ERROR: OMAPI ${refUrl} call returned status other than 200`,
+          });
+        }
+      } else {
+        refResults.push({
+          refUrl,
+          message: `ERROR: OMAPI ${refUrl} call failed`,
+        });
+      }
+    // }
+  } catch (error) {
+    refResults.push({ message: error });
+  }
+
+  
   const res = results?.[0]?.result?._result?.equipment?._list?.[0];
 
-//  const ecs = testResults?.[0]?.result?._result?.ecs;
+  const siteEq = getResults?.[0]?.result?._result?.ec?.siteEquipment;
+  const refs = getResults?.[0]?.result?._result?.ec?.referenceRevisions;
+  
 
-//  const formattedECs = transformECs(ecs, buildingId, facilityId);
-  return res;
+  const latestRevision = siteEq.map(item => {
+  if (Array.isArray(item.revisions) && item.revisions.length > 0) {
+    return {
+      ...item,
+      revisions: [item.revisions[item.revisions.length - 1]], // keep only last
+    }
+  }
+  return item
+})
+
+  const mergeSiteRefs = mergeReferenceRevisions(refs, latestRevision);
+  return mergeSiteRefs;
 }
+
+function mergeReferenceRevisions(refs, siteEq) {
+  refs.forEach(ref => {
+    const matchEq = siteEq.find(se => se['Equipment Id'] === ref.equipmentId);
+    if (!matchEq) return;
+
+    const matchRev = matchEq.revisions.find(r => r.revision === ref.revision);
+    if (!matchRev) return;
+
+    matchRev.TechnicalParameters = matchRev.TechnicalParameters.map(tp => {
+      const refParam = ref.TechnicalParameters.find(rtp => rtp.name === tp.name);
+      if (refParam) {
+        return { ...tp, refVal: refParam.val }; // add refVal from refs
+      }
+      return tp;
+    });
+  });
+
+  return siteEq;
+}
+
+
 
