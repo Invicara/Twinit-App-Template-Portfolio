@@ -14,33 +14,22 @@ const getAt = (obj, path) =>
     !path ? obj : path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj);
 
 // format a primitive/array/boolean nicely
-function formatValue({ value, propSchema, enumOptions }) {
-    if (value == null || value === '') return '—';
+function formatValue({ value, propSchema }) {
+  if (value == null || value === '') return '—';
 
-    // prefer title for enums/oneOf
-    if (enumOptions?.length) {
-        const found = enumOptions.find((o) =>
-            typeof o === 'string' ? o === value : o.const === value
-        );
-        if (found) return typeof found === 'string' ? found : (found.title ?? found.const);
+  // If this is FlowRate or Power with unit
+  if ((propSchema?.title === 'FlowRate' || propSchema?.title === 'Power') && propSchema?.options) {
+    const { refVal, unit } = propSchema.options;
+    if (refVal !== undefined && value != refVal) {
+      return `${value} ${unit} (Expected: ${refVal} ${unit})`;
     }
-    if (propSchema?.oneOf?.length) {
-        const hit = propSchema.oneOf.find((o) => o.const === value);
-        if (hit) return hit.title ?? hit.const;
-    }
+    return `${value} ${unit}`;
+  }
 
-    if (Array.isArray(value)) return value.join(', ');
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (Array.isArray(value)) return value.join(', ');
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
 
-    // simple date prettifier if you use JSON Schema formats
-    if (propSchema?.format === 'date')   return new Date(value).toLocaleDateString();
-    if (propSchema?.format === 'date-time') return new Date(value).toLocaleString();
-
-    if(typeof value === 'number' && propSchema?.['x-numberFormat']) {
-        return renderNumberPreview(value, propSchema['x-numberFormat'], navigator.language)
-    }
-
-    return String(value);
+  return String(value);
 }
 
 export default function ValuePresenter({ controlUiSchema, schema, path, labelPlacement = "auto" }) {

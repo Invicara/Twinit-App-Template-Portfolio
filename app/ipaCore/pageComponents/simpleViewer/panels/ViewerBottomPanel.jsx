@@ -165,7 +165,7 @@ function flattenEquipment(siteEq) {
   const tech = normalizeTechParams(rev.TechnicalParameters);
 
   return {
-    equipmentId: siteEq['Equipment Id'] || siteEq.equipmentId || '',
+    equipmentId: siteEq['Site Equipment Id'] || siteEq.equipmentId || '',
     Model: props?.Model?.val || '',
     equipmentType: siteEq.equipmentType || '',
     Manufacturer: props?.Manufacturer?.val || '',
@@ -208,27 +208,20 @@ function buildSchema(flat, editableFields = []) {
     const isEditable = editableFields.includes(key);
     const rawVal = flat[key];
 
-    const schema = {
-      type: (key === 'FlowRate' || key === 'Power') ? 'string'
-           : typeof rawVal === 'number' ? 'number'
-           : 'string',
-      title: key,
-      readOnly: !isEditable,
-    };
+ const schema = {
+  type: (key === 'FlowRate' || key === 'Power') ? 'string'
+       : typeof rawVal === 'number' ? 'number'
+       : 'string',
+  title: key,
+  readOnly: !isEditable,
+};
 
-    // attach unit + refVal for FlowRate/Power
     if (flat.TechnicalParameters?.[key]) {
       const { refVal, unit } = flat.TechnicalParameters[key];
       schema.options = { refVal, unit };
 
-      if (refVal !== undefined && rawVal !== undefined) {
-        if (rawVal != refVal) {
-          schema.isMismatched = true;
-          // 👇 overwrite display value
-          flat[key] = `${rawVal} ${unit} (Expected: ${refVal} ${unit})`;
-        } else {
-          flat[key] = `${rawVal} ${unit}`;
-        }
+      if (refVal !== undefined && rawVal !== undefined && rawVal != refVal) {
+        schema.isMismatched = true;
       }
     }
 
@@ -242,7 +235,6 @@ function buildSchema(flat, editableFields = []) {
     required: Object.keys(properties),
   };
 }
-
 
 const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
   const classes = useStyles()
@@ -266,6 +258,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
             const items = await siteEquipmentService(EC, facilityId, buildingId, equipmentId);
            // const  flattenSiteEq = flattenEquipment(siteEq?.revisions?._list);
             // const revisions = siteEqResponse?.revisions?._list;
+            console.log('EC9 items', items);
            setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
             setData(items);
         }
@@ -374,7 +367,12 @@ const testProp = {
               disabled={!prop.isEditing} 
               handleChange={(val, name) => {
    
-                
+                  let finalVal = val;
+  if ((name === 'FlowRate' || name === 'Power') && val !== '') {
+    const parsed = Number(val);
+    if (!isNaN(parsed)) finalVal = parsed;
+  }
+  console.log('changed', prop._id, name, finalVal);
                 console.log('changed', prop._id, name, val);
     
             }}
