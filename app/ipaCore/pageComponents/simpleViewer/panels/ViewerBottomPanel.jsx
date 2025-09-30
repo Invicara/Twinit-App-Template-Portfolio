@@ -5,6 +5,7 @@ import { Edit as EditIcon, Save as SaveIcon, KeyboardArrowUp, KeyboardArrowDown 
 import { ModelContext } from '../../../contexts/ModelContext'
 import { InfoComponent } from '../../../components/InfoComponent/InfoComponent'
 import { siteEquipmentService } from '../../../../services/siteEquipment';
+import { Warning as WarningIcon } from '@mui/icons-material';
 
 const useStyles = makeStyles((theme) => ({
   panel: {
@@ -136,58 +137,112 @@ function normalizeTechParams(arrOrObj) {
   return arrOrObj;
 }
 
-function flattenEquipment(e) {
-  const props = normalizeProperties(e.properties);
-  const tech = normalizeTechParams(e.TechnicalParameters);
+// function flattenEquipment(e) {
+//   const props = normalizeProperties(e.properties);
+//   const tech = normalizeTechParams(e.TechnicalParameters);
+
+//   return {
+//     _id: e._id,
+//     equipmentId: e.equipmentId,
+//     siteEquipmentId: e.siteEquipmentId,
+//     equipmentType: e.equipmentType,
+//     revision: e.revision,
+//     Manufacturer: props?.Manufacturer?.val || '',
+//     Model: props?.Model?.val || '',
+//     'Safety Class': props?.['Safety Class']?.val || '',
+//     'Operating Status': props?.['Operating Status']?.val || '',
+//     'Operational Status Date': props?.['Operational Status Date']?.val || '',
+//     FlowRate: tech?.FlowRate?.val || '',
+//     Power: tech?.Power?.val || '',
+//   };
+// }
+
+function flattenEquipment(siteEq) {
+  const rev = Array.isArray(siteEq.revisions) ? siteEq.revisions[0] : siteEq.revisions?._list?.[0];
+  if (!rev) return {};
+
+  const props = normalizeProperties(rev.properties);
+  const tech = normalizeTechParams(rev.TechnicalParameters);
 
   return {
-    _id: e._id,
-    equipmentId: e.equipmentId,
-    siteEquipmentId: e.siteEquipmentId,
-    equipmentType: e.equipmentType,
-    revision: e.revision,
-    Manufacturer: props?.Manufacturer?.val || '',
+    equipmentId: siteEq['Equipment Id'] || siteEq.equipmentId || '',
     Model: props?.Model?.val || '',
+    equipmentType: siteEq.equipmentType || '',
+    Manufacturer: props?.Manufacturer?.val || '',
     'Safety Class': props?.['Safety Class']?.val || '',
-    'Operating Status': props?.['Operating Status']?.val || '',
-    'Operational Status Date': props?.['Operational Status Date']?.val || '',
-    FlowRate: tech?.FlowRate?.val || '',
-    Power: tech?.Power?.val || '',
+    FlowRate: tech?.FlowRate?.val ?? '', 
+    Power: tech?.Power?.val ?? '',       
+    TechnicalParameters: tech,         
+    revision: rev.revision || ''     
   };
 }
+
 const equipmentSchema = {
   type: 'object',
   properties: {
-    equipmentId: { type: 'string', title: 'Equipment ID' },
-    Manufacturer: { type: 'string', title: 'Manufacturer' },
+    equipmentId: { type: 'string', title: 'Name id' },   // custom label
     Model: { type: 'string', title: 'Model' },
+    equipmentType: { type: 'string', title: 'Equipment Type' },
+    Manufacturer: { type: 'string', title: 'Manufacturer' },
     'Safety Class': { type: 'string', title: 'Safety Class' },
-    FlowRate: { type: 'number', title: 'Flow Rate' },
-    Power: { type: 'number', title: 'Power' },
+    FlowRate: { type: 'string', title: 'Flow Rate' },
+    Power: { type: 'string', title: 'Power' },
   },
+  required: ['equipmentId', 'Model', 'equipmentType', 'Manufacturer', 'Safety Class', 'FlowRate', 'Power'],
 };
 
 function buildSchema(flat, editableFields = []) {
-  const properties = Object.keys(flat).reduce((acc, key) => {
-    if (['_id', 'siteEquipmentId', 'equipmentType'].includes(key)) {
-      return acc; // skip metadata
-    }
+  const allowedOrder = [
+    'equipmentId',
+    'Model',
+    'equipmentType',
+    'Manufacturer',
+    'Safety Class',
+    'FlowRate',
+    'Power'
+  ];
 
-    acc[key] = {
-      type: typeof flat[key] === 'number' ? 'number' : 'string',
-      title: key.replace(/([A-Z])/g, ' $1').trim(),
-      readOnly: !editableFields.includes(key),
+  const properties = allowedOrder.reduce((acc, key) => {
+    if (!(key in flat)) return acc;
+
+    const isEditable = editableFields.includes(key);
+    const rawVal = flat[key];
+
+    const schema = {
+      type: (key === 'FlowRate' || key === 'Power') ? 'string'
+           : typeof rawVal === 'number' ? 'number'
+           : 'string',
+      title: key,
+      readOnly: !isEditable,
     };
 
+    // attach unit + refVal for FlowRate/Power
+    if (flat.TechnicalParameters?.[key]) {
+      const { refVal, unit } = flat.TechnicalParameters[key];
+      schema.options = { refVal, unit };
+
+      if (refVal !== undefined && rawVal !== undefined) {
+        if (rawVal != refVal) {
+          schema.isMismatched = true;
+          // 👇 overwrite display value
+          flat[key] = `${rawVal} ${unit} (Expected: ${refVal} ${unit})`;
+        } else {
+          flat[key] = `${rawVal} ${unit}`;
+        }
+      }
+    }
+
+    acc[key] = schema;
     return acc;
   }, {});
 
   return {
     type: 'object',
     properties,
-    required: Object.keys(properties), // mark all included fields as required
+    required: Object.keys(properties),
   };
 }
+
 
 const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
   const classes = useStyles()
@@ -198,27 +253,21 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
 
   const flattened = items?.map(flattenEquipment);
 
-  useEffect(() => {
-    if (items) {
-    //   setProperties(items.map((el) => ({ ...el, isEditing: false })))
-    }
-  }, [items])
 
    useEffect(() => {
 
     if(siteEquipment && siteEquipment?.data?.length > 0) {
         const facilityId = siteEquipment.data[0]?.site;
-        const EC = siteEquipment.ec;
+        const EC = siteEquipment.EC;
         const buildingId = siteEquipment.data[0]?.unit;
         const equipmentId = siteEquipment.data[0]?.['Equipment Id'];
 
         const run = async () => {
-            const siteEqResponse = await siteEquipmentService(EC, facilityId, buildingId, equipmentId);
+            const items = await siteEquipmentService(EC, facilityId, buildingId, equipmentId);
            // const  flattenSiteEq = flattenEquipment(siteEq?.revisions?._list);
-            const revisions = siteEqResponse?.revisions?._list;
-            console.log('EC9 revisions', JSON.stringify(revisions));
-            setProperties(revisions.map((el) => ({ ...el, isEditing: false })));
-            setData(siteEqResponse?.revisions?._list);
+            // const revisions = siteEqResponse?.revisions?._list;
+           setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
+            setData(items);
         }
 
         run();
@@ -280,14 +329,27 @@ const handleChange = (index, path, value) => {
     {properties && properties.length > 0 ? (
       properties.map((prop, index) => {
 
-        const flat = flattenEquipment(prop);
-        console.log('EC8 flat', flat);
-
         const editableFields = prop.isEditing
             ? ['Manufacturer', 'Model', 'FlowRate', 'Power']
             : [];
 
-        const dynamicSchema = buildSchema(flat, editableFields);
+const testProp = {
+  ...prop,
+  TechnicalParameters: {
+    ...prop.TechnicalParameters,
+    FlowRate: {
+      ...prop.TechnicalParameters?.FlowRate,
+      refVal: 104   // force mismatch for testing
+    },
+    Power: {
+      ...prop.TechnicalParameters?.Power,
+      refVal: prop.TechnicalParameters?.Power?.val
+    }
+  }
+};
+
+
+   const dynamicSchema = buildSchema(testProp, editableFields);
 
         return (
           <Paper key={prop._id || index} className={classes.card}>
@@ -305,14 +367,17 @@ const handleChange = (index, path, value) => {
             </div>
 
             <InfoComponent
-              entity={flat}               
-              type={dynamicSchema}   // use dynamic schema instead of fixed one
+               entity={testProp}
+              type={dynamicSchema}   
               entityType="equipment"
               hidePropertyActions={true}
               disabled={!prop.isEditing} 
-              handleChange={(val, name) =>
-                console.log('changed', prop._id, name, val)
-              }
+              handleChange={(val, name) => {
+   
+                
+                console.log('changed', prop._id, name, val);
+    
+            }}
             />
           </Paper>
         )
@@ -348,3 +413,34 @@ function Property({ label, value, editable, onChange }) {
     </div>
   )
 }
+
+function UnitInput({ value, unit, onChange, disabled }) {
+  const handleChange = (e) => {
+    // only update the number, keep the unit
+    const num = e.target.value.replace(/[^\d.]/g, ''); // allow only numbers + decimal
+    onChange(num ? `${num} ${unit}` : '');
+  };
+
+  // split number from unit for display
+  const [numVal] = value ? value.split(' ') : [''];
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center' }}>
+      <input
+        type="text"
+        value={numVal}
+        disabled={disabled}
+        onChange={handleChange}
+        style={{
+          flex: 1,
+          border: 'none',
+          borderBottom: '1px solid #ccc',
+          padding: '4px',
+          outline: 'none',
+        }}
+      />
+      <span style={{ marginLeft: 4 }}>{unit}</span>
+    </div>
+  );
+}
+
