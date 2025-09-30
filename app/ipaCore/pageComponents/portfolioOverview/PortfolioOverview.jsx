@@ -192,7 +192,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
 
     useEffect(() => {
         // Check for MMV configuration in user config
-        let newConfig = userConfig?.handlers?.portfolioOverview?.mmvConfig || handler?.componentConfig?.mmvConfig;
+        let newConfig = handler?.mmvConfig || handler?.componentConfig?.mmvConfig;
         if (newConfig) {
             console.log('MMV Config from user/handler:', {newConfig});
             if (newConfig.mode === "project") {
