@@ -11,7 +11,7 @@ import { setDraftType, setIsSelectingPosition, setSelectedCoordinate } from '../
 import { IafItemSvc } from '@dtplatform/platform-api';
 import {useSelector as useXstateSelector} from "@xstate/react";
 import _ from 'lodash';
-import { Add, Dashboard, Cancel } from '@material-ui/icons';
+import { Add, Dashboard, Cancel, Edit } from '@material-ui/icons';
 import { getActiveLevels, getCachedFile } from '../../../../../services/utils';
 
 
@@ -995,8 +995,9 @@ export default function SiteDetails({ context }) {
                             onClick={setEntityForEdition}
                             size="small"
                             disabled={isDrawingMode}
+                            startIcon={<Edit />}
                         >
-                            Edit {namedPath?.displayName}
+                            Edit
                         </CustomButton>
                     )}
                 </div>
