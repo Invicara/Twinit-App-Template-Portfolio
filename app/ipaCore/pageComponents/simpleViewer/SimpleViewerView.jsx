@@ -13,6 +13,7 @@ import ModelSelect from '../../components/ModelSelect/ModelSelect'
 import SearchPane from '../../components/search/SearchPane'
 import ElementDetails from '../../components/ElementDetails/ElementDetails'
 import ModelDocs from '../../components/ModelDocs/ModelDocs'
+import EquipmentDetails from '../../components/EquipmentDetails/EquipmentDetails'
 
 import FloatingModelDocViewer from '../../components/FloatingDocViewer/FloatingModelDocViewer'
 
@@ -45,7 +46,8 @@ const SimpleViewerView = ({ handler }) => {
       selectedElement,
       getSelectedElement,
       setSelectedPropRefs,
-      sliceElements
+      sliceElements,
+      isBottomECPanelOpen
    } = useContext(ModelContext)
 
    // the file _id and version _id of the file to display in the document viewer
@@ -108,14 +110,22 @@ const SimpleViewerView = ({ handler }) => {
 
                   </div>
                </StackableDrawer>
-               <StackableDrawer level={2} iconKey='fa-info' tooltip='Element' isDrawerOpen={false}>
+                 <StackableDrawer level={2} iconKey='fa-columns' tooltip='Search' isDrawerOpen={false}>
+                  <div className='viewer-sidebar'>
+
+                     <EquipmentDetails />
+                     {/* {selectedModelComposite && modelRelatedCollections && <SearchPane onPropertyChange={setSelectedPropRefs} />} */}
+
+                  </div>
+               </StackableDrawer>
+               <StackableDrawer level={3} iconKey='fa-info' tooltip='Element' isDrawerOpen={false}>
                   <div className='viewer-sidebar'>
                      {!selectedElement && <div className='no-element-selected'>No Element Selected</div>}
                      {selectedElement && <ElementDetails element={selectedElement} horizontal={false} readOnly={!handler?.config?.manageFiles} onView={(docInfo) => setDocView(docInfo)} />}
 
                   </div>
                </StackableDrawer>
-               <StackableDrawer level={3} iconKey='fa-file-alt' tooltip='Files' isDrawerOpen={false}>
+               <StackableDrawer level={4} iconKey='fa-file-alt' tooltip='Files' isDrawerOpen={false}>
                   <div className='viewer-sidebar'>
 
                      {!selectedModelComposite && <div className='no-element-selected'>No Model Selected</div>}
