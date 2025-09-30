@@ -4,7 +4,7 @@ export const formatDateOnly = (dateTimeString) => {
   }
   const date = new Date(dateTimeString);
   if (isNaN(date.getTime())) {
-    console.error(`Invalid date format provided: ${dateTimeString}`);
+    // console.error(`Invalid date format provided: ${dateTimeString}`);
     return "Invalid Date";
   }
   const day = date.getDate().toString().padStart(2, "0");
