@@ -243,7 +243,7 @@ export default function BuildingDetails({ context }) {
             type: 'UPDATE_DATA',
             data: updatedData
         });
-        
+
         // Step 4: Pre-select the new entity with a GO_TO operation
         send({
             type: 'GO_TO',
@@ -338,7 +338,6 @@ export default function BuildingDetails({ context }) {
 
     return (
         <div>
-
             {/* Entity Info - Always displayed */}
             <Box p={0} m={0}>
                 <Box p={2}>
@@ -363,6 +362,28 @@ export default function BuildingDetails({ context }) {
                     {currentState.context?.[higherNamedPath?.idKey] && <Typography variant="body2">{higherNamedPath.displayName}: {currentState.context[higherNamedPath.idKey]}</Typography>}
                     <Divider sx={{ my: 2 }} />
                 </Box>
+                {isInEditMode && (
+                    <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between"}}>
+                        <Box style={{display: 'flex', gap: 16, padding: "0px 16px 0px 16px" }}>
+                            <CustomButton
+                                variant="outlined"
+                                color="secondary"
+                                onClick={handleCancelEdit}
+                                style={{ flex: 1 }}
+                            >
+                                Cancel
+                            </CustomButton>
+                            <CustomButton
+                                variant="contained"
+                                color="primary"
+                                onClick={isDraftEntity ? handleSubmitEntity : handleSaveEdit}
+                                style={{ flex: 1 }}
+                            >
+                                Save
+                            </CustomButton>
+                        </Box>
+                    </div>
+                )}
                 <Box px={2}>
                     <InfoComponent
                         entity={currentEntity}
@@ -392,8 +413,8 @@ export default function BuildingDetails({ context }) {
             </Box>
 
             {isInEditMode && (
-                <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between", marginTop: 25, gap: 25}}>
-                    <Box style={{ marginTop: 24, display: 'flex', gap: 16 }}>
+                <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between"}}>
+                    <Box style={{display: 'flex', gap: 16, padding: "0px 16px 16px 16px"  }}>
                         <CustomButton
                             variant="outlined"
                             color="secondary"
