@@ -3,7 +3,7 @@ import { SETUP_SITE_KEY } from "./redux/siteSetup"
 import { FILTERS_KEY } from "./redux/filters"
 
 const ipaConfig = {
-   appName: "Model Quick View",
+   appName: "Fleet Management",
    configUserType: "quick-view",
    applicationId: '073ab558-ac06-4b3d-bdb4-935dc22e4f86',
    scriptPlugins: [],
