@@ -1,0 +1,46 @@
+import React from 'react'
+import { makeStyles } from '@material-ui/core/styles'
+import TreeItem from '@material-ui/lab/TreeItem'
+import Checkbox from '@material-ui/core/Checkbox'
+import { Typography } from '@material-ui/core'
+
+const useTreeItemStyles = makeStyles(theme => ({
+  labelRoot: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    padding: theme.spacing(0.5, 0) 
+  },
+  labelText: { 
+    fontWeight: 'inherit', 
+    flexGrow: 1 
+  },
+  checkbox: {
+    padding: 0,
+    marginRight: theme.spacing(1),
+    color: '#DF158C',
+    "&.Mui-checked": {
+      color: '#DF158C'
+    },
+    '& svg': { 
+      width: '12px', 
+      height: '12px', 
+      marginLeft: '4px' 
+    }
+  }
+}))
+
+export default function SiteEquipTreeSearch({ labelText, checked, onCheck, nodeId, ...other }) {
+  const classes = useTreeItemStyles()
+  return (
+    <TreeItem
+      nodeId={nodeId}
+      label={
+        <div className={classes.labelRoot}>
+          <Checkbox checked={checked} onChange={e => onCheck(nodeId, e.target.checked)} className={classes.checkbox} size="small" />
+          <Typography variant="body2" className={classes.labelText}>{labelText}</Typography>
+        </div>
+      }
+      {...other}
+    />
+  )
+}
