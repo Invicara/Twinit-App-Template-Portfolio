@@ -4,7 +4,7 @@ import { Paper, Typography, Button, Divider } from '@material-ui/core'
 import { Edit as EditIcon, Save as SaveIcon, KeyboardArrowUp, KeyboardArrowDown } from '@material-ui/icons'
 import { ModelContext } from '../../../contexts/ModelContext'
 import { InfoComponent } from '../../../components/InfoComponent/InfoComponent'
-import { siteEquipmentService } from '../../../../services/siteEquipment';
+import { siteEquipmentService, siteEquipmentForTreeService } from '../../../../services/siteEquipment';
 import { Warning as WarningIcon } from '@mui/icons-material';
 
 const useStyles = makeStyles((theme) => ({
@@ -247,30 +247,53 @@ function buildSchema(flat, editableFields = []) {
 
 const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
   const classes = useStyles()
-  const { sliceElements, siteEquipment } = useContext(ModelContext)
+  const { sliceElements, siteEquipment, selectedModelComposite } = useContext(ModelContext)
   const [isOpen, setIsOpen] = useState(false)
   const [properties, setProperties] = useState([])
   const [data, setData] = useState(null);
 
-  const flattened = items?.map(flattenEquipment);
-
-  
+  function extractEquipmentIds(siteEquipmentArray) {
+  return siteEquipmentArray.map(item => ({
+    'Equipment Id': item['Equipment Id']
+  }));
+}
 
    useEffect(() => {
 
     if(siteEquipment && siteEquipment?.data?.length > 0) {
-        const facilityId = siteEquipment.data[0]?.site;
+        const facilityId = siteEquipment?.data[0]?.site;
         const EC = siteEquipment.EC;
-        const buildingId = siteEquipment.data[0]?.unit;
-        const equipmentId = siteEquipment.data[0]?.['Equipment Id'];
+        const buildingId = siteEquipment?.data[0]?.unit;
+        const equipmentId = siteEquipment?.data[0]?.['Equipment Id'];
 
+        const equipmentIdArray = extractEquipmentIds(siteEquipment?.data);
+        console.log('EC8 EC', siteEquipment.data);
         const run = async () => {
-            const items = await siteEquipmentService(EC, facilityId, buildingId, equipmentId);
-           // const  flattenSiteEq = flattenEquipment(siteEq?.revisions?._list);
-            // const revisions = siteEqResponse?.revisions?._list;
-            console.log('EC9 items', items);
-           setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
-            setData(items);
+            
+        if(Object.keys(EC).length > 0) {
+
+            //const items = await siteEquipmentService(EC, facilityId, buildingId, equipmentId);
+        //    setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
+        //    console.log('EC items', items);
+        //     setData(items);
+
+            const match = selectedModelComposite?._name?.match(/_(\d+)$/);
+            const bId = match ? match[1].slice(-2) : null;
+            const fId = bId == '01' ? 'A' : 'B';
+            const items = await siteEquipmentForTreeService(fId, bId, equipmentIdArray);
+             setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
+        //    console.log('EC items', items);
+             setData(items);
+        } else {
+             const match = selectedModelComposite?._name?.match(/_(\d+)$/);
+            const bId = match ? match[1].slice(-2) : null;
+            const fId = bId == '01' ? 'A' : 'B';
+              console.log('EC9 siteEquipmentIds', siteEquipment);
+            const siteEqItems = await siteEquipmentForTreeService(fId, bId, siteEquipment?.data);
+                console.log('EC siteEqItems', siteEqItems);
+            setProperties(siteEqItems.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
+            setData(siteEqItems);
+        }
         }
 
         run();
