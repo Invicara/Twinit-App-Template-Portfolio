@@ -8,12 +8,8 @@ import EngineeringChangesTab from "./EngineeringChangesTab";
 import SiteEquipmentTab from "./SiteEquipmentTab";
 import { engineeringChangesAPIs } from "../../../services/engineeringChanges";
 import { MapMachineContext } from "../../pageComponents/portfolioOverview/PortfolioOverview";
-import {
-  useActor,
-  useSelector as useXstateSelector,
-  useMachine,
-} from "@xstate/react";
 import { ModelContext } from "../../contexts/ModelContext";
+import { useTreeData } from '../../contexts/TreeContext';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -45,15 +41,11 @@ export default function EquipmentDetails() {
     setTab(newValue);
   };
 
-  const { actor } = useContext(MapMachineContext);
-  const currentState = useXstateSelector(actor, (state) => state);
-
-  const context = currentState?.context ?? {};
   const { selectedModelComposite } = useContext(ModelContext);
 
   const match = selectedModelComposite?._name?.match(/_(\d+)$/);
   const buildingId = match ? match[1].slice(-2) : null;
- const facilityId = buildingId == '01' ? 'A' : 'B';
+  const facilityId = buildingId == '01' ? 'A' : 'B';
 
   useEffect(() => {
     if (!selectedModelComposite || !buildingId) {
@@ -78,6 +70,21 @@ export default function EquipmentDetails() {
 
     fetchData();
   }, [selectedModelComposite, buildingId]);
+
+    const [levelData, setLevelData] = useState()
+    const [loadingLevelData, setLoadingLevelData] = useState(false)
+
+    const { fetchTreeData } = useTreeData();
+
+    useEffect(() => {
+        const run = async () => {
+          setLoadingLevelData(true)
+            const treeLevelData = await fetchTreeData(facilityId, buildingId);
+            setLevelData(treeLevelData)
+            setLoadingLevelData(false)
+        }
+        run()
+    }, [fetchTreeData, buildingId]);
 
   return (
     <Box>
@@ -104,7 +111,7 @@ export default function EquipmentDetails() {
             className={classes.tab}
           />
         )}
-        {tab === 1 && <SiteEquipmentTab className={classes.tab} />}
+        {tab === 1 && <SiteEquipmentTab className={classes.tab} levelData={levelData} loadingLevelData={loadingLevelData} />}
       </div>
     </Box>
   );
