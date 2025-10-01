@@ -229,8 +229,6 @@ function extractSiteEquipRevs(res) {
       TechnicalParameters: techParamsObj,
     };
   });
-
-  console.log("Adam extractSiteEquipRevs transformedData", transformedData);
   return transformedData;
 }
 
