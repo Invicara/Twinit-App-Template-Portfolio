@@ -59,18 +59,20 @@ const showMismatch = !!propSchema?.isMismatched;
       '.MuiPickersPopper-root, .MuiModal-root, .MuiPickersModal-dialogRoot, [role="dialog"]'
     );
   const onRowBlur = (e) => {
-    if (!editing) return;
-    requestAnimationFrame(() => {
-      const next = e.relatedTarget || document.activeElement;
-      const inRow = rowRef.current?.contains(next);
-      if (!inRow && !isInMuiPicker(next)) {
-        setEditing(false);
-      }
-    });
-  };
+  if (!editing) return;
+  if (key === 'FlowRate' || key === 'Power') return; // don't auto-close
+
+  requestAnimationFrame(() => {
+    const next = e.relatedTarget || document.activeElement;
+    const inRow = rowRef.current?.contains(next);
+    if (!inRow && !isInMuiPicker(next)) {
+      setEditing(false);
+    }
+  });
+};
 
   return (
-    <Box ref={rowRef} onBlur={onRowBlur} p={0}>
+    <Box ref={rowRef}  p={0}>
       <Box
         display="grid"
         gridTemplateColumns={`${labelPlacement == "auto" ? "" : "33% "} 1fr auto`}

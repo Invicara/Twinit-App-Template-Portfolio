@@ -92,21 +92,11 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
 
     const [localValue, setLocalValue] = useState(entity || {});
     const classes = useStyles();
-
-   const handleUpdate = (newValue, name) => {
-  let finalValue = newValue;
-
-  if ((name === 'FlowRate' || name === 'Power') && newValue !== '') {
-    const parsed = Number(newValue);
-    if (!isNaN(parsed)) {
-      finalValue = parsed;
-    }
-  }
-
-  setLocalValue({ ...localValue, [name]: finalValue });
+const handleUpdate = (newValue, name) => {
+  setLocalValue({ ...localValue, [name]: newValue });
 
   handleChange &&
-    handleChange(finalValue, name, {
+    handleChange(newValue, name, {
       name,
       entityType,
       entity,
@@ -199,23 +189,23 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
 
     const {processedType, uiSchema, renderers, optionsResolver, ajv, materialCells, materialRenderers} = useInfoComponentJsonForms({schema: type, layouts, allowReadOnlyOverride});
 
-const flowPowerTester = rankWith(
-  5,
-  (uischema, schema) => {
-    if (!uischema?.scope) return false; // skip layouts etc.
-    console.log('tester check', uischema.scope);
-    return (
-      uischema.scope.endsWith('FlowRate') ||
-      uischema.scope.endsWith('Power')
-    );
-  }
-);
+// const flowPowerTester = rankWith(
+//   5,
+//   (uischema, schema) => {
+//     if (!uischema?.scope) return false; // skip layouts etc.
+//     console.log('tester check', uischema.scope);
+//     return (
+//       uischema.scope.endsWith('FlowRate') ||
+//       uischema.scope.endsWith('Power')
+//     );
+//   }
+// );
 
-const extendedRenderers = [
-  ...renderers,
-  { tester: flowPowerTester, renderer: FlowPowerCellRenderer }
-];
-console.log('infocomponent schema', uiSchema);
+// const extendedRenderers = [
+//   ...renderers,
+//   { tester: flowPowerTester, renderer: FlowPowerCellRenderer }
+// ];
+// console.log('infocomponent schema', uiSchema);
 
     // track previous value so we can call your handleChange(name, value, meta)
     const prevRef = useRef(localValue);
@@ -246,7 +236,7 @@ console.log('infocomponent schema', uiSchema);
                                 schema={processedType}
                                 uischema={uiSchema}
                                 onChange={onJsonFormsChange}
-                                renderers={extendedRenderers}
+                                renderers={renderers}
                                 cells={materialCells}
                                 ajv={ajv}
                             />

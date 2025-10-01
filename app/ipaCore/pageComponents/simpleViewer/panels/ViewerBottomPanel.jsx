@@ -208,22 +208,20 @@ function buildSchema(flat, editableFields = []) {
     const isEditable = editableFields.includes(key);
     const rawVal = flat[key];
 
- const schema = {
-  type: (key === 'FlowRate' || key === 'Power') ? 'string'
-       : typeof rawVal === 'number' ? 'number'
-       : 'string',
+const schema = {
+  type: typeof rawVal === 'number' ? 'number' : 'string',
   title: key,
   readOnly: !isEditable,
 };
+  if (flat.TechnicalParameters?.[key]) {
+  const { refVal, unit } = flat.TechnicalParameters[key];
+  schema.options = { refVal, unit };
 
-    if (flat.TechnicalParameters?.[key]) {
-      const { refVal, unit } = flat.TechnicalParameters[key];
-      schema.options = { refVal, unit };
-
-      if (refVal !== undefined && rawVal !== undefined && rawVal != refVal) {
-        schema.isMismatched = true;
-      }
-    }
+  if (refVal !== undefined && rawVal !== undefined && rawVal != refVal) {
+    schema.isMismatched = true;
+    schema.displayValue = `${rawVal} ${unit} (Expected: ${refVal} ${unit})`; 
+  }
+}
 
     acc[key] = schema;
     return acc;
@@ -245,6 +243,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
 
   const flattened = items?.map(flattenEquipment);
 
+  
 
    useEffect(() => {
 
@@ -301,14 +300,25 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
   return newObj
 }
 
-const handleChange = (index, path, value) => {
+const handleChange = (index, name, value) => {
   setProperties((prev) =>
-    prev.map((p, i) =>
-      i === index ? setDeepValue(p, path, value) : p
-    )
-  )
-}
+    prev.map((p, i) => {
+      if (i !== index) return p;
 
+      return {
+        ...p,
+        [name]: value,
+        TechnicalParameters: {
+          ...p.TechnicalParameters,
+          [name]: {
+            ...p.TechnicalParameters?.[name],
+            val: value,   // keep tech params in sync
+          }
+        }
+      };
+    })
+  );
+};
   if (!isBottomECPanelOpen) return null
 
   return (
@@ -326,23 +336,25 @@ const handleChange = (index, path, value) => {
             ? ['Manufacturer', 'Model', 'FlowRate', 'Power']
             : [];
 
-const testProp = {
-  ...prop,
-  TechnicalParameters: {
-    ...prop.TechnicalParameters,
-    FlowRate: {
-      ...prop.TechnicalParameters?.FlowRate,
-      refVal: 104   // force mismatch for testing
-    },
-    Power: {
-      ...prop.TechnicalParameters?.Power,
-      refVal: prop.TechnicalParameters?.Power?.val
-    }
-  }
-};
+        //ADD to test mismatches
+
+        // const testProp = {
+        //   ...prop,
+        //   TechnicalParameters: {
+        //     ...prop.TechnicalParameters,
+        //     FlowRate: {
+        //       ...prop.TechnicalParameters?.FlowRate,
+        //       refVal: 104   // force mismatch for testing
+        //     },
+        //     Power: {
+        //       ...prop.TechnicalParameters?.Power,
+        //       refVal: prop.TechnicalParameters?.Power?.val
+        //     }
+        //   }
+        // };
 
 
-   const dynamicSchema = buildSchema(testProp, editableFields);
+   const dynamicSchema = buildSchema(prop, editableFields);
 
         return (
           <Paper key={prop._id || index} className={classes.card}>
@@ -360,22 +372,19 @@ const testProp = {
             </div>
 
             <InfoComponent
-               entity={testProp}
+               entity={prop}
               type={dynamicSchema}   
               entityType="equipment"
               hidePropertyActions={true}
               disabled={!prop.isEditing} 
-              handleChange={(val, name) => {
-   
-                  let finalVal = val;
-  if ((name === 'FlowRate' || name === 'Power') && val !== '') {
-    const parsed = Number(val);
-    if (!isNaN(parsed)) finalVal = parsed;
-  }
-  console.log('changed', prop._id, name, finalVal);
-                console.log('changed', prop._id, name, val);
-    
-            }}
+                handleChange={(val, name) => {
+        //   setProperties(prev => {
+        //     const next = [...prev];
+        //     next[index] = { ...next[index], [name]: val };
+        //     return next;
+        // });
+        }}
+             // handleChange={(val, name) => handleChange(index, name, val)}
             />
           </Paper>
         )

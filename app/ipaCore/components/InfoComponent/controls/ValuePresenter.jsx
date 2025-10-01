@@ -46,6 +46,21 @@ export default function ValuePresenter({ controlUiSchema, schema, path, labelPla
 
     const rawValue = Resolve.data(core?.data, absPath);
 
+    const unit = schema?.properties?.[key]?.options?.unit;
+const refVal = schema?.properties?.[key]?.options?.refVal;
+
+if ((key === 'FlowRate' || key === 'Power') && unit) {
+  const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+  if (!Number.isNaN(numeric)) {
+    if (refVal !== undefined && numeric != refVal) {
+      // mismatched -> show Expected
+      display = `${numeric} ${unit} (Expected: ${refVal} ${unit})`;
+    } else {
+      display = `${numeric} ${unit}`;
+    }
+  }
+}
+
     // allow external resolver to map enum labels (same API as EnumSelectRenderer)
     const [enumOptions, setEnumOptions] = React.useState(null);
     React.useEffect(() => {
@@ -63,7 +78,7 @@ export default function ValuePresenter({ controlUiSchema, schema, path, labelPla
         propSchema.title ??
         key;
 
-    const display = formatValue({ value: rawValue, propSchema, enumOptions });
+   let display = formatValue({ value: rawValue, propSchema, enumOptions });
 
     return (
         <Box display="grid" gridTemplateColumns={`${labelPlacement=="auto" ? '' : '33% '} 1fr`} alignItems="center" columnGap={1}>
