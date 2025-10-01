@@ -251,13 +251,13 @@ export async function treeLevels(facility, unit) {
     const firstJson = await firstRes.json();
     const systemIds = firstJson?._result?.systemIds || [];
 
-    let finalData = systemIds.map(id => ({
-      id,
-      name: id,
+    let finalData = systemIds.map(systemId => ({
+      id: systemId,
+      name: systemId,
       children: [],
     }));
 
-    // Fetch all equipment types concurrently
+    // Fetch all equipment types
     const secondLevelResponses = await Promise.all(
       systemIds.map(systemId => {
         const secondUrl = `${baseOmapiUrl}/siteequip/facilities/${facility}/units/${unit}/systems/${systemId}/equipmenttypes`;
@@ -270,44 +270,49 @@ export async function treeLevels(facility, unit) {
       const { systemId, equipmentTypes } = result._result || {};
       const systemNode = finalData.find(sys => sys.id === systemId);
       if (systemNode && Array.isArray(equipmentTypes)) {
-        systemNode.children = equipmentTypes.map(eq => ({
-          id: eq,
-          name: eq,
+        systemNode.children = equipmentTypes.map(eqType => ({
+          id: `${systemId}/${eqType}`,
+          name: eqType,
           children: [],
         }));
       }
     }
 
-    // Fetch all equipment for all equipment types concurrently
+    // Fetch all equipment for each equipment type
     const equipmentFetches = [];
     for (const system of finalData) {
       for (const type of system.children) {
-        const thirdUrl = `${baseOmapiUrl}/siteequip/facilities/${facility}/units/${unit}/systems/${system.id}/equipmenttypes/${type.id}/equipment`;
+        const typeIdOnly = type.name;
+        const thirdUrl = `${baseOmapiUrl}/siteequip/facilities/${facility}/units/${unit}/systems/${system.id}/equipmenttypes/${typeIdOnly}/equipment`;
         equipmentFetches.push(
           fetch(thirdUrl, { headers, mode: "cors" })
             .then(res => res.json())
-            .then(json => ({ systemId: system.id, typeId: type.id, data: json?._result?.equipment?._list || [] }))
+            .then(json => ({
+              systemId: system.id,
+              typeId: typeIdOnly,
+              data: json?._result?.equipment?._list || [],
+            }))
         );
       }
     }
 
     const equipmentResults = await Promise.all(equipmentFetches);
 
-    // Insert equipment into finalData tree
+    // Attach equipment with unique IDs
     for (const { systemId, typeId, data } of equipmentResults) {
       const systemNode = finalData.find(sys => sys.id === systemId);
-      const typeNode = systemNode?.children.find(child => child.id === typeId);
+      const typeNode = systemNode?.children.find(child => child.name === typeId);
       if (typeNode) {
         typeNode.children = data.map(eq => ({
-          id: eq["Equipment Id"],
+          id: `${systemId}/${typeId}/${eq["Equipment Id"]}`,
           name: eq["Site Equipment Id"],
+          siteEquipId: eq["Equipment Id"]
         }));
       }
     }
 
-    console.log("Final data structure:", finalData);
+    console.log("Final tree with unique IDs:", finalData);
     return finalData;
-
   } catch (err) {
     console.error("Error fetching data:", err);
     throw err;
