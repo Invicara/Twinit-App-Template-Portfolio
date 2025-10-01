@@ -211,7 +211,7 @@ const ec1_ChartCfg =  {
         const top5 = sites
             .map(item => ({
                 ...item,
-                openECs: [item?.properties?.ecsByStatus?.REGISTERED?._total || 0 + item?.properties?.ecsByStatus?.APPROVED?._total || 0],
+                openECs: (item?.ecsByStatus?.REGISTERED?._total || 0) + (item?.ecsByStatus?.APPROVED?._total || 0),
                 id: item.name
             }))
             .sort((a, b) => b.openECs - a.openECs) // descending order
@@ -244,7 +244,7 @@ const ec1_ChartCfg =  {
             const top5 = sites
                 .map(s => ({
                     ...s,
-                    openECs: [s?.properties?.ecsByStatus?.REGISTERED?._total || 0 + s?.properties?.ecsByStatus?.APPROVED?._total || 0],
+                    openECs: (s?.ecsByStatus?.REGISTERED?._total || 0) + (s?.ecsByStatus?.APPROVED?._total || 0),
                     id: s.siteId,
                     label: s.name,
                     test: "facilityIn"
