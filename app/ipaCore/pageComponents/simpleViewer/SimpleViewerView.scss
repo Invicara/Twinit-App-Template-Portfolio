@@ -29,6 +29,7 @@
 
          .viewer-sidebar {
             width: 100%;
+            // height: 100vh;
             padding: 20px;
             display: flex;
             flex-direction: column;
@@ -51,6 +52,13 @@
    .table-panel {
       background-color: white;
       z-index: 1000;
+   }
+
+   .table-panel-ecs {
+      background-color: white;
+      z-index: 1000;
+      position: relative;
+      left: 360px;
    }
   
 }

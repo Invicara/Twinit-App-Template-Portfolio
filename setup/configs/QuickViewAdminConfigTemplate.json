@@ -58,26 +58,20 @@
       "icon": "fas fa-map-marked-alt fa-2x",
       "pageComponent": "portfolioOverview/PortfolioOverview",
       "path": "/portfoliomap",
+      "scriptTypes": [
+        "mmv_config",
+        "mapTypeActions"
+      ],
       "config": {
         "labels": {
-          "search": "Search nuclear power plant...",
+          "search": "Search...",
           "group": "Palier Group",
-          "structure": "Choose plant name / location",
-          "location": "Choose departments / regions",
-          "status": "Deploy Status"
+          "structure": "Choose name",
+          "location": "Choose site",
+          "status": "Engineering Change Status"
         }
       }
     }
-  },
-  "portfolioOverview": {
-    "title": "Portfolio Overview",
-    "icon": "fas fa-map-marked-alt fa-2x",
-    "pageComponent": "portfolioOverview/PortfolioOverview",
-    "path": "/portfoliomap",
-    "config": {},
-    "scriptTypes": [
-      "mmv_config"
-    ]
   },
   "homepage": {
     "handler": "portfolioOverview"
@@ -124,7 +118,7 @@
   },
   "settings": {
     "appTitle": "Quick Model View",
-    "appImage": {},
+    "appImage": { "url": "https://lib.invicara.io/hitachi/Hitachi%20Logo%20white.png" },
     "headerComponent": "components/HeaderBar/HeaderBar",
     "styles": {
       "--app-accent-color": "#C71784",

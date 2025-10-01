@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
 import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent, Tooltip } from '@mui/material';
 import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
-import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference, getStructures } from '../../../../redux/pageComponentState';
+import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference, getStructures, setSelectedStructure } from '../../../../redux/pageComponentState';
 import { MapMachineContext, MapContext } from '../../PortfolioOverview';
 import { addFeatureToMapLayer, removeFeatureFromMapLayer } from '../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache, usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
@@ -11,7 +11,7 @@ import { setDraftType, setIsSelectingPosition, setSelectedCoordinate } from '../
 import { IafItemSvc } from '@dtplatform/platform-api';
 import {useSelector as useXstateSelector} from "@xstate/react";
 import _ from 'lodash';
-import { Add, Dashboard, Cancel } from '@material-ui/icons';
+import { Add, Dashboard, Cancel, Edit } from '@material-ui/icons';
 import { getActiveLevels, getCachedFile } from '../../../../../services/utils';
 
 
@@ -82,18 +82,20 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
     }, [])
 
     // Handle thumbnail click for building selection
-    const handleThumbnailClick = (graphicReference, compatible) => {
+    const handleThumbnailClick = (structure, graphicReference, compatible) => {
         // Don't allow selection of incompatible structures
         if (!compatible) return;
         
         if(selectedGraphicReferece !== graphicReference){
             dispatch(setDraftType(lowerNamedPath.state));
             dispatch(setIsSelectingPosition(true));
+            dispatch(setSelectedStructure(structure));
             dispatch(setSelectedGraphicReference(graphicReference));
             send({ type: "START_DRAFT" });
         } else {
             dispatch(setDraftType());
             dispatch(setIsSelectingPosition(false));
+            dispatch(setSelectedStructure());            
             dispatch(setSelectedGraphicReference());
             send({ type: "END_DRAFT" });
         }
@@ -178,7 +180,7 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
                                         boxShadow: isSelected ? '0 6px 16px rgba(223, 21, 140, 0.4)' : '0 4px 8px rgba(0,0,0,0.15)'
                                     } : {}
                                 }}
-                                onClick={() => handleThumbnailClick(graphicRef, compatible)}
+                                onClick={() => handleThumbnailClick(structure, graphicRef, compatible)}
                             >
                                 {graphicRef.thumbnail && thumbnailUrls[graphicRef.thumbnail] ? (
                                     <CardMedia
@@ -272,7 +274,7 @@ export default function SiteDetails({ context }) {
     const { send, actor } = useContext(MapMachineContext);
     const currentState = useXstateSelector(actor, state => state);
 
-    const [levels, currentElementType, namedPath, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath] = useMemo(() => {
+    const [levels, currentElementType, namedPath, namedPaths, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath] = useMemo(() => {
         const levels = getActiveLevels(currentState);
 
         const sPath = levels?.map(el => el.state).join(".");
@@ -294,7 +296,7 @@ export default function SiteDetails({ context }) {
         const entityId = currentState.context[idKey]
         const currentEntity = currentState.context.data[namedPath.state].find(e => e[idKey] === entityId);
 
-        return [levels, cElementType, namedPath, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath];
+        return [levels, cElementType, namedPath, namedPaths, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath];
 
     }, [currentState]);
 
@@ -443,6 +445,21 @@ export default function SiteDetails({ context }) {
             ...lowerLevelState,
             [idKey]: finalizedEntity[idKey]
         });
+
+        if(namedPath.parentState){
+            const parentPath = namedPaths.find(el => el.state === namedPath.parentState);
+            const parentColl = (await IafItemSvc.getNamedUserItems({query: {_shortName: parentPath.collShortName}}))._list[0];
+
+            const parentEntity = currentState.context.data[parentPath.state]
+                .find(el => [currentState.context[parentPath.idKey], finalizedEntity[parentPath.idKey]].includes(el[parentPath.idKey]))
+
+            finalizedEntity._relationships = [{
+                "_relatedUserItemId": parentColl._userItemId,
+                "_relatedToIds": [
+                    parentEntity._id
+                ]
+            }]
+        }
 
         //item service creation side effect
         const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
@@ -978,8 +995,9 @@ export default function SiteDetails({ context }) {
                             onClick={setEntityForEdition}
                             size="small"
                             disabled={isDrawingMode}
+                            startIcon={<Edit />}
                         >
-                            Edit {namedPath?.displayName}
+                            Edit
                         </CustomButton>
                     )}
                 </div>

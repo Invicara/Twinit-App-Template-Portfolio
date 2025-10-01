@@ -1,64 +1,91 @@
-.simple-viewer-view {
-   display: flex;
-   flex-direction: column;
-   flex-wrap: nowrap;
-   height: calc(100vh - 80px);
+.viewer-bottom-panel-header {
+  background-color: #EBEBEB;
+  height: 32px;
+  width: calc(100% - 360px);
+  position: relative;
+  left: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 8px;
 
-   .panel-row {
+  &.closed {
+    position: fixed;
+    bottom: 0;
+    z-index: 1000;
+    left: 360px;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+  }
+}
+
+.viewer-bottom-panel-inner {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+  }
+
+.viewer-bottom-panel {
+  position: absolute;
+  left: 360px;
+  height: 100%;
+  width: calc(100% - 360px);
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+
+  .viewer-bottom-panel-inner {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+  }
+
+  .panel-item {
+    flex: 0 0 auto;
+    width: 630px;
+    border-left: 1px solid #EBEBEB;
+
+    .container-header{
       display: flex;
-      flex-direction: row;
-      height: calc(100vh - 80px);
+      justify-content: space-between;
+      padding: 8px 16px 0px 16px;
 
-      .viewer {
-         position: absolute;
-         width: 100%;
-         height: 100%;
+      p {
+        color: #5D5D5D;
+        margin: 16px 0px;
       }
+    }
 
-      .drawer {
-         background-color: white;
-         z-index: 98;
+    .property-container {
+      padding: 8px 16px;
+    } 
+  }
+}
 
-         .drawer-content-open {
-            direction: rtl;
-         }
+.property-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+  display: grid;
+  height: 48px;
 
-         .drawer-content-open > div {
-            direction: ltr;
-         }
+  .label {
+    font-weight: 500;
+    color: #555;
+    width: 180px;
+    color: #999;
+    font-size: 9px;
+  }
 
-         .viewer-sidebar {
-            width: 100%;
-            // height: 100vh;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
+  .value-input {
+    border: none;
+    width: 600px;
+    font-size: 13px
+  }
 
-            .no-element-selected {
-               width: 80%;
-               border: 2px solid lightgray;
-               border-radius: 20px;
-               padding: 20px;
-               color: lightgray;
-               font-weight: bold;
-         
-            }
-      
-         }
-      }
-   
-   }
-
-   .table-panel {
-      background-color: white;
-      z-index: 1000;
-   }
-
-   .table-panel-ecs {
-      background-color: white;
-      z-index: 1000;
-      position: relative;
-      left: 360px;
-   }
-  
+  .value {
+    color: #222;
+    font-size: 13px;
+  }
 }
