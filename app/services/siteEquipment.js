@@ -127,17 +127,30 @@ export async function siteEquipmentService(changes, facilityId, buildingId, equi
   const refs = getResults?.[0]?.result?._result?.ec?.referenceRevisions;
   
 
-  const latestRevision = siteEq.map(item => {
+//   const latestRevision = siteEq.map(item => {
+//   if (Array.isArray(item.revisions) && item.revisions.length > 0) {
+//     return {
+//       ...item,
+//       revisions: [item.revisions[item.revisions.length - 1]], // keep only last
+//     }
+//   }
+//   return item
+// })
+
+const matchedRevision = siteEq.map(item => {
   if (Array.isArray(item.revisions) && item.revisions.length > 0) {
+    // find the revision whose "revision" equals the item's "tipVersion"
+    const match = item.revisions.find(r => r.revision === item.tipVersion);
+
     return {
       ...item,
-      revisions: [item.revisions[item.revisions.length - 1]], // keep only last
-    }
+      revisions: match ? [match] : [item.revisions[item.revisions.length - 1]], // fallback to last if no match
+    };
   }
-  return item
-})
+  return item;
+});
 
-  const mergeSiteRefs = mergeReferenceRevisions(refs, latestRevision);
+  const mergeSiteRefs = mergeReferenceRevisions(refs, matchedRevision);
   return mergeSiteRefs;
 }
 
