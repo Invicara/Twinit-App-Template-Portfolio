@@ -1,3 +1,4 @@
+// SiteEquipmentTab.jsx
 import React, { useState, useContext } from 'react'
 import { makeStyles } from '@material-ui/core/styles'
 import { Box, Typography } from '@material-ui/core'
@@ -22,28 +23,37 @@ import { ModelContext } from '../../contexts/ModelContext'
 
 import './SiteEquipmentTab.scss'
 
-const focusLogsInViewer = async ( setSliceElementsByQuery, selectedSiteEquipId) => {
-  // List of Site Equipment ID's they have matching Model Elements
-    const elementIds = ["RCP-900-011", "RCP-900-012", "RCP-900-013", "RCP-900-014"]
-    let selectedIds = []
+const focusLogsInViewer = async (
+  setSliceElementsByQuery, 
+  setSiteEquipment,
+  selectedSiteEquipId,
+) => {
+  const elementIds = ["RCP-900-011", "RCP-900-012", "RCP-900-013", "RCP-900-014"]
+  let selectedIds = []
+  let rejectedIDs = []
 
-    // If a selected Site Equipment has no matching Model Element, add them here.
-    let rejectedIDs = []
+  selectedSiteEquipId.forEach((siteEquipId) => {
+    if (elementIds.includes(siteEquipId)) {
+      selectedIds.push(siteEquipId)
+    } else {
+      rejectedIDs.push(siteEquipId)
+    }
+  })
 
-    selectedSiteEquipId.map((siteEquipId) => {
-      if(elementIds.includes(siteEquipId)) {
-        selectedIds.push(siteEquipId)
-      } else {
-        rejectedIDs.push(siteEquipId)
-      }
-    })
-
+  // update the 3D viewer
   await setSliceElementsByQuery?.([
     {
       propRef: { property: { propertyType: "instance" } },
       queryPartial: { 'properties.Mark.val': { $in: selectedIds } }
     }
   ])
+
+  // push into ModelContext like EngineeringChangesTab does
+  setSiteEquipment({
+    data: selectedSiteEquipId.map(id => ({ 'Equipment Id': id })), // minimal structure
+    EC: {} // nothing here yet
+  })
+
   return rejectedIDs
 }
 
@@ -69,7 +79,7 @@ const useStyles = makeStyles(theme => ({
 
 export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetched}) {
   const classes = useStyles()
-  const { setSliceElementsByQuery } = useContext(ModelContext)
+  const { setSliceElementsByQuery, setSiteEquipment, setIsBottomECPanelOpen } = useContext(ModelContext)
 
   const [expanded, setExpanded] = useState([])
   const [checkedItems, setCheckedItems] = useState({})
@@ -85,15 +95,15 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
     setCheckedItems(prev => {
       let updated = { ...prev }
 
-      // Toggle current node
+      // toggle current node
       isChecked ? (updated[id] = true) : delete updated[id]
 
-      // Toggle all descendants
+      // toggle all descendants
       descendantIds.forEach(childId => {
         isChecked ? (updated[childId] = true) : delete updated[childId]
       })
 
-      // Cascade selection to parents
+      // cascade to parents
       if (isChecked) {
         let parent = findParent(tree, id)
         while (parent) {
@@ -109,15 +119,19 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
         }
       }
 
+      // collect final selected
       const selectedSiteEquipId = getSelectedThirdLevelIds(tree, updated)
-      focusLogsInViewer(setSliceElementsByQuery, selectedSiteEquipId).then((value) => {
+      focusLogsInViewer(setSliceElementsByQuery, setSiteEquipment, selectedSiteEquipId).then((value) => {
         setRejectedIds(value)
+        if (selectedSiteEquipId.length > 0) {
+          setIsBottomECPanelOpen(true)
+        }
       })
 
       return updated
     })
 
-    // Expand or collapse descendants
+    // expand/collapse descendants
     setExpanded(prevExpanded => {
       let newExpanded = [...prevExpanded]
       if (isChecked) {
@@ -137,27 +151,26 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
     const query = searchText.trim()
     if (!query) return
 
-    // Find all matching node IDs
     const matchedIds = findNodeAndDescendants(levelData, query)
-    // Auto-check them
+
     setCheckedItems(prev => {
       const updated = { ...prev }
       matchedIds.forEach(id => (updated[id] = true))
+
+      const thirdLevelIds = getSelectedThirdLevelIds(levelData, updated)
+      focusLogsInViewer(setSliceElementsByQuery, setSiteEquipment, thirdLevelIds).then((value) => {
+        setRejectedIds(value)
+        if (thirdLevelIds.length > 0) {
+          setIsBottomECPanelOpen(true)
+        }
+      })
+
       return updated
     })
 
-    // Expand all parent paths for matches
     const newExpanded = Array.from(expandAllParents(levelData, matchedIds))
     setExpanded(newExpanded)
-
-     // Update viewer focus
-    const matchedIdsMap = Object.fromEntries(matchedIds.map(id => [id, true]))
-    const thirdLevelIds = getSelectedThirdLevelIds(levelData, matchedIdsMap)
-
-    focusLogsInViewer(setSliceElementsByQuery, thirdLevelIds).then((value) => {
-      setRejectedIds(value)
-    })
-  };
+  }
 
   const renderTree = nodes =>
     nodes?.map(node => (
@@ -170,11 +183,11 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
       >
         {node.children ? renderTree(node.children) : null}
       </SiteEquipTreeSearch>
-    ));
+    ))
 
   return (
     <>
-    {loadingLevelData ? (
+      {loadingLevelData ? (
         <Box display="flex" justifyContent="center" alignItems="center" py={6}>
           <CircularProgress />
         </Box>
