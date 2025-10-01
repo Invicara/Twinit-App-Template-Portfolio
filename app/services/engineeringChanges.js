@@ -78,11 +78,12 @@ export async function engineeringChangesAPIs({ buildingId, facilityId }) {
     testResults.push({ message: `ERROR: OMAPI failed` });
   }
 
+    console.log('EC9 ECS', testResults);
   const ecs = testResults?.[0]?.result?._result?.ecs;
 
   const formattedECs = transformECs(ecs, buildingId, facilityId);
 
-  console.log('EC9 ECS', formattedECs);
+
   return formattedECs;
 }
 

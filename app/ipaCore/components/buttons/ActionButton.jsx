@@ -1,7 +1,12 @@
-import React from "react"
+import React from 'react';
+import './ActionButton.scss';
+import { Tooltip } from "@mui/material";
 
-import './ActionButtons.scss'
 
-export const ActionButton = ({onClick, label, className, disabled =  false}) => {
-    return <button disabled={disabled} onClick={onClick} className={className}>{label}</button>
+export default function ActionButton(props) {
+    return <span>
+        <Tooltip title={props.title}>
+            {props.children}
+        </Tooltip>
+    </span>
 }

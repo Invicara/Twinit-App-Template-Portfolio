@@ -344,24 +344,6 @@ export default function PortfolioDetails({ context, userConfig, send, stateKey, 
                     }}
                 />
 
-                <DeployStatusChart
-                    initialFilter={globalFilters["site"]}
-                    handler={handler}
-                    context={context}
-                    send={send}
-                    stateKey={stateKey}
-                    chartCfg={defaultChartCfg}
-                    onFilterChange={(filter) => {
-                        const mergingOptions = {
-                            dropMissing: [defaultChartCfg.group.id, defaultChartCfg.series.id],
-                            replace: true
-                        }
-                        const merged = mergeFiltersGeneric(globalFilters, filter, "site",  mergingOptions);
-                        console.log("mergeFiltersGeneric DeployStatusChart", {merged, filter, globalFilters, mergingOptions})
-                        dispatch(setFilter(merged));
-                    }}
-                />
-
             </Box>
         </div>
     );

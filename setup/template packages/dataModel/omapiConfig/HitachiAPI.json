@@ -186,6 +186,30 @@
                      "_userType": "hitachi-siteequip-omapi",
                      "_scriptName": "getUnitEquipment"
                   }
+               },
+               {
+                  "path": "/siteequip/pendingrevision",
+                  "method": "POST",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "createPendingRevision"
+                  }
+               },
+               {
+                  "path": "/siteequip/facilities/:facility/units/:unit/siteequipment/:siteEquipmentId/revisions/:revision/pendingrevision",
+                  "method": "DELETE",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "deletePendingRevision"
+                  }
+               },
+               {
+                  "path": "/siteequip/approvedrevision",
+                  "method": "POST",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "createApprovedRevision"
+                  }
                }
             ]
          },

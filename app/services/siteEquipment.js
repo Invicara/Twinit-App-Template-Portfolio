@@ -127,6 +127,7 @@ export async function siteEquipmentService(changes, facilityId, buildingId, equi
   const refs = getResults?.[0]?.result?._result?.ec?.referenceRevisions;
   
 
+  console.log('EC8 siteeqrevisions', siteEq);
 //   const latestRevision = siteEq.map(item => {
 //   if (Array.isArray(item.revisions) && item.revisions.length > 0) {
 //     return {

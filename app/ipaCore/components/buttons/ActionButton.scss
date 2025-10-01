@@ -1,74 +1,43 @@
-.apply-button {
-  margin: 16px;
-  background-color: #C71784;
-  color: white;
-  cursor: pointer;
-  height: 40px; 
-  border: solid #C71784;
-  border-radius: 4px;
-  padding: 8px 20px 8px 20px; 
-  text-transform: capitalize; 
-}
-
-  .apply-button:disabled {
-    margin: 16px;
-    background-color: #EBEBEB;
+.edit-action-button {
+    padding: 8px;
+    text-align: center;
+    background-color: var(--app-accent-color);
     color: white;
-    cursor: not-allowed !important;
-    height: 40px; 
-    border: solid #EBEBEB;
-    border-radius: 4px;
-    padding: 8px 20px 8px 20px; 
-    text-transform: capitalize; 
-  }
-
-.apply-button:disabled {
-  margin: 16px;
-  background-color: #EBEBEB;
-  color: white;
-  cursor: not-allowed !important;
-  height: 40px; 
-  border: solid #EBEBEB;
-  border-radius: 4px;
-  padding: 8px 20px 8px 20px; 
-  text-transform: capitalize; 
+    border-radius: 10px;
+    font-size: 16px;
+    margin: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    
+    p {
+        margin-bottom: 0px;
+    }
 }
 
-.delete-button {
-  margin: 16px;
-  height: 40px; 
-  padding: 8px 20px 8px 20px; 
-  color: #C71784;
-  border: none;
-  border-radius: 4px;
-  background-color: white;
-}
+.edit-req-action-buton {
+    padding: 8px;
+    background-color: #ECF5FB;
+    color: #0E77B7;
+    border-radius: 10px;
+    font-size: 9px;
+    margin: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    // cursor: pointer;
 
-.delete-button:hover {
-background-color: #FAE5F3;
-}
+    span {
+        color: #0E77B7;
+    }
+    
+    .req-num {
+        font-weight: 700;
+        margin-right: 10px;
+    }
 
-.cancel-button {
-    margin: 16px;
-    height: 40px; 
-    padding: 8px 20px 8px 20px; 
-    color: #C71784;
-    border: 1px solid #B8B8B8;
-    border-radius: 4px;
-    background-color: white;
-}
-
-.cancel-button:hover {
-  border: 1px solid #C71784;
-}
-
-.cancel-button:disabled {
-  margin: 16px;
-  height: 40px; 
-  padding: 8px 20px 8px 20px; 
-  cursor: not-allowed !important;
-  color: #EBEBEB;
-  border: none;
-  border-radius: 4px;
-  background-color: white;
+    .seperator-icon {
+        margin: 0px 2px
+    }
 }

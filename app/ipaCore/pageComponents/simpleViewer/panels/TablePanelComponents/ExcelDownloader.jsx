@@ -2,7 +2,7 @@ import React, { useContext } from "react"
 
 import { Tooltip } from "@material-ui/core"
 
-import { IafDataPlugin } from '@invicara/ui-utils'
+import { IafDataPlugin } from '@dtplatform/ui-utils'
 
 import { ModelContext } from "../../../../contexts/ModelContext"
 
