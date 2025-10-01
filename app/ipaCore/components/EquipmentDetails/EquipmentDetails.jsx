@@ -9,6 +9,7 @@ import SiteEquipmentTab from "./SiteEquipmentTab";
 import { engineeringChangesAPIs } from "../../../services/engineeringChanges";
 import { MapMachineContext } from "../../pageComponents/portfolioOverview/PortfolioOverview";
 import { ModelContext } from "../../contexts/ModelContext";
+import { useTreeData } from '../../contexts/TreeContext';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -70,6 +71,21 @@ export default function EquipmentDetails() {
     fetchData();
   }, [selectedModelComposite, buildingId]);
 
+    const [levelData, setLevelData] = useState()
+    const [loadingLevelData, setLoadingLevelData] = useState(false)
+
+    const { fetchTreeData } = useTreeData();
+
+    useEffect(() => {
+        const run = async () => {
+          setLoadingLevelData(true)
+            const treeLevelData = await fetchTreeData(facilityId, buildingId);
+            setLevelData(treeLevelData)
+            setLoadingLevelData(false)
+        }
+        run()
+    }, [fetchTreeData, buildingId]);
+
   return (
     <Box>
       {/* Tabs Header */}
@@ -95,7 +111,7 @@ export default function EquipmentDetails() {
             className={classes.tab}
           />
         )}
-        {tab === 1 && <SiteEquipmentTab className={classes.tab} />}
+        {tab === 1 && <SiteEquipmentTab className={classes.tab} levelData={levelData} loadingLevelData={loadingLevelData} />}
       </div>
     </Box>
   );
