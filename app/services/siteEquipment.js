@@ -162,12 +162,25 @@ function mergeReferenceRevisions(refs, siteEq) {
     const matchRev = matchEq.revisions.find(r => r.revision === ref.revision);
     if (!matchRev) return;
 
+    // --- Technical Parameters ---
     matchRev.TechnicalParameters = matchRev.TechnicalParameters.map(tp => {
       const refParam = ref.TechnicalParameters.find(rtp => rtp.name === tp.name);
       if (refParam) {
-        return { ...tp, refVal: refParam.val }; // add refVal from refs
+        return { ...tp, refVal: refParam.val }; // add refVal for FlowRate, Power etc.
       }
       return tp;
+    });
+
+    console.log('EC8 Matchrev', matchRev)
+    // --- Properties (Manufacturer, Model, etc) ---
+    matchRev.properties = matchRev.properties.map(p => {
+      if (p.name === 'Manufacturer' || p.name === 'Model') {
+        const refProp = ref.properties?.find(rp => rp.name === p.name);
+        if (refProp) {
+          return { ...p, refVal: refProp.val }; // add refVal for Manufacturer & Model
+        }
+      }
+      return p;
     });
   });
 
