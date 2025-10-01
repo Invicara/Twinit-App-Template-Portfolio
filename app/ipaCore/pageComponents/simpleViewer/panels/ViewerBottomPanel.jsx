@@ -349,38 +349,38 @@ const handleChange = (index, name, value) => {
 
         //ADD to test mismatches
 
-     const testProp = {
-  ...prop,
-  Manufacturer: prop.Manufacturer, 
-  Model: prop.Model,
-  TechnicalParameters: {
-    ...prop.TechnicalParameters,
-    FlowRate: {
-      ...prop.TechnicalParameters?.FlowRate,
-      refVal: 104   // force mismatch for testing
-    },
-    Power: {
-      ...prop.TechnicalParameters?.Power,
-      refVal: prop.TechnicalParameters?.Power?.val
-    }
-  },
-  // Add refVals for Manufacturer and Model
-  properties: {
-    ...prop.properties,
-    Manufacturer: {
-      ...prop.properties?.Manufacturer,
-      refVal: 'SomeOtherManufacturer' // force mismatch
-    },
-    Model: {
-      ...prop.properties?.Model,
-      refVal: 'DifferentModel' // force mismatch
-    }
-  }
-};
+//      const testProp = {
+//   ...prop,
+//   Manufacturer: prop.Manufacturer, 
+//   Model: prop.Model,
+//   TechnicalParameters: {
+//     ...prop.TechnicalParameters,
+//     FlowRate: {
+//       ...prop.TechnicalParameters?.FlowRate,
+//       refVal: 104   // force mismatch for testing
+//     },
+//     Power: {
+//       ...prop.TechnicalParameters?.Power,
+//       refVal: prop.TechnicalParameters?.Power?.val
+//     }
+//   },
+//   // Add refVals for Manufacturer and Model
+//   properties: {
+//     ...prop.properties,
+//     Manufacturer: {
+//       ...prop.properties?.Manufacturer,
+//       refVal: 'SomeOtherManufacturer' // force mismatch
+//     },
+//     Model: {
+//       ...prop.properties?.Model,
+//       refVal: 'DifferentModel' // force mismatch
+//     }
+//   }
+// };
 
 console.log('EC8 PROPS', prop);
 
-   const dynamicSchema = buildSchema(testProp, editableFields);
+   const dynamicSchema = buildSchema(prop, editableFields);
 
         return (
           <Paper key={prop._id || index} className={classes.card}>
@@ -398,7 +398,7 @@ console.log('EC8 PROPS', prop);
             </div>
 
             <InfoComponent
-               entity={testProp}
+               entity={prop}
               type={dynamicSchema}   
               entityType="equipment"
               hidePropertyActions={true}
