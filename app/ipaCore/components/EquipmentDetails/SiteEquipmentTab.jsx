@@ -13,26 +13,30 @@ import SiteEquipTreeSearch from './SiteEquipTreeSearch'
 import { 
   getAllDescendantIds, 
   findNodeById, 
-  findParent, 
-  countThirdLevel, 
-  getMatchingIdsAndDescendants, 
-  expandAllParents 
+  findParent,
+  expandAllParents,
+  getSelectedThirdLevelIds,
+  findNodeAndDescendants
 } from './utils/treeHelpers'
 import { ModelContext } from '../../contexts/ModelContext'
 
 import './SiteEquipmentTab.scss'
 
-const focusLogsInViewer = async (thirdLevelSelected, setSliceElementsByQuery) => {
+const focusLogsInViewer = async ( setSliceElementsByQuery, selectedSiteEquipId) => {
+  // List of Site Equipment ID's they have matching Model Elements
     const elementIds = ["RCP-900-011", "RCP-900-012", "RCP-900-013", "RCP-900-014"]
+    let selectedIds = []
 
-    if (!thirdLevelSelected) return
+    // If a selected Site Equipment has no matching Model Element, add them here.
+    let rejectedIDs = []
 
-  const selectedIds =
-    thirdLevelSelected === 1
-      ? [elementIds[0]]
-      : thirdLevelSelected >= 4
-      ? [...elementIds]
-      : elementIds.slice(0, thirdLevelSelected)
+    selectedSiteEquipId.map((siteEquipId) => {
+      if(elementIds.includes(siteEquipId)) {
+        selectedIds.push(siteEquipId)
+      } else {
+        rejectedIDs.push(siteEquipId)
+      }
+    })
 
   await setSliceElementsByQuery?.([
     {
@@ -40,6 +44,7 @@ const focusLogsInViewer = async (thirdLevelSelected, setSliceElementsByQuery) =>
       queryPartial: { 'properties.Mark.val': { $in: selectedIds } }
     }
   ])
+  return rejectedIDs
 }
 
 const useStyles = makeStyles(theme => ({
@@ -52,12 +57,13 @@ const useStyles = makeStyles(theme => ({
   },
   customIcon: {
     position: 'absolute',
-    right: '10px',
+    right: '20px',
     top: '50%',
     transform: 'translateY(-50%)',
     height: '16px',
     width: '16px',
     color: '#999',
+    cursor: 'pointer'
   }
 }))
 
@@ -68,7 +74,7 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
   const [expanded, setExpanded] = useState([])
   const [checkedItems, setCheckedItems] = useState({})
   const [searchText, setSearchText] = useState('')
-  const [thirdLevelCount, setThirdLevelCount] = useState(0)
+  const [rejectedIds, setRejectedIds] = useState()
 
   const handleNodeToggle = (_, nodes) => setExpanded(nodes)
 
@@ -103,10 +109,10 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
         }
       }
 
-      // Count checked third-level items and trigger viewer update
-      const thirdCount = countThirdLevel(tree, updated)
-      setThirdLevelCount(thirdCount)
-      focusLogsInViewer(thirdCount, setSliceElementsByQuery)
+      const selectedSiteEquipId = getSelectedThirdLevelIds(tree, updated)
+      focusLogsInViewer(setSliceElementsByQuery, selectedSiteEquipId).then((value) => {
+        setRejectedIds(value)
+      })
 
       return updated
     })
@@ -127,13 +133,12 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
   }
 
   const handleSearchKeyDown = (e) => {
-    if (e.key !== 'Enter') return
+    if (e.type === 'keydown' && e.key !== 'Enter') return
     const query = searchText.trim()
     if (!query) return
 
     // Find all matching node IDs
-    const matchedIds = getMatchingIdsAndDescendants(levelData, query)
-
+    const matchedIds = findNodeAndDescendants(levelData, query)
     // Auto-check them
     setCheckedItems(prev => {
       const updated = { ...prev }
@@ -145,10 +150,13 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
     const newExpanded = Array.from(expandAllParents(levelData, matchedIds))
     setExpanded(newExpanded)
 
-    // Update viewer focus
-    const thirdCount = countThirdLevel(levelData, Object.fromEntries(matchedIds.map(id => [id, true])))
-    setThirdLevelCount(thirdCount)
-    focusLogsInViewer(thirdCount, setSliceElementsByQuery)
+     // Update viewer focus
+    const matchedIdsMap = Object.fromEntries(matchedIds.map(id => [id, true]))
+    const thirdLevelIds = getSelectedThirdLevelIds(levelData, matchedIdsMap)
+
+    focusLogsInViewer(setSliceElementsByQuery, thirdLevelIds).then((value) => {
+      setRejectedIds(value)
+    })
   };
 
   const renderTree = nodes =>
@@ -156,7 +164,7 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
       <SiteEquipTreeSearch
         key={node.id}
         nodeId={node.id}
-        labelText={node.name}
+        labelText={node.siteEquipId ? node.siteEquipId : node.name}
         checked={!!checkedItems[node.id]}
         onCheck={(id, checked) => handleCheck(id, checked, node, levelData)}
       >
@@ -190,7 +198,7 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
               onChange={e => setSearchText(e.target.value)}
               onKeyDown={handleSearchKeyDown}
             />
-            <SearchIcon className={classes.customIcon} />
+            <SearchIcon className={classes.customIcon} onClick={handleSearchKeyDown}/>
           </div>
           <TreeView
             className={classes.root}
@@ -201,6 +209,16 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
           >
             {renderTree(levelData)}
           </TreeView>
+          {rejectedIds && rejectedIds.length > 0 && (
+            <div style={{marginTop: '16px'}}>
+              <p>No model elements found for the following site equipment:</p>
+              <ul style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
+                {rejectedIds.map((id) => (
+                  <li key={id}>{id}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </>
       )}
     </>
