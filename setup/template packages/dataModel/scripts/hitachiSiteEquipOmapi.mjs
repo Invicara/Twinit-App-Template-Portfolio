@@ -356,9 +356,9 @@ async function searchEquipment(input, libraries, ctx) {
 		const { IafItemSvc } = libraries.PlatformApi
 		const { IafScriptEngine } = libraries
 
-		const { facility, unit, equipmentId, siteEquipmentId, properties, TechnicalParameters } = input
+		const { facility, unit, equipmentId, siteEquipmentId, properties, TechnicalParameters, username } = input
 
-		if (!facility || !unit || !equipmentId || !siteEquipmentId || !properties || !TechnicalParameters) {
+		if (!facility || !unit || !equipmentId || !siteEquipmentId || !properties || !TechnicalParameters || !username) {
 			return {
 				status: 400,
 				statusMessage: "Missing required parameter",
@@ -477,10 +477,37 @@ async function searchEquipment(input, libraries, ctx) {
 			await IafItemSvc.updateRelatedItem(siteEquipColl._userItemId, equip._id, {..._.omit(equip, ['revisions']), tipRevision: incrementedRevision}, ctx)
 		}
 
+      // When intermedate revision is created, there should be EC log for APPROVED status.
+      const approvedEcLog = validEcs.find(ec => ec.status == 'APPROVED')
+      let ecLog
+      if (approvedEcLog) {
+         // Update existing EC Log which has status APPROVED
+         ecLog = await IafItemSvc.updateRelatedItem(ecsLogsColl._userItemId, approvedEcLog._id, {...approvedEcLog, dateReviewed: date.toISOString()}, ctx)
+      } else {
+         // Create a new EC log with status APPROVED
+         // Use REGISTERED EC log as template
+         const registeredEcLog = validEcs.find(ec => ec.status == 'REGISTERED')
+         if (!registeredEcLog) {
+            return {
+               status: '400',
+               message: 'EC has not been registered'
+            }
+         } else {
+            const newEcLog = {
+               ..._.omit(registeredEcLog, ['_id', '_metadata']),
+               dateReviewed: date.toISOString(),
+               status: 'APPROVED',
+               username
+            }
+            ecLog = await IafItemSvc.createRelatedItems(ecsLogsColl._userItemId, [newEcLog], ctx)
+         }
+      }
+
 		return {
          status: '200',
          message: 'Success',
-         revision: result
+         revision: result,
+         ecLog
       }
 	}
 
@@ -519,7 +546,8 @@ async function searchEquipment(input, libraries, ctx) {
 
 		const equip = equipWithRevs?._list?.[0]
       const tipRevision = equip?.tipRevision
-		const revisionToBump = equip?.revisions?._list?.find(e => e.revision == tipRevision)
+      const allRevisions = equip?.revisions?._list || []
+		const revisionToBump = allRevisions?.find(e => e.revision == tipRevision)
 
 		if (!revisionToBump) {
 			return {
@@ -537,30 +565,22 @@ async function searchEquipment(input, libraries, ctx) {
 			}
 		}
 
-		// Create new pending revision
+		// Create new issued revision
 		const date = new Date()
 		date.setUTCHours(0,0,0,0)
 		const incrementedRevision = incrementToRevision(revisionToBumpNumber)
-		const newRevision = {
-			..._.omit(revisionToBump, ['_id', '_metadata', 'edited']),
-			'revision status date': date.toISOString(),
-			'revision status': 'ISSUED',
-			'revision': incrementedRevision,
-		}
-		
-		const newRevisionWithRelation = {
-			...newRevision,
-			_relationships: [
-				{
-					_relatedUserItemDbId: siteEquipColl._userItemId,
-					_relatedToIds: [equip._id]
-				}
-			]
-		}
 
       // Set previous ISSUED rev to REVISED and update the revision date
-      const previousRevision = await IafItemSvc.updateRelatedItem(siteEquipRevsColl._userItemId, revisionToBump._id, {...revisionToBump, 'revision status': 'REVISED', 'revision status date': date.toISOString()}, ctx)
-		const createdRevision = await IafItemSvc.createRelatedItems(siteEquipRevsColl._userItemId, [newRevisionWithRelation], ctx)
+      const prevIssuedRevisions = allRevisions.filter(r => r['revision status'] == 'ISSUED') || []
+      if (prevIssuedRevisions.length) {
+         prevIssuedRevisions.forEach(r => {
+            r['revision status'] = 'REVISED',
+            r['revision status date'] = date.toISOString()
+         })
+         await IafItemSvc.updateRelatedItems(siteEquipRevsColl._userItemId, prevIssuedRevisions, ctx)
+      }
+      // Update temporary revision to major revision
+      const updatedRevision = await IafItemSvc.updateRelatedItem(siteEquipRevsColl._userItemId, revisionToBump._id, {...revisionToBump, 'revision': incrementedRevision, 'revision status': 'ISSUED', 'revision status date': date.toISOString()}, ctx)
 		// Update tipRevision on site equip
 		await IafItemSvc.updateRelatedItem(siteEquipColl._userItemId, equip._id, {..._.omit(equip, ['revisions']), tipRevision: incrementedRevision}, ctx)
 		
@@ -588,8 +608,7 @@ async function searchEquipment(input, libraries, ctx) {
 		return {
 			status: '200',
 			message: 'Success',
-         previousRevision,
-			createdRevision,
+         updatedRevision,
 			createdEcLog
 		}
 	}
@@ -654,9 +673,26 @@ async function searchEquipment(input, libraries, ctx) {
 		const newTip = revision.replace(/[A-Za-z]$/, "")
 		await IafItemSvc.updateRelatedItem(siteEquipColl._userItemId, equip._id, {..._.omit(equip, ['revisions']), tipRevision: newTip}, ctx)
 
+      // Delete matching EC log entry with APPROVED EC status
+      // Check site equip is registered to any EC
+      const {ecsLogsColl} = await getEcsCollections({libraries, ctx})
+		const query = {
+         site: facility,
+         unit,
+			'Site Equipment Id': siteEquipmentId,
+		}
+		const ecsLogs = (await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, {query}, ctx))?._list
+      const approvedEcLog = ecsLogs.find(ec => ec['Equipment Revision'] == revision && ec.status == 'APPROVED')
+
+      let deletedEcLog
+      if (approvedEcLog) {
+         deletedEcLog = await IafItemSvc.deleteRelatedItem(ecsLogsColl._userItemId, approvedEcLog._id, ctx)
+      }
+
 		return {
          status: '200',
          message: 'Success',
-         result
+         result,
+         deletedEcLog
       }
 	}
