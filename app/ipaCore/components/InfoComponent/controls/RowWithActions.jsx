@@ -46,8 +46,12 @@ export function RowWithActions({
   const isRequired =
     Array.isArray(schema?.required) && schema.required.includes(key);
 
- const propSchema = schema?.properties?.[key];
-const showMismatch = !!propSchema?.isMismatched;
+//  const propSchema = schema?.properties?.[key];
+// const showMismatch = !!propSchema?.isMismatched;
+
+const propSchema = schema?.properties?.[key];
+  const [liveMismatch, setLiveMismatch] = React.useState(!!propSchema?.isMismatched);
+
   const controlUiSchemaWithOptionalLabel = useMemo(
     () => ({ ...controlUiSchema, label: controlUiSchema.label }),
     [controlUiSchema]
@@ -60,7 +64,7 @@ const showMismatch = !!propSchema?.isMismatched;
     );
   const onRowBlur = (e) => {
   if (!editing) return;
-  if (key === 'FlowRate' || key === 'Power') return; // don't auto-close
+  if (key === 'FlowRate' || key === 'Power') return;
 
   requestAnimationFrame(() => {
     const next = e.relatedTarget || document.activeElement;
@@ -107,18 +111,16 @@ const showMismatch = !!propSchema?.isMismatched;
               schema={schema}
               path={path}
               labelPlacement={labelPlacement}
+            onEvaluate={({ isMismatch }) => setLiveMismatch(isMismatch)}
             />
           )}
         </Box>
 
         {/* Actions: warning + edit/info + modify/delete */}
         <Box justifySelf="end" alignSelf="start" pt={3} display="flex" alignItems="center">
-          {showMismatch && (
-            <Tooltip title={'Ecpected other value'}>
-              <WarningIcon
-                fontSize="small"
-                sx={{ color: "orange", mr: 0.5 }}
-              />
+              {liveMismatch && (
+            <Tooltip title={'Expected other value'}>
+              <WarningIcon fontSize="small" sx={{ color: "orange", mr: 0.5 }} />
             </Tooltip>
           )}
 

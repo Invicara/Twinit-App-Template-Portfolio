@@ -32,65 +32,96 @@ function formatValue({ value, propSchema }) {
   return String(value);
 }
 
-export default function ValuePresenter({ controlUiSchema, schema, path, labelPlacement = "auto" }) {
-    const { core } = useJsonForms(); // current form state
-    const { resolve } = React.useContext(OptionsContext) || {};
+export default function ValuePresenter({ controlUiSchema, schema, path, labelPlacement = "auto", onEvaluate }) {
+  const { core } = useJsonForms();
+  const { resolve } = React.useContext(OptionsContext) || {};
 
-    const key = controlKey(controlUiSchema.scope);
-    const absPath = composePaths(path ?? '', toDataPath(controlUiSchema.scope));
+  const key = controlKey(controlUiSchema.scope);
+  const absPath = composePaths(path ?? '', toDataPath(controlUiSchema.scope));
 
-    // look up property schema (handles flat objects; for deep structures, resolve as needed)
-    const propSchema = schema?.properties?.[key] ?? {};
-    const isRequired =
-        Array.isArray(schema?.required) && schema.required.includes(key);
+  const propSchema = schema?.properties?.[key] ?? {};
+  const isRequired = Array.isArray(schema?.required) && schema.required.includes(key);
+  const rawValue = Resolve.data(core?.data, absPath);
 
-    const rawValue = Resolve.data(core?.data, absPath);
+  const unit = propSchema?.options?.unit;
+  const refVal = propSchema?.options?.refVal;
 
-    const unit = schema?.properties?.[key]?.options?.unit;
-const refVal = schema?.properties?.[key]?.options?.refVal;
+  let display = formatValue({ value: rawValue, propSchema });
+  let isMismatch = false;
 
-if ((key === 'FlowRate' || key === 'Power') && unit) {
-  const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue);
-  if (!Number.isNaN(numeric)) {
-    if (refVal !== undefined && numeric != refVal) {
-      // mismatched -> show Expected
-      display = `${numeric} ${unit} (Expected: ${refVal} ${unit})`;
-    } else {
-      display = `${numeric} ${unit}`;
+  // FlowRate / Power (numeric w/unit)
+  if ((key === 'FlowRate' || key === 'Power') && unit) {
+    const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+    if (!Number.isNaN(numeric)) {
+      if (refVal !== undefined && numeric != refVal) {
+        display = `${numeric} ${unit} (Expected: ${refVal} ${unit})`;
+        isMismatch = true;
+      } else {
+        display = `${numeric} ${unit}`;
+      }
     }
   }
-}
 
-    // allow external resolver to map enum labels (same API as EnumSelectRenderer)
-    const [enumOptions, setEnumOptions] = React.useState(null);
-    React.useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            if (!resolve) return;
-            const out = await resolve({ path: absPath, data: core?.data });
-            if (!cancelled && out) setEnumOptions(out);
-        })();
-        return () => { cancelled = true; };
-    }, [resolve, absPath, core?.data]);
+  // Manufacturer / Model (string mismatch)
+  if ((key === 'Manufacturer' || key === 'Model') && refVal !== undefined) {
+    if (rawValue !== refVal) {
+      display = `${rawValue} (Expected: ${refVal})`;
+      isMismatch = true;
+    } else {
+      display = rawValue;
+    }
+  }
 
-    const label =
-        controlUiSchema.label ??
-        propSchema.title ??
-        key;
+  // report mismatch live back to RowWithActions
+  React.useEffect(() => {
+    if (onEvaluate) {
+      onEvaluate({ isMismatch });
+    }
+  }, [isMismatch, onEvaluate]);
 
-   let display = formatValue({ value: rawValue, propSchema, enumOptions });
+  const label = controlUiSchema.label ?? propSchema.title ?? key;
 
-    return (
-        <Box display="grid" gridTemplateColumns={`${labelPlacement=="auto" ? '' : '33% '} 1fr`} alignItems="center" columnGap={1}>
-            {/* LEFT: fixed label */}
-            {labelPlacement=="left" && <Box>
-                <Typography variant="body2" fontWeight={600}>
-                    {label}
-                    {isRequired ? <Typography component="span"  color="error">&nbsp;*</Typography> : null}
-                </Typography>
-            </Box>}
-            <Typography variant="caption" color="textSecondary">{label} {isRequired ? <Typography variant="caption"  component="span" color="error">&nbsp;*</Typography> : null}</Typography>
-            <Typography variant="body1">{display}</Typography>
+  return (
+     <Box
+      display="grid"
+      gridTemplateColumns={
+        labelPlacement === 'left' ? '33% 1fr' : '1fr'
+      }
+      alignItems="center"
+      columnGap={1}
+    >
+      {labelPlacement === 'left' ? (
+        // Label on the left
+        <Box>
+          <Typography variant="body2" fontWeight={600}>
+            {label}
+            {isRequired && (
+              <Typography component="span" color="error">
+                &nbsp;*
+              </Typography>
+            )}
+          </Typography>
         </Box>
-    );
+      ) : (
+        // Label above the value
+        <Typography variant="caption" color="textSecondary">
+          {label}
+          {isRequired && (
+            <Typography
+              variant="caption"
+              component="span"
+              color="error"
+            >
+              &nbsp;*
+            </Typography>
+          )}
+        </Typography>
+      )}
+
+      {/* Value */}
+      <Typography variant="body1">{display}</Typography>
+    </Box>
+  );
 }
+
+

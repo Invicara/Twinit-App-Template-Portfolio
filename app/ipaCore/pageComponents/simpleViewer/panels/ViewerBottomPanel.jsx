@@ -118,12 +118,12 @@ const equipment = {
 function normalizeProperties(arrOrObj) {
   if (!arrOrObj) return {};
   if (Array.isArray(arrOrObj)) {
-    return arrOrObj.reduce((acc, { name, val, ...rest }) => {
-      acc[name] = { val, ...rest };
+    return arrOrObj.reduce((acc, { name, val, refVal, ...rest }) => {
+      acc[name] = { val, refVal, ...rest };
       return acc;
     }, {});
   }
-  return arrOrObj; // already in old object format
+  return arrOrObj;
 }
 
 function normalizeTechParams(arrOrObj) {
@@ -167,16 +167,16 @@ function flattenEquipment(siteEq) {
   return {
     equipmentId: siteEq['Site Equipment Id'] || siteEq.equipmentId || '',
     Model: props?.Model?.val || '',
-    equipmentType: siteEq.equipmentType || '',
     Manufacturer: props?.Manufacturer?.val || '',
     'Safety Class': props?.['Safety Class']?.val || '',
-    FlowRate: tech?.FlowRate?.val ?? '', 
-    Power: tech?.Power?.val ?? '',       
-    TechnicalParameters: tech,         
-    revision: rev.revision || ''     
+    equipmentType: siteEq.equipmentType || '',
+    FlowRate: tech?.FlowRate?.val ?? '',
+    Power: tech?.Power?.val ?? '',
+    TechnicalParameters: tech,
+    properties: props, // ✅ keep full object with refVal
+    revision: rev.revision || ''
   };
 }
-
 const equipmentSchema = {
   type: 'object',
   properties: {
@@ -208,20 +208,31 @@ function buildSchema(flat, editableFields = []) {
     const isEditable = editableFields.includes(key);
     const rawVal = flat[key];
 
-const schema = {
-  type: typeof rawVal === 'number' ? 'number' : 'string',
-  title: key,
-  readOnly: !isEditable,
-};
-  if (flat.TechnicalParameters?.[key]) {
-  const { refVal, unit } = flat.TechnicalParameters[key];
-  schema.options = { refVal, unit };
+    const schema = {
+      type: typeof rawVal === 'number' ? 'number' : 'string',
+      title: key,
+      readOnly: !isEditable,
+    };
 
-  if (refVal !== undefined && rawVal !== undefined && rawVal != refVal) {
-    schema.isMismatched = true;
-    schema.displayValue = `${rawVal} ${unit} (Expected: ${refVal} ${unit})`; 
-  }
-}
+    if (flat.TechnicalParameters?.[key]) {
+      const { refVal, unit } = flat.TechnicalParameters[key];
+      schema.options = { refVal, unit };
+      if (refVal !== undefined && rawVal != refVal) {
+        schema.isMismatched = true;
+        schema.displayValue = unit
+          ? `${rawVal} ${unit} (Expected: ${refVal} ${unit})`
+          : `${rawVal} (Expected: ${refVal})`;
+      }
+    }
+
+    if (flat.properties?.[key]?.refVal !== undefined) {
+      const refVal = flat.properties[key].refVal;
+      schema.options = { ...(schema.options || {}), refVal };
+      if (rawVal !== refVal) {
+        schema.isMismatched = true;
+        schema.displayValue = `${rawVal} (Expected: ${refVal})`;
+      }
+    }
 
     acc[key] = schema;
     return acc;
@@ -338,23 +349,38 @@ const handleChange = (index, name, value) => {
 
         //ADD to test mismatches
 
-        // const testProp = {
-        //   ...prop,
-        //   TechnicalParameters: {
-        //     ...prop.TechnicalParameters,
-        //     FlowRate: {
-        //       ...prop.TechnicalParameters?.FlowRate,
-        //       refVal: 104   // force mismatch for testing
-        //     },
-        //     Power: {
-        //       ...prop.TechnicalParameters?.Power,
-        //       refVal: prop.TechnicalParameters?.Power?.val
-        //     }
-        //   }
-        // };
+     const testProp = {
+  ...prop,
+  Manufacturer: prop.Manufacturer, 
+  Model: prop.Model,
+  TechnicalParameters: {
+    ...prop.TechnicalParameters,
+    FlowRate: {
+      ...prop.TechnicalParameters?.FlowRate,
+      refVal: 104   // force mismatch for testing
+    },
+    Power: {
+      ...prop.TechnicalParameters?.Power,
+      refVal: prop.TechnicalParameters?.Power?.val
+    }
+  },
+  // Add refVals for Manufacturer and Model
+  properties: {
+    ...prop.properties,
+    Manufacturer: {
+      ...prop.properties?.Manufacturer,
+      refVal: 'SomeOtherManufacturer' // force mismatch
+    },
+    Model: {
+      ...prop.properties?.Model,
+      refVal: 'DifferentModel' // force mismatch
+    }
+  }
+};
 
+console.log('EC8 PROPS', prop);
 
-   const dynamicSchema = buildSchema(prop, editableFields);
+   const dynamicSchema = buildSchema(testProp, editableFields);
 
         return (
           <Paper key={prop._id || index} className={classes.card}>
@@ -372,7 +398,7 @@ const handleChange = (index, name, value) => {
             </div>
 
             <InfoComponent
-               entity={prop}
+               entity={testProp}
               type={dynamicSchema}   
               entityType="equipment"
               hidePropertyActions={true}
