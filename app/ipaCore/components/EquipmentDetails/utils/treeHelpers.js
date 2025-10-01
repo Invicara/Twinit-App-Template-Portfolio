@@ -29,31 +29,6 @@ export const findParent = (nodes, childId, parent = null) => {
   return null
 }
 
-export const countThirdLevel = (nodes, checked, depth = 1) => {
-  let count = 0
-  nodes?.forEach(node => {
-    if (depth === 3 && checked[node.id]) count++
-    if (node.children) count += countThirdLevel(node.children, checked, depth + 1)
-  })
-  return count
-}
-
-export const getMatchingIdsAndDescendants = (nodes, query) => {
-  let result = []
-  const lowerQuery = query.toLowerCase()
-
-  nodes.forEach(node => {
-    const isMatch = node.id.toLowerCase().includes(lowerQuery)
-    if (isMatch) {
-      result.push(node.id)
-      if (node.children) result = result.concat(getAllDescendantIds(node.children))
-    } else if (node.children) {
-      result = result.concat(getMatchingIdsAndDescendants(node.children, query))
-    }
-  })
-  return result
-}
-
 export const expandAllParents = (nodes, matched, parents = []) => {
   let expandedSet = new Set()
   nodes.forEach(node => {
@@ -67,4 +42,45 @@ export const expandAllParents = (nodes, matched, parents = []) => {
     }
   })
   return expandedSet
+}
+
+export const getSelectedThirdLevelIds = (tree, checkedItems) => {
+  let result = []
+
+  const traverse = (nodes) => {
+    nodes.forEach(node => {
+      if (!node.children || node.children.length === 0) {
+        // It's a leaf node (3rd level)
+        if (checkedItems[node.id]) {
+          result.push(node.siteEquipId)
+        }
+      } else {
+        traverse(node.children)
+      }
+    })
+  }
+
+  traverse(tree)
+  return result
+}
+
+export const findNodeAndDescendants = (tree, query) => {
+  let results = []
+
+  const search = (nodes) => {
+    for (let node of nodes) {
+      if (node.name.toLowerCase().includes(query.toLowerCase())) {
+        // Found a match — add it and all descendants
+        results.push(node.id)
+        if (node.children) {
+          results.push(...getAllDescendantIds(node.children))
+        }
+      } else if (node.children) {
+        search(node.children)
+      }
+    }
+  }
+
+  search(tree)
+  return results
 }
