@@ -271,17 +271,17 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
             
         if(Object.keys(EC).length > 0) {
 
-            //const items = await siteEquipmentService(EC, facilityId, buildingId, equipmentId);
-        //    setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
-        //    console.log('EC items', items);
-        //     setData(items);
+           const items = await siteEquipmentService(EC, facilityId, buildingId, equipmentId);
+           setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
+           console.log('EC items', items);
+            setData(items);
 
-            const match = selectedModelComposite?._name?.match(/_(\d+)$/);
-            const bId = match ? match[1].slice(-2) : null;
-            const fId = bId == '01' ? 'A' : 'B';
-            const items = await siteEquipmentForTreeService(fId, bId, equipmentIdArray);
-             setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
-             setData(items);
+            // const match = selectedModelComposite?._name?.match(/_(\d+)$/);
+            // const bId = match ? match[1].slice(-2) : null;
+            // const fId = bId == '01' ? 'A' : 'B';
+            // const items = await siteEquipmentForTreeService(fId, bId, equipmentIdArray);
+            //  setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
+            //  setData(items);
         } else {
              const match = selectedModelComposite?._name?.match(/_(\d+)$/);
             const bId = match ? match[1].slice(-2) : null;
