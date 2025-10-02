@@ -266,7 +266,8 @@ export async function renderAllMarkers(e, {self}, markersInfo) {
     graphics.forEach(graphic => {
         markers.set(graphic.id,graphic);//track markers internally
     })
-    return {allFeatures, graphics, visibleFeatures, allFeaturesMarkerIds, previousMarkerIds, currentMarkerIds: markerGraphics.map(mg=>mg.markerId), filters};
+    const currentMarkerIds = markerGraphics.filter(mg => !!mg.graphic).map(mg => mg.markerId);
+    return {allFeatures, graphics, visibleFeatures, allFeaturesMarkerIds, previousMarkerIds, currentMarkerIds, filters};
 }
 
 
