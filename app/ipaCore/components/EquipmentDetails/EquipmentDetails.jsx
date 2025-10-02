@@ -41,12 +41,14 @@ export default function EquipmentDetails() {
     setTab(newValue);
   };
 
+  //TODO use real facility/site id
+
   const { selectedModelComposite } = useContext(ModelContext);
 
   const match = selectedModelComposite?._name?.match(/_(\d+)$/);
   const buildingId = match ? match[1].slice(-2) : null;
+//TODO FIX
   const facilityId = buildingId == '01' ? 'A' : 'B';
-
   useEffect(() => {
     if (!selectedModelComposite || !buildingId) {
       setECs([]);
