@@ -2,7 +2,7 @@ import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
 
 export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
     const fnsFactory = IafScriptEngine.getVar("loadedScripts")["filterRuleFns"];
-    const originalFns = fnsFactory();
+    const originalFns = fnsFactory({entityType, isMapFeatures});
     const fns = {
         ...originalFns,
         capacityBetween:
