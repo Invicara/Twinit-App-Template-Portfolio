@@ -5,7 +5,7 @@ import { Edit as EditIcon, Save as SaveIcon, KeyboardArrowUp, KeyboardArrowDown 
 import { ModelContext } from '../../../contexts/ModelContext'
 import { InfoComponent } from '../../../components/InfoComponent/InfoComponent'
 import { siteEquipmentService, siteEquipmentForTreeService } from '../../../../services/siteEquipment';
-import { Warning as WarningIcon } from '@mui/icons-material';
+import AssignmentLateIcon from '@material-ui/icons/AssignmentLate';
 
 const useStyles = makeStyles((theme) => ({
   panel: {
@@ -158,11 +158,17 @@ function normalizeTechParams(arrOrObj) {
 // }
 
 function flattenEquipment(siteEq) {
-  const rev = Array.isArray(siteEq.revisions) ? siteEq.revisions[0] : siteEq.revisions?._list?.[0];
+  const rev = Array.isArray(siteEq.revisions)
+    ? siteEq.revisions[0]
+    : siteEq.revisions?._list?.[0];
+
   if (!rev) return {};
 
-  const props = normalizeProperties(rev.properties);
-  const tech = normalizeTechParams(rev.TechnicalParameters);
+  // 🔹 Merge in any edits first
+  const mergedRev = rev;
+
+  const props = normalizeProperties(mergedRev.properties);
+  const tech = normalizeTechParams(mergedRev.TechnicalParameters);
 
   return {
     equipmentId: siteEq['Site Equipment Id'] || siteEq.equipmentId || '',
@@ -173,10 +179,13 @@ function flattenEquipment(siteEq) {
     FlowRate: tech?.FlowRate?.val ?? '',
     Power: tech?.Power?.val ?? '',
     TechnicalParameters: tech,
-    properties: props, // ✅ keep full object with refVal
-    revision: rev.revision || ''
+    properties: props,
+    revision: mergedRev.revision || '',
+    edited: mergedRev.edited || {},
+    'revision status': mergedRev['revision status'] || '',
   };
 }
+
 const equipmentSchema = {
   type: 'object',
   properties: {
@@ -214,25 +223,34 @@ function buildSchema(flat, editableFields = []) {
       readOnly: !isEditable,
     };
 
-    if (flat.TechnicalParameters?.[key]) {
-      const { refVal, unit } = flat.TechnicalParameters[key];
-      schema.options = { refVal, unit };
+    // 🔹 Merge both TechnicalParameters + properties metadata
+    const techMeta = flat.TechnicalParameters?.[key];
+    const propMeta = flat.properties?.[key];
+
+    if (techMeta) {
+      const { refVal, unit, isEdited, originalVal } = techMeta;
+      schema.options = { ...(schema.options || {}), refVal, unit, originalVal };
       if (refVal !== undefined && rawVal != refVal) {
         schema.isMismatched = true;
         schema.displayValue = unit
           ? `${rawVal} ${unit} (Expected: ${refVal} ${unit})`
           : `${rawVal} (Expected: ${refVal})`;
       }
+      if (isEdited) schema.isEdited = true;
     }
 
-    if (flat.properties?.[key]?.refVal !== undefined) {
-      const refVal = flat.properties[key].refVal;
-      schema.options = { ...(schema.options || {}), refVal };
-      if (rawVal !== refVal) {
-        schema.isMismatched = true;
-        schema.displayValue = `${rawVal} (Expected: ${refVal})`;
-      }
-    }
+   if (propMeta) {
+  const { refVal, isEdited, originalVal } = propMeta;
+  schema.options = { ...(schema.options || {}), refVal, originalVal };
+
+  if (isEdited) {
+    schema.isEdited = true;
+    schema.displayValue = rawVal;  // show only current value, hide Expected text
+  } else if (refVal !== undefined && rawVal !== refVal) {
+    schema.isMismatched = true;
+    schema.displayValue = `${rawVal} (Expected: ${refVal})`;
+  }
+}
 
     acc[key] = schema;
     return acc;
@@ -245,7 +263,8 @@ function buildSchema(flat, editableFields = []) {
   };
 }
 
-const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
+const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
+
   const classes = useStyles()
   const { sliceElements, siteEquipment, selectedModelComposite } = useContext(ModelContext)
   const [isOpen, setIsOpen] = useState(false)
@@ -287,6 +306,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
             const bId = match ? match[1].slice(-2) : null;
             const fId = bId == '01' ? 'A' : 'B';
             const siteEqItems = await siteEquipmentForTreeService(fId, bId, siteEquipment?.data);
+            console.log('EC8 site eq items', siteEqItems);
             setProperties(siteEqItems.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
             setData(siteEqItems);
         }
@@ -362,9 +382,25 @@ const handleChange = (index, name, value) => {
     {properties && properties.length > 0 ? (
       properties.map((prop, index) => {
 
-        const editableFields = prop.isEditing
-            ? ['Manufacturer', 'Model', 'FlowRate', 'Power']
-            : [];
+        console.log('DEBUG PROP', {
+  id: prop._id,
+  revision: prop.revision,
+  status: prop['revision status'],
+  edited: prop.edited
+});
+
+       
+
+          const editRequests = countEdits(prop.edited);
+            const hasEdits = editRequests > 0;
+
+            const showEditRequests =
+            prop.revision?.endsWith('A') &&
+            prop['revision status'] === 'PENDING';
+
+    const editableFields = prop.isEditing
+      ? ['Manufacturer', 'Model', 'FlowRate', 'Power']
+      : [];
 
         //ADD to test mismatches
 
@@ -403,18 +439,83 @@ console.log('EC8 PROPS', prop);
 
         return (
           <Paper key={prop._id || index} className={classes.card}>
-            <div className={classes.headerRow}>
-              <Typography variant='subtitle1' style={{ fontWeight: 'bold' }}>
-                Current Properties: {prop.siteEquipmentId || prop.equipmentId} ({prop.revision})
-              </Typography>
-              <Button
-                className={classes.editButton}
-                startIcon={prop.isEditing ? <SaveIcon /> : <EditIcon />}
-                onClick={() => toggleEdit(index)}
-              >
-                {prop.isEditing ? 'Save' : 'Edit'}
-              </Button>
-            </div>
+          <div className={classes.headerRow}>
+  <Typography variant='subtitle1' style={{ fontWeight: 'bold' }}>
+    Current Properties: {prop.siteEquipmentId || prop.equipmentId} ({prop.revision})
+  </Typography>
+
+  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+  <Button
+  className={classes.editButton}
+  size="small"
+  startIcon={prop.isEditing ? <SaveIcon fontSize="small" /> : <EditIcon fontSize="small" />}
+  onClick={() => toggleEdit(index)}
+  style={{
+    padding: '6px 14px',   
+    minHeight: 34,       
+    fontSize: '0.85rem',
+    marginLeft: '4px'
+  }}
+>
+  {prop.isEditing ? 'Save' : 'Edit'}
+</Button>
+  {hasEdits && (
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      backgroundColor: '#e6f0fa',
+      padding: '3px 8px', 
+      borderRadius: 6,
+      height: 28,          
+    }}
+  >
+    <Typography
+      style={{
+        fontWeight: 600,
+        fontSize: '0.8rem', 
+        color: '#1976d2',
+        marginRight: 8,
+        lineHeight: 1.2,
+      }}
+    >
+      Edit Requests ({editRequests})
+    </Typography>
+
+    <Typography
+      style={{
+        fontSize: '0.8rem',
+        color: '#1976d2',
+        cursor: 'pointer',
+        marginRight: 6,
+        lineHeight: 1.2,
+      }}
+      onClick={() => console.log('Reject clicked')}
+    >
+      Reject
+    </Typography>
+
+    <Divider orientation="vertical" flexItem style={{ margin: '0 6px', height: 16 }} />
+
+    <Typography
+      style={{
+        fontSize: '0.8rem',
+        color: '#1976d2',
+        cursor: 'pointer',
+        marginRight: 6,
+        lineHeight: 1.2,
+      }}
+      onClick={() => console.log('Approve clicked')}
+    >
+      Approve
+    </Typography>
+
+    <AssignmentLateIcon style={{ color: '#1976d2', fontSize: 18 }} />
+  </div>
+)}
+
+  </div>
+</div>
 
             <InfoComponent
                entity={prop}
@@ -494,5 +595,16 @@ function UnitInput({ value, unit, onChange, disabled }) {
       <span style={{ marginLeft: 4 }}>{unit}</span>
     </div>
   );
+}
+
+
+function countEdits(edited) {
+  if (!edited) return 0;
+  return Object.values(edited).reduce((count, val) => {
+    if (Array.isArray(val)) {
+      return count + val.length;
+    }
+    return count + 1;
+  }, 0);
 }
 
