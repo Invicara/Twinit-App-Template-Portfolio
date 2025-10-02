@@ -24,7 +24,7 @@ export function useGraphicsVisibility({mapInstance, portContext}){
 
         const namedPaths = currentState.context.namedPaths[0];
         const namedPath = namedPaths.find(p => p.state === cElementType);
-        const lowerNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel + 1);
+        const lowerNamedPath = namedPaths.find(p => p?.scopeLevel === namedPath?.scopeLevel + 1);
 
 
         const meshLevels = [...levels, ...(lowerNamedPath ? [lowerNamedPath] : [])]
