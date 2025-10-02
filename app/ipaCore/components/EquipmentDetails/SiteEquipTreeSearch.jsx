@@ -21,6 +21,9 @@ const useTreeItemStyles = makeStyles(theme => ({
     "&.Mui-checked": {
       color: '#DF158C'
     },
+     "&.MuiCheckbox-indeterminate": {
+      color: '#EF94CD',
+    },
     '& svg': { 
       width: '12px', 
       height: '12px', 
@@ -29,14 +32,14 @@ const useTreeItemStyles = makeStyles(theme => ({
   }
 }))
 
-export default function SiteEquipTreeSearch({ labelText, checked, onCheck, nodeId, ...other }) {
+export default function SiteEquipTreeSearch({ labelText, checked, onCheck, nodeId, indeterminate, ...other }) {
   const classes = useTreeItemStyles()
   return (
     <TreeItem
       nodeId={nodeId}
       label={
         <div className={classes.labelRoot}>
-          <Checkbox checked={checked} onChange={e => onCheck(nodeId, e.target.checked)} className={classes.checkbox} size="small" />
+          <Checkbox checked={checked} indeterminate={indeterminate} onChange={e => onCheck(nodeId, e.target.checked)} className={classes.checkbox} size="small" />
           <Typography variant="body2" className={classes.labelText}>{labelText}</Typography>
         </div>
       }
