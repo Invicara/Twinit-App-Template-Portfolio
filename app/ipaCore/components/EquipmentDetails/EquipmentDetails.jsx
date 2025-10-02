@@ -73,18 +73,26 @@ export default function EquipmentDetails() {
 
     const [levelData, setLevelData] = useState()
     const [loadingLevelData, setLoadingLevelData] = useState(false)
+    const [hasFetched, setHasFetched] = useState(false);
 
     const { fetchTreeData } = useTreeData();
 
     useEffect(() => {
-        const run = async () => {
+      const run = async () => {
+        try {
           setLoadingLevelData(true)
-            const treeLevelData = await fetchTreeData(facilityId, buildingId);
-            setLevelData(treeLevelData)
-            setLoadingLevelData(false)
+          const treeLevelData = await fetchTreeData(facilityId, buildingId)
+          setLevelData(treeLevelData)
+        } catch (err) {
+          console.error("Failed to fetch Tree Level Data:", err)
+        } finally {
+          setLoadingLevelData(false)
+          setHasFetched(true)
         }
-        run()
-    }, [fetchTreeData, buildingId]);
+      };
+      run();
+    }, [fetchTreeData, buildingId])
+
 
   return (
     <Box>
@@ -111,7 +119,7 @@ export default function EquipmentDetails() {
             className={classes.tab}
           />
         )}
-        {tab === 1 && <SiteEquipmentTab className={classes.tab} levelData={levelData} loadingLevelData={loadingLevelData} />}
+        {tab === 1 && <SiteEquipmentTab className={classes.tab} levelData={levelData} loadingLevelData={loadingLevelData} hasFetched={hasFetched} />}
       </div>
     </Box>
   );
