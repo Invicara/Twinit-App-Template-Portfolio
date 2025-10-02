@@ -79,9 +79,9 @@ const statusConfig = {
         "unknown": "Unknown",
     },
     colorMap: {
-        "REGISTERED": THEMES.BY_EC_STATUS.bins[0].color, 
-        "APPROVED": THEMES.BY_EC_STATUS.bins[1].color, 
-        "CLOSED": THEMES.BY_EC_STATUS.bins[2].color, 
+        "REGISTERED": THEMES.BY_EC_STATUS.bins[0].color,
+        "APPROVED": THEMES.BY_EC_STATUS.bins[1].color,
+        "CLOSED": THEMES.BY_EC_STATUS.bins[2].color,
         "unknown": "#CCCCCC",
     },
 }
@@ -291,23 +291,38 @@ let scriptModule = {
     filterRuleFns(input) {
         return {
             statusIn:
-            ({ values }) =>
-            (building) => {
-                if (building.StatusId == null) return false;
-                return values.map(String).includes(String(building.StatusId));
-            },
+                ({ values }) =>
+                    (building) => {
+                        if (building.StatusId == null) return false;
+                        return values.map(String).includes(String(building.StatusId));
+                    },
 
             capacityBetween:
-            ({ min, max }) =>
-            (building) => {
-                const cap = building.Capacity;
-                if (typeof cap !== "number") return false;
+                ({ min, max }) =>
+                    (building) => {
+                        const cap = building.Capacity;
+                        if (typeof cap !== "number") return false;
 
-                if (max == null) {
-                return cap >= min;
-                }
+                        if (max == null) {
+                            return cap >= min;
+                        }
 
-                return cap >= min && cap < max;
+                        return cap >= min && cap < max;
+                    },
+            searchQuery: ({ q }) => (e) => {
+                if (!q) return true;
+
+                const entity = e.properties || e;
+                const query = q.toLowerCase();
+
+                // List the fields you want to check
+                const fields = [
+                    entity?.name,
+                    entity?.siteId,
+                    entity?.buildingId
+                ];
+
+                return fields.filter(f=>!!f).some(field => field?.toLowerCase().includes(query));
             },
         };
     },
