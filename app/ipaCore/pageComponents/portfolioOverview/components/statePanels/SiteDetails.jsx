@@ -446,20 +446,20 @@ export default function SiteDetails({ context }) {
             [idKey]: finalizedEntity[idKey]
         });
 
-        if(namedPath.parentState){
-            const parentPath = namedPaths.find(el => el.state === namedPath.parentState);
-            const parentColl = (await IafItemSvc.getNamedUserItems({query: {_shortName: parentPath.collShortName}}))._list[0];
+        // if(namedPath.parentState){
+        //     const parentPath = namedPaths.find(el => el.state === namedPath.parentState);
+        //     const parentColl = (await IafItemSvc.getNamedUserItems({query: {_shortName: parentPath.collShortName}}))._list[0];
 
-            const parentEntity = currentState.context.data[parentPath.state]
-                .find(el => [currentState.context[parentPath.idKey], finalizedEntity[parentPath.idKey]].includes(el[parentPath.idKey]))
+        //     const parentEntity = currentState.context.data[parentPath.state]
+        //         .find(el => [currentState.context[parentPath.idKey], finalizedEntity[parentPath.idKey]].includes(el[parentPath.idKey]))
 
-            finalizedEntity._relationships = [{
-                "_relatedUserItemId": parentColl._userItemId,
-                "_relatedToIds": [
-                    parentEntity._id
-                ]
-            }]
-        }
+        //     finalizedEntity._relationships = [{
+        //         "_relatedUserItemId": parentColl._userItemId,
+        //         "_relatedToIds": [
+        //             parentEntity._id
+        //         ]
+        //     }]
+        // }
 
         //item service creation side effect
         const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
