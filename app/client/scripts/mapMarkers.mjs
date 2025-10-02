@@ -190,6 +190,10 @@ function createSingleMarker(context, feature, {bins, property, showLabel = true,
     }
 }
 
+export function addMarkers(graphic) {
+    markers.set(graphic.id, graphic);
+}
+
 export function clearStaleMarkers(staleMarkerIds){
     for (const id of Array.from(markers.keys())){
         if (staleMarkerIds && staleMarkerIds.includes(id)){
@@ -263,10 +267,7 @@ export async function renderAllMarkers(e, {self}, markersInfo) {
     })
 
     const previousMarkerIds = [...markers.keys()];
-    graphics.forEach(graphic => {
-        markers.set(graphic.id,graphic);//track markers internally
-    })
-    const currentMarkerIds = markerGraphics.filter(mg => !!mg.graphic).map(mg => mg.markerId);
+    const currentMarkerIds = markerGraphics.map(mg => mg.markerId);
     return {allFeatures, graphics, visibleFeatures, allFeaturesMarkerIds, previousMarkerIds, currentMarkerIds, filters};
 }
 
