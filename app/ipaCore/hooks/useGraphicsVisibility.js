@@ -24,11 +24,10 @@ export function useGraphicsVisibility({mapInstance, portContext}){
 
         const namedPaths = currentState.context.namedPaths[0];
         const namedPath = namedPaths.find(p => p.state === cElementType);
-        const lowerNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel + 1);
+        const lowerNamedPath = namedPaths.find(p => p.scopeLevel === namedPath?.scopeLevel + 1);
 
 
-        const meshLevels = [...levels, ...(lowerNamedPath ? [lowerNamedPath] : [])]
-    .filter(l => l && l.feature === 'mesh');
+        const meshLevels = levels.concat([lowerNamedPath]).filter(l => l && l?.feature === "mesh");
         const meshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
             const featureIds = currentState.context.data[l.state]
                 .filter(el => valuesPerLevelKey.some(([k, v]) => el[k] === v))
