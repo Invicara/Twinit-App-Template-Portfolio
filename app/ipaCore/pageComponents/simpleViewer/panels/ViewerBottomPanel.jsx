@@ -267,7 +267,6 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
         const equipmentId = siteEquipment?.data[0]?.['Equipment Id'];
 
         const equipmentIdArray = extractEquipmentIds(siteEquipment?.data);
-        console.log('EC8 EC', siteEquipment.data);
         const run = async () => {
             
         if(Object.keys(EC).length > 0) {
@@ -282,15 +281,12 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
             const fId = bId == '01' ? 'A' : 'B';
             const items = await siteEquipmentForTreeService(fId, bId, equipmentIdArray);
              setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
-        //    console.log('EC items', items);
              setData(items);
         } else {
              const match = selectedModelComposite?._name?.match(/_(\d+)$/);
             const bId = match ? match[1].slice(-2) : null;
             const fId = bId == '01' ? 'A' : 'B';
-              console.log('EC9 siteEquipmentIds', siteEquipment);
             const siteEqItems = await siteEquipmentForTreeService(fId, bId, siteEquipment?.data);
-                console.log('EC siteEqItems', siteEqItems);
             setProperties(siteEqItems.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
             setData(siteEqItems);
         }

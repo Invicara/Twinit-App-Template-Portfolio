@@ -2,7 +2,6 @@ import React from "react";
 import { IafProj, IafSession, IafItemSvc } from "@dtplatform/platform-api";
 import { convertFieldResponseIntoMuiTextFieldProps } from "@mui/x-date-pickers/internals";
 
-// used to access viewer commands, not used in this example
 export async function engineeringChangesAPIs({ buildingId, facilityId }) {
   const ctx = IafProj.getCurrent();
 
@@ -78,7 +77,6 @@ export async function engineeringChangesAPIs({ buildingId, facilityId }) {
     testResults.push({ message: `ERROR: OMAPI failed` });
   }
 
-    console.log('EC9 ECS', testResults);
   const ecs = testResults?.[0]?.result?._result?.ecs;
 
   const formattedECs = transformECs(ecs, buildingId, facilityId);
@@ -94,7 +92,6 @@ function transformECs(ecsObj, buildingId, facilityId) {
   return ecs.map((ec) => {
     const updated = { ...ec };
 
-    // Rename title and type
     if (updated.title) {
       updated['EC Title'] = updated.title;
       delete updated.title;
@@ -104,7 +101,6 @@ function transformECs(ecsObj, buildingId, facilityId) {
       delete updated.type;
     }
 
-    // Ensure logs is an array
     let logs = Array.isArray(updated.logs)
       ? updated.logs
       : updated.logs
@@ -124,7 +120,6 @@ function transformECs(ecsObj, buildingId, facilityId) {
     if (logs.length > 0) {
       const lastLog = logs[logs.length - 1];
 
-      // Transform dateReviewed
       if (lastLog.dateReviewed) {
         const rawDate = lastLog.dateReviewed.replace(':T', 'T'); 
         const dateObj = new Date(rawDate);
@@ -136,7 +131,6 @@ function transformECs(ecsObj, buildingId, facilityId) {
         updated['Date Reviewed'] = '';
       }
 
-      // Transform ecid
       updated['EC ID'] = lastLog.ecid ?? '';
 
       if (lastLog['Base Revision']) updated['Base Revision'] = lastLog['Base Revision'];

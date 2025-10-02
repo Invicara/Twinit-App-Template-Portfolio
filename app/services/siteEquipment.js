@@ -2,7 +2,6 @@ import React from "react";
 import { IafProj, IafSession, IafItemSvc } from "@dtplatform/platform-api";
 import { convertFieldResponseIntoMuiTextFieldProps } from "@mui/x-date-pickers/internals";
 
-// used to access viewer commands, not used in this example
 export async function siteEquipmentService(changes, facilityId, buildingId, equipmentId) {
   const ctx = IafProj.getCurrent();
 
@@ -126,8 +125,6 @@ export async function siteEquipmentService(changes, facilityId, buildingId, equi
   const siteEq = getResults?.[0]?.result?._result?.ec?.siteEquipment;
   const refs = getResults?.[0]?.result?._result?.ec?.referenceRevisions;
   
-
-  console.log('EC8 siteeqrevisions', siteEq);
 //   const latestRevision = siteEq.map(item => {
 //   if (Array.isArray(item.revisions) && item.revisions.length > 0) {
 //     return {
@@ -140,12 +137,11 @@ export async function siteEquipmentService(changes, facilityId, buildingId, equi
 
 const matchedRevision = siteEq.map(item => {
   if (Array.isArray(item.revisions) && item.revisions.length > 0) {
-    // find the revision whose "revision" equals the item's "tipVersion"
     const match = item.revisions.find(r => r.revision === item.tipVersion);
 
     return {
       ...item,
-      revisions: match ? [match] : [item.revisions[item.revisions.length - 1]], // fallback to last if no match
+      revisions: match ? [match] : [item.revisions[item.revisions.length - 1]], 
     };
   }
   return item;
@@ -163,22 +159,20 @@ function mergeReferenceRevisions(refs, siteEq) {
     const matchRev = matchEq.revisions.find(r => r.revision === ref.revision);
     if (!matchRev) return;
 
-    // --- Technical Parameters ---
+ 
     matchRev.TechnicalParameters = matchRev.TechnicalParameters.map(tp => {
       const refParam = ref.TechnicalParameters.find(rtp => rtp.name === tp.name);
       if (refParam) {
-        return { ...tp, refVal: refParam.val }; // add refVal for FlowRate, Power etc.
+        return { ...tp, refVal: refParam.val }; 
       }
       return tp;
     });
-
-    console.log('EC8 Matchrev', matchRev)
-    // --- Properties (Manufacturer, Model, etc) ---
+ 
     matchRev.properties = matchRev.properties.map(p => {
       if (p.name === 'Manufacturer' || p.name === 'Model') {
         const refProp = ref.properties?.find(rp => rp.name === p.name);
         if (refProp) {
-          return { ...p, refVal: refProp.val }; // add refVal for Manufacturer & Model
+          return { ...p, refVal: refProp.val }; 
         }
       }
       return p;
@@ -308,12 +302,10 @@ export async function siteEquipmentForTreeService(facilityId, buildingId, equipm
     }
   }
 
-
   const latestVersion = pickTipRevision(results);
   const referenceRevisions = extractTipRevisionRevisions(refResults);
 
   const mergedRefVals = mergeRefVals(latestVersion, referenceRevisions);
-  console.log('EC mergeRefVals', mergeRefVals);
 
   return mergedRefVals;
 

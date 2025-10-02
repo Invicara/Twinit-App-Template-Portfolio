@@ -101,10 +101,6 @@ const SimpleViewerView = ({ handler }) => {
     setBottomECPanelIsOpen(!isBottomECPanelOpen)
   }
 
-  useEffect(() => {
-    console.log('EC panel open?', isBottomECPanelOpen)
-  }, [isBottomECPanelOpen])
-
   const [docView, setDocView] = useState()
   const [mapboxToken, setMapboxToken] = useState()
   const [modelComposition, setModelComposition] = useState({
