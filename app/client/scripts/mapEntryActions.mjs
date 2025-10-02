@@ -9,6 +9,7 @@ import {v4 as uuid} from "uuid"
 import bbox from "@turf/bbox";
 import centroid from "@turf/centroid";
 import {
+    addMarkers,
     clearStaleMarkers,
     clearStaleMarkersByPath,
     makeMarkerShell,
@@ -1827,7 +1828,9 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
                         }
                     }]
                     context.mmvSend(commands);
-                    clearStaleMarkers(allFeaturesMarkerIds);
+                    graphics.forEach(graphic => {
+                        addMarkers(graphic);//track markers internally
+                    })
                 }
 
 

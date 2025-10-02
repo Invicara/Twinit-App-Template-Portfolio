@@ -232,7 +232,7 @@ const sameSet = (a, b) => {
     return true;
 };
 /**
- * Toggle + merge for one scope with replace + dropMissing + preserveEmptyScope.
+ * Group Toggle (only toggle off when the whole clicked filter matches) + merge for one scope
  * - If replace applies to a rule and clicked values equal existing values → TOGGLE OFF (remove rule)
  * - Else if replace applies → overwrite rule
  * - Else (no replace) → toggle union/remove per values
@@ -248,7 +248,7 @@ export function toggleScopedFilter(
         preserveEmptyScope = true,
     } = {}
 ) {
-    // normalize incoming (scoped or bare)
+    // normalize incoming to scoped form
     const incomingScoped =
         incomingFilter && !("op" in incomingFilter)
             ? incomingFilter
@@ -260,79 +260,88 @@ export function toggleScopedFilter(
         return preserveEmptyScope && !curr[scope] ? { [scope]: {} } : curr;
     }
 
-    // clone current and get its scope node
+    // clone current; get scope node
     const next = deepClone(currentFilter);
     const scopeNode = toAndNode(next?.[scope]);
     scopeNode.op = scopeNode.op || incomingNode.op || "and";
 
-    // track which fns appear in incoming (for dropMissing)
-    const incomingFns = new Set(incomingNode.rules.filter(isRule).map(r => r.fn));
-
-    // index current rules by fn for quick lookup
+    // index current rules by fn
     const byFn = new Map();
     for (const r of scopeNode.rules) if (isRule(r)) byFn.set(r.fn, r);
 
-    // apply each incoming rule
-    for (const inc of incomingNode.rules) {
-        if (!isRule(inc)) { scopeNode.rules.push(inc); continue; }
+    // collect incoming rule info
+    const incomingRules = incomingNode.rules.filter(isRule);
+    const incomingFns = new Set(incomingRules.map(r => r.fn));
 
-        // explicit delete?
-        if (inc.args && inc.args[deleteMarker]) {
-            const idx = scopeNode.rules.findIndex(x => isRule(x) && x.fn === inc.fn);
-            if (idx !== -1) scopeNode.rules.splice(idx, 1);
-            byFn.delete(inc.fn);
-            continue;
-        }
+    // ----- GROUP-LEVEL TOGGLE CHECK (for replace-target rules) -----
+    const replaceTargets = incomingRules.filter(r => shouldReplace(r.fn, replace));
 
-        const existing = byFn.get(inc.fn);
-        const clickedValues = asArray(inc.args?.values).map(String);
-        const doReplace = shouldReplace(inc.fn, replace);
+    let allReplaceTargetsMatch = replaceTargets.length > 0
+        && replaceTargets.every(r => {
+            const ex = byFn.get(r.fn);
+            if (!ex) return false;
+            const exVals = asArray(ex.args?.values);
+            const inVals = asArray(r.args?.values);
+            return sameSet(exVals, inVals);
+        });
 
-        if (doReplace) {
-            if (existing) {
-                const currentValues = asArray(existing.args?.values).map(String);
-                // EARLY TOGGLE-OFF: same set clicked → remove rule
-                if (sameSet(currentValues, clickedValues)) {
-                    scopeNode.rules = scopeNode.rules.filter(r => !(isRule(r) && r.fn === inc.fn));
-                    byFn.delete(inc.fn);
-                    continue;
-                }
-                // overwrite
-                const i = scopeNode.rules.findIndex(r => isRule(r) && r.fn === inc.fn);
-                scopeNode.rules[i] = inc;
-                byFn.set(inc.fn, inc);
-            } else {
-                scopeNode.rules.push(inc);
-                byFn.set(inc.fn, inc);
+    if (allReplaceTargetsMatch) {
+        // toggle OFF all replace-target rules as a group
+        scopeNode.rules = scopeNode.rules.filter(r => !(isRule(r) && incomingFns.has(r.fn)));
+        // (optionally: also handle non-replace rules in incoming; here we remove only the replace targets)
+    } else {
+        // ----- APPLY RULES -----
+        for (const inc of incomingNode.rules) {
+            if (!isRule(inc)) { scopeNode.rules.push(inc); continue; }
+
+            // explicit delete?
+            if (inc.args && inc.args[deleteMarker]) {
+                scopeNode.rules = scopeNode.rules.filter(r => !(isRule(r) && r.fn === inc.fn));
+                byFn.delete(inc.fn);
+                continue;
             }
-            continue;
-        }
 
-        // standard toggle (union/remove)
-        if (!existing) {
-            scopeNode.rules.push(inc);
-            byFn.set(inc.fn, inc);
-        } else {
-            const currentValues = asArray(existing.args?.values).map(String);
-            const allAlready = clickedValues.every(v => currentValues.includes(v));
-            if (allAlready) {
-                // remove clicked values
-                const remaining = currentValues.filter(v => !clickedValues.includes(v));
-                if (remaining.length) {
-                    existing.args = { ...(existing.args || {}), values: remaining };
+            const existing = byFn.get(inc.fn);
+            const clickedValues = asArray(inc.args?.values).map(String);
+            const doReplace = shouldReplace(inc.fn, replace);
+
+            if (doReplace) {
+                if (existing) {
+                    const i = scopeNode.rules.findIndex(r => isRule(r) && r.fn === inc.fn);
+                    scopeNode.rules[i] = inc;
+                    byFn.set(inc.fn, inc);
                 } else {
-                    scopeNode.rules = scopeNode.rules.filter(r => !(isRule(r) && r.fn === inc.fn));
-                    byFn.delete(inc.fn);
+                    scopeNode.rules.push(inc);
+                    byFn.set(inc.fn, inc);
                 }
             } else {
-                // add missing values (union)
-                const merged = Array.from(new Set([...currentValues, ...clickedValues]));
-                existing.args = { ...(existing.args || {}), values: merged };
+                // standard toggle (union/remove)
+                if (!existing) {
+                    scopeNode.rules.push(inc);
+                    byFn.set(inc.fn, inc);
+                } else {
+                    const currentValues = asArray(existing.args?.values).map(String);
+                    const allAlready = clickedValues.every(v => currentValues.includes(v));
+                    if (allAlready) {
+                        // remove clicked values
+                        const remaining = currentValues.filter(v => !clickedValues.includes(v));
+                        if (remaining.length) {
+                            existing.args = { ...(existing.args || {}), values: remaining };
+                        } else {
+                            scopeNode.rules = scopeNode.rules.filter(r => !(isRule(r) && r.fn === inc.fn));
+                            byFn.delete(inc.fn);
+                        }
+                    } else {
+                        // add missing values (union)
+                        const merged = Array.from(new Set([...currentValues, ...clickedValues]));
+                        existing.args = { ...(existing.args || {}), values: merged };
+                    }
+                }
             }
         }
     }
 
-    // dropMissing: remove rules (by fn) not present in incoming
+    // dropMissing (optional): remove rules not present in incoming (by fn)
     if (dropMissing) {
         scopeNode.rules = scopeNode.rules.filter(r => {
             if (!isRule(r)) return true;
@@ -340,13 +349,12 @@ export function toggleScopedFilter(
         });
     }
 
-    // when empty, keep or remove the scope
+    // return with/without empty scope
     if (!scopeNode.rules.length) {
         return preserveEmptyScope
             ? { ...next, [scope]: {} }
             : (() => { const c = { ...next }; delete c[scope]; return Object.keys(c).length ? c : {}; })();
     }
-
     return { ...next, [scope]: scopeNode };
 }
 
