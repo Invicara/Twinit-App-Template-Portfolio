@@ -223,6 +223,134 @@ function mergeNodes(
 
     return out;
 }
+const asArray = (v) => (Array.isArray(v) ? v : v == null ? [] : [v]);
+const deepClone = (x) => JSON.parse(JSON.stringify(x ?? {}));
+const sameSet = (a, b) => {
+    if (a.length !== b.length) return false;
+    const s = new Set(a);
+    for (const v of b) if (!s.has(v)) return false;
+    return true;
+};
+/**
+ * Toggle + merge for one scope with replace + dropMissing + preserveEmptyScope.
+ * - If replace applies to a rule and clicked values equal existing values → TOGGLE OFF (remove rule)
+ * - Else if replace applies → overwrite rule
+ * - Else (no replace) → toggle union/remove per values
+ */
+export function toggleScopedFilter(
+    currentFilter,
+    incomingFilter,
+    scope = "site",
+    {
+        replace,                 // boolean | string[] | (fnName)=>boolean
+        dropMissing,             // boolean | string[] | (fnName)=>boolean
+        deleteMarker = "__delete",
+        preserveEmptyScope = true,
+    } = {}
+) {
+    // normalize incoming (scoped or bare)
+    const incomingScoped =
+        incomingFilter && !("op" in incomingFilter)
+            ? incomingFilter
+            : { [scope]: incomingFilter };
+
+    const incomingNode = toAndNode(incomingScoped?.[scope]);
+    if (!incomingNode.rules.length) {
+        const curr = deepClone(currentFilter);
+        return preserveEmptyScope && !curr[scope] ? { [scope]: {} } : curr;
+    }
+
+    // clone current and get its scope node
+    const next = deepClone(currentFilter);
+    const scopeNode = toAndNode(next?.[scope]);
+    scopeNode.op = scopeNode.op || incomingNode.op || "and";
+
+    // track which fns appear in incoming (for dropMissing)
+    const incomingFns = new Set(incomingNode.rules.filter(isRule).map(r => r.fn));
+
+    // index current rules by fn for quick lookup
+    const byFn = new Map();
+    for (const r of scopeNode.rules) if (isRule(r)) byFn.set(r.fn, r);
+
+    // apply each incoming rule
+    for (const inc of incomingNode.rules) {
+        if (!isRule(inc)) { scopeNode.rules.push(inc); continue; }
+
+        // explicit delete?
+        if (inc.args && inc.args[deleteMarker]) {
+            const idx = scopeNode.rules.findIndex(x => isRule(x) && x.fn === inc.fn);
+            if (idx !== -1) scopeNode.rules.splice(idx, 1);
+            byFn.delete(inc.fn);
+            continue;
+        }
+
+        const existing = byFn.get(inc.fn);
+        const clickedValues = asArray(inc.args?.values).map(String);
+        const doReplace = shouldReplace(inc.fn, replace);
+
+        if (doReplace) {
+            if (existing) {
+                const currentValues = asArray(existing.args?.values).map(String);
+                // EARLY TOGGLE-OFF: same set clicked → remove rule
+                if (sameSet(currentValues, clickedValues)) {
+                    scopeNode.rules = scopeNode.rules.filter(r => !(isRule(r) && r.fn === inc.fn));
+                    byFn.delete(inc.fn);
+                    continue;
+                }
+                // overwrite
+                const i = scopeNode.rules.findIndex(r => isRule(r) && r.fn === inc.fn);
+                scopeNode.rules[i] = inc;
+                byFn.set(inc.fn, inc);
+            } else {
+                scopeNode.rules.push(inc);
+                byFn.set(inc.fn, inc);
+            }
+            continue;
+        }
+
+        // standard toggle (union/remove)
+        if (!existing) {
+            scopeNode.rules.push(inc);
+            byFn.set(inc.fn, inc);
+        } else {
+            const currentValues = asArray(existing.args?.values).map(String);
+            const allAlready = clickedValues.every(v => currentValues.includes(v));
+            if (allAlready) {
+                // remove clicked values
+                const remaining = currentValues.filter(v => !clickedValues.includes(v));
+                if (remaining.length) {
+                    existing.args = { ...(existing.args || {}), values: remaining };
+                } else {
+                    scopeNode.rules = scopeNode.rules.filter(r => !(isRule(r) && r.fn === inc.fn));
+                    byFn.delete(inc.fn);
+                }
+            } else {
+                // add missing values (union)
+                const merged = Array.from(new Set([...currentValues, ...clickedValues]));
+                existing.args = { ...(existing.args || {}), values: merged };
+            }
+        }
+    }
+
+    // dropMissing: remove rules (by fn) not present in incoming
+    if (dropMissing) {
+        scopeNode.rules = scopeNode.rules.filter(r => {
+            if (!isRule(r)) return true;
+            return !(shouldDropMissing(r.fn, dropMissing) && !incomingFns.has(r.fn));
+        });
+    }
+
+    // when empty, keep or remove the scope
+    if (!scopeNode.rules.length) {
+        return preserveEmptyScope
+            ? { ...next, [scope]: {} }
+            : (() => { const c = { ...next }; delete c[scope]; return Object.keys(c).length ? c : {}; })();
+    }
+
+    return { ...next, [scope]: scopeNode };
+}
+
+
 
 /** Merge two filters that may be scoped or bare nodes. */
 export function mergeFiltersGeneric(
@@ -256,7 +384,7 @@ export class FilterCompiler {
     }
     compileFilter(node) {
         if (!this.fns) {
-            return true;
+            return () => true;
         }
         if ("fn" in node) {
             const factory = (this.fns)[node.fn];
@@ -276,6 +404,7 @@ export class FilterCompiler {
             return x => parts.some(p => p(x));
         }
         // Exhaustiveness
-        throw new Error("Invalid filter node");
+        console.warn("Invalid filter node", node);
+        return () => true;
     }
 }
