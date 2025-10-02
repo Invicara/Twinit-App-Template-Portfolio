@@ -90,8 +90,8 @@ export const MapContext = createContext();
 const DEFAULT_PATHS = [
     [
         { displayName: "Portfolio", state: 'portfolio', idKey: null, scopeLevel: 0 },
-        { displayName: "Site", state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all", scopeLevel: 1, collShortName: "geo_sites_coll", parentState: "portfolio" },
-        { displayName: "Building", state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all", scopeLevel: 2, collShortName: "building_coll", parentState: "site" },
+        { displayName: "Facility", state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all", scopeLevel: 1, collShortName: "geo_sites_coll", parentState: "portfolio" },
+        { displayName: "Unit", state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all", scopeLevel: 2, collShortName: "building_coll", parentState: "site" },
         { displayName: "Model Element", state: 'modelElement', idKey: 'modelElementId', scopeLevel: 3, parentState: "building" },
     ]
 ]
@@ -279,7 +279,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
                         <div className={classes.headerInner}>
                             <div className={classes.headerFlex}>
                                 <div className={classes.breadcrumbsContainer}>
-                                    <PortfolioBreadCrumbs namedPath={namedPaths[0]} />
+                                    <PortfolioBreadCrumbs namedPath={namedPaths[0]} getLabel={lvl => lvl.displayName} />
                                 </div>
                             </div>
                         </div>
