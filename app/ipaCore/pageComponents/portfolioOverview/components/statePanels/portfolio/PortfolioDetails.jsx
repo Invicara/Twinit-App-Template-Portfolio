@@ -67,7 +67,7 @@ const sampleFormConfig = {
         },
 
         location: {
-            label: 'Site Location',
+            label: 'Facility Location',
             type: 'select',
             rule: "facilityIn",
             options: (context) => {

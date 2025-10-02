@@ -1827,6 +1827,7 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
                         }
                     }]
                     context.mmvSend(commands);
+                    clearStaleMarkers(allFeaturesMarkerIds);
                 }
 
 

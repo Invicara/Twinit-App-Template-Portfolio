@@ -47,6 +47,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
 
 
    const [isBottomECPanelOpen, setIsBottomECPanelOpen] = useState(false);
+   const [siteEquipment, setSiteEquipment] = useState([]);
 
    useEffect(() => {
       loadAllModels(project)
@@ -652,6 +653,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          allPropRefs,
          selectedPropRefs,
          isBottomECPanelOpen, 
+         siteEquipment,
          setSelectedPropRefs,
          getElementCount,
          sliceElements,
@@ -661,6 +663,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          getPropertyReferences,
          getTotalElementCount,
          setIsBottomECPanelOpen,
+         setSiteEquipment,
          project,
          appContext,
       }
@@ -675,6 +678,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
       allPropRefs,
       selectedPropRefs,
       isBottomECPanelOpen, 
+      siteEquipment,
       sliceElements,
       project,
       appContext
