@@ -112,6 +112,7 @@
     "appTitle": "Quick Model View",
     "appImage": { "url": "https://lib.invicara.io/hitachi/Hitachi%20Logo%20white.png" },
     "headerComponent": "components/HeaderBar/HeaderBar",
+    "modelSelection": [],
     "styles": {
       "--app-accent-color": "#C71784",
       "--head-bkg-color": "black",
