@@ -19,7 +19,7 @@ const AddSiteSection = ({classes, levels}) => {
 
 
     return <div className={isSelectingPosition && draftType === "site" ? classes.addSiteSectionActive : classes.addSiteSection} onClick={handleAddSite} >
-        <Tooltip title="Add Site">
+        <Tooltip title="Add Facility">
             <PinDrop/>
         </Tooltip>
     </div>
