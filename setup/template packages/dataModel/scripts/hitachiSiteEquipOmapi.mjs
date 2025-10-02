@@ -356,12 +356,13 @@ async function searchEquipment(input, libraries, ctx) {
 		const { IafItemSvc } = libraries.PlatformApi
 		const { IafScriptEngine } = libraries
 
-		const { facility, unit, equipmentId, siteEquipmentId, properties, TechnicalParameters, username } = input
+		const { facility, unit, equipmentId, siteEquipmentId, properties, TechnicalParameters, username } = input.params
 
 		if (!facility || !unit || !equipmentId || !siteEquipmentId || !properties || !TechnicalParameters || !username) {
 			return {
 				status: 400,
-				statusMessage: "Missing required parameter",
+            statusMessage: "Bad Request",
+				message: "Missing required parameter",
 			}
 		}
 
@@ -376,7 +377,8 @@ async function searchEquipment(input, libraries, ctx) {
 
 		if (!ecsLogs || !ecsLogs?.length) {
 			return {
-				status: '400',
+				status: 400,
+            statusMessage: "Bad Request",
 				message: `Engineering Change for ${siteEquipmentId} not found`
 			}
 		}
@@ -407,15 +409,17 @@ async function searchEquipment(input, libraries, ctx) {
 		const validEcs = ecsLogs.filter(ec => ec['Base Revision'] == equip?.tipRevision)
       if (!validEcs || !validEcs.length) {
          return {
-				status: '400',
+				status: 400,
+            statusMessage: "Bad Request",
 				message: `No current Engineering Change instructs ${siteEquipmentId} revision to increment any further`
 			}
       }
 
-      // The EC has not been CLOSED, therefore EC is still to-do
+      // ECs where base revision matches SE's tip have been closed
       if (validEcs?.find(ec => ec.status == 'CLOSED')) {
          return {
-				status: '400',
+				status: 400,
+            statusMessage: "Bad Request",
 				message: `No open Engineering Change exists for ${siteEquipmentId}`
 			}
       }
@@ -426,7 +430,8 @@ async function searchEquipment(input, libraries, ctx) {
 		if (!tipRevisionNumber) {
 			return {
 				status: 400,
-				statusMessage: "Tip revision not found",
+            statusMessage: "Bad Request",
+				message: "Tip revision not found",
 			}
 		}
 
@@ -489,7 +494,8 @@ async function searchEquipment(input, libraries, ctx) {
          const registeredEcLog = validEcs.find(ec => ec.status == 'REGISTERED')
          if (!registeredEcLog) {
             return {
-               status: '400',
+               status: 400,
+               statusMessage: "Bad Request",
                message: 'EC has not been registered'
             }
          } else {
@@ -504,8 +510,8 @@ async function searchEquipment(input, libraries, ctx) {
       }
 
 		return {
-         status: '200',
-         message: 'Success',
+         status: 200,
+         statusMessage: 'Success',
          revision: result,
          ecLog
       }
@@ -516,12 +522,13 @@ async function searchEquipment(input, libraries, ctx) {
 		const { IafScriptEngine } = libraries
 
 		// Require ecid as site equip could be related to multiple ECs
-		const { ecid, facility, unit, siteEquipmentId, username } = input
+		const { ecid, facility, unit, siteEquipmentId, username } = input.params
 
 		if (!ecid || !facility || !unit || !siteEquipmentId || !username) {
 			return {
 				status: 400,
-				statusMessage: "Missing required parameter",
+				statusMessage: "Bad Request",
+				message: "Missing required parameter",
 			}
 		}
 
@@ -552,7 +559,8 @@ async function searchEquipment(input, libraries, ctx) {
 		if (!revisionToBump) {
 			return {
 				status: 400,
-				statusMessage: "Revision not found"
+				statusMessage: "Bad request",
+				message: "Revision not found"
 			}
 		}
 
@@ -561,7 +569,8 @@ async function searchEquipment(input, libraries, ctx) {
       if (!revisionToBumpNumber) {
 			return {
 				status: 400,
-				statusMessage: "Not an intermediate revision number"
+				statusMessage: "Bad request",
+				message: "Not an intermediate revision number"
 			}
 		}
 
@@ -606,8 +615,8 @@ async function searchEquipment(input, libraries, ctx) {
 		const createdEcLog = await IafItemSvc.createRelatedItems(ecsLogsColl._userItemId, [newEcLog], ctx)
 
 		return {
-			status: '200',
-			message: 'Success',
+			status: 200,
+			statusMessage: 'Success',
          updatedRevision,
 			createdEcLog
 		}
@@ -617,22 +626,24 @@ async function searchEquipment(input, libraries, ctx) {
 		const { IafItemSvc } = libraries.PlatformApi
 		const { IafScriptEngine } = libraries
 
-      let facility = input.params?.facility ? decodeURIComponent(input.params.facility) : null
-      let unit = input.params?.unit ? decodeURIComponent(input.params?.unit) : null
-      let siteEquipmentId = input.params?.siteEquipmentId ? decodeURIComponent(input.params?.siteEquipmentId) : null
-      let revision = input.params?.revision ? decodeURIComponent(input.params?.revision) : null
+      let facility = input?.facility ? decodeURIComponent(input.facility) : null
+      let unit = input?.unit ? decodeURIComponent(input?.unit) : null
+      let siteEquipmentId = input?.siteEquipmentId ? decodeURIComponent(input?.siteEquipmentId) : null
+      let revision = input?.revision ? decodeURIComponent(input?.revision) : null
 
 		if (!facility || !unit || !siteEquipmentId || !revision) {
 			return {
 				status: 400,
-				statusMessage: "Missing required parameter",
+            statusMessage: 'Bad request',
+				message: "Missing required parameter",
 			}
 		}
 
 		if (!isIntermediateRevision(revision)) {
 			return {
 				status: 400,
-				statusMessage: "Not an intermediate revision number",
+            statusMessage: 'Bad request',
+				message: "Not an intermediate revision number",
 			}
 		}
 
@@ -664,7 +675,8 @@ async function searchEquipment(input, libraries, ctx) {
 		if (!revisionToDelete) {
 			return {
 				status: 400,
-				statusMessage: "Revision not found"
+				statusMessage: "Bad request",
+				message: "Revision not found"
 			}
 		}
 
@@ -690,8 +702,8 @@ async function searchEquipment(input, libraries, ctx) {
       }
 
 		return {
-         status: '200',
-         message: 'Success',
+         status: 200,
+         statusMessage: 'Success',
          result,
          deletedEcLog
       }

@@ -17,7 +17,8 @@ import {
   findParent,
   expandAllParents,
   getSelectedThirdLevelIds,
-  findNodeAndDescendants
+  findNodeAndDescendants,
+  calculateTreeSelectionState
 } from './utils/treeHelpers'
 import { ModelContext } from '../../contexts/ModelContext'
 
@@ -85,6 +86,7 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
   const [checkedItems, setCheckedItems] = useState({})
   const [searchText, setSearchText] = useState('')
   const [rejectedIds, setRejectedIds] = useState()
+  const [indeterminateItems, setIndeterminateItems] = useState({})
 
   const handleNodeToggle = (_, nodes) => setExpanded(nodes)
 
@@ -95,43 +97,34 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
     setCheckedItems(prev => {
       let updated = { ...prev }
 
-      // toggle current node
-      isChecked ? (updated[id] = true) : delete updated[id]
-
-      // toggle all descendants
-      descendantIds.forEach(childId => {
-        isChecked ? (updated[childId] = true) : delete updated[childId]
-      })
-
-      // cascade to parents
+      // Toggle current node + descendants
       if (isChecked) {
-        let parent = findParent(tree, id)
-        while (parent) {
-          updated[parent.id] = true
-          parent = findParent(tree, parent.id)
-        }
+        updated[id] = true
+        descendantIds.forEach(childId => (updated[childId] = true))
       } else {
-        let parent = findParent(tree, id)
-        while (parent) {
-          const allChildrenUnchecked = parent.children.every(child => !updated[child.id])
-          if (allChildrenUnchecked) delete updated[parent.id]
-          parent = findParent(tree, parent.id)
-        }
+        delete updated[id]
+        descendantIds.forEach(childId => delete updated[childId])
       }
 
-      // collect final selected
-      const selectedSiteEquipId = getSelectedThirdLevelIds(tree, updated)
-      focusLogsInViewer(setSliceElementsByQuery, setSiteEquipment, selectedSiteEquipId).then((value) => {
+      // Recalculate full tree selection + indeterminate states
+      const { checkedItems: cleanedChecked, indeterminateItems: newIndeterminate } =
+        calculateTreeSelectionState(tree, updated)
+
+      setIndeterminateItems(newIndeterminate)
+
+      // Update viewer focus
+      const selectedSiteEquipId = getSelectedThirdLevelIds(tree, cleanedChecked)
+      focusLogsInViewer(setSliceElementsByQuery, setSiteEquipment,  selectedSiteEquipId).then((value) => {
         setRejectedIds(value)
         if (selectedSiteEquipId.length > 0) {
           setIsBottomECPanelOpen(true)
         }
       })
 
-      return updated
+      return cleanedChecked
     })
 
-    // expand/collapse descendants
+    // Expand/collapse descendants visually
     setExpanded(prevExpanded => {
       let newExpanded = [...prevExpanded]
       if (isChecked) {
@@ -168,6 +161,13 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
       return updated
     })
 
+    const { checkedItems: cleanedChecked, indeterminateItems: newIndeterminate } =
+    calculateTreeSelectionState(levelData, updated)
+
+    setCheckedItems(cleanedChecked)
+    setIndeterminateItems(newIndeterminate)
+
+    // Expand all parent paths for matches
     const newExpanded = Array.from(expandAllParents(levelData, matchedIds))
     setExpanded(newExpanded)
   }
@@ -179,6 +179,7 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
         nodeId={node.id}
         labelText={node.siteEquipId ? node.siteEquipId : node.name}
         checked={!!checkedItems[node.id]}
+        indeterminate={!!indeterminateItems[node.id]}
         onCheck={(id, checked) => handleCheck(id, checked, node, levelData)}
       >
         {node.children ? renderTree(node.children) : null}

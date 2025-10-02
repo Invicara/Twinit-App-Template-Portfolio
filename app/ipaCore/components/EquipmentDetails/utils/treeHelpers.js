@@ -84,3 +84,40 @@ export const findNodeAndDescendants = (tree, query) => {
   search(tree)
   return results
 }
+
+
+export const calculateTreeSelectionState = (tree, checkedItems) => {
+  const updated = { ...checkedItems }
+  const newIndeterminate = {}
+
+  const computeSelectionState = (node) => {
+    if (!node.children || node.children.length === 0) {
+      return updated[node.id] ? "checked" : "unchecked"
+    }
+
+    const childStates = node.children.map(computeSelectionState)
+    const allChecked = childStates.every(state => state === "checked")
+    const allUnchecked = childStates.every(state => state === "unchecked")
+
+    let currentState
+    if (allChecked) {
+      currentState = "checked"
+      updated[node.id] = true
+      delete newIndeterminate[node.id]
+    } else if (allUnchecked) {
+      currentState = "unchecked"
+      delete updated[node.id]
+      delete newIndeterminate[node.id]
+    } else {
+      currentState = "partial"
+      delete updated[node.id]
+      newIndeterminate[node.id] = true
+    }
+
+    return currentState
+  }
+
+  tree.forEach(computeSelectionState)
+
+  return { checkedItems: updated, indeterminateItems: newIndeterminate }
+}
