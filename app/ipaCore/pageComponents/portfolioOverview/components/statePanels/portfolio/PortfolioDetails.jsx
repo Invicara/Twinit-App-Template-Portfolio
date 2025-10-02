@@ -334,13 +334,11 @@ export default function PortfolioDetails({ context, userConfig, send, stateKey, 
                     stateKey={stateKey}
                     chartCfg={ec1_ChartCfg}
                     onFilterChange={(filter) => {
-                        const next = toggleScopedFilter(globalFilters, filter, "site", {
-                            replace: true,                      // overwrite rules instead of union
-                            dropMissing: [                      // if the new click omitted these fns, remove them
-                                ec1_ChartCfg.group.id,         // e.g., "palier"
-                                ec1_ChartCfg.series.id         // e.g., "status"
-                            ],
-                        });
+                        const togglingOptions = {
+                            replace: [ec1_ChartCfg.group.id, ec1_ChartCfg.series.id],// force toggle
+                            dropMissing: [ec1_ChartCfg.group.id, ec1_ChartCfg.series.id],
+                        }
+                        const next = toggleScopedFilter(globalFilters, filter, "site", togglingOptions);
                         dispatch(setFilter(next));
                     }}
                 />

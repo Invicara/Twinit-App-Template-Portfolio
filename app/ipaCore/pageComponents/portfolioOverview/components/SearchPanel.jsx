@@ -84,10 +84,7 @@ export default function SearchPanel({
         return out;
     }, [formConfig, context]);
 
-    // --- NEW: hydrate filters from an initial global filter JSON
     useEffect(() => {
-        if (!initialFilter) return;
-
         // Flatten rules from {op:'and'|'or'|...} into a simple array of leaf nodes
         const gatherLeaves = (node, acc = []) => {
             if (!node) return acc;
@@ -97,6 +94,12 @@ export default function SearchPanel({
                 for (const r of node.rules || []) gatherLeaves(r, acc);
             }
             return acc;
+        };
+
+        const defaultForField = (key, cfg) => {
+            if (cfg?.default !== undefined) return cfg.default;
+            if (cfg?.initial !== undefined) return cfg.initial;
+            return ''; // safe empty for text/selects
         };
 
         const leaves = gatherLeaves(initialFilter, []);
@@ -111,9 +114,9 @@ export default function SearchPanel({
                     leaves
                         .map((leaf) => cfg.fromRule(leaf, context, selectOptions[key]))
                         .find((v) => v !== undefined && v !== null);
-                if (matchingValue !== undefined && matchingValue !== null) {
-                    next[key] = matchingValue;
-                }
+                next[key] = (matchingValue !== undefined && matchingValue !== null)
+                    ? matchingValue
+                    : defaultForField(key, cfg);
             }
             return next;
         });
