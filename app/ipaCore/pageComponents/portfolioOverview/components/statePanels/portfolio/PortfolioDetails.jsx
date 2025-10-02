@@ -4,7 +4,7 @@ import SearchPanel from '../../SearchPanel.jsx';
 import {Box} from "@mui/material";
 import {useDispatch, useSelector} from "react-redux";
 import {getFilter, setFilter} from "../../../../../redux/filters.js";
-import {mergeFiltersGeneric} from "../../../../utils/filters.global.js";
+import {mergeFiltersGeneric, toggleScopedFilter} from "../../../../utils/filters.global.js";
 
 
 const sampleFormConfig = {
@@ -334,13 +334,14 @@ export default function PortfolioDetails({ context, userConfig, send, stateKey, 
                     stateKey={stateKey}
                     chartCfg={ec1_ChartCfg}
                     onFilterChange={(filter) => {
-                        const mergingOptions = {
-                            dropMissing: [defaultChartCfg.group.id, defaultChartCfg.series.id],
-                            replace: true
-                        }
-                        const merged = mergeFiltersGeneric(globalFilters, filter, "site",  mergingOptions);
-                        console.log("mergeFiltersGeneric DeployStatusChart", {merged, filter, globalFilters, mergingOptions})
-                        dispatch(setFilter(merged));
+                        const next = toggleScopedFilter(globalFilters, filter, "site", {
+                            replace: true,                      // overwrite rules instead of union
+                            dropMissing: [                      // if the new click omitted these fns, remove them
+                                ec1_ChartCfg.group.id,         // e.g., "palier"
+                                ec1_ChartCfg.series.id         // e.g., "status"
+                            ],
+                        });
+                        dispatch(setFilter(next));
                     }}
                 />
 

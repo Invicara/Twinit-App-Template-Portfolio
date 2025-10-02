@@ -14,7 +14,7 @@ import ChartDataLabels from "chartjs-plugin-datalabels";
 import BarChartOutlinedIcon from "@material-ui/icons/BarChartOutlined";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import { useDispatch, useSelector as useReduxSelector, useStore } from 'react-redux';
-import {getGlobalFilterFunctions} from "../../../../utils/filters.global.js";
+import {getGlobalFilterFunctions, toggleScopedFilter} from "../../../../utils/filters.global.js";
 
 ChartJS.register(
     CategoryScale,
