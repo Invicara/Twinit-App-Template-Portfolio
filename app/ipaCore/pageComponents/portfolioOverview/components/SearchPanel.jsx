@@ -46,8 +46,8 @@ export default function SearchPanel({
     const defaultLabels = {
         search: 'Search',
         group: 'Group',
-        structure: 'Choose structure name / location',
-        location: 'Choose locations / regions',
+        structure: 'Unit Name / Location',
+        location: 'Locations / Regions',
         status: 'Status',
     };
     const labelsFromUserConfig = handler?.config?.labels || {};
