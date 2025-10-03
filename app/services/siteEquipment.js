@@ -1085,7 +1085,7 @@ export async function approvePendingRevision(revision, facilityId, buildingId, e
     const siteEqUrl = {
       url: `${baseOmapiUrl}/siteequip/approvedrevision`,
       body: {
-        pendingRevision: revision,
+        revision: revision,
         facility: facilityId,
         unit: buildingId,
         siteEquipmentId: equipmentId,
