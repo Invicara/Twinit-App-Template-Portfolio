@@ -317,8 +317,8 @@ export default function PortfolioDetails({ context, userConfig, send, stateKey, 
                     formConfig={sampleFormConfig}
                     onSubmit={(filter, rawFilters) => {
                         const mergingOptions = {
-                            dropMissing: Object.values(sampleFormConfig.fields).map(c=>c.rule).filter(r=>!!r),
-                            replace: (fn) => Object.values(sampleFormConfig.fields).map(c=>c.rule).filter(r=>!!r).includes(fn)
+                            dropMissing: Object.values(sampleFormConfig.fields).map(c=>c.rule).filter(r=>!!r),//remove global rules not present in new filter (by fn)
+                            replace: (fn) => Object.values(sampleFormConfig.fields).map(c=>c.rule).filter(r=>!!r).includes(fn)//replace only rules the search box is configured to use
                         }
                         const merged = mergeFiltersGeneric(globalFilters, filter, "site", mergingOptions);
                         console.log("mergeFiltersGeneric SearchPanel", {merged, filter, globalFilters, mergingOptions})
@@ -335,10 +335,11 @@ export default function PortfolioDetails({ context, userConfig, send, stateKey, 
                     chartCfg={ec1_ChartCfg}
                     onFilterChange={(filter) => {
                         const togglingOptions = {
-                            replace: [ec1_ChartCfg.group.id, ec1_ChartCfg.series.id],// force toggle
-                            dropMissing: [ec1_ChartCfg.group.id, ec1_ChartCfg.series.id],
+                            replace: [ec1_ChartCfg.group.id, ec1_ChartCfg.series.id],// force toggle on filters the chart controls
+                            dropMissing: true, //remove global rules not present in new filter (by fn)
                         }
                         const next = toggleScopedFilter(globalFilters, filter, "site", togglingOptions);
+                        console.log("mergeFiltersGeneric SearchPanel", {next, filter, globalFilters, togglingOptions})
                         dispatch(setFilter(next));
                     }}
                 />
