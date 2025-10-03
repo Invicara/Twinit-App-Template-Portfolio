@@ -47,6 +47,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
 
 
    const [isBottomECPanelOpen, setIsBottomECPanelOpen] = useState(false);
+   const [siteEquipment, setSiteEquipment] = useState([]);
 
    useEffect(() => {
       loadAllModels(project)
@@ -89,7 +90,13 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          return;
       }
       try {
-         let importedModelComposites = await IafProj.getModels(currentProject)
+         const modelSelectionFilter = appContext?.userConfig?.settings?.modelSelection
+         const criteria = {}
+
+         if (modelSelectionFilter?.length) {
+            criteria.query = { _name: {$in: modelSelectionFilter }}
+         }
+         let importedModelComposites = await IafProj.getModels(currentProject, criteria)
          setAvailableModelComposites(importedModelComposites)
       } catch (err) {
          console.error("ERROR: Retrieving Imported Models")
@@ -652,6 +659,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          allPropRefs,
          selectedPropRefs,
          isBottomECPanelOpen, 
+         siteEquipment,
          setSelectedPropRefs,
          getElementCount,
          sliceElements,
@@ -661,6 +669,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          getPropertyReferences,
          getTotalElementCount,
          setIsBottomECPanelOpen,
+         setSiteEquipment,
          project,
          appContext,
       }
@@ -675,6 +684,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
       allPropRefs,
       selectedPropRefs,
       isBottomECPanelOpen, 
+      siteEquipment,
       sliceElements,
       project,
       appContext

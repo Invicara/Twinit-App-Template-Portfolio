@@ -27,6 +27,8 @@ const AppWithModelContext = () => {
 
     IafSession.setConfig(endPointConfig)
 
+    AppContext.userConfig = userConfig
+
     // Set the appContext for the ModelContext
     setAppContext(AppContext)
 

@@ -46,7 +46,7 @@ export default function SearchPanel({
     const defaultLabels = {
         search: 'Search',
         group: 'Group',
-        structure: 'Unit Name / Structure',
+        structure: 'Unit Name / Location',
         location: 'Locations / Regions',
         status: 'Status',
     };

@@ -581,17 +581,9 @@ export function featureFromKnownType(type, coords, properties = {}) {
  * @param {Array} graphicReferences - Array of graphic references from Redux state
  * @returns {Promise<Map>} - Map of loaded geometries keyed by graphic ID
  */
-export async function loadGraphics(graphicReferences) {
+export async function loadGraphics(graphicIds) {
     const geometryLoadPromises = new Map();
 
-    if (!graphicReferences || !Array.isArray(graphicReferences)) {
-        console.warn('loadGraphics: No graphic references provided');
-        return globalLoadedGeometries;
-    }
-
-    // Get unique graphic IDs
-    const uniqueGraphicIds = [...new Set(graphicReferences.map(ref => ref.graphic))];
-    console.log(`Loading ${uniqueGraphicIds.length} unique graphics for ${graphicReferences.length} references`);
 
     const loader = new GLTFLoader();
 
@@ -675,7 +667,7 @@ export async function loadGraphics(graphicReferences) {
 
     // Load all unique geometries
     try {
-        const results = await Promise.all(uniqueGraphicIds.map(id => loadGeometry(id)));
+        const results = await Promise.all(graphicIds.map(id => loadGeometry(id)));
         console.log(`Successfully loaded ${results.filter(r => r !== null).length} graphics`);
         return globalLoadedGeometries;
     } catch (error) {
@@ -1503,20 +1495,22 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
 
     // Access Redux state through getContext if available
     const contextData = getContext ? getContext() : {};
+    window.contextData = contextData;
     const { reduxState, reduxDispatch } = contextData;
 
-    // Load graphics if Redux state is available and contains graphic references
     let loadedGraphics = new Map();
-    if (reduxState?.pageComponentState?.mapGraphicReferences) {
-        console.log('Loading graphics from Redux state...');
-        loadedGraphics = await loadGraphics(reduxState.pageComponentState.mapGraphicReferences);
-        console.log(`Loaded ${loadedGraphics.size} graphics for use in features`);
+    // if (reduxState?.pageComponentState?.mapGraphicReferences) {
+    //     console.log('Loading graphics from Redux state...');
+    //     window.reduxState = reduxState;
+    //     window.namedPath = namedPath;
+        // loadedGraphics = await loadGraphics(reduxState.pageComponentState.mapGraphicReferences);
+    //     console.log(`Loaded ${loadedGraphics.size} graphics for use in features`);
 
-        // Keep backward compatibility - create graphicsDict for reference lookup
-        const graphicsDict = Object.fromEntries(
-            reduxState.pageComponentState.mapGraphicReferences.map(g => [g._id, g.graphic])
-        );
-    }
+    //     // Keep backward compatibility - create graphicsDict for reference lookup
+    //     const graphicsDict = Object.fromEntries(
+    //         reduxState.pageComponentState.mapGraphicReferences.map(g => [g._id, g.graphic])
+    //     );
+    // }
 
 
     for (const level of namedPath) {
@@ -1527,7 +1521,35 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
         const {sourceOptions} = clusterOptions;
 
         const features = await fetchFeaturesForLevel(level, parentFeatures);
-        console.log("featuresLevel", {features, level})
+
+        if(level.feature === "mesh" && reduxState?.pageComponentState?.mapGraphicReferences){
+            try{
+                window.features = features;
+
+                const foundStructures = features.map(f => f.properties.structureName).filter((el, i, s) => s.indexOf(el) === i).map(el => reduxState.pageComponentState.structures[el]).filter(el => el)
+
+                let graphicDict = Object.assign({}, ...reduxState.pageComponentState.mapGraphicReferences
+                    .map(r => ({[r._id]: r.graphic})));
+
+                const graphicIds = foundStructures.map(el => graphicDict[el.mapGraphicRefId])
+                    .filter((el, i, s) => el && s.indexOf(el) === i);
+                window.graphicIds = graphicIds;
+
+                loadedGraphics = await loadGraphics(graphicIds);
+
+                // if(graphicIds.length){
+                //     console.log('Loading graphics from Redux state...');
+                //     loadedGraphics = await loadGraphics(graphicIds);
+                // }
+
+                console.log(`Loaded ${loadedGraphics.size} graphics for use in features`);
+
+            } catch(e){
+                console.error("FAILED_TO_IMPROVE", e);
+            }
+        }
+
+
         parentFeatures = features; // propagate if needed
         allFeatureLayers[level.state] = features.map(f=>f.properties);
 
