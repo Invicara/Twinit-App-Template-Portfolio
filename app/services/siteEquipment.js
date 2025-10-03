@@ -135,191 +135,396 @@ export async function siteEquipmentService(changes, facilityId, buildingId, equi
 //   return item
 // })
 
-console.log('EC8 site eq', siteEq);
-
-// const matchedRevision = siteEq.map(item => {
-//   if (Array.isArray(item.revisions) && item.revisions.length > 0) {
-//     const match = item.revisions.find(r => r.revision === item.tipVersion);
-
-//     return {
-//       ...item,
-//       revisions: match ? [match] : [item.revisions[item.revisions.length - 1]], 
-//     };
-//   }
-//   return item;
-// });
 
 
-const matchedRevision = [
-  {
-    _id: "68d64f9656dd1014cc019240",
-    unitType: "900 MW",
-    systemId: "RCS",
-    "Equipment Id": "RCP-900-011",
-    "Equipment Name": "Reactor Coolant Pump 900MW",
-    "Site Equipment Id": "RCP-A-011",
-    tipRevision: "001",
-    equipmentType: "Pump",
-    revisions: [
-      {
-        _id: "68d64f9656dd1014cc019250",
-        "revision status date": "2010-09-01T00:00:00Z",
-        "revision status": "ISSUED",
-        equipmentId: "RCP-900-011",
-        properties: [
-          {
-            val: "Westinghouse",
-            name: "Manufacturer",
-            type: "string",
-          },
-          {
-            val: "RCP-900",
-            name: "Model",
-            type: "string",
-          },
-          {
-            val: "Class 1",
-            name: "Safety Class",
-            type: "string",
-          },
-          {
-            val: "Operational",
-            name: "Operating Status",
-            type: "string",
-          },
-          {
-            val: "2024-10-25T00:00:00Z",
-            name: "Operational Status Date",
-            type: "date",
-          },
-        ],
-        revision: "001",
-        TechnicalParameters: [
-          {
-            val: 2100,
-            unit: "gpm",
-            name: "FlowRate",
-            type: "number",
-          },
-          {
-            val: 10,
-            unit: "MW",
-            name: "Power",
-            type: "number",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    _id: "68d64f9656dd1014cc019241",
-    unitType: "900 MW",
-    systemId: "RCS",
-    "Equipment Id": "RCP-900-012",
-    "Equipment Name": "Reactor Coolant Pump 900MW",
-    "Site Equipment Id": "RCP-A-012",
-    tipRevision: "001A",
-    equipmentType: "Pump",
+const matchedRevision = siteEq?.map(item => {
+  if (Array.isArray(item.revisions) && item.revisions.length > 0) {
+    const match = item.revisions.find(r => r.revision === item.tipVersion);
+
+    return {
+      ...item,
+      revisions: match ? [match] : [item.revisions[item.revisions.length - 1]], 
+    };
+  }
+  return item;
+});
+
+
+// console.log('matchedRevision', JSON.stringify(matchedRevision, null, 2));
+
+// const matchedRevision = [
+// {
+// "_id": "68dedc2b56dd1014cc08743a",
+// "unitType": "900 MW",
+// "systemId": "RCS",
+// "Equipment Id": "RCP-900-011",
+// "Equipment Name": "Reactor Coolant Pump 900MW",
+// "Site Equipment Id": "RCP-A-011",
+// "tipRevision": "001",
+// "equipmentType": "Pump",
+// "revisions": [
+// {
+// "_id": "68dedc2b56dd1014cc08744a",
+// "revision status date": "2010-09-01T00:00:00Z",
+// "revision status": "ISSUED",
+// "equipmentId": "RCP-900-011",
+// "properties": [
+// {
+// "val": "Westinghouse",
+// "name": "Manufacturer",
+// "type": "string"
+// },
+// {
+// "val": "RCP-900",
+// "name": "Model",
+// "type": "string"
+// },
+// {
+// "val": "Class 1",
+// "name": "Safety Class",
+// "type": "string"
+// },
+// {
+// "val": "Operational",
+// "name": "Operating Status",
+// "type": "string"
+// },
+// {
+// "val": "2024-10-25T00:00:00Z",
+// "name": "Operational Status Date",
+// "type": "date"
+// }
+// ],
+// "revision": "001",
+// "TechnicalParameters": [
+// {
+// "val": 2100,
+// "unit": "gpm",
+// "name": "FlowRate",
+// "type": "number"
+// },
+// {
+// "val": 10,
+// "unit": "MW",
+// "name": "Power",
+// "type": "number"
+// }
+// ]
+// }
+// ]
+// },
+// {
+// "_id": "68dedc2b56dd1014cc08743b",
+// "unitType": "900 MW",
+// "systemId": "RCS",
+// "Equipment Id": "RCP-900-012",
+// "Equipment Name": "Reactor Coolant Pump 900MW",
+// "Site Equipment Id": "RCP-A-012",
+// "tipRevision": "001A",
+// "equipmentType": "Pump",
+//    "original": {
+//       "properties": [
+//          {
+//             "val": "Westinghouse",
+//             "name": "Manufacturer",
+//             "type": "string"
+//          },
+//          {
+//             "val": "RCP-900",
+//             "name": "Model",
+//             "type": "string"
+//          },
+//          {
+//             "val": "Class 1",
+//             "name": "Safety Class",
+//             "type": "string"
+//          },
+//          {
+//             "val": "Operational",
+//             "name": "Operating Status",
+//             "type": "string"
+//          },
+//          {
+//             "val": "2025-01-22T00:00:00Z",
+//             "name": "Operational Status Date",
+//             "type": "date"
+//          }
+//       ],
+//       "TechnicalParameters": [
+//          {
+//             "val": 2100,
+//             "unit": "gpm",
+//             "name": "FlowRate",
+//             "type": "number"
+//          },
+//          {
+//             "val": 10,
+//             "unit": "MW",
+//             "name": "Power",
+//             "type": "number"
+//          }
+//       ]
+//    },
+//    "edited": {
+//       "properties": [
+//          {
+//             "val": "KSB",
+//             "name": "Manufacturer",
+//             "type": "string"
+//          },
+//          {
+//             "val": "RSR",
+//             "name": "Model",
+//             "type": "string"
+//          },
+//          {
+//             "val": "2024-10-25T00:00:00Z",
+//             "name": "Operational Status Date",
+//             "type": "date"
+//          }
+//       ],
+//       "TechnicalParameters": [
+//          {
+//             "val": 2800,
+//             "unit": "gpm",
+//             "name": "FlowRate",
+//             "type": "number"
+//          },
+//          {
+//             "val": 18,
+//             "unit": "MW",
+//             "name": "Power",
+//             "type": "number"
+//          }
+//       ]
+//    },
+
+// "revisions": [
+// {
+// "_id": "68dedc2b56dd1014cc08744b",
+// "revision status date": "2010-09-01T00:00:00Z",
+// "revision status": "PENDING",
+// "equipmentId": "RCP-900-012",
+// "properties": [
+// {
+// "val": "Westinghouse",
+// "name": "Manufacturer",
+// "type": "string"
+// },
+// {
+// "val": "RCP-900",
+// "name": "Model",
+// "type": "string"
+// },
+// {
+// "val": "Class 1",
+// "name": "Safety Class",
+// "type": "string"
+// },
+// {
+// "val": "Operational",
+// "name": "Operating Status",
+// "type": "string"
+// },
+// {
+// "val": "2024-10-25T00:00:00Z",
+// "name": "Operational Status Date",
+// "type": "date"
+// }
+// ],
+// "revision": "001A",
+// "TechnicalParameters": [
+// {
+// "val": 2100,
+// "unit": "gpm",
+// "name": "FlowRate",
+// "type": "number"
+// },
+// {
+// "val": 10,
+// "unit": "MW",
+// "name": "Power",
+// "type": "number"
+// }
+// ]
+// }
+// ]
+// }
+// ]
+
+// const matchedRevision = [
+//   {
+//     _id: "68d64f9656dd1014cc019240",
+//     unitType: "900 MW",
+//     systemId: "RCS",
+//     "Equipment Id": "RCP-900-011",
+//     "Equipment Name": "Reactor Coolant Pump 900MW",
+//     "Site Equipment Id": "RCP-A-011",
+//     tipRevision: "001",
+//     equipmentType: "Pump",
+//     revisions: [
+//       {
+//         _id: "68d64f9656dd1014cc019250",
+//         "revision status date": "2010-09-01T00:00:00Z",
+//         "revision status": "ISSUED",
+//         equipmentId: "RCP-900-011",
+//         properties: [
+//           {
+//             val: "Westinghouse",
+//             name: "Manufacturer",
+//             type: "string",
+//           },
+//           {
+//             val: "RCP-900",
+//             name: "Model",
+//             type: "string",
+//           },
+//           {
+//             val: "Class 1",
+//             name: "Safety Class",
+//             type: "string",
+//           },
+//           {
+//             val: "Operational",
+//             name: "Operating Status",
+//             type: "string",
+//           },
+//           {
+//             val: "2024-10-25T00:00:00Z",
+//             name: "Operational Status Date",
+//             type: "date",
+//           },
+//         ],
+//         revision: "001",
+//         TechnicalParameters: [
+//           {
+//             val: 2100,
+//             unit: "gpm",
+//             name: "FlowRate",
+//             type: "number",
+//           },
+//           {
+//             val: 10,
+//             unit: "MW",
+//             name: "Power",
+//             type: "number",
+//           },
+//         ],
+//       },
+//     ],
+//   },
+//   {
+//     _id: "68d64f9656dd1014cc019241",
+//     unitType: "900 MW",
+//     systemId: "RCS",
+//     "Equipment Id": "RCP-900-012",
+//     "Equipment Name": "Reactor Coolant Pump 900MW",
+//     "Site Equipment Id": "RCP-A-012",
+//     tipRevision: "001A",
+//     equipmentType: "Pump",
     
-    revisions: [
-      {
-        _id: "68d64f9656dd1014cc019251",
-        "revision status date": "2010-09-01T00:00:00Z",
-        "revision status": "PENDING",
-        edited: {
-                  "properties": [
-                     {
-                        "val": "KSB",
-                        "name": "Manufacturer",
-                        "type": "string"
-                     },
-                  ],
-                  "TechnicalParameters": [
-                     {
-                        "val": 2800,
-                        "unit": "gpm",
-                        "name": "FlowRate",
-                        "type": "number"
-                     },
-                  ]
-               },
-        equipmentId: "RCP-900-012",
-        properties: [
-          {
-            val: "Westinghouse",
-            name: "Manufacturer",
-            type: "string",
-          },
-          {
-            val: "RCP-900",
-            name: "Model",
-            type: "string",
-          },
-          {
-            val: "Class 1",
-            name: "Safety Class",
-            type: "string",
-          },
-          {
-            val: "Operational",
-            name: "Operating Status",
-            type: "string",
-          },
-          {
-            val: "2024-10-25T00:00:00Z",
-            name: "Operational Status Date",
-            type: "date",
-          },
-        ],
-        revision: "001A",
-        TechnicalParameters: [
-          {
-            val: 2100,
-            unit: "gpm",
-            name: "FlowRate",
-            type: "number",
-          },
-          {
-            val: 10,
-            unit: "MW",
-            name: "Power",
-            type: "number",
-          },
-        ],
-      },
-    ],
-  },
-];
+//     revisions: [
+//       {
+//         _id: "68d64f9656dd1014cc019251",
+//         "revision status date": "2010-09-01T00:00:00Z",
+//         "revision status": "PENDING",
+//         edited: {
+//                   "properties": [
+//                      {
+//                         "val": "KSB",
+//                         "name": "Manufacturer",
+//                         "type": "string"
+//                      },
+//                   ],
+//                },
+//         equipmentId: "RCP-900-012",
+//         properties: [
+//           {
+//             val: "Westinghouse",
+//             name: "Manufacturer",
+//             type: "string",
+//           },
+//           {
+//             val: "RCP-900",
+//             name: "Model",
+//             type: "string",
+//           },
+//           {
+//             val: "Class 1",
+//             name: "Safety Class",
+//             type: "string",
+//           },
+//           {
+//             val: "Operational",
+//             name: "Operating Status",
+//             type: "string",
+//           },
+//           {
+//             val: "2024-10-25T00:00:00Z",
+//             name: "Operational Status Date",
+//             type: "date",
+//           },
+//         ],
+//         revision: "001A",
+//         TechnicalParameters: [
+//           {
+//             val: 2100,
+//             unit: "gpm",
+//             name: "FlowRate",
+//             type: "number",
+//           },
+//           {
+//             val: 10,
+//             unit: "MW",
+//             name: "Power",
+//             type: "number",
+//           },
+//         ],
+//       },
+//     ],
+//   },
+// ];
 
 console.log('EC8 matchedRevision', JSON.stringify(matchedRevision, null, 2));
 
-  const mergeSiteRefs = mergeReferenceRevisions(refs, matchedRevision);
-  return mergeSiteRefs;
+const normalized = (matchedRevision || []).map(eq => {
+  return {
+    ...eq,
+    revisions: eq.revisions.map(rev => ({
+      ...rev,
+      edited: rev.edited || eq.edited || {},
+      original: rev.original || eq.original || {}
+    }))
+  };
+});
+
+  const mergeSiteRefs = mergeReferenceRevisions(refs, normalized);
+  const mergedEdits = mergeEditsIntoEquipments(mergeSiteRefs);
+  return mergedEdits;
 }
 
 function mergeReferenceRevisions(refs, siteEq) {
+  if (!Array.isArray(refs)) return siteEq;
+  if (!Array.isArray(siteEq)) return [];
+
   refs.forEach(ref => {
     const matchEq = siteEq.find(se => se['Equipment Id'] === ref.equipmentId);
     if (!matchEq) return;
 
-    const matchRev = matchEq.revisions.find(r => r.revision === ref.revision);
+    const matchRev = matchEq.revisions?.find(r => r.revision === ref.revision);
     if (!matchRev) return;
 
- 
-    matchRev.TechnicalParameters = matchRev.TechnicalParameters.map(tp => {
-      const refParam = ref.TechnicalParameters.find(rtp => rtp.name === tp.name);
-      if (refParam) {
-        return { ...tp, refVal: refParam.val }; 
-      }
-      return tp;
+    // safe map for tech params
+    matchRev.TechnicalParameters = (matchRev.TechnicalParameters || []).map(tp => {
+      const refParam = (ref.TechnicalParameters || []).find(rtp => rtp.name === tp.name);
+      return refParam ? { ...tp, refVal: refParam.val } : tp;
     });
- 
-    matchRev.properties = matchRev.properties.map(p => {
+
+    // safe map for props
+    matchRev.properties = (matchRev.properties || []).map(p => {
       if (p.name === 'Manufacturer' || p.name === 'Model') {
-        const refProp = ref.properties?.find(rp => rp.name === p.name);
-        if (refProp) {
-          return { ...p, refVal: refProp.val }; 
-        }
+        const refProp = (ref.properties || []).find(rp => rp.name === p.name);
+        return refProp ? { ...p, refVal: refProp.val } : p;
       }
       return p;
     });
@@ -556,6 +761,50 @@ const latestVersion = [
                      },
                   ]
                },
+
+               original: {
+                    "properties": [
+                        {
+                            "val": "Westinghouse",
+                            "name": "Manufacturer",
+                            "type": "string"
+                        },
+                        {
+                            "val": "RCP-900",
+                            "name": "Model",
+                            "type": "string"
+                        },
+                        {
+                            "val": "Class 1",
+                            "name": "Safety Class",
+                            "type": "string"
+                        },
+                        {
+                            "val": "Operational",
+                            "name": "Operating Status",
+                            "type": "string"
+                        },
+                        {
+                            "val": "2025-01-22T00:00:00Z",
+                            "name": "Operational Status Date",
+                            "type": "date"
+                        }
+                    ],
+                    "TechnicalParameters": [
+                        {
+                            "val": 2100,
+                            "unit": "gpm",
+                            "name": "FlowRate",
+                            "type": "number"
+                        },
+                        {
+                            "val": 10,
+                            "unit": "MW",
+                            "name": "Power",
+                            "type": "number"
+                        }
+                    ]
+                },
         _id: "68d64f9656dd1014cc019251",
         _metadata: {
           _updatedById: "6ae13743-a90f-4b74-8252-a16ca47cd14e",
@@ -730,42 +979,60 @@ function mergeRefVals(latestVersion, referenceRevisions) {
   });
 }
 
-function mergeEditsIntoRevision(revision) {
-  if (!revision) return revision;
-
-  const merged = { ...revision };
-  const edited = revision.edited || {};
-
-  const editedProps = Array.isArray(edited.properties) ? edited.properties : [];
-  const editedTechs = Array.isArray(edited.TechnicalParameters) ? edited.TechnicalParameters : [];
-
-  if (Array.isArray(revision.properties)) {
-    merged.properties = revision.properties.map((prop) => {
-      const match = editedProps.find(e => e.name === prop.name);
-      return match
-        ? { ...prop, originalVal: match.val, isEdited: true }
-        : prop;
-    });
-  }
-
-  if (Array.isArray(revision.TechnicalParameters)) {
-    merged.TechnicalParameters = revision.TechnicalParameters.map((param) => {
-      const match = editedTechs.find(e => e.name === param.name);
-      return match
-        ? { ...param, originalVal: match.val, isEdited: true }
-        : param;
-    });
-  }
-
-  return merged;
-}
-
-// 🔹 NEW wrapper for whole equipment set
 function mergeEditsIntoEquipments(equipmentList) {
-  return equipmentList.map(eq => ({
-    ...eq,
-    revisions: Array.isArray(eq.revisions)
-      ? eq.revisions.map(r => mergeEditsIntoRevision(r))
-      : eq.revisions
-  }));
+  if (!Array.isArray(equipmentList)) return [];
+
+  return equipmentList.map(eq => {
+    if (!Array.isArray(eq.revisions)) return eq;
+
+    return {
+      ...eq,
+      revisions: eq.revisions.map(rev => {
+     
+        const edited = rev.edited || eq.edited || {};
+        const original = rev.original || eq.original || {};
+        const editedProps = Array.isArray(edited.properties) ? edited.properties : [];
+        const editedTechs = Array.isArray(edited.TechnicalParameters) ? edited.TechnicalParameters : [];
+
+        const originalProps = Array.isArray(original.properties) ? original.properties : [];
+        const originalTechs = Array.isArray(original.TechnicalParameters) ? original.TechnicalParameters : [];
+
+        const mergedProps = Array.isArray(rev.properties)
+          ? rev.properties.map(prop => {
+              const match = editedProps.find(e => e.name === prop.name);
+              if (match) {
+                const originalMatch = originalProps.find(o => o.name === prop.name);
+                return {
+                  ...prop,
+                  originalVal: originalMatch ? originalMatch.val : undefined,
+                  isEdited: true
+                };
+              }
+              return prop;
+            })
+          : [];
+
+        const mergedTechs = Array.isArray(rev.TechnicalParameters)
+          ? rev.TechnicalParameters.map(param => {
+              const match = editedTechs.find(e => e.name === param.name);
+              if (match) {
+                const originalMatch = originalTechs.find(o => o.name === param.name);
+                return {
+                  ...param,
+                  originalVal: originalMatch ? originalMatch.val : undefined,
+                  isEdited: true
+                };
+              }
+              return param;
+            })
+          : [];
+
+        return {
+          ...rev,
+          properties: mergedProps,
+          TechnicalParameters: mergedTechs
+        };
+      })
+    };
+  });
 }
