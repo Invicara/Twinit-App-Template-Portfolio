@@ -3,10 +3,12 @@ import {markHandled} from "./mapEntryActions.mjs";
 import {get} from "lodash";
 import {FilterCompiler} from "../../ipaCore/pageComponents/utils/filters.global.js";
 import {getGlobalFilterFunctions} from "../../ipaCore/pageComponents/utils/filters.global.js";
+import {Mutex} from "./mutex.js";
 
 const PIE_SIZE  = 48;
 const PIE_ALPHA = 0.7; // (lower -> more transparent)
 
+export const markersMutex = new Mutex();//we have to lock on the markers map access
 const markers = new Map();
 
 function binIndexFor(val, bins) {
