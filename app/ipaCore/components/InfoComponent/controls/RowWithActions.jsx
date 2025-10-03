@@ -41,7 +41,6 @@ export function RowWithActions({
 
   const [editing, setEditing] = React.useState(false);
 
-  // label & required
   const labelText = controlUiSchema.label ?? schema?.properties?.[key]?.title ?? key;
   const isRequired =
     Array.isArray(schema?.required) && schema.required.includes(key);
@@ -59,7 +58,6 @@ const propSchema = schema?.properties?.[key];
     [controlUiSchema]
   );
 
-  // focus handling
   const isInMuiPicker = (el) =>
     !!el?.closest?.(
       '.MuiPickersPopper-root, .MuiModal-root, .MuiPickersModal-dialogRoot, [role="dialog"]'
@@ -84,7 +82,7 @@ const propSchema = schema?.properties?.[key];
     onBlur={onRowBlur}
     sx={{
       backgroundColor: propSchema?.isEdited ? '#ECF5FB' : 'transparent',
-      borderRadius: 1,   // optional, makes it look cleaner
+      borderRadius: 1,   
     }}>
       <Box
         display="grid"
