@@ -1832,8 +1832,7 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
                 } finally {
                     release();
                 }
-
-
+                
                 if (path == "site" && visibleFeatures && visibleFeatures.length > 0) {
 
                     const ids = visibleFeatures.map(f => f.properties["siteId"]);
