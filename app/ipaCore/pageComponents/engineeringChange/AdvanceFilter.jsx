@@ -75,7 +75,7 @@ const AdvancedFilter = ({ open, onClose, onApply }) => {
             <TextField
               label="Revision"
               fullWidth
-              value={filters.revision}
+              value={filters.equipmentRevision}
               onChange={(e) => handleChange("equipmentRevision", e.target.value)}
             />
           </Grid>
