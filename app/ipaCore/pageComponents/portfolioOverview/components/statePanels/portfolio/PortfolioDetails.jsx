@@ -14,7 +14,7 @@ const sampleFormConfig = {
             label: 'Engineering Changes Status',
             type: 'select',
             rule: "EC_statusIn",
-            options: (ctx) => {
+            options: () => {
                 const labelMap = {
                     "REGISTERED": "Registered",
                     "APPROVED": "Approved",
@@ -70,7 +70,7 @@ const sampleFormConfig = {
             label: 'Facility Location',
             type: 'select',
             rule: "facilityIn",
-            options: (context) => {
+            options: ({context}) => {
                 const bins = context?.data?.["site"] || [];
                 return bins.map((bin, index) => ({ value: bin.siteId, label: bin.name, meta: { bin } }));
             },
@@ -81,6 +81,43 @@ const sampleFormConfig = {
             },
             fromRule: (rule, _context, selectOptions = []) => {
                 if (rule?.fn !== 'facilityIn') return null;
+
+                // normalize the values coming from the rule
+                const ids = Array.isArray(rule.args?.values)
+                    ? rule.args.values.map(String)
+                    : rule.args?.id != null
+                        ? [String(rule.args.id)]
+                        : [];
+
+                if (!ids.length) return null;
+
+                // Try to match by option.value first, then by meta.bin.id
+                const opt = selectOptions.find(opt => {
+                    const v = String(opt.value);
+                    const binId = String(opt.meta?.bin?.id ?? '');
+                    return ids.includes(v) || (binId && ids.includes(binId));
+                });
+
+                return opt ? opt.value : null;
+            }
+        },
+
+        structure: {
+            label: 'Unit Name / Structure',
+            type: 'select',
+            rule: "unitIn",
+            options: ({context, filters}) => {
+                const locationId = filters['location'];
+                const bins = context?.data?.["building"] || [];
+                return bins.filter(b=>locationId && locationId.length>0 ? b.siteId == locationId : true).map((bin, index) => ({ value: bin.buildingId, label: bin.name, meta: { bin } }));
+            },
+            toRule: (value, _ctx, meta) => {
+                return value !== '' && meta?.bin
+                    ? {fn: 'unitIn', args: {values: [value]}}
+                    : null
+            },
+            fromRule: (rule, _context, selectOptions = []) => {
+                if (rule?.fn !== 'unitIn') return null;
 
                 // normalize the values coming from the rule
                 const ids = Array.isArray(rule.args?.values)
