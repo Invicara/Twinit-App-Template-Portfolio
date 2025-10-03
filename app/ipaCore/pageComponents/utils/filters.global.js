@@ -38,7 +38,11 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
             }
             const set = new Set(values.map(v => String(v).toUpperCase()));
             const statuses = new Set(Object.entries(ecsByStatus).filter(([k,v])=>v._total > 0).map(([k,v]) => String(k).toUpperCase()));
-            return set.intersection(statuses).size>0;
+            try {
+                return set.intersection(statuses).size>0;
+            } catch (e){
+                return false;
+            }
         },
         reactorPalierIn:
             ({ values = [] }) =>

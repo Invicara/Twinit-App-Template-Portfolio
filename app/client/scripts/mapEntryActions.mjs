@@ -13,7 +13,7 @@ import {
     clearStaleMarkers,
     clearStaleMarkersByPath,
     makeMarkerShell,
-    makePieCanvas,
+    makePieCanvas, markersMutex,
     renderAllMarkers,
     zoomIntoClusterByExpansion
 } from "./mapMarkers.mjs";
@@ -129,31 +129,31 @@ let activeFilter = null;
  */
 function getGraphicIdFromStructureName(structureName, reduxState) {
     if (!structureName || !reduxState) return null;
-    
+
     const structures = reduxState?.pageComponentState?.structures || {};
     const mapGraphicReferences = reduxState?.pageComponentState?.mapGraphicReferences || [];
-    
+
     // Step 1: structureName -> structure
     const structure = structures[structureName];
     if (!structure) {
         console.warn(`No structure found for structureName: ${structureName}`);
         return null;
     }
-    
+
     // Step 2: structure -> mapGraphicRefId
     const mapGraphicRefId = structure.mapGraphicRefId;
     if (!mapGraphicRefId) {
         console.warn(`No mapGraphicRefId found in structure: ${structureName}`, structure);
         return null;
     }
-    
+
     // Step 3: mapGraphicRefId -> graphicReferencesMap -> graphic
     const graphicReference = mapGraphicReferences.find(ref => ref._id === mapGraphicRefId);
     if (!graphicReference) {
         console.warn(`No graphic reference found for mapGraphicRefId: ${mapGraphicRefId}`);
         return null;
     }
-    
+
     return graphicReference.graphic;
 }
 
@@ -1799,38 +1799,38 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
                 const {graphics, visibleFeatures, allFeaturesMarkerIds, previousMarkerIds, currentMarkerIds, filters} = await renderAllMarkers(e, {self}, markersInfo);
                 //console.log("UPDATE_FILTERS renderAllMarkers", {graphics, visibleFeatures, previousMarkerIds, currentMarkerIds, filters: filters});
 
-                if (previousMarkerIds && previousMarkerIds.length > 0) {
-                    const toRemove = previousMarkerIds.filter(id=>!currentMarkerIds.includes(id));
-                    if(toRemove.length>0){
+                const release = await markersMutex.lock();
+                try {
+
+                    if (previousMarkerIds && previousMarkerIds.length > 0) {
+                        const toRemove = previousMarkerIds.filter(id=>!currentMarkerIds.includes(id));
+                        if(toRemove.length>0){
+                            const commands = [{
+                                commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                                commandRef: uuid(),
+                                params: {
+                                    ids: toRemove,//remove stale
+                                }
+                            }]
+                            context.mmvSend(commands);
+                            clearStaleMarkers(toRemove);
+                        }
+                    }
+                    if (graphics && graphics.length > 0) {
                         const commands = [{
-                            commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                            commandName: MMV_COMMANDS.ADD_GRAPHICS,
                             commandRef: uuid(),
                             params: {
-                                ids: toRemove,//remove stale
+                                graphics: graphics
                             }
                         }]
                         context.mmvSend(commands);
-                        clearStaleMarkers(toRemove);
+                        graphics.forEach(graphic => {
+                            addMarkers(graphic);//track markers internally
+                        })
                     }
-                }
-                if (graphics && graphics.length > 0) {
-                    const commands = [{
-                        commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
-                        commandRef: uuid(),
-                        params: {
-                            ids: allFeaturesMarkerIds,//remove stale
-                        }
-                    },{
-                        commandName: MMV_COMMANDS.ADD_GRAPHICS,
-                        commandRef: uuid(),
-                        params: {
-                            graphics: graphics
-                        }
-                    }]
-                    context.mmvSend(commands);
-                    graphics.forEach(graphic => {
-                        addMarkers(graphic);//track markers internally
-                    })
+                } finally {
+                    release();
                 }
 
 
