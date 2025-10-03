@@ -99,15 +99,34 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
         facilityIn:
             ({values = []}) => (e) => {
                 const entity = isMapFeatures ? e.properties : e;
-                let facilityIds = [];
+                let facilityIds;
                 if (entityType == "ec") {
-                    facilityIds = new Set([entity.facility.toUpperCase()]);
+                    facilityIds = entity.facility ? new Set([entity.facility.toUpperCase()]) : undefined;
                 } else {
-                    facilityIds = new Set([String(entity.siteId).toUpperCase()]);
+                    facilityIds = entity.siteId ? new Set([String(entity.siteId).toUpperCase()]) : undefined;
                 }
                 const set = new Set(values.map(v => String(v).toUpperCase()));
                 try {
-                    const inter = set.intersection(facilityIds);
+                    const inter = facilityIds ? set.intersection(facilityIds) : 0;
+                    return inter.size;
+                } catch (e) {
+                    return false;
+                }
+            },
+            unitIn:
+            ({values = []}) => (e) => {
+                const entity = isMapFeatures ? e.properties : e;
+                let unitIds;
+                if (entityType == "ec") {
+                    unitIds = entity.unit ? new Set([entity.unit.toUpperCase()]) : undefined;
+                } else if(entityType == "site") {
+                    unitIds = entity.buildings ? new Set((entity.buildings.map(b=>String(b.buildingId?.toUpperCase())))) : undefined;
+                } else {
+                    unitIds = entity.buildingId ? new Set([entity.buildingId.toUpperCase()]) : undefined;
+                }
+                const set = new Set(values.map(v => String(v).toUpperCase()));
+                try {
+                    const inter = unitIds ? set.intersection(unitIds) : 0;
                     return inter.size;
                 } catch (e) {
                     return false;
