@@ -125,7 +125,7 @@ const buildingId = match ? match[2] : null;
             className={classes.tab}
           />
         )}
-        {tab === 1 && <SiteEquipmentTab className={classes.tab} levelData={levelData} loadingLevelData={loadingLevelData} hasFetched={hasFetched} />}
+        {tab === 1 && <SiteEquipmentTab className={classes.tab} levelData={levelData} loadingLevelData={loadingLevelData} hasFetched={hasFetched} data={ECs} />}
       </div>
     </Box>
   );

@@ -266,6 +266,63 @@ async function getUnitEquipment(input, libraries, ctx) {
 
 }
 
+async function getUnitSystemEquipments(input, libraries, ctx) {
+   const { IafItemSvc } = libraries.PlatformApi
+   const { IafScriptEngine } = libraries
+
+   const facility = decodeURIComponent(input.facility)
+   const unit = decodeURIComponent(input.unit)
+   const systemId = decodeURIComponent(input.systemId)
+
+   // TO DO page all instead of 1000 _pageSize
+   let equipCollections = await IafItemSvc.getNamedUserItems({
+		query: { _userType: "siteEquip", _itemClass: 'NamedUserCollection', _shortName: `${facility}${unit}-siteequip` }
+         }, ctx, { page: {_pageSize: 1000, _offset: 0}
+   })
+   let revCollections = await IafItemSvc.getNamedUserItems({
+		query: { _userType: "siteEquipRevs", _itemClass: 'NamedUserCollection', _shortName: `${facility}${unit}-siteequiprevs` }
+         }, ctx, { page: {_pageSize: 1000, _offset: 0}
+   })
+
+   const equipColl =  equipCollections._list.find(c => c._userType === "siteEquip")
+   const equipRevsColl =  revCollections._list.find(c => c._userType === "siteEquipRevs")
+
+   if (!equipColl || !equipRevsColl) {
+      return {
+         status: 500,
+         statusMessage: "Internal Server Error",
+         message: "Error finding site equipment or revisions collections",
+         data: { equipCollections, revCollections }
+      }
+   }
+
+   let equipWithRevs = await IafScriptEngine.findWithRelated({
+      parent: {
+         query: { systemId },
+         collectionDesc: { _userItemId: equipColl._userItemId, _userType: equipColl._userType },
+         options: {
+            page: { _pageSize: 100, _offset: 0 },
+            sort: { "Equipment Id": 1 }
+         }
+      },
+      related: [
+         {
+            relatedDesc: { _relatedUserType: equipRevsColl._userType, _isInverse: true},
+            as: "revisions"
+         }
+      ]
+   }, ctx)
+
+   return {
+         status: 200,
+         statusMessage: "Success",
+         facility,
+         unit,
+         systemId,
+         equipment: equipWithRevs
+   }
+}
+
 
 // OLD STUFF ======================================================================
 
@@ -439,15 +496,15 @@ async function searchEquipment(input, libraries, ctx) {
 		date.setUTCHours(0,0,0,0)
 
 		// Compare with last major version if user updating a pending revision again with new edits
-		let compareRevision = tipRevision
+		let prevMajorRevision = tipRevision
 		if (isIntermediateRevision(tipRevisionNumber)) {
 			// Revision contains 'A' suffix
 			const lastMajorRevisionNumber = tipRevisionNumber.replace(/[A-Za-z]$/, "")
-			compareRevision = equip?.revisions?._list?.find(r => r.revision == lastMajorRevisionNumber)
+			prevMajorRevision = equip?.revisions?._list?.find(r => r.revision == lastMajorRevisionNumber)
 		}
 		const edited = {}
-		edited.properties = _.differenceBy(properties, compareRevision?.properties, 'val').map(p => p.name)
-		edited.TechnicalParameters = _.differenceBy(TechnicalParameters, compareRevision?.TechnicalParameters, 'val').map(tp => tp.name)
+		edited.properties = _.differenceBy(properties, prevMajorRevision?.properties, 'val').map(p => p)
+		edited.TechnicalParameters = _.differenceBy(TechnicalParameters, prevMajorRevision?.TechnicalParameters, 'val').map(tp => tp)
 
 		const newRevision = {
 			'revision status date': date.toISOString(),
@@ -456,6 +513,10 @@ async function searchEquipment(input, libraries, ctx) {
 			equipmentId,
 			properties,
 			TechnicalParameters,
+         original: {
+            properties: prevMajorRevision.properties,
+            TechnicalParameters: prevMajorRevision.TechnicalParameters
+         },
 			edited
 		}
 
@@ -588,8 +649,8 @@ async function searchEquipment(input, libraries, ctx) {
          })
          await IafItemSvc.updateRelatedItems(siteEquipRevsColl._userItemId, prevIssuedRevisions, ctx)
       }
-      // Update temporary revision to major revision
-      const updatedRevision = await IafItemSvc.updateRelatedItem(siteEquipRevsColl._userItemId, revisionToBump._id, {...revisionToBump, 'revision': incrementedRevision, 'revision status': 'ISSUED', 'revision status date': date.toISOString()}, ctx)
+      // Update temporary revision to major revision, remove edited and original properties
+      const updatedRevision = await IafItemSvc.updateRelatedItem(siteEquipRevsColl._userItemId, revisionToBump._id, {..._.omit(revisionToBump, ['edited', 'original']), 'revision': incrementedRevision, 'revision status': 'ISSUED', 'revision status date': date.toISOString()}, ctx)
 		// Update tipRevision on site equip
 		await IafItemSvc.updateRelatedItem(siteEquipColl._userItemId, equip._id, {..._.omit(equip, ['revisions']), tipRevision: incrementedRevision}, ctx)
 		

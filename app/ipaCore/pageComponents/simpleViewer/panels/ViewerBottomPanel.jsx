@@ -4,8 +4,10 @@ import { Paper, Typography, Button, Divider, CircularProgress } from '@material-
 import { Edit as EditIcon, Save as SaveIcon, KeyboardArrowUp, KeyboardArrowDown } from '@material-ui/icons'
 import { ModelContext } from '../../../contexts/ModelContext'
 import { InfoComponent } from '../../../components/InfoComponent/InfoComponent'
-import { siteEquipmentService, siteEquipmentForTreeService } from '../../../../services/siteEquipment';
+import { siteEquipmentService, siteEquipmentForTreeService, rejectPendingRevision, approvePendingRevision } from '../../../../services/siteEquipment';
 import AssignmentLateIcon from '@material-ui/icons/AssignmentLate';
+import {engineeringChangePendingRevision} from '../../../../services/engineeringChangesAPI'
+import { Warning as WarningIcon } from '@mui/icons-material';
 
 const useStyles = makeStyles((theme) => ({
   panel: {
@@ -27,7 +29,7 @@ const useStyles = makeStyles((theme) => ({
     display: 'flex',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingRight: theme.spacing(20),
+    paddingRight: theme.spacing(10),
     cursor: 'pointer',
   },
   content: {
@@ -336,12 +338,33 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
   }, [isBottomECPanelOpen])
 
   const toggleEdit = (index) => {
-    setProperties((prev) =>
-      prev.map((p, i) =>
-        i === index ? { ...p, isEditing: !p.isEditing } : p
-      )
-    )
-  }
+    const facilityId = siteEquipment?.data[0]?.site;
+    const buildingId = siteEquipment?.data[0]?.unit;
+    const siteEquipmentId = siteEquipment?.data[0]?.['Equipment Id'];
+    const userName = siteEquipment?.data[0]?.username;
+
+    setProperties(prev =>
+      prev.map((p, i) => {
+        if (i !== index) return p;
+
+        if (p.isEditing) {
+          const updateObject = {
+            facility: facilityId, 
+            unit: buildingId,
+            equipmentId: siteEquipmentId,
+            siteEquipmentId: p.equipmentId,
+            properties: p.properties,
+            TechnicalParameters: p.TechnicalParameters,
+            username: userName
+          }
+          engineeringChangePendingRevision(updateObject)
+        }
+
+        return { ...p, isEditing: !p.isEditing };
+      })
+  );
+};
+
 
  const setDeepValue = (obj, path, value) => {
   const keys = path.split('.')
@@ -358,25 +381,133 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
   return newObj
 }
 
+const handleReject = async (item) => {
+
+
+  const modelName = selectedModelComposite?._name || '';
+  const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
+  const facilityId = match ? match[1].toUpperCase() : null;
+  const buildingId = match ? match[2] : null;
+
+  try {
+    setLoading(true);
+
+    const res = await rejectPendingRevision(facilityId, buildingId, item.equipmentId, item.revision);
+    console.log('Reject success:', res);
+
+    if (res.success) {
+
+      if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
+        // EC mode
+        const refreshed = await siteEquipmentService(
+          siteEquipment.EC,
+          facilityId,
+          buildingId,
+          item.equipmentId
+        );
+        setProperties(refreshed.map(el => ({ ...flattenEquipment(el), isEditing: false })));
+        setData(refreshed);
+      } else {
+
+        const refreshed = await siteEquipmentForTreeService(
+          facilityId,
+          buildingId,
+          siteEquipment?.data
+        );
+        setProperties(refreshed.map(el => ({ ...flattenEquipment(el), isEditing: false })));
+        setData(refreshed);
+      }
+    } else {
+      console.error('Reject failed:', res.message);
+    }
+  } catch (err) {
+    console.error('Reject failed:', err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleApprove = async (item) => {
+  const modelName = selectedModelComposite?._name || '';
+  const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
+  const facilityId = match ? match[1].toUpperCase() : null;
+  const buildingId = match ? match[2] : null;
+
+  try {
+    setLoading(true);
+
+    let username = 'Bob';
+     const res = await approvePendingRevision(item.revision, facilityId, buildingId, item.equipmentId, username);
+
+    if (res.success) {
+      // same refresh logic as reject
+      if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
+        const refreshed = await siteEquipmentService(
+          siteEquipment.EC,
+          facilityId,
+          buildingId,
+          item.equipmentId
+        );
+        setProperties(refreshed.map(el => ({ ...flattenEquipment(el), isEditing: false })));
+        setData(refreshed);
+      } else {
+        const refreshed = await siteEquipmentForTreeService(
+          facilityId,
+          buildingId,
+          siteEquipment?.data
+        );
+        setProperties(refreshed.map(el => ({ ...flattenEquipment(el), isEditing: false })));
+        setData(refreshed);
+      }
+    } else {
+      console.error('Approve failed:', res.message);
+    }
+  } catch (err) {
+    console.error('Approve failed:', err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 const handleChange = (index, name, value) => {
   setProperties((prev) =>
     prev.map((p, i) => {
-      if (i !== index) return p;
+      if (i !== index) return p
 
-      return {
-        ...p,
-        [name]: value,
-        TechnicalParameters: {
-          ...p.TechnicalParameters,
-          [name]: {
-            ...p.TechnicalParameters?.[name],
-            val: value,   // keep tech params in sync
-          }
+      // Copy the original object
+      let updated = { ...p, [name]: value }
+
+      if (['FlowRate', 'Power'].includes(name)) {
+        // Update only TechnicalParameters for numeric fields
+        updated = {
+          ...updated,
+          TechnicalParameters: {
+            ...p.TechnicalParameters,
+            [name]: {
+              ...p.TechnicalParameters?.[name],
+              val: value,
+            },
+          },
         }
-      };
+      } else {
+        // Update all other editable fields in properties
+        updated = {
+          ...updated,
+          properties: {
+            ...p.properties,
+            [name]: {
+              ...p.properties?.[name],
+              val: value,
+            },
+          },
+        }
+      }
+      return updated;
     })
-  );
-};
+  )
+}
+
+
   if (!isBottomECPanelOpen) return null
 
   return (
@@ -445,7 +576,6 @@ const handleChange = (index, name, value) => {
 //   }
 // };
 
-console.log('EC8 PROPS', prop);
 
    const dynamicSchema = buildSchema(prop, editableFields);
 
@@ -502,7 +632,7 @@ console.log('EC8 PROPS', prop);
         marginRight: 6,
         lineHeight: 1.2,
       }}
-      onClick={() => console.log('Reject clicked')}
+      onClick={() => handleReject(prop)}
     >
       Reject
     </Typography>
@@ -517,7 +647,7 @@ console.log('EC8 PROPS', prop);
         marginRight: 6,
         lineHeight: 1.2,
       }}
-      onClick={() => console.log('Approve clicked')}
+      onClick={() => handleApprove(prop)}
     >
       Approve
     </Typography>
@@ -535,14 +665,7 @@ console.log('EC8 PROPS', prop);
               entityType="equipment"
               hidePropertyActions={true}
               disabled={!prop.isEditing} 
-                handleChange={(val, name) => {
-        //   setProperties(prev => {
-        //     const next = [...prev];
-        //     next[index] = { ...next[index], [name]: val };
-        //     return next;
-        // });
-        }}
-             // handleChange={(val, name) => handleChange(index, name, val)}
+              handleChange={(val, name) => handleChange(index, name, val)}
             />
           </Paper>
         )
