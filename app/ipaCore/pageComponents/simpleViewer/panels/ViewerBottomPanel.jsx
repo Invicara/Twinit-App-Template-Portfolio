@@ -5,6 +5,7 @@ import { Edit as EditIcon, Save as SaveIcon, KeyboardArrowUp, KeyboardArrowDown 
 import { ModelContext } from '../../../contexts/ModelContext'
 import { InfoComponent } from '../../../components/InfoComponent/InfoComponent'
 import { siteEquipmentService, siteEquipmentForTreeService } from '../../../../services/siteEquipment';
+import {engineeringChangePendingRevision} from '../../../../services/engineeringChangesAPI'
 import { Warning as WarningIcon } from '@mui/icons-material';
 
 const useStyles = makeStyles((theme) => ({
@@ -27,7 +28,7 @@ const useStyles = makeStyles((theme) => ({
     display: 'flex',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingRight: theme.spacing(4),
+    paddingRight: theme.spacing(8),
     cursor: 'pointer',
   },
   content: {
@@ -308,12 +309,33 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
   }, [isBottomECPanelOpen])
 
   const toggleEdit = (index) => {
-    setProperties((prev) =>
-      prev.map((p, i) =>
-        i === index ? { ...p, isEditing: !p.isEditing } : p
-      )
-    )
-  }
+    const facilityId = siteEquipment?.data[0]?.site;
+    const buildingId = siteEquipment?.data[0]?.unit;
+    const siteEquipmentId = siteEquipment?.data[0]?.['Equipment Id'];
+    const userName = siteEquipment?.data[0]?.username;
+
+    setProperties(prev =>
+      prev.map((p, i) => {
+        if (i !== index) return p;
+
+        if (p.isEditing) {
+          const updateObject = {
+            facility: facilityId, 
+            unit: buildingId,
+            equipmentId: siteEquipmentId,
+            siteEquipmentId: p.equipmentId,
+            properties: p.properties,
+            TechnicalParameters: p.TechnicalParameters,
+            username: userName
+          }
+          engineeringChangePendingRevision(updateObject)
+        }
+
+        return { ...p, isEditing: !p.isEditing };
+      })
+  );
+};
+
 
  const setDeepValue = (obj, path, value) => {
   const keys = path.split('.')
@@ -333,22 +355,42 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
 const handleChange = (index, name, value) => {
   setProperties((prev) =>
     prev.map((p, i) => {
-      if (i !== index) return p;
+      if (i !== index) return p
 
-      return {
-        ...p,
-        [name]: value,
-        TechnicalParameters: {
-          ...p.TechnicalParameters,
-          [name]: {
-            ...p.TechnicalParameters?.[name],
-            val: value,   // keep tech params in sync
-          }
+      // Copy the original object
+      let updated = { ...p, [name]: value }
+
+      if (['FlowRate', 'Power'].includes(name)) {
+        // Update only TechnicalParameters for numeric fields
+        updated = {
+          ...updated,
+          TechnicalParameters: {
+            ...p.TechnicalParameters,
+            [name]: {
+              ...p.TechnicalParameters?.[name],
+              val: value,
+            },
+          },
         }
-      };
+      } else {
+        // Update all other editable fields in properties
+        updated = {
+          ...updated,
+          properties: {
+            ...p.properties,
+            [name]: {
+              ...p.properties?.[name],
+              val: value,
+            },
+          },
+        }
+      }
+      return updated;
     })
-  );
-};
+  )
+}
+
+
   if (!isBottomECPanelOpen) return null
 
   return (
@@ -422,14 +464,7 @@ console.log('EC8 PROPS', prop);
               entityType="equipment"
               hidePropertyActions={true}
               disabled={!prop.isEditing} 
-                handleChange={(val, name) => {
-        //   setProperties(prev => {
-        //     const next = [...prev];
-        //     next[index] = { ...next[index], [name]: val };
-        //     return next;
-        // });
-        }}
-             // handleChange={(val, name) => handleChange(index, name, val)}
+              handleChange={(val, name) => handleChange(index, name, val)}
             />
           </Paper>
         )
