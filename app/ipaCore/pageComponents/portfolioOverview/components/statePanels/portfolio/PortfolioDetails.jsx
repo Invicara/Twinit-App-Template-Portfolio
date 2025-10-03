@@ -4,7 +4,7 @@ import SearchPanel from '../../SearchPanel.jsx';
 import {Box} from "@mui/material";
 import {useDispatch, useSelector} from "react-redux";
 import {getFilter, setFilter} from "../../../../../redux/filters.js";
-import {mergeFiltersGeneric} from "../../../../utils/filters.global.js";
+import {mergeFiltersGeneric, toggleScopedFilter} from "../../../../utils/filters.global.js";
 
 
 const sampleFormConfig = {
@@ -67,7 +67,7 @@ const sampleFormConfig = {
         },
 
         location: {
-            label: 'Site Location',
+            label: 'Facility Location',
             type: 'select',
             rule: "facilityIn",
             options: (context) => {
@@ -317,8 +317,8 @@ export default function PortfolioDetails({ context, userConfig, send, stateKey, 
                     formConfig={sampleFormConfig}
                     onSubmit={(filter, rawFilters) => {
                         const mergingOptions = {
-                            dropMissing: Object.values(sampleFormConfig.fields).map(c=>c.rule).filter(r=>!!r),
-                            replace: (fn) => Object.values(sampleFormConfig.fields).map(c=>c.rule).filter(r=>!!r).includes(fn)
+                            dropMissing: Object.values(sampleFormConfig.fields).map(c=>c.rule).filter(r=>!!r),//remove global rules not present in new filter (by fn)
+                            replace: (fn) => Object.values(sampleFormConfig.fields).map(c=>c.rule).filter(r=>!!r).includes(fn)//replace only rules the search box is configured to use
                         }
                         const merged = mergeFiltersGeneric(globalFilters, filter, "site", mergingOptions);
                         console.log("mergeFiltersGeneric SearchPanel", {merged, filter, globalFilters, mergingOptions})
@@ -334,13 +334,13 @@ export default function PortfolioDetails({ context, userConfig, send, stateKey, 
                     stateKey={stateKey}
                     chartCfg={ec1_ChartCfg}
                     onFilterChange={(filter) => {
-                        const mergingOptions = {
-                            dropMissing: [defaultChartCfg.group.id, defaultChartCfg.series.id],
-                            replace: true
+                        const togglingOptions = {
+                            replace: [ec1_ChartCfg.group.id, ec1_ChartCfg.series.id],// force toggle on filters the chart controls
+                            dropMissing: true, //remove global rules not present in new filter (by fn)
                         }
-                        const merged = mergeFiltersGeneric(globalFilters, filter, "site",  mergingOptions);
-                        console.log("mergeFiltersGeneric DeployStatusChart", {merged, filter, globalFilters, mergingOptions})
-                        dispatch(setFilter(merged));
+                        const next = toggleScopedFilter(globalFilters, filter, "site", togglingOptions);
+                        console.log("mergeFiltersGeneric SearchPanel", {next, filter, globalFilters, togglingOptions})
+                        dispatch(setFilter(next));
                     }}
                 />
 
