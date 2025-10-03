@@ -26,7 +26,10 @@
 .mapboxgl-marker {
     position: absolute !important;
 }
-
+.mapboxgl-map, .mapboxgl-canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
 /* Site selection cursor styles */
 .map-selecting-position {
     cursor: url('/icons/map-pin.svg') 12 24, crosshair !important;

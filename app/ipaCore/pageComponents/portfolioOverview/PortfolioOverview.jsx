@@ -54,7 +54,8 @@ const useStyles = makeStyles((theme) => ({
         flexGrow: 1
     },
     mainContent: {
-        height: "calc(100% - 40px)"
+        height: "calc(100% - 40px)",
+        flexWrap: "nowrap !important"
     },
     statePanel: ({stateKey}) => (  {
         width: 580,
