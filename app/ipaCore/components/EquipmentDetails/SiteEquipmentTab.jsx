@@ -38,6 +38,7 @@ const focusLogsInViewer = async (
     if (elementIds.includes(siteEquipId)) {
       selectedIds.push(siteEquipId)
     } else {
+      // BUG #2 - Need to pass through equipment ID instead of Site Equipment ID
       rejectedIDs.push(siteEquipId)
     }
   })
@@ -67,8 +68,10 @@ const focusLogsInViewer = async (
   const EcLogs = findLogsByEquipIds(data, selectedSiteEquipId)
 
   // push into ModelContext like EngineeringChangesTab does
+
+  // BUG #1 - causing undefined error here when selecting SE with no associated EC
   setSiteEquipment({
-     data: EcLogs[0].logs,
+     data: EcLogs[0]?.logs,
     EC: {} // nothing here yet
   })
 
