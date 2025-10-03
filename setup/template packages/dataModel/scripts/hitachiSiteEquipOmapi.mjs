@@ -582,10 +582,9 @@ async function searchEquipment(input, libraries, ctx) {
 		const { IafItemSvc } = libraries.PlatformApi
 		const { IafScriptEngine } = libraries
 
-		// Require ecid as site equip could be related to multiple ECs
-		const { ecid, facility, unit, siteEquipmentId, username } = input.params
+		const { facility, unit, siteEquipmentId, revision, username } = input.params
 
-		if (!ecid || !facility || !unit || !siteEquipmentId || !username) {
+		if (!facility || !unit || !siteEquipmentId || !revision || !username) {
 			return {
 				status: 400,
 				statusMessage: "Bad Request",
@@ -657,10 +656,10 @@ async function searchEquipment(input, libraries, ctx) {
 		// Create new EC audit log and set status to CLOSED
 		const { ecsLogsColl } = await getEcsCollections({libraries, ctx})
 		const ecsLogQuery = {
-			ecid,
 			site: facility,
 			unit,
-			'Site Equipment Id': siteEquipmentId
+			'Site Equipment Id': siteEquipmentId,
+         'Equipment Revision': revision
 		}
 		const ecLogs = (await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, {query: ecsLogQuery}, ctx))?._list
 		const lastEcLog = ecLogs?.find(l => l.status == 'CLOSED') || ecLogs?.find(l => l.status == 'APPROVED') || ecLogs?.find(l => l.status == 'REGISTERED')
