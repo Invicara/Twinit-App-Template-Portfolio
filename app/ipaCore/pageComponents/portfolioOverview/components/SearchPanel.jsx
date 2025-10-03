@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, {useState, useEffect, useMemo, useRef} from 'react';
 import {
     Grid, Button, Box, MenuItem, TextField, Select, Typography, InputAdornment, FormControl, makeStyles
 } from '@material-ui/core';
@@ -46,8 +46,8 @@ export default function SearchPanel({
     const defaultLabels = {
         search: 'Search',
         group: 'Group',
-        structure: 'Choose structure name / location',
-        location: 'Choose locations / regions',
+        structure: 'Unit Name / Structure',
+        location: 'Locations / Regions',
         status: 'Status',
     };
     const labelsFromUserConfig = handler?.config?.labels || {};
@@ -75,14 +75,19 @@ export default function SearchPanel({
         const out = {};
         for (const [key, cfg] of Object.entries(formConfig?.fields || {})) {
             if (cfg.type === 'select') {
-                const list = typeof cfg.options === 'function' ? cfg.options(context) : (cfg.options || []);
+                const list = typeof cfg.options === 'function' ? cfg.options({context, out, filters}) : (cfg.options || []);
                 out[key] = (list || []).map((opt) =>
                     typeof opt === 'object' ? opt : { value: opt, label: String(opt) }
                 );
             }
         }
         return out;
-    }, [formConfig, context]);
+    }, [formConfig, context, filters]);
+
+    const selectedOptionsRef = useRef(selectOptions);
+    useEffect(()=>{
+        selectedOptionsRef.current = selectOptions
+    },[selectOptions])
 
     useEffect(() => {
         // Flatten rules from {op:'and'|'or'|...} into a simple array of leaf nodes
@@ -112,16 +117,17 @@ export default function SearchPanel({
                 // let a field decide which leaf is relevant (it can check rule.fn/args)
                 const matchingValue =
                     leaves
-                        .map((leaf) => cfg.fromRule(leaf, context, selectOptions[key]))
+                        .map((leaf) => cfg.fromRule(leaf, context, selectedOptionsRef.current[key]))
                         .find((v) => v !== undefined && v !== null);
                 next[key] = (matchingValue !== undefined && matchingValue !== null)
                     ? matchingValue
                     : defaultForField(key, cfg);
             }
+            debugger;
             return next;
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [initialFilter, formConfig, context, JSON.stringify(selectOptions)]);
+    }, [initialFilter, formConfig, context]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
