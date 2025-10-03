@@ -11,7 +11,7 @@ import centroid from "@turf/centroid";
 import {
     addMarkers,
     clearStaleMarkers,
-    clearStaleMarkersByPath,
+    clearStaleMarkersByPath, getMarkers,
     makeMarkerShell,
     makePieCanvas, markersMutex,
     renderAllMarkers,
@@ -1796,12 +1796,12 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
                     continue;
                 }
 
-                const {graphics, visibleFeatures, allFeaturesMarkerIds, previousMarkerIds, currentMarkerIds, filters} = await renderAllMarkers(e, {self}, markersInfo);
-                //console.log("UPDATE_FILTERS renderAllMarkers", {graphics, visibleFeatures, previousMarkerIds, currentMarkerIds, filters: filters});
+                const {graphics, visibleFeatures, currentMarkerIds, filters} = await renderAllMarkers(e, {self}, markersInfo);
+                //console.log("UPDATE_FILTERS renderAllMarkers", {graphics, visibleFeatures, currentMarkerIds, filters: filters});
 
                 const release = await markersMutex.lock();
                 try {
-
+                    const previousMarkerIds = [...getMarkers().keys()];
                     if (previousMarkerIds && previousMarkerIds.length > 0) {
                         const toRemove = previousMarkerIds.filter(id=>!currentMarkerIds.includes(id));
                         if(toRemove.length>0){
