@@ -299,7 +299,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
         const equipmentIdArray = extractEquipmentIds(siteEquipment?.data);
         const run = async () => {
         try {
-          setLoading(true); // show loader
+          setLoading(true); 
 
           if(Object.keys(EC).length > 0) {
             const items = await siteEquipmentService(EC, facilityId, buildingId, equipmentId);
@@ -316,7 +316,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
             setData(siteEqItems);
           }
         } finally {
-          setLoading(false); // hide loader
+          setLoading(false); 
         }
       }
 
