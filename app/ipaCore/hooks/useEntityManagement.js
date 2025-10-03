@@ -10,7 +10,7 @@ import {
     setSelectedCoordinate 
 } from "../redux/siteSetup";
 import { v4 as uuid } from "uuid";
-import { getClickEvent, getMapTypes, getSelectedGraphicReference, setSelectedGraphicReference } from "../redux/pageComponentState";
+import { getClickEvent, getMapTypes, getSelectedGraphicReference, getSelectedStructure, setSelectedGraphicReference } from "../redux/pageComponentState";
 import { addFeatureToMapLayer, removeFeatureFromMapLayer, addBuildingToMap, getGeometryInfo, removeMeshElementFromMap } from "../../client/scripts/mapEntryActions.mjs";
 import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from "lodash";
@@ -29,7 +29,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
     const selectedCoordinate = useSelector(selectSelectedCoordinate);
     const draftType = useSelector(selectDraftType);
     const selectedGraphicReference = useSelector(getSelectedGraphicReference);
-    const selectedStructure = useSelector(getSelectedGraphicReference);
+    const selectedStructure = useSelector(getSelectedStructure);
     window.selectedStructure = selectedStructure;
     const types = useSelector(getMapTypes);
 
