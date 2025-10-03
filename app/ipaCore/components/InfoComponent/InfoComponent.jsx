@@ -20,6 +20,8 @@ import {makeLayouts} from "../jsonForms/layouts/Layouts.jsx";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import {flushSync} from "react-dom";
+import FlowPowerCellRenderer from './controls/FlowPowerCellRenderer.jsx';
+import {  rankWith, and, scopeEndsWith, isNumberControl } from '@jsonforms/core';
 
 const useStyles = makeStyles(() => ({
     iconButton: {
@@ -77,7 +79,12 @@ const isFieldDeletable = (schema, fieldName) => {
 };
 
 export const InfoComponent = ({ entity, handleChange, type, entityType, originalEntity, disabled = false, onFieldRemove, modifyTypeCallback, debounceTime=700, allowReadOnlyOverride = false }) => {
-
+ console.log('infcomponent entity', entity);
+ console.log('infocomponent handlechange', handleChange);
+ console.log('infocomponent type', type );
+  console.log('infocomponent entitytype', entityType)
+   console.log('infocomponent originalEntity',originalEntity );
+    console.log('infocomponent modifyTypecallback',modifyTypeCallback )
     // Modal states
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [modifyModalOpen, setModifyModalOpen] = useState(false);
@@ -85,13 +92,18 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
 
     const [localValue, setLocalValue] = useState(entity || {});
     const classes = useStyles();
+const handleUpdate = (newValue, name) => {
+  setLocalValue({ ...localValue, [name]: newValue });
 
-    const handleUpdate = (newValue, name) => {
-        setLocalValue({ ...localValue, [name]: newValue });
+  handleChange &&
+    handleChange(newValue, name, {
+      name,
+      entityType,
+      entity,
+      originalEntity,
+    });
+};
 
-        // Call the onChange handler with the new value
-        handleChange && handleChange(newValue, name, { name, entityType, entity, originalEntity });
-    };
 
     // Modal handlers
     const handleOpenDeleteModal = useCallback((fieldName) => {
@@ -160,7 +172,7 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
                 const fieldSchema = type?.properties?.[field];
                 // modifiable if field exists and is not readOnly (or readOnly override is allowed)
                 const guard = !!fieldSchema && isFieldEditable(type, field, allowReadOnlyOverride);
-                return guard;
+                return guard && entityType !== 'equipment' ;
             },
             getIsEditable: (field) => {
                 const fieldSchema = type?.properties?.[field];
@@ -171,10 +183,29 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
             getIsDeletable: (field) => isFieldDeletable(type, field),
             onOpenModify: (field) => handleOpenModifyModal(field),
             onOpenDelete: (field) => handleOpenDeleteModal(field),
-            disabledForm: disabled
-        }), [type, disabled, handleOpenModifyModal, handleOpenDeleteModal, allowReadOnlyOverride]);
+            disabledForm: disabled,
+            entityType     
+        }), [type, disabled, handleOpenModifyModal, handleOpenDeleteModal, allowReadOnlyOverride, entityType]);
 
     const {processedType, uiSchema, renderers, optionsResolver, ajv, materialCells, materialRenderers} = useInfoComponentJsonForms({schema: type, layouts, allowReadOnlyOverride});
+
+// const flowPowerTester = rankWith(
+//   5,
+//   (uischema, schema) => {
+//     if (!uischema?.scope) return false; // skip layouts etc.
+//     console.log('tester check', uischema.scope);
+//     return (
+//       uischema.scope.endsWith('FlowRate') ||
+//       uischema.scope.endsWith('Power')
+//     );
+//   }
+// );
+
+// const extendedRenderers = [
+//   ...renderers,
+//   { tester: flowPowerTester, renderer: FlowPowerCellRenderer }
+// ];
+// console.log('infocomponent schema', uiSchema);
 
     // track previous value so we can call your handleChange(name, value, meta)
     const prevRef = useRef(localValue);

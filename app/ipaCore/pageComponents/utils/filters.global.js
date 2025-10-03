@@ -2,7 +2,7 @@ import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
 
 export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
     const fnsFactory = IafScriptEngine.getVar("loadedScripts")["filterRuleFns"];
-    const originalFns = fnsFactory();
+    const originalFns = fnsFactory({entityType, isMapFeatures});
     const fns = {
         ...originalFns,
         capacityBetween:
@@ -223,6 +223,142 @@ function mergeNodes(
 
     return out;
 }
+const asArray = (v) => (Array.isArray(v) ? v : v == null ? [] : [v]);
+const deepClone = (x) => JSON.parse(JSON.stringify(x ?? {}));
+const sameSet = (a, b) => {
+    if (a.length !== b.length) return false;
+    const s = new Set(a);
+    for (const v of b) if (!s.has(v)) return false;
+    return true;
+};
+/**
+ * Group Toggle (only toggle off when the whole clicked filter matches) + merge for one scope
+ * - If replace applies to a rule and clicked values equal existing values → TOGGLE OFF (remove rule)
+ * - Else if replace applies → overwrite rule
+ * - Else (no replace) → toggle union/remove per values
+ */
+export function toggleScopedFilter(
+    currentFilter,
+    incomingFilter,
+    scope = "site",
+    {
+        replace,                 // boolean | string[] | (fnName)=>boolean
+        dropMissing,             // boolean | string[] | (fnName)=>boolean
+        deleteMarker = "__delete",
+        preserveEmptyScope = true,
+    } = {}
+) {
+    // normalize incoming to scoped form
+    const incomingScoped =
+        incomingFilter && !("op" in incomingFilter)
+            ? incomingFilter
+            : { [scope]: incomingFilter };
+
+    const incomingNode = toAndNode(incomingScoped?.[scope]);
+    if (!incomingNode.rules.length) {
+        const curr = deepClone(currentFilter);
+        return preserveEmptyScope && !curr[scope] ? { [scope]: {} } : curr;
+    }
+
+    // clone current; get scope node
+    const next = deepClone(currentFilter);
+    const scopeNode = toAndNode(next?.[scope]);
+    scopeNode.op = scopeNode.op || incomingNode.op || "and";
+
+    // index current rules by fn
+    const byFn = new Map();
+    for (const r of scopeNode.rules) if (isRule(r)) byFn.set(r.fn, r);
+
+    // collect incoming rule info
+    const incomingRules = incomingNode.rules.filter(isRule);
+    const incomingFns = new Set(incomingRules.map(r => r.fn));
+
+    // ----- GROUP-LEVEL TOGGLE CHECK (for replace-target rules) -----
+    const replaceTargets = incomingRules.filter(r => shouldReplace(r.fn, replace));
+
+    let allReplaceTargetsMatch = replaceTargets.length > 0
+        && replaceTargets.every(r => {
+            const ex = byFn.get(r.fn);
+            if (!ex) return false;
+            const exVals = asArray(ex.args?.values);
+            const inVals = asArray(r.args?.values);
+            return sameSet(exVals, inVals);
+        });
+
+    if (allReplaceTargetsMatch) {
+        // toggle OFF all replace-target rules as a group
+        scopeNode.rules = scopeNode.rules.filter(r => !(isRule(r) && incomingFns.has(r.fn)));
+        // (optionally: also handle non-replace rules in incoming; here we remove only the replace targets)
+    } else {
+        // ----- APPLY RULES -----
+        for (const inc of incomingNode.rules) {
+            if (!isRule(inc)) { scopeNode.rules.push(inc); continue; }
+
+            // explicit delete?
+            if (inc.args && inc.args[deleteMarker]) {
+                scopeNode.rules = scopeNode.rules.filter(r => !(isRule(r) && r.fn === inc.fn));
+                byFn.delete(inc.fn);
+                continue;
+            }
+
+            const existing = byFn.get(inc.fn);
+            const clickedValues = asArray(inc.args?.values).map(String);
+            const doReplace = shouldReplace(inc.fn, replace);
+
+            if (doReplace) {
+                if (existing) {
+                    const i = scopeNode.rules.findIndex(r => isRule(r) && r.fn === inc.fn);
+                    scopeNode.rules[i] = inc;
+                    byFn.set(inc.fn, inc);
+                } else {
+                    scopeNode.rules.push(inc);
+                    byFn.set(inc.fn, inc);
+                }
+            } else {
+                // standard toggle (union/remove)
+                if (!existing) {
+                    scopeNode.rules.push(inc);
+                    byFn.set(inc.fn, inc);
+                } else {
+                    const currentValues = asArray(existing.args?.values).map(String);
+                    const allAlready = clickedValues.every(v => currentValues.includes(v));
+                    if (allAlready) {
+                        // remove clicked values
+                        const remaining = currentValues.filter(v => !clickedValues.includes(v));
+                        if (remaining.length) {
+                            existing.args = { ...(existing.args || {}), values: remaining };
+                        } else {
+                            scopeNode.rules = scopeNode.rules.filter(r => !(isRule(r) && r.fn === inc.fn));
+                            byFn.delete(inc.fn);
+                        }
+                    } else {
+                        // add missing values (union)
+                        const merged = Array.from(new Set([...currentValues, ...clickedValues]));
+                        existing.args = { ...(existing.args || {}), values: merged };
+                    }
+                }
+            }
+        }
+    }
+
+    // dropMissing (optional): remove rules not present in incoming (by fn)
+    if (dropMissing) {
+        scopeNode.rules = scopeNode.rules.filter(r => {
+            if (!isRule(r)) return true;
+            return !(shouldDropMissing(r.fn, dropMissing) && !incomingFns.has(r.fn));
+        });
+    }
+
+    // return with/without empty scope
+    if (!scopeNode.rules.length) {
+        return preserveEmptyScope
+            ? { ...next, [scope]: {} }
+            : (() => { const c = { ...next }; delete c[scope]; return Object.keys(c).length ? c : {}; })();
+    }
+    return { ...next, [scope]: scopeNode };
+}
+
+
 
 /** Merge two filters that may be scoped or bare nodes. */
 export function mergeFiltersGeneric(
@@ -256,7 +392,7 @@ export class FilterCompiler {
     }
     compileFilter(node) {
         if (!this.fns) {
-            return true;
+            return () => true;
         }
         if ("fn" in node) {
             const factory = (this.fns)[node.fn];
@@ -276,6 +412,7 @@ export class FilterCompiler {
             return x => parts.some(p => p(x));
         }
         // Exhaustiveness
-        throw new Error("Invalid filter node");
+        console.warn("Invalid filter node", node);
+        return () => true;
     }
 }

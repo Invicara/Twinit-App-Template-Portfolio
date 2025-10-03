@@ -1,309 +1,240 @@
+// SiteEquipmentTab.jsx
 import React, { useState, useContext } from 'react'
+import { makeStyles } from '@material-ui/core/styles'
+import { Box, Typography } from '@material-ui/core'
+import TreeView from '@material-ui/lab/TreeView'
+import ArrowDropDownIcon from '@material-ui/icons/ArrowDropDown'
+import ArrowRightIcon from '@material-ui/icons/ArrowRight'
+import SearchIcon from '@material-ui/icons/Search'
+import { CircularProgress } from "@material-ui/core"
 
-import { makeStyles } from '@material-ui/core/styles';
-import {Box, Typography} from "@material-ui/core";
-import TreeView from "@material-ui/lab/TreeView";
-import ArrowDropDownIcon from '@material-ui/icons/ArrowDropDown';
-import ArrowRightIcon from '@material-ui/icons/ArrowRight';
-import TreeItem from "@material-ui/lab/TreeItem";
-import Checkbox from "@material-ui/core/Checkbox";
+import _ from 'lodash'
 
-import { ModelContext } from "../../contexts/ModelContext";
+import SiteEquipTreeSearch from './SiteEquipTreeSearch'
+import { 
+  getAllDescendantIds, 
+  findNodeById, 
+  findParent,
+  expandAllParents,
+  getSelectedThirdLevelIds,
+  findNodeAndDescendants,
+  calculateTreeSelectionState
+} from './utils/treeHelpers'
+import { ModelContext } from '../../contexts/ModelContext'
 
+import './SiteEquipmentTab.scss'
 
-const focusLogsInViewer = async (thirdLevelSelected, setSliceElementsByQuery) => {
-    const elementIds = ["RCP-900-011", "RCP-900-012", "RCP-900-013", "RCP-900-014"]
+const focusLogsInViewer = async (
+  setSliceElementsByQuery, 
+  setSiteEquipment,
+  selectedSiteEquipId,
+) => {
+  const elementIds = ["RCP-900-011", "RCP-900-012", "RCP-900-013", "RCP-900-014"]
+  let selectedIds = []
+  let rejectedIDs = []
 
-    if (!thirdLevelSelected) return
-
-     let selectedIds = [];
-
-    if (thirdLevelSelected === 1) {
-      selectedIds = [elementIds[0]]
-    } else if (thirdLevelSelected === 2 || thirdLevelSelected === 3) {
-      selectedIds = elementIds.slice(0, thirdLevelSelected)
-    } else if (thirdLevelSelected >= 4) {
-      selectedIds = [...elementIds]
+  selectedSiteEquipId.forEach((siteEquipId) => {
+    if (elementIds.includes(siteEquipId)) {
+      selectedIds.push(siteEquipId)
+    } else {
+      rejectedIDs.push(siteEquipId)
     }
+  })
 
-    const result = await setSliceElementsByQuery?.([
-      {
-        propRef: { property: { propertyType: "instance" } },
-        queryPartial: { 'properties.Mark.val': { $in: selectedIds } }
-      }
-    ]);
-  };
-
-const useTreeItemStyles = makeStyles((theme) => ({
-  labelRoot: {
-    display: "flex",
-    alignItems: "center",
-    padding: theme.spacing(0.5, 0)
-  },
-  labelText: {
-    fontWeight: "inherit",
-    flexGrow: 1
-  },
-  root: {
-    position: "relative",
-    "&:before": {
-      pointerEvents: "none",
-      content: '""',
-      position: "absolute",
-      width: 16,
-      left: -16,
-      top: 14,
-      borderBottom: (props) =>
-        props.nodeId !== "1" && props.children?.length > 0
-          ? `1px solid #EBEBEB`
-          : "none"
-    },
-    "& .MuiTreeItem-root > .MuiTreeItem-content ::before": {
-      content: "none",
-    },
-     "& .Mui-selected > .MuiTreeItem-content .MuiTreeItem-label": {
-        backgroundColor: 'transparent !important'
+  // update the 3D viewer
+  await setSliceElementsByQuery?.([
+    {
+      propRef: { property: { propertyType: "instance" } },
+      queryPartial: { 'properties.Mark.val': { $in: selectedIds } }
     }
-  },
-  iconContainer: {
-    "& .close": {
-      opacity: 0.3
-    }
-  },
-  checkbox: {
-    padding: 0,
-    marginRight: theme.spacing(1),
-    color: '#DF158C',
-    "& svg": {
-      width: "12px",
-      height: "12px",
-      border: '2px',
-      radius: '1px',
-      marginLeft: '4px'
-    },
-  },
-  group: {
-    marginLeft: 7,
-    paddingLeft: 18,
-    borderLeft: `1px solid #EBEBEB`
-  }
-}))
+  ])
 
-function StyledTreeItem(props) {
-  const classes = useTreeItemStyles(props);
-  const { labelText, checked, onCheck, nodeId, ...other } = props;
+  // push into ModelContext like EngineeringChangesTab does
+  setSiteEquipment({
+    data: selectedSiteEquipId.map(id => ({ 'Equipment Id': id })), // minimal structure
+    EC: {} // nothing here yet
+  })
 
-  const handleCheckboxChange = (event) => {
-    onCheck(nodeId, event.target.checked);
-  };
-
-  return (
-    <TreeItem
-      label={
-        <div className={classes.labelRoot}>
-          <Checkbox
-            checked={checked}
-            onChange={handleCheckboxChange}
-            className={classes.checkbox}
-            size="small"
-            color="primary"
-          />
-          <Typography variant="body2" className={classes.labelText}>
-            {labelText}
-          </Typography>
-        </div>
-      }
-      classes={{
-        root: classes.root,
-        group: classes.group,
-        iconContainer: classes.iconContainer
-      }}
-      nodeId={nodeId}
-      {...other}
-    />
-  );
+  return rejectedIDs
 }
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(theme => ({
   root: {
     height: "100%",
     flexGrow: 1,
     maxWidth: 400,
     overflowY: "auto",
     marginTop: '16px'
+  },
+  customIcon: {
+    position: 'absolute',
+    right: '20px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    height: '16px',
+    width: '16px',
+    color: '#999',
+    cursor: 'pointer'
   }
 }))
 
-export default function SiteEquipmentTab({levelData, loadingLevelData}) {
+export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetched}) {
   const classes = useStyles()
+  const { setSliceElementsByQuery, setSiteEquipment, setIsBottomECPanelOpen } = useContext(ModelContext)
+
   const [expanded, setExpanded] = useState([])
   const [checkedItems, setCheckedItems] = useState({})
+  const [searchText, setSearchText] = useState('')
+  const [rejectedIds, setRejectedIds] = useState()
+  const [indeterminateItems, setIndeterminateItems] = useState({})
 
+  const handleNodeToggle = (_, nodes) => setExpanded(nodes)
 
-  const { setSliceElementsByQuery, sliceElements, isBottomECPanelOpen, setIsBottomECPanelOpen } = useContext(ModelContext)
+  const handleCheck = (id, isChecked, node = null, tree = levelData) => {
+    if (!node) node = findNodeById(tree, id)
+    const descendantIds = getAllDescendantIds(node?.children || [])
 
-  const handleChange = (event, nodes) => {
-    setExpanded(nodes)
-  };
+    setCheckedItems(prev => {
+      let updated = { ...prev }
 
-const [thirdLevelCount, setThirdLevelCount] = useState(0);
-
-const handleCheck = (id, isChecked, node = null, tree = levelData) => {
-   // Helper: collect all descendant IDs (for check/uncheck & expand)
-  const getAllDescendantIds = (children = []) => {
-    let ids = []
-    children.forEach(child => {
-      ids.push(child.id)
-      if (child.children) {
-        ids = ids.concat(getAllDescendantIds(child.children))
+      // Toggle current node + descendants
+      if (isChecked) {
+        updated[id] = true
+        descendantIds.forEach(childId => (updated[childId] = true))
+      } else {
+        delete updated[id]
+        descendantIds.forEach(childId => delete updated[childId])
       }
-    })
-    return ids
-  };
 
-  // Helper: find a node by ID
-  const findNodeById = (nodes, targetId) => {
-    for (let n of nodes) {
-      if (n.id === targetId) return n
-      if (n.children) {
-        const found = findNodeById(n.children, targetId)
-        if (found) return found
-      }
-    }
-    return null
-  }
+      // Recalculate full tree selection + indeterminate states
+      const { checkedItems: cleanedChecked, indeterminateItems: newIndeterminate } =
+        calculateTreeSelectionState(tree, updated)
 
-  // Helper: find parent node
-  const findParent = (nodes, childId, parent = null) => {
-    for (let n of nodes) {
-      if (n.id === childId) return parent
-      if (n.children) {
-        const res = findParent(n.children, childId, n)
-        if (res) return res
-      }
-    }
-    return null
-  }
+      setIndeterminateItems(newIndeterminate)
 
-  // Ensure we have the latest node data (if `node` is not passed)
-  if (!node) {
-    node = findNodeById(tree, id)
-  }
-
-  const descendantIds = getAllDescendantIds(node?.children || [])
-
-  setCheckedItems(prev => {
-    let updated = { ...prev }
-
-    // Add/remove the clicked node
-    if (isChecked) updated[id] = true
-    else delete updated[id]
-
-    // Add/remove all descendants
-    descendantIds.forEach(childId => {
-      if (isChecked) updated[childId] = true
-      else delete updated[childId]
-    })
-
-    // Cascade selection up to parents
-    if (isChecked) {
-      let parent = findParent(tree, id)
-      while (parent) {
-        updated[parent.id] = true
-        parent = findParent(tree, parent.id)
-      }
-    } else {
-      // Uncheck parent if no children remain selected
-      let parent = findParent(tree, id)
-      while (parent) {
-        const allChildrenUnchecked = parent.children.every(
-          (child) => !updated[child.id]
-        )
-        if (allChildrenUnchecked) {
-          delete updated[parent.id]
+      // Update viewer focus
+      const selectedSiteEquipId = getSelectedThirdLevelIds(tree, cleanedChecked)
+      focusLogsInViewer(setSliceElementsByQuery, setSiteEquipment,  selectedSiteEquipId).then((value) => {
+        setRejectedIds(value)
+        if (selectedSiteEquipId.length > 0) {
+          setIsBottomECPanelOpen(true)
         }
-        parent = findParent(tree, parent.id)
+      })
+
+      return cleanedChecked
+    })
+
+    // Expand/collapse descendants visually
+    setExpanded(prevExpanded => {
+      let newExpanded = [...prevExpanded]
+      if (isChecked) {
+        if (!newExpanded.includes(id)) newExpanded.push(id)
+        descendantIds.forEach(childId => {
+          if (!newExpanded.includes(childId)) newExpanded.push(childId)
+        })
+      } else {
+        newExpanded = newExpanded.filter(nodeId => !descendantIds.includes(nodeId))
       }
-    }
+      return newExpanded
+    })
+  }
 
-    // Count checked third-level nodes
-    const countThirdLevel = (nodes, depth = 1) => {
-      let count = 0
-      nodes?.forEach(node => {
-        if (depth === 3 && updated[node.id]) count++
-        if (node.children) count += countThirdLevel(node.children, depth + 1)
+  const handleSearchKeyDown = (e) => {
+    if (e.type === 'keydown' && e.key !== 'Enter') return
+    const query = searchText.trim()
+    if (!query) return
+
+    const matchedIds = findNodeAndDescendants(levelData, query)
+
+    setCheckedItems(prev => {
+      const updated = { ...prev }
+      matchedIds.forEach(id => (updated[id] = true))
+
+      const thirdLevelIds = getSelectedThirdLevelIds(levelData, updated)
+      focusLogsInViewer(setSliceElementsByQuery, setSiteEquipment, thirdLevelIds).then((value) => {
+        setRejectedIds(value)
+        if (thirdLevelIds.length > 0) {
+          setIsBottomECPanelOpen(true)
+        }
       })
-      return count
-    };
 
-    const thirdCount = countThirdLevel(tree)
-    setThirdLevelCount(thirdCount)
-    focusLogsInViewer(thirdCount, setSliceElementsByQuery)
+      return updated
+    })
 
-    return updated
-  })
+    const { checkedItems: cleanedChecked, indeterminateItems: newIndeterminate } =
+    calculateTreeSelectionState(levelData, updated)
 
-  // Expand or collapse descendants
-  setExpanded(prevExpanded => {
-    let newExpanded = [...prevExpanded]
-    if (isChecked) {
-      // Add this node and all descendants to expanded
-      if (!newExpanded.includes(id)) newExpanded.push(id)
-      descendantIds.forEach(childId => {
-        if (!newExpanded.includes(childId)) newExpanded.push(childId)
-      })
-    } else {
-      // Remove descendants from expanded
-      newExpanded = newExpanded.filter(nodeId => !descendantIds.includes(nodeId))
-    }
-    return newExpanded
-  })
+    setCheckedItems(cleanedChecked)
+    setIndeterminateItems(newIndeterminate)
 
-}
+    // Expand all parent paths for matches
+    const newExpanded = Array.from(expandAllParents(levelData, matchedIds))
+    setExpanded(newExpanded)
+  }
 
-  const renderTree = (nodes) =>
-    nodes?.map((node) => (
-      <StyledTreeItem
+  const renderTree = nodes =>
+    nodes?.map(node => (
+      <SiteEquipTreeSearch
         key={node.id}
         nodeId={node.id}
-        labelText={node.name}
+        labelText={node.siteEquipId ? node.siteEquipId : node.name}
         checked={!!checkedItems[node.id]}
+        indeterminate={!!indeterminateItems[node.id]}
         onCheck={(id, checked) => handleCheck(id, checked, node, levelData)}
       >
         {node.children ? renderTree(node.children) : null}
-      </StyledTreeItem>
-    ));
+      </SiteEquipTreeSearch>
+    ))
 
   return (
     <>
-        {!loadingLevelData && _.isEmpty(levelData) ?
-            <Box
-                display="flex"
-                flexDirection="column"
-                alignItems="center"
-                justifyContent="center"
-                py={6}
-            >
-                <Typography variant="h6" color="textSecondary" gutterBottom>
-                Sorry, there are no site equipments to show.
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                Try selecting a different filter or building.
-                </Typography>
-            </Box>
-        : loadingLevelData ? 
-            <p>Loading data....</p>
-        :  
-            <TreeView
-                className={classes.root}
-                defaultCollapseIcon={<ArrowDropDownIcon style={{color: '#EBEBEB'}}/>}
-                defaultExpandIcon={<ArrowRightIcon style={{color: '#EBEBEB'}} />}
-                expanded={expanded}
-                onNodeToggle={handleChange}
-            >
-                {renderTree(levelData)}
-            </TreeView>
-        }
-     </>
-  );
+      {loadingLevelData ? (
+        <Box display="flex" justifyContent="center" alignItems="center" py={6}>
+          <CircularProgress />
+        </Box>
+      ) : hasFetched && _.isEmpty(levelData) ? (
+        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" py={6}>
+          <Typography variant="h6" color="textSecondary" gutterBottom>
+            Sorry, there are no site equipments to show.
+          </Typography>
+          <Typography variant="body2" color="textSecondary">
+            Try selecting a different filter or building.
+          </Typography>
+        </Box>
+      ) : (
+        <>
+          <div className="search-bar-container">
+            <input
+              type="text"
+              placeholder="Search by ID"
+              className="search-bar-input"
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+            />
+            <SearchIcon className={classes.customIcon} onClick={handleSearchKeyDown}/>
+          </div>
+          <TreeView
+            className={classes.root}
+            defaultCollapseIcon={<ArrowDropDownIcon style={{ color: '#EBEBEB' }} />}
+            defaultExpandIcon={<ArrowRightIcon style={{ color: '#EBEBEB' }} />}
+            expanded={expanded}
+            onNodeToggle={handleNodeToggle}
+          >
+            {renderTree(levelData)}
+          </TreeView>
+          {rejectedIds && rejectedIds.length > 0 && (
+            <div style={{marginTop: '16px'}}>
+              <p>No model elements found for the following site equipment:</p>
+              <ul style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
+                {rejectedIds.map((id) => (
+                  <li key={id}>{id}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
+    </>
+  )
 }

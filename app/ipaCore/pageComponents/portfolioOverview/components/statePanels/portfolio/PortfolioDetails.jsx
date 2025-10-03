@@ -4,7 +4,7 @@ import SearchPanel from '../../SearchPanel.jsx';
 import {Box} from "@mui/material";
 import {useDispatch, useSelector} from "react-redux";
 import {getFilter, setFilter} from "../../../../../redux/filters.js";
-import {mergeFiltersGeneric} from "../../../../utils/filters.global.js";
+import {mergeFiltersGeneric, toggleScopedFilter} from "../../../../utils/filters.global.js";
 
 
 const sampleFormConfig = {
@@ -67,7 +67,7 @@ const sampleFormConfig = {
         },
 
         location: {
-            label: 'Site Location',
+            label: 'Facility Location',
             type: 'select',
             rule: "facilityIn",
             options: (context) => {
@@ -211,7 +211,7 @@ const ec1_ChartCfg =  {
         const top5 = sites
             .map(item => ({
                 ...item,
-                openECs: [item?.properties?.ecsByStatus?.REGISTERED?._total || 0 + item?.properties?.ecsByStatus?.APPROVED?._total || 0],
+                openECs: (item?.ecsByStatus?.REGISTERED?._total || 0) + (item?.ecsByStatus?.APPROVED?._total || 0),
                 id: item.name
             }))
             .sort((a, b) => b.openECs - a.openECs) // descending order
@@ -244,7 +244,7 @@ const ec1_ChartCfg =  {
             const top5 = sites
                 .map(s => ({
                     ...s,
-                    openECs: [s?.properties?.ecsByStatus?.REGISTERED?._total || 0 + s?.properties?.ecsByStatus?.APPROVED?._total || 0],
+                    openECs: (s?.ecsByStatus?.REGISTERED?._total || 0) + (s?.ecsByStatus?.APPROVED?._total || 0),
                     id: s.siteId,
                     label: s.name,
                     test: "facilityIn"
@@ -334,13 +334,12 @@ export default function PortfolioDetails({ context, userConfig, send, stateKey, 
                     stateKey={stateKey}
                     chartCfg={ec1_ChartCfg}
                     onFilterChange={(filter) => {
-                        const mergingOptions = {
-                            dropMissing: [defaultChartCfg.group.id, defaultChartCfg.series.id],
-                            replace: true
+                        const togglingOptions = {
+                            replace: [ec1_ChartCfg.group.id, ec1_ChartCfg.series.id],// force toggle
+                            dropMissing: [ec1_ChartCfg.group.id, ec1_ChartCfg.series.id],
                         }
-                        const merged = mergeFiltersGeneric(globalFilters, filter, "site",  mergingOptions);
-                        console.log("mergeFiltersGeneric DeployStatusChart", {merged, filter, globalFilters, mergingOptions})
-                        dispatch(setFilter(merged));
+                        const next = toggleScopedFilter(globalFilters, filter, "site", togglingOptions);
+                        dispatch(setFilter(next));
                     }}
                 />
 
