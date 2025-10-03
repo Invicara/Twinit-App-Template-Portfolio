@@ -318,3 +318,52 @@ export async function treeLevels(facility, unit) {
     throw err;
   }
 }
+
+export async function engineeringChangePendingRevision(ECObj) {
+  const ctx = IafProj.getCurrent();
+  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`
+
+  const {facility, unit, equipmentId, siteEquipmentId, properties, TechnicalParameters, username} = ECObj
+
+   const siteEqurl = {
+      url: `${baseOmapiUrl}/siteequip/pendingrevision`,
+      body: {
+        facility, 
+        unit, 
+        equipmentId, 
+        siteEquipmentId, 
+        properties, 
+        TechnicalParameters, 
+        username
+      },
+    };
+
+    const res = JSON.stringify(siteEqurl.body)
+
+
+      // Has not been testing yet, waiting for HIT-91
+  // try {
+  //   let response = await fetch(siteEqurl/url, {
+  //         method: 'POST',
+  //         mode: 'cors',
+  //         headers: {
+  //           Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
+  //           'Content-Type': 'application/json'
+  //         },
+  //        body: JSON.stringify(siteEqurl.body),
+  //     })
+
+  //   if (response.ok) {
+  //     let result = await response.json()
+  //     if (result._result.status === 200) {
+  //         res.push(result._result.ec)
+  //     } else {
+  //         res.push({testUrl, message: `ERROR: OMAPI ${testUrl} call returned status other than 200`})
+  //     }
+  //   } else {
+  //     res.push({testUrl, message: `ERROR: OMAPI ${testUrl} call failed`})
+  //   }
+  // } catch(err) {
+  //     console.log(err)
+  // }
+}
