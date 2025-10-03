@@ -266,6 +266,63 @@ async function getUnitEquipment(input, libraries, ctx) {
 
 }
 
+async function getUnitSystemEquipments(input, libraries, ctx) {
+   const { IafItemSvc } = libraries.PlatformApi
+   const { IafScriptEngine } = libraries
+
+   const facility = decodeURIComponent(input.facility)
+   const unit = decodeURIComponent(input.unit)
+   const systemId = decodeURIComponent(input.systemId)
+
+   // TO DO page all instead of 1000 _pageSize
+   let equipCollections = await IafItemSvc.getNamedUserItems({
+		query: { _userType: "siteEquip", _itemClass: 'NamedUserCollection', _shortName: `${facility}${unit}-siteequip` }
+         }, ctx, { page: {_pageSize: 1000, _offset: 0}
+   })
+   let revCollections = await IafItemSvc.getNamedUserItems({
+		query: { _userType: "siteEquipRevs", _itemClass: 'NamedUserCollection', _shortName: `${facility}${unit}-siteequiprevs` }
+         }, ctx, { page: {_pageSize: 1000, _offset: 0}
+   })
+
+   const equipColl =  equipCollections._list.find(c => c._userType === "siteEquip")
+   const equipRevsColl =  revCollections._list.find(c => c._userType === "siteEquipRevs")
+
+   if (!equipColl || !equipRevsColl) {
+      return {
+         status: 500,
+         statusMessage: "Internal Server Error",
+         message: "Error finding site equipment or revisions collections",
+         data: { equipCollections, revCollections }
+      }
+   }
+
+   let equipWithRevs = await IafScriptEngine.findWithRelated({
+      parent: {
+         query: { systemId },
+         collectionDesc: { _userItemId: equipColl._userItemId, _userType: equipColl._userType },
+         options: {
+            page: { _pageSize: 100, _offset: 0 },
+            sort: { "Equipment Id": 1 }
+         }
+      },
+      related: [
+         {
+            relatedDesc: { _relatedUserType: equipRevsColl._userType, _isInverse: true},
+            as: "revisions"
+         }
+      ]
+   }, ctx)
+
+   return {
+         status: 200,
+         statusMessage: "Success",
+         facility,
+         unit,
+         systemId,
+         equipment: equipWithRevs
+   }
+}
+
 
 // OLD STUFF ======================================================================
 
