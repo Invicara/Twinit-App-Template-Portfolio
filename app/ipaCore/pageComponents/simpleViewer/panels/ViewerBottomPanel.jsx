@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react'
 import { makeStyles } from '@material-ui/core/styles'
-import { Paper, Typography, Button, Divider } from '@material-ui/core'
+import { Paper, Typography, Button, Divider, CircularProgress } from '@material-ui/core'
 import { Edit as EditIcon, Save as SaveIcon, KeyboardArrowUp, KeyboardArrowDown } from '@material-ui/icons'
 import { ModelContext } from '../../../contexts/ModelContext'
 import { InfoComponent } from '../../../components/InfoComponent/InfoComponent'
@@ -27,7 +27,7 @@ const useStyles = makeStyles((theme) => ({
     display: 'flex',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingRight: theme.spacing(4),
+    paddingRight: theme.spacing(20),
     cursor: 'pointer',
   },
   content: {
@@ -98,6 +98,16 @@ const useStyles = makeStyles((theme) => ({
     borderBottom: '1px solid #ccc',
     lineHeight: '1.6',
 },
+ loaderWrapper: {
+    position: 'absolute', 
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderRadius: 8,
+    padding: theme.spacing(2),
+  },
 }))
 
 
@@ -270,6 +280,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [properties, setProperties] = useState([])
   const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(false)
 
   function extractEquipmentIds(siteEquipmentArray) {
   return siteEquipmentArray.map(item => ({
@@ -287,30 +298,27 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
 
         const equipmentIdArray = extractEquipmentIds(siteEquipment?.data);
         const run = async () => {
-            
-        if(Object.keys(EC).length > 0) {
+        try {
+          setLoading(true); // show loader
 
-           const items = await siteEquipmentService(EC, facilityId, buildingId, equipmentId);
-           setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
-           console.log('EC items', items);
+          if(Object.keys(EC).length > 0) {
+            const items = await siteEquipmentService(EC, facilityId, buildingId, equipmentId);
+            setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
             setData(items);
-
-            // const match = selectedModelComposite?._name?.match(/_(\d+)$/);
-            // const bId = match ? match[1].slice(-2) : null;
-            // const fId = bId == '01' ? 'A' : 'B';
-            // const items = await siteEquipmentForTreeService(fId, bId, equipmentIdArray);
-            //  setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
-            //  setData(items);
-        } else {
-             const match = selectedModelComposite?._name?.match(/_(\d+)$/);
-            const bId = match ? match[1].slice(-2) : null;
-            const fId = bId == '01' ? 'A' : 'B';
-            const siteEqItems = await siteEquipmentForTreeService(fId, bId, siteEquipment?.data);
-            console.log('EC8 site eq items', siteEqItems);
+          } else {
+            
+            const modelName = selectedModelComposite?._name || '';
+            const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
+            const facilityId = match ? match[1].toUpperCase() : null;
+            const buildingId = match ? match[2] : null;
+            const siteEqItems = await siteEquipmentForTreeService(facilityId, buildingId, siteEquipment?.data);
             setProperties(siteEqItems.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
             setData(siteEqItems);
+          }
+        } finally {
+          setLoading(false); // hide loader
         }
-        }
+      }
 
         run();
     }
@@ -379,7 +387,11 @@ const handleChange = (index, name, value) => {
 
       {isOpen && (
   <div className={classes.content}>
-    {properties && properties.length > 0 ? (
+     {loading ? (
+              <div className={classes.loaderWrapper}>
+        <CircularProgress size={48} color="primary" />
+      </div>
+          ) : properties && properties.length > 0 ? (
       properties.map((prop, index) => {
 
         console.log('DEBUG PROP', {
