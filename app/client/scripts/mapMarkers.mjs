@@ -267,10 +267,8 @@ export async function renderAllMarkers(e, {self}, markersInfo) {
         const markerId = `${path}-${keyVal}`;
         return markerId;
     })
-
-    const previousMarkerIds = [...markers.keys()];
     const currentMarkerIds = markerGraphics.map(mg => mg.markerId);
-    return {allFeatures, graphics, visibleFeatures, allFeaturesMarkerIds, previousMarkerIds, currentMarkerIds, filters};
+    return {allFeatures, graphics, visibleFeatures, allFeaturesMarkerIds, currentMarkerIds, filters};
 }
 
 
