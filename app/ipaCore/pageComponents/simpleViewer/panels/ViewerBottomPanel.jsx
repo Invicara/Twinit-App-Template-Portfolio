@@ -7,7 +7,7 @@ import { InfoComponent } from '../../../components/InfoComponent/InfoComponent'
 import { siteEquipmentService, siteEquipmentForTreeService, rejectPendingRevision, approvePendingRevision } from '../../../../services/siteEquipment';
 import AssignmentLateIcon from '@material-ui/icons/AssignmentLate';
 import {engineeringChangePendingRevision} from '../../../../services/engineeringChangesAPI'
-import { Warning as WarningIcon } from '@mui/icons-material';
+
 
 const useStyles = makeStyles((theme) => ({
   panel: {
@@ -29,7 +29,7 @@ const useStyles = makeStyles((theme) => ({
     display: 'flex',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingRight: theme.spacing(10),
+    paddingRight: theme.spacing(6),
     cursor: 'pointer',
   },
   content: {

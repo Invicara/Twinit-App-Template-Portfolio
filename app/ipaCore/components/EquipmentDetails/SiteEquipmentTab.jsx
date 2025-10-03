@@ -68,7 +68,7 @@ const focusLogsInViewer = async (
 
   // push into ModelContext like EngineeringChangesTab does
   setSiteEquipment({
-     data: EcLogs[0].logs,
+     data: EcLogs[0]?.logs,
     EC: {} // nothing here yet
   })
 
