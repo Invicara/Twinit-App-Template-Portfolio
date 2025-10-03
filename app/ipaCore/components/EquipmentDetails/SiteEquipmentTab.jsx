@@ -28,6 +28,7 @@ const focusLogsInViewer = async (
   setSliceElementsByQuery, 
   setSiteEquipment,
   selectedSiteEquipId,
+  data
 ) => {
   const elementIds = ["RCP-900-011", "RCP-900-012", "RCP-900-013", "RCP-900-014"]
   let selectedIds = []
@@ -49,9 +50,25 @@ const focusLogsInViewer = async (
     }
   ])
 
+  function findLogsByEquipIds(data, equipIds) {
+    return data
+      .map(obj => {
+        const matchingLogs = (obj.logs || []).filter(log =>
+          equipIds.includes(log["Equipment Id"])
+        )
+        return matchingLogs.length > 0
+          // ? { ecId: obj.id, logs: matchingLogs }
+          ? { logs: matchingLogs }
+          : null
+      })
+      .filter(Boolean)
+  }
+
+  const EcLogs = findLogsByEquipIds(data, selectedSiteEquipId)
+
   // push into ModelContext like EngineeringChangesTab does
   setSiteEquipment({
-    data: selectedSiteEquipId.map(id => ({ 'Equipment Id': id })), // minimal structure
+     data: EcLogs[0].logs,
     EC: {} // nothing here yet
   })
 
@@ -78,7 +95,7 @@ const useStyles = makeStyles(theme => ({
   }
 }))
 
-export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetched}) {
+export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetched, data}) {
   const classes = useStyles()
   const { setSliceElementsByQuery, setSiteEquipment, setIsBottomECPanelOpen } = useContext(ModelContext)
 
@@ -114,7 +131,7 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
 
       // Update viewer focus
       const selectedSiteEquipId = getSelectedThirdLevelIds(tree, cleanedChecked)
-      focusLogsInViewer(setSliceElementsByQuery, setSiteEquipment,  selectedSiteEquipId).then((value) => {
+      focusLogsInViewer(setSliceElementsByQuery, setSiteEquipment, selectedSiteEquipId, data).then((value) => {
         setRejectedIds(value)
         if (selectedSiteEquipId.length > 0) {
           setIsBottomECPanelOpen(true)
@@ -177,7 +194,7 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
       <SiteEquipTreeSearch
         key={node.id}
         nodeId={node.id}
-        labelText={node.siteEquipId ? node.siteEquipId : node.name}
+        labelText={node.name}
         checked={!!checkedItems[node.id]}
         indeterminate={!!indeterminateItems[node.id]}
         onCheck={(id, checked) => handleCheck(id, checked, node, levelData)}
