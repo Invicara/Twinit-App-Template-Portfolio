@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
 import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent, Tooltip } from '@mui/material';
 import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
-import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference, getStructures, setSelectedStructure } from '../../../../redux/pageComponentState';
+import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference, getStructures, setSelectedStructure, getSelectedStructure } from '../../../../redux/pageComponentState';
 import { MapMachineContext, MapContext } from '../../PortfolioOverview';
 import { addFeatureToMapLayer, removeFeatureFromMapLayer } from '../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache, usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
@@ -20,7 +20,7 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
     const dispatch = useDispatch();
 
     const [thumbnailUrls, setThumbnailUrls] = useState({});
-    const selectedGraphicReferece = useSelector(getSelectedGraphicReference);
+    const selectedStructure = useSelector(getSelectedStructure);
     const structures = useSelector(getStructures);
 
     // Helper function to check compatibility and get detailed reasons
@@ -86,7 +86,7 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
         // Don't allow selection of incompatible structures
         if (!compatible) return;
         
-        if(selectedGraphicReferece !== graphicReference){
+        if(selectedStructure !== structure){
             dispatch(setDraftType(lowerNamedPath.state));
             dispatch(setIsSelectingPosition(true));
             dispatch(setSelectedStructure(structure));
@@ -151,7 +151,7 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
                 <Grid container spacing={2}>
                     {availableStructures.map((item, index) => {
                         const { structure, graphicRef, compatible, incompatibilityReasons } = item;
-                        const isSelected = graphicRef === selectedGraphicReferece;
+                        const isSelected = structure === selectedStructure;
                         
                         // Create tooltip content for incompatible structures
                         const tooltipTitle = compatible ? '' : (
@@ -299,6 +299,7 @@ export default function SiteDetails({ context }) {
         return [levels, cElementType, namedPath, namedPaths, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath];
 
     }, [currentState]);
+    window.namedPaths = namedPaths
 
     const {data = []} = context;
     const { building = []} = data;
@@ -446,20 +447,20 @@ export default function SiteDetails({ context }) {
             [idKey]: finalizedEntity[idKey]
         });
 
-        if(namedPath.parentState){
-            const parentPath = namedPaths.find(el => el.state === namedPath.parentState);
-            const parentColl = (await IafItemSvc.getNamedUserItems({query: {_shortName: parentPath.collShortName}}))._list[0];
+        // if(namedPath.parentState){
+        //     const parentPath = namedPaths.find(el => el.state === namedPath.parentState);
+        //     const parentColl = (await IafItemSvc.getNamedUserItems({query: {_shortName: parentPath.collShortName}}))._list[0];
 
-            const parentEntity = currentState.context.data[parentPath.state]
-                .find(el => [currentState.context[parentPath.idKey], finalizedEntity[parentPath.idKey]].includes(el[parentPath.idKey]))
+        //     const parentEntity = currentState.context.data[parentPath.state]
+        //         .find(el => [currentState.context[parentPath.idKey], finalizedEntity[parentPath.idKey]].includes(el[parentPath.idKey]))
 
-            finalizedEntity._relationships = [{
-                "_relatedUserItemId": parentColl._userItemId,
-                "_relatedToIds": [
-                    parentEntity._id
-                ]
-            }]
-        }
+        //     finalizedEntity._relationships = [{
+        //         "_relatedUserItemId": parentColl._userItemId,
+        //         "_relatedToIds": [
+        //             parentEntity._id
+        //         ]
+        //     }]
+        // }
 
         //item service creation side effect
         const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];

@@ -1,290 +1,498 @@
-import React, { useState } from "react";
+import React, { useState, useContext, useEffect } from 'react'
+import { makeStyles } from '@material-ui/core/styles'
+import { Paper, Typography, Button, Divider } from '@material-ui/core'
+import { Edit as EditIcon, Save as SaveIcon, KeyboardArrowUp, KeyboardArrowDown } from '@material-ui/icons'
+import { ModelContext } from '../../../contexts/ModelContext'
+import { InfoComponent } from '../../../components/InfoComponent/InfoComponent'
+import { siteEquipmentService, siteEquipmentForTreeService } from '../../../../services/siteEquipment';
+import { Warning as WarningIcon } from '@mui/icons-material';
 
-import EditIcon from "@material-ui/icons/Edit";
-import CheckIcon from "@material-ui/icons/Check";
-import InsertDriveFileIcon from "@material-ui/icons/InsertDriveFile";
-
-import "./ViewerBottomPanel.scss";
-
-import ActionButton from "../../../components/buttons/ActionButton";
-
-// TODO replace this with API
-const dataExample = [
-    {
-        "_id": "68d64f9771aa127e59875140",
-        "revision status date": "2010-09-12T00:00:00Z",
-        "revision status": "ISSUED",
-        "equipmentId": "RCP-900-014",
-        "properties": {
-            "Manufacturer": {
-                "val": "Westinghouse",
-                "type": "string"
-            },
-            "Model": {
-                "val": "RCP-900",
-                "type": "string"
-            },
-            "Safety Class": {
-                "val": "Class 1",
-                "type": "string"
-            },
-            "Operating Status": {
-                "val": "Operational",
-                "type": "string"
-            },
-            "Operational Status Date": {
-                "val": "2024-10-25T00:00:00Z",
-                "type": "date"
-            }
-        },
-        "revision": "001",
-        "TechnicalParameters": {
-            "FlowRate": {
-                "val": 2100,
-                "type": "number",
-                "unit": "gpm"
-            },
-            "Power": {
-                "val": 10,
-                "type": "number",
-                "unit": "MW"
-            }
-        },
-        "siteEquipmentId": "RCP-A-024",
-        "equipmentType": "Pump"
+const useStyles = makeStyles((theme) => ({
+  panel: {
+    position: 'absolute',
+    bottom: 0,
+    left: 360,
+    right: 0,
+    backgroundColor: '#fff',
+    boxShadow: '0 -2px 8px rgba(0,0,0,0.2)',
+    display: 'flex',
+    flexDirection: 'column',
+    transition: 'height 0.3s ease',
+  },
+  handle: {
+    height: 32,
+    backgroundColor: '#f5f5f5',
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingRight: theme.spacing(4),
+    cursor: 'pointer',
+  },
+  content: {
+    flex: 1,
+    overflowX: 'auto',
+    display: 'flex',
+    padding: theme.spacing(2),
+  },
+  card: {
+    minWidth: 500,
+    maxHeight: 460,
+    marginRight: theme.spacing(2),
+    padding: theme.spacing(3),
+    border: '1px solid #eee',
+    borderRadius: 8,
+    flexShrink: 0,
+    overflowY: 'auto',
+  },
+  headerRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing(2),
+  },
+  property: {
+    marginBottom: theme.spacing(2),
+    paddingBottom: theme.spacing(1),
+    borderBottom: '1px solid #eee',
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: theme.palette.text.secondary,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  value: {
+    fontSize: 14,
+    fontWeight: 400,
+    color: theme.palette.text.primary,
+  },
+  input: {
+    width: '100%',
+    fontSize: 14,
+    padding: theme.spacing(1),
+    border: '1px solid #ccc',
+    borderRadius: 4,
+    outline: 'none',
+  },
+  editButton: {
+    backgroundColor: theme.palette.primary.main,
+    color: '#fff',
+    textTransform: 'none',
+    '&:hover': {
+      backgroundColor: theme.palette.primary.dark,
     },
-    {
-        "_id": "68d64f9771aa127e59875142",
-        "revision status date": "2019-11-28T00:00:00Z",
-        "revision status": "ISSUED",
-        "equipmentId": "RCP-900-011",
-        "properties": {
-            "Manufacturer": {
-                "val": "KSB",
-                "type": "string"
-            },
-            "Model": {
-                "val": "RSR",
-                "type": "string"
-            },
-            "Safety Class": {
-                "val": "Class 1",
-                "type": "string"
-            },
-            "Operating Status": {
-                "val": "Operational",
-                "type": "string"
-            },
-            "Operational Status Date": {
-                "val": "2024-10-25T00:00:00Z",
-                "type": "date"
-            }
-        },
-        "revision": "002",
-        "TechnicalParameters": {
-            "FlowRate": {
-                "val": 2800,
-                "type": "number",
-                "unit": "gpm"
-            },
-            "Power": {
-                "val": 18,
-                "type": "number",
-                "unit": "MW"
-            }
-        },
-        "siteEquipmentId": "RCP-A-021",
-        "equipmentType": "Pump"
-    },
-    {
-        "_id": "68d64f9771aa127e59875143",
-        "revision status date": "2019-11-28T00:00:00Z",
-        "revision status": "ISSUED",
-        "equipmentId": "RCP-900-012",
-        "properties": {
-            "Manufacturer": {
-                "val": "KSB",
-                "type": "string"
-            },
-            "Model": {
-                "val": "RSR",
-                "type": "string"
-            },
-            "Safety Class": {
-                "val": "Class 1",
-                "type": "string"
-            },
-            "Operating Status": {
-                "val": "Operational",
-                "type": "string"
-            },
-            "Operational Status Date": {
-                "val": "2024-10-25T00:00:00Z",
-                "type": "date"
-            }
-        },
-        "revision": "002",
-        "TechnicalParameters": {
-            "FlowRate": {
-                "val": 2800,
-                "type": "number",
-                "unit": "gpm"
-            },
-            "Power": {
-                "val": 18,
-                "type": "number",
-                "unit": "MW"
-            }
-        },
-        "siteEquipmentId": "RCP-A-022",
-        "equipmentType": "Pump"
+  },
+  valueInput: {
+    width: '100%',
+    fontSize: 14,
+    fontWeight: 400,
+    color: '#333',
+    border: 'none',
+    outline: 'none',
+    padding: 0,
+    margin: 0,
+    backgroundColor: 'transparent',
+    borderBottom: '1px solid #ccc',
+    lineHeight: '1.6',
+},
+}))
+
+
+const equipment = {
+  _id: "68d64f9771aa127e59875140",
+  equipmentId: "RCP-900-014",
+  properties: {
+    Manufacturer: { val: "Westinghouse", type: "string" },
+    Model: { val: "RCP-900", type: "string" },
+    "Safety Class": { val: "Class 1", type: "string" },
+  },
+  TechnicalParameters: {
+    FlowRate: { val: 2100, type: "number", unit: "gpm" },
+    Power: { val: 10, type: "number", unit: "MW" },
+  },
+};
+
+function normalizeProperties(arrOrObj) {
+  if (!arrOrObj) return {};
+  if (Array.isArray(arrOrObj)) {
+    return arrOrObj.reduce((acc, { name, val, refVal, ...rest }) => {
+      acc[name] = { val, refVal, ...rest };
+      return acc;
+    }, {});
+  }
+  return arrOrObj;
+}
+
+function normalizeTechParams(arrOrObj) {
+  if (!arrOrObj) return {};
+  if (Array.isArray(arrOrObj)) {
+    return arrOrObj.reduce((acc, { name, val, ...rest }) => {
+      acc[name] = { val, ...rest };
+      return acc;
+    }, {});
+  }
+  return arrOrObj;
+}
+
+// function flattenEquipment(e) {
+//   const props = normalizeProperties(e.properties);
+//   const tech = normalizeTechParams(e.TechnicalParameters);
+
+//   return {
+//     _id: e._id,
+//     equipmentId: e.equipmentId,
+//     siteEquipmentId: e.siteEquipmentId,
+//     equipmentType: e.equipmentType,
+//     revision: e.revision,
+//     Manufacturer: props?.Manufacturer?.val || '',
+//     Model: props?.Model?.val || '',
+//     'Safety Class': props?.['Safety Class']?.val || '',
+//     'Operating Status': props?.['Operating Status']?.val || '',
+//     'Operational Status Date': props?.['Operational Status Date']?.val || '',
+//     FlowRate: tech?.FlowRate?.val || '',
+//     Power: tech?.Power?.val || '',
+//   };
+// }
+
+function flattenEquipment(siteEq) {
+  const rev = Array.isArray(siteEq.revisions) ? siteEq.revisions[0] : siteEq.revisions?._list?.[0];
+  if (!rev) return {};
+
+  const props = normalizeProperties(rev.properties);
+  const tech = normalizeTechParams(rev.TechnicalParameters);
+
+  return {
+    equipmentId: siteEq['Site Equipment Id'] || siteEq.equipmentId || '',
+    Model: props?.Model?.val || '',
+    Manufacturer: props?.Manufacturer?.val || '',
+    'Safety Class': props?.['Safety Class']?.val || '',
+    equipmentType: siteEq.equipmentType || '',
+    FlowRate: tech?.FlowRate?.val ?? '',
+    Power: tech?.Power?.val ?? '',
+    TechnicalParameters: tech,
+    properties: props, // ✅ keep full object with refVal
+    revision: rev.revision || ''
+  };
+}
+const equipmentSchema = {
+  type: 'object',
+  properties: {
+    equipmentId: { type: 'string', title: 'Name id' },   // custom label
+    Model: { type: 'string', title: 'Model' },
+    equipmentType: { type: 'string', title: 'Equipment Type' },
+    Manufacturer: { type: 'string', title: 'Manufacturer' },
+    'Safety Class': { type: 'string', title: 'Safety Class' },
+    FlowRate: { type: 'string', title: 'Flow Rate' },
+    Power: { type: 'string', title: 'Power' },
+  },
+  required: ['equipmentId', 'Model', 'equipmentType', 'Manufacturer', 'Safety Class', 'FlowRate', 'Power'],
+};
+
+function buildSchema(flat, editableFields = []) {
+  const allowedOrder = [
+    'equipmentId',
+    'Model',
+    'equipmentType',
+    'Manufacturer',
+    'Safety Class',
+    'FlowRate',
+    'Power'
+  ];
+
+  const properties = allowedOrder.reduce((acc, key) => {
+    if (!(key in flat)) return acc;
+
+    const isEditable = editableFields.includes(key);
+    const rawVal = flat[key];
+
+    const schema = {
+      type: typeof rawVal === 'number' ? 'number' : 'string',
+      title: key,
+      readOnly: !isEditable,
+    };
+
+    if (flat.TechnicalParameters?.[key]) {
+      const { refVal, unit } = flat.TechnicalParameters[key];
+      schema.options = { refVal, unit };
+      if (refVal !== undefined && rawVal != refVal) {
+        schema.isMismatched = true;
+        schema.displayValue = unit
+          ? `${rawVal} ${unit} (Expected: ${refVal} ${unit})`
+          : `${rawVal} (Expected: ${refVal})`;
+      }
     }
-]
+
+    if (flat.properties?.[key]?.refVal !== undefined) {
+      const refVal = flat.properties[key].refVal;
+      schema.options = { ...(schema.options || {}), refVal };
+      if (rawVal !== refVal) {
+        schema.isMismatched = true;
+        schema.displayValue = `${rawVal} (Expected: ${refVal})`;
+      }
+    }
+
+    acc[key] = schema;
+    return acc;
+  }, {});
+
+  return {
+    type: 'object',
+    properties,
+    required: Object.keys(properties),
+  };
+}
+
+const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
+  const classes = useStyles()
+  const { sliceElements, siteEquipment, selectedModelComposite } = useContext(ModelContext)
+  const [isOpen, setIsOpen] = useState(false)
+  const [properties, setProperties] = useState([])
+  const [data, setData] = useState(null);
+
+  function extractEquipmentIds(siteEquipmentArray) {
+  return siteEquipmentArray.map(item => ({
+    'Equipment Id': item['Equipment Id']
+  }));
+}
+
+   useEffect(() => {
+
+    if(siteEquipment && siteEquipment?.data?.length > 0) {
+        const facilityId = siteEquipment?.data[0]?.site;
+        const EC = siteEquipment.EC;
+        const buildingId = siteEquipment?.data[0]?.unit;
+        const equipmentId = siteEquipment?.data[0]?.['Equipment Id'];
+
+        const equipmentIdArray = extractEquipmentIds(siteEquipment?.data);
+        const run = async () => {
+            
+        if(Object.keys(EC).length > 0) {
+
+           const items = await siteEquipmentService(EC, facilityId, buildingId, equipmentId);
+           setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
+           console.log('EC items', items);
+            setData(items);
+
+            // const match = selectedModelComposite?._name?.match(/_(\d+)$/);
+            // const bId = match ? match[1].slice(-2) : null;
+            // const fId = bId == '01' ? 'A' : 'B';
+            // const items = await siteEquipmentForTreeService(fId, bId, equipmentIdArray);
+            //  setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
+            //  setData(items);
+        } else {
+             const match = selectedModelComposite?._name?.match(/_(\d+)$/);
+            const bId = match ? match[1].slice(-2) : null;
+            const fId = bId == '01' ? 'A' : 'B';
+            const siteEqItems = await siteEquipmentForTreeService(fId, bId, siteEquipment?.data);
+            setProperties(siteEqItems.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
+            setData(siteEqItems);
+        }
+        }
+
+        run();
+    }
+  }, [siteEquipment])
+
+  const handleInfoChange = (value, fieldName, meta) => {
+    const updatedFlat = { ...flat, [fieldName]: value };
+    const expanded = expandEquipment(updatedFlat, equipment);
+    onChange?.(expanded);
+  };
 
 
-const ViewerBottomPanel = ({ isBottomECPanelOpen }) => {
-  const [properties, setProperties] = useState(
-    dataExample.map((p) => ({ ...p, isEditing: false }))
-  );
+  useEffect(() => {
+    if (isBottomECPanelOpen) setIsOpen(true)
+  }, [isBottomECPanelOpen])
 
-  // Toggle edit mode for a single panel
   const toggleEdit = (index) => {
     setProperties((prev) =>
       prev.map((p, i) =>
         i === index ? { ...p, isEditing: !p.isEditing } : p
       )
-    );
-  };
+    )
+  }
 
-  // Handle field changes per property panel
-  const handleChange = (index, field, value) => {
-    setProperties((prev) =>
-      prev.map((p, i) =>
-        i === index ? { ...p, [field]: value } : p
-      )
-    );
-  };
+ const setDeepValue = (obj, path, value) => {
+  const keys = path.split('.')
+  const newObj = { ...obj }
+  let cur = newObj
+  keys.forEach((k, i) => {
+    if (i === keys.length - 1) {
+      cur[k] = value
+    } else {
+      cur[k] = { ...cur[k] }
+      cur = cur[k]
+    }
+  })
+  return newObj
+}
 
-  return (
-    <>
-      {isBottomECPanelOpen ? (
-        <div className="viewer-bottom-panel">
-          <div className="viewer-bottom-panel-inner">
-            {properties.map((prop, index) => (
-              <div className="panel-item" key={prop._id}>
-                <div 
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    padding: "8px 16px 0px 16px",
-                  }}
-                >
-                  {/* // TODO double check that this is the correct value */}
-                  <p>{`Current properties: ${prop.siteEquipmentId}`}</p>
+const handleChange = (index, name, value) => {
+  setProperties((prev) =>
+    prev.map((p, i) => {
+      if (i !== index) return p;
 
-                  {!prop.isEditing ? (
-                    <ActionButton title="Edit">
-                      <div className="edit-action-button" onClick={() => toggleEdit(index)}>
-                        <EditIcon style={{height: "16px", width: "16px", marginRight: "8px"}}
-                        />
-                        <p>Edit</p>
-                      </div>
-                    </ActionButton>
-                  ) : (
-                    <ActionButton title="Save">
-                      <div className="edit-action-button" onClick={() => toggleEdit(index)}>
-                        <CheckIcon style={{height: "16px", width: "16px", marginRight: "8px"}}
-                        />
-                        <p>Save</p>
-                      </div>
-                    </ActionButton>
-                  )}
-
-                            {/* For Use Case 03 */}
-                  {/* <ActionButton title="Edit Request">
-                    <div className="edit-req-action-buton">
-                      <span className="req-num">Edit Request(2)</span>
-                      <span>Reject</span>
-                      <span className="seperator-icon">|</span>
-                      <span>Approve</span>
-                      <InsertDriveFileIcon />
-                    </div>
-                  </ActionButton> */}
-                </div>
-
-                <div className="property-container">
-                  <Property
-                    editable={prop.isEditing}
-                    label="Name ID"
-                    value={prop.siteEquipmentId}
-                    onChange={(val) => handleChange(index, "id", val)}
-                  />
-                  <Property
-                    editable={prop.isEditing}
-                    label="Model"
-                    value={prop.properties.Model.val}
-                    onChange={(val) => handleChange(index, "model", val)}
-                  />
-                  <Property
-                    editable={prop.isEditing}
-                    label="Equipment Type"
-                    value={prop.equipmentType}
-                    onChange={(val) => handleChange(index, "type", val)}
-                  />
-                  <Property
-                    editable={prop.isEditing}
-                    label="Manufacturer"
-                    value={prop.properties.Manufacturer.val}
-                    onChange={(val) => handleChange(index, "manufacturer", val)}
-                  />
-                  <Property
-                    editable={prop.isEditing}
-                    label="Safety Class"
-                    value={prop.properties['Safety Class'].val}
-                    onChange={(val) => handleChange(index, "safetyClass", val)}
-                  />
-                  <Property
-                    editable={prop.isEditing}
-                    label="Flow Rate"
-                    value={prop.TechnicalParameters.FlowRate.val}
-                    onChange={(val) => handleChange(index, "flowRate", val)}
-                  />
-                  <Property
-                    editable={prop.isEditing}
-                    label="Power"
-                    value={prop.TechnicalParameters.Power.val}
-                    onChange={(val) => handleChange(index, "power", val)}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </>
+      return {
+        ...p,
+        [name]: value,
+        TechnicalParameters: {
+          ...p.TechnicalParameters,
+          [name]: {
+            ...p.TechnicalParameters?.[name],
+            val: value,   // keep tech params in sync
+          }
+        }
+      };
+    })
   );
 };
+  if (!isBottomECPanelOpen) return null
 
-export default ViewerBottomPanel;
+  return (
+    <div className={classes.panel} style={{ height: isOpen ? 350 : 32 }}>
+      <div className={classes.handle} onClick={() => setIsOpen(!isOpen)}>
+        {isOpen ? <KeyboardArrowDown /> : <KeyboardArrowUp />}
+      </div>
+
+      {isOpen && (
+  <div className={classes.content}>
+    {properties && properties.length > 0 ? (
+      properties.map((prop, index) => {
+
+        const editableFields = prop.isEditing
+            ? ['Manufacturer', 'Model', 'FlowRate', 'Power']
+            : [];
+
+        //ADD to test mismatches
+
+//      const testProp = {
+//   ...prop,
+//   Manufacturer: prop.Manufacturer, 
+//   Model: prop.Model,
+//   TechnicalParameters: {
+//     ...prop.TechnicalParameters,
+//     FlowRate: {
+//       ...prop.TechnicalParameters?.FlowRate,
+//       refVal: 104   // force mismatch for testing
+//     },
+//     Power: {
+//       ...prop.TechnicalParameters?.Power,
+//       refVal: prop.TechnicalParameters?.Power?.val
+//     }
+//   },
+//   // Add refVals for Manufacturer and Model
+//   properties: {
+//     ...prop.properties,
+//     Manufacturer: {
+//       ...prop.properties?.Manufacturer,
+//       refVal: 'SomeOtherManufacturer' // force mismatch
+//     },
+//     Model: {
+//       ...prop.properties?.Model,
+//       refVal: 'DifferentModel' // force mismatch
+//     }
+//   }
+// };
+
+console.log('EC8 PROPS', prop);
+
+   const dynamicSchema = buildSchema(prop, editableFields);
+
+        return (
+          <Paper key={prop._id || index} className={classes.card}>
+            <div className={classes.headerRow}>
+              <Typography variant='subtitle1' style={{ fontWeight: 'bold' }}>
+                Current Properties: {prop.siteEquipmentId || prop.equipmentId} ({prop.revision})
+              </Typography>
+              <Button
+                className={classes.editButton}
+                startIcon={prop.isEditing ? <SaveIcon /> : <EditIcon />}
+                onClick={() => toggleEdit(index)}
+              >
+                {prop.isEditing ? 'Save' : 'Edit'}
+              </Button>
+            </div>
+
+            <InfoComponent
+               entity={prop}
+              type={dynamicSchema}   
+              entityType="equipment"
+              hidePropertyActions={true}
+              disabled={!prop.isEditing} 
+                handleChange={(val, name) => {
+        //   setProperties(prev => {
+        //     const next = [...prev];
+        //     next[index] = { ...next[index], [name]: val };
+        //     return next;
+        // });
+        }}
+             // handleChange={(val, name) => handleChange(index, name, val)}
+            />
+          </Paper>
+        )
+      })
+    ) : (
+      <Typography variant='body2' color='textSecondary'>
+        No engineering change data available
+      </Typography>
+    )}
+  </div>
+)}
+    </div>
+  )
+}
+
+export default ViewerBottomPanel
 
 function Property({ label, value, editable, onChange }) {
+  const classes = useStyles()
   return (
-    <div className="property-row" style={{borderBottom: editable ? '1px solid #EE67B8' : '1px solid #eee'}}>
-      <span className="label">
-        {label}
-      </span>
+    <div className={classes.property}>
+      <Typography className={classes.label}>{label}</Typography>
       {editable ? (
         <input
-          type="text"
-          className="value-input"
-          value={value}
+          type='text'
+          className={classes.valueInput}
+          value={value || ''}
           onChange={(e) => onChange(e.target.value)}
         />
       ) : (
-        <span className="value">
-          {value}
-        </span>
+        <Typography className={classes.value}>{value || '-'}</Typography>
       )}
+    </div>
+  )
+}
+
+function UnitInput({ value, unit, onChange, disabled }) {
+  const handleChange = (e) => {
+    // only update the number, keep the unit
+    const num = e.target.value.replace(/[^\d.]/g, ''); // allow only numbers + decimal
+    onChange(num ? `${num} ${unit}` : '');
+  };
+
+  // split number from unit for display
+  const [numVal] = value ? value.split(' ') : [''];
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center' }}>
+      <input
+        type="text"
+        value={numVal}
+        disabled={disabled}
+        onChange={handleChange}
+        style={{
+          flex: 1,
+          border: 'none',
+          borderBottom: '1px solid #ccc',
+          padding: '4px',
+          outline: 'none',
+        }}
+      />
+      <span style={{ marginLeft: 4 }}>{unit}</span>
     </div>
   );
 }
+

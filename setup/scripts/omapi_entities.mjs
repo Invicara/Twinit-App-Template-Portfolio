@@ -1026,34 +1026,35 @@ const withDecimalFix = (originalFn) => async (input, libraries, ctx, callback) =
 const statusHierarchy = ['REGISTERED', 'APPROVED', 'CLOSED'];
 const rank = s => statusHierarchy.indexOf(s);
 
-function computeSiteECStats(sites, ecs, logs, siteRollup = 'all-closed' /* 'all-closed' | 'any-closed' */ ) {
+function computeSiteECStats(sites, ecs, logs, siteRollup = 'any-closed' /* 'all-closed' | 'any-closed' */ ) {
     // 1) Per-target aggregation: site:unit:equipment:ecid -> highest status
-    const perTarget = new Map(); // key -> { site, unit, equip, ecid, status }
+    const perTarget = new Map(); // key -> { site, unit, equip, siteEquip, ecid, status }
     for (const log of logs) {
         const site = log.site;
         const unit = log.unit ?? '';
-        const equip = log['Site Equipment Id'] || log['Equipment Id'] || '';
+        const equip = log['Equipment Id'] || '';
+        const siteEquip = log['Site Equipment Id'] || '';
         const ecid = log.ecid;
         const status = log.status;
 
-        if (!site || !ecid || !status) continue;
+    if (!site || !ecid || !status) continue;
 
         const key = `${site}:${unit}:${equip}:${ecid}`;
         const cur = perTarget.get(key);
         if (!cur || rank(status) > rank(cur.status)) {
-            perTarget.set(key, { site, unit, equip, ecid, status });
+            perTarget.set(key, { site, unit, equip, siteEquip, ecid, status });
         }
     }
 
     // 2) Build site → unit → equipment structures
     const bySite = new Map();
-    for (const { site, unit, equip, ecid, status } of perTarget.values()) {
+    for (const { site, unit, equip, siteEquip, ecid, status } of perTarget.values()) {
         if (!bySite.has(site)) bySite.set(site, { targets: [], byUnit: new Map() });
         const S = bySite.get(site);
-        S.targets.push({ unit, equip, ecid, status });
+        S.targets.push({ unit, equip, siteEquip, ecid, status });
 
         if (!S.byUnit.has(unit)) S.byUnit.set(unit, []);
-        S.byUnit.get(unit).push({ equip, ecid, status });
+        S.byUnit.get(unit).push({ equip, siteEquip, ecid, status });
     }
 
     // 3) Per-unit statusCounts (counts per equipment target)
@@ -1080,21 +1081,22 @@ function computeSiteECStats(sites, ecs, logs, siteRollup = 'all-closed' /* 'all-
             statusCountsPerUnit[unit] = counts;
         }
 
-        // 4) Roll-up to site-level EC status (one status per EC per site)
-        // Group targets by ecid
-        const byEcid = new Map();
+        // 4) Roll-up to site-level EC status (one status per EC/SiteEquip pair per site)
+        // Group targets by ecid/site Equip pair
+        const byEcidAndSiteEquip = new Map();
         for (const t of siteData.targets) {
-            if (!byEcid.has(t.ecid)) byEcid.set(t.ecid, []);
-            byEcid.get(t.ecid).push(t.status);
+            const key = `${t.ecid}/${t.siteEquip}`
+            if (!byEcidAndSiteEquip.has(key)) byEcidAndSiteEquip.set(key, []);
+            byEcidAndSiteEquip.get(key).push(t.status);
         }
 
-        for (const [ecid, statuses] of byEcid.entries()) {
+        for (const [key, statuses] of byEcidAndSiteEquip.entries()) {
             const r = statuses.map(rank);
             const siteStatus =
                 siteRollup === 'all-closed'
                     ? statusHierarchy[Math.min(...r)] // lowest wins; CLOSED only if all closed
                     : statusHierarchy[Math.max(...r)]; // highest wins
-            siteLevelECStatus.set(ecid, siteStatus);
+            siteLevelECStatus.set(key, siteStatus);
         }
 
         // 5) Per-site statusCounts over ECs (not per equipment)
@@ -1171,12 +1173,23 @@ const getSitesWithRelated = async (input, libraries, ctx) => {
 
     const { IafItemSvc } = libraries.PlatformApi;
 
+    const siteIdToFacilityIdMap = {
+        "Belleville": "A",
+        "St. Laurent": "B",
+    }
+
+    const buildingIdToUnitMap = {
+        "Belleville-1": "01",
+        "Belleville-2": "02",
+        "St. Laurent-A1": "01",
+        "St. Laurent-B2": "02",
+    }
+
     const sites = await withDecimalFix(getEntityWithRelatedFactory("site"))(input?.params || {}, libraries, ctx);
 
     let collections = await IafItemSvc.getNamedUserItems({
         query: { _userType: { $in: ["ecs", "ecs-logs"]} , _itemClass: 'NamedUserCollection' }
-    }, ctx, { page: {_pageSize: 10, _offset: 0}
-    })
+    }, ctx, { page: {_pageSize: 10, _offset: 0}})
 
     const ecsColl =  collections._list.find(c => c._userType === "ecs")
     const ecsLogsColl =  collections._list.find(c => c._userType === "ecs-logs")
@@ -1187,14 +1200,25 @@ const getSitesWithRelated = async (input, libraries, ctx) => {
 
     const ecStats = computeSiteECStats([{siteId:"A"},{siteId:"B"}], ecs, relatedLogs);
 
+    const defaultEcsByStatus = {
+            "REGISTERED": {
+               "_total": 0
+            },
+            "APPROVED": {
+               "_total": 0
+            },
+            "CLOSED": {
+               "_total": 10
+            }
+    }
     sites.forEach(site=>{
         const randomFacility = Math.random() < 0.5 ? "A" : "B";
-        const siteECStats = ecStats.find(stat=>stat.siteId==randomFacility);
-        site.ecsByStatus = siteECStats.statusCounts;
+        const siteECStats = ecStats.find(stat=>stat.siteId==siteIdToFacilityIdMap[site.siteId]);
+        site.ecsByStatus = siteECStats?.statusCounts || defaultEcsByStatus;
         if(site.buildings){
             site.buildings.forEach(building=>{
                 const randomUnit = Math.random() < 0.5 ? "01" : "02";
-                building.ecsByStatus = siteECStats.statusCountsPerUnit[randomUnit]
+                building.ecsByStatus = siteECStats?.statusCountsPerUnit?.[buildingIdToUnitMap[building.buildingId]] || defaultEcsByStatus
             });
         }
     });
@@ -1206,12 +1230,24 @@ const getSitesWithRelated = async (input, libraries, ctx) => {
 }
 
 const getBuildingsWithRelated = async (input, libraries, ctx) => {
+    const siteIdToFacilityIdMap = {
+        "Belleville": "A",
+        "St. Laurent": "B",
+    }
+
+    const buildingIdToUnitMap = {
+        "Belleville-1": "01",
+        "Belleville-2": "02",
+        "St. Laurent-A1": "01",
+        "St. Laurent-B2": "02",
+    }
+
+
     const buildings = await withDecimalFix(getEntityWithRelatedFactory("building"))(input?.params || {}, libraries, ctx);
 
     let collections = await IafItemSvc.getNamedUserItems({
         query: { _userType: { $in: ["ecs", "ecs-logs"]} , _itemClass: 'NamedUserCollection' }
-    }, ctx, { page: {_pageSize: 10, _offset: 0}
-    })
+    }, ctx, { page: {_pageSize: 10, _offset: 0}})
 
     const ecsColl =  collections._list.find(c => c._userType === "ecs")
     const ecsLogsColl =  collections._list.find(c => c._userType === "ecs-logs")
@@ -1227,8 +1263,8 @@ const getBuildingsWithRelated = async (input, libraries, ctx) => {
     buildings.forEach(building=>{
         const randomFacility = Math.random() < 0.5 ? "A" : "B";
         const randomUnit = Math.random() < 0.5 ? "01" : "02";
-        const siteECStats = ecStats.find(stat=>randomFacility==stat.siteId);
-        building.ecsByStatus = siteECStats?.statusCountsPerUnit?.[randomUnit]
+        const siteECStats = ecStats.find(stat=>siteIdToFacilityIdMap[building.siteId]==stat.siteId);
+        building.ecsByStatus = siteECStats?.statusCountsPerUnit?.[buildingIdToUnitMap[building.buildingId]]
     });
 
     return buildings;

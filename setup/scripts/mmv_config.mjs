@@ -44,41 +44,10 @@ function countsForSiteECs(map, feature, config) {
 }
 
 function countsForSiteOpenECs(map, feature, config) {
-    return [feature.properties?.ecsByStatus?.REGISTERED?._total || 0 + feature.properties?.ecsByStatus?.APPROVED?._total || 0];
+    return [(feature.properties?.ecsByStatus?.REGISTERED?._total || 0) + (feature.properties?.ecsByStatus?.APPROVED?._total || 0)];
 }
 
 
-const statusConfig = {
-    colorMap: {
-        "1": "#f50be9ff",// Planned
-        "2": "#0b84f5", // Construction
-        "3": "#10B981", // Operating
-        "4": "#EF4444", // Suspended
-        "5": "#6B7280", // Permanent Shutdown (gray-ish)
-        "unknown": "#CCCCCC",
-    },
-    labelMap: {
-        "1": "Planned",
-        "2": "Construction",
-        "3": "Operating",
-        "4": "Suspended Operation",
-        "5": "Permanent Shutdown",
-        "unknown": "Unknown",
-    },
-}
-
-const EC_statusConfig = {
-    colorMap: {
-        "REGISTERED": "#b8b8b8",
-        "APPROVED": "#f4b740",
-        "CLOSED": "#66bb6a",
-    },
-    labelMap: {
-        "REGISTERED": "Registered",
-        "APPROVED": "Approved",
-        "CLOSED": "Closed",
-    },
-}
 
 
 const THEMES = {
@@ -100,6 +69,21 @@ const THEMES = {
         ],
         "circle-radius": 7
     }
+}
+
+const statusConfig = {
+    labelMap: {
+        "REGISTERED": THEMES.BY_EC_STATUS.bins[0].label, // Registered
+        "APPROVED": THEMES.BY_EC_STATUS.bins[1].label, // Approved
+        "CLOSED": THEMES.BY_EC_STATUS.bins[2].label, // Approved
+        "unknown": "Unknown",
+    },
+    colorMap: {
+        "REGISTERED": THEMES.BY_EC_STATUS.bins[0].color,
+        "APPROVED": THEMES.BY_EC_STATUS.bins[1].color,
+        "CLOSED": THEMES.BY_EC_STATUS.bins[2].color,
+        "unknown": "#CCCCCC",
+    },
 }
 
 
@@ -203,21 +187,22 @@ let scriptModule = {
                             titleProp: "properties.name",
                             descriptionProp: "properties.region",
                             statusProp: (feature, ctx) => {
-                                // return counts for multi-status rendering
-                                const counts = countsForSiteECs(null, feature, THEMES.BY_EC_STATUS);
-                                const countsMap = counts.reduce((acc, val, idx) => {
-                                    const id = THEMES.BY_EC_STATUS.bins[idx].id;
-                                    acc[id] = val;
-                                    return acc;
-                                }, {});
-                                return { mode: "multi", counts: countsMap };
+                                // feature.properties.ecsByStatus is an object of ecs counts grouped by status
+                                const ecsByStatus = get(feature, "properties.ecsByStatus", {}) || {};
+
+                                const order = ctx.aggregation?.priorityOrder ?? ["ACCEPTED","REGISTERED","CLOSED"];
+
+                                let counts = {}
+                                Object.entries(ecsByStatus).forEach(([key, status]) => {
+                                    counts[key] = status._total;
+                                })
+                                return { mode: "multi", counts}
                             },
                             statusAggregation: {
                                 //mode: "priority",
-                                mode: "multi",                  // "mostActive" | "priority" | "multi"
-                                priorityOrder: ["CLOSED","APPROVED","REGISTERED"]
+                                priorityOrder: ["ACCEPTED","REGISTERED","CLOSED"]
                             },
-                            statusConfig: EC_statusConfig,
+                            statusConfig: statusConfig,
                             maxWidth: 280,
                         }
                     }
@@ -306,23 +291,38 @@ let scriptModule = {
     filterRuleFns(input) {
         return {
             statusIn:
-            ({ values }) =>
-            (building) => {
-                if (building.StatusId == null) return false;
-                return values.map(String).includes(String(building.StatusId));
-            },
+                ({ values }) =>
+                    (building) => {
+                        if (building.StatusId == null) return false;
+                        return values.map(String).includes(String(building.StatusId));
+                    },
 
             capacityBetween:
-            ({ min, max }) =>
-            (building) => {
-                const cap = building.Capacity;
-                if (typeof cap !== "number") return false;
+                ({ min, max }) =>
+                    (building) => {
+                        const cap = building.Capacity;
+                        if (typeof cap !== "number") return false;
 
-                if (max == null) {
-                return cap >= min;
-                }
+                        if (max == null) {
+                            return cap >= min;
+                        }
 
-                return cap >= min && cap < max;
+                        return cap >= min && cap < max;
+                    },
+            searchQuery: ({ q }) => (e) => {
+                if (!q) return true;
+
+                const entity = e.properties || e;
+                const query = q.toLowerCase();
+
+                // List the fields you want to check
+                const fields = [
+                    entity?.name,
+                    entity?.siteId,
+                    entity?.buildingId
+                ];
+
+                return fields.filter(f=>!!f).some(field => field?.toLowerCase().includes(query));
             },
         };
     },
