@@ -9,9 +9,9 @@ import {
   InfoOutlined,
   SettingsOutlined,
   Warning as WarningIcon,
-ErrorOutline as ErrorIcon
+ErrorOutline as ErrorIcon,
+ AssignmentLate as AssignmentLateIcon
 } from "@mui/icons-material";
-
 
 // Extract "name" from "#/properties/name"
 const controlKey = (scope) => scope.match(/#\/properties\/(.+)$/)?.[1] ?? scope;
@@ -41,7 +41,6 @@ export function RowWithActions({
 
   const [editing, setEditing] = React.useState(false);
 
-  // label & required
   const labelText = controlUiSchema.label ?? schema?.properties?.[key]?.title ?? key;
   const isRequired =
     Array.isArray(schema?.required) && schema.required.includes(key);
@@ -51,13 +50,14 @@ export function RowWithActions({
 
 const propSchema = schema?.properties?.[key];
   const [liveMismatch, setLiveMismatch] = React.useState(!!propSchema?.isMismatched);
+  const [liveEdited, setLiveEdited] = React.useState(!!propSchema?.isEdited);
+  console.log('RowWithActions schema', key, propSchema);
 
   const controlUiSchemaWithOptionalLabel = useMemo(
     () => ({ ...controlUiSchema, label: controlUiSchema.label }),
     [controlUiSchema]
   );
 
-  // focus handling
   const isInMuiPicker = (el) =>
     !!el?.closest?.(
       '.MuiPickersPopper-root, .MuiModal-root, .MuiPickersModal-dialogRoot, [role="dialog"]'
@@ -76,7 +76,13 @@ const propSchema = schema?.properties?.[key];
 };
 
   return (
-    <Box ref={rowRef}  p={0}>
+     <Box
+    ref={rowRef}
+    p={0}
+    sx={{
+      backgroundColor: propSchema?.isEdited ? '#ECF5FB' : 'transparent',
+      borderRadius: 1,   
+    }}>
       <Box
         display="grid"
         gridTemplateColumns={`${labelPlacement == "auto" ? "" : "33% "} 1fr auto`}
@@ -118,11 +124,25 @@ const propSchema = schema?.properties?.[key];
 
         {/* Actions: warning + edit/info + modify/delete */}
         <Box justifySelf="end" alignSelf="start" pt={3} display="flex" alignItems="center">
-              {liveMismatch && (
+              {(liveMismatch && !propSchema.isEdited) && (
             <Tooltip title={'Expected other value'}>
               <WarningIcon fontSize="small" sx={{ color: "orange", mr: 0.5 }} />
             </Tooltip>
           )}
+
+           {propSchema?.isEdited && (
+    <Tooltip title="This field has an edit request">
+      <Box display="flex" alignItems="center" mr={1}>
+        <Typography
+          variant="caption"
+          sx={{ color: '#1976d2', fontWeight: 600, mr: 0.5 }}
+        >
+          Edit Request
+        </Typography>
+       <AssignmentLateIcon fontSize="small" sx={{ color: '#1976d2' }} />
+      </Box>
+    </Tooltip>
+  )}
 
           {!editing ? (
             <Tooltip

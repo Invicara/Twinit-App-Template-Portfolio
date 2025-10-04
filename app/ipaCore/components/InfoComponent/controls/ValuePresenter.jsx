@@ -49,28 +49,33 @@ export default function ValuePresenter({ controlUiSchema, schema, path, labelPla
   let display = formatValue({ value: rawValue, propSchema });
   let isMismatch = false;
 
-  // FlowRate / Power (numeric w/unit)
-  if ((key === 'FlowRate' || key === 'Power') && unit) {
-    const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue);
-    if (!Number.isNaN(numeric)) {
-      if (refVal !== undefined && numeric != refVal) {
-        display = `${numeric} ${unit} (Expected: ${refVal} ${unit})`;
-        isMismatch = true;
-      } else {
-        display = `${numeric} ${unit}`;
-      }
-    }
-  }
+if (propSchema?.isEdited) {
+  display = String(rawValue);
+  isMismatch = false;
+}
 
-  // Manufacturer / Model (string mismatch)
-  if ((key === 'Manufacturer' || key === 'Model') && refVal !== undefined) {
-    if (rawValue !== refVal) {
-      display = `${rawValue} (Expected: ${refVal})`;
+// 2. Otherwise handle FlowRate/Power mismatches
+else if ((key === 'FlowRate' || key === 'Power') && unit) {
+  const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+  if (!Number.isNaN(numeric)) {
+    if (refVal !== undefined && numeric != refVal) {
+      display = `${numeric} ${unit} (Expected: ${refVal} ${unit})`;
       isMismatch = true;
     } else {
-      display = rawValue;
+      display = `${numeric} ${unit}`;
     }
   }
+}
+
+// 3. Otherwise handle Manufacturer/Model mismatches
+else if ((key === 'Manufacturer' || key === 'Model') && refVal !== undefined) {
+  if (rawValue !== refVal) {
+    display = `${rawValue} (Expected: ${refVal})`;
+    isMismatch = true;
+  } else {
+    display = rawValue;
+  }
+}
 
   // report mismatch live back to RowWithActions
   React.useEffect(() => {
