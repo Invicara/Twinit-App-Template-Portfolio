@@ -241,7 +241,9 @@ async function getEcEquipment(input, libraries, ctx) {
                             "equipmentId": 1,
                             "properties": 1,
                             "revision": 1,
-                            "TechnicalParameters": 1
+                            "TechnicalParameters": 1,
+                            "edited": 1,
+                            "original": 1
                         }
                     }
                 }
