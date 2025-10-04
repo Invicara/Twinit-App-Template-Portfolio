@@ -75,6 +75,8 @@ const propSchema = schema?.properties?.[key];
   });
 };
 
+console.log('new propSchema', propSchema);
+
   return (
      <Box
     ref={rowRef}
@@ -131,7 +133,17 @@ const propSchema = schema?.properties?.[key];
           )}
 
            {propSchema?.isEdited && (
-    <Tooltip title="This field has an edit request">
+    <Tooltip   title={<Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: 'white'}}>
+        {`Edit suggestion to update ${
+          propSchema.options?.originalVal ?? 'to'
+        } → ${
+          propSchema.displayValue ??
+          propSchema.options?.refVal ??
+          Resolve.data(controlProps?.data, controlUiSchema.scope) ??
+          '—'
+        }`}
+      </Typography>}
+    arrow>
       <Box display="flex" alignItems="center" mr={1}>
         <Typography
           variant="caption"
