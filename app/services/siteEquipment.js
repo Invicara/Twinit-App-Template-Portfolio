@@ -122,7 +122,7 @@ export async function siteEquipmentService(changes, facilityId, buildingId, equi
   
   const res = results?.[0]?.result?._result?.equipment?._list?.[0];
 
-//   const siteEq = getResults?.[0]?.result?._result?.ec?.siteEquipment;
+  const siteEq = getResults?.[0]?.result?._result?.ec?.siteEquipment;
   const refs = getResults?.[0]?.result?._result?.ec?.referenceRevisions;
 
 //   console.log('EC9 siteEq', JSON.stringify(siteEq, null, 2));
@@ -136,383 +136,383 @@ export async function siteEquipmentService(changes, facilityId, buildingId, equi
 //   }
 //   return item
 // })
-const siteEq = [
-  {
-    "_id": "68dedc2e56dd1014cc0874ca",
-    "unitType": "900 MW",
-    "systemId": "RCS",
-    "Equipment Id": "RCP-900-011",
-    "Equipment Name": "Reactor Coolant Pump 900MW",
-    "Site Equipment Id": "RCP-B-021",
-    "tipRevision": "001",
-    "equipmentType": "Pump",
-    "revisions": [
-      {
-        "_id": "68dedc2e56dd1014cc0874da",
-        "revision status date": "2011-03-15T00:00:00Z",
-        "revision status": "ISSUED",
-        "equipmentId": "RCP-900-011",
-        "properties": [
-          {
-            "val": "Westinghouse",
-            "name": "Manufacturer",
-            "type": "string"
-          },
-          {
-            "val": "RCP-900",
-            "name": "Model",
-            "type": "string"
-          },
-          {
-            "val": "Class 1",
-            "name": "Safety Class",
-            "type": "string"
-          },
-          {
-            "val": "Operational",
-            "name": "Operating Status",
-            "type": "string"
-          },
-          {
-            "val": "2025-01-22T00:00:00Z",
-            "name": "Operational Status Date",
-            "type": "date"
-          }
-        ],
-        "revision": "001",
-        "TechnicalParameters": [
-          {
-            "val": 2100,
-            "unit": "gpm",
-            "name": "FlowRate",
-            "type": "number"
-          },
-          {
-            "val": 10,
-            "unit": "MW",
-            "name": "Power",
-            "type": "number"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "_id": "68dedc2e56dd1014cc0874cd",
-    "unitType": "900 MW",
-    "systemId": "RCS",
-    "Equipment Id": "RCP-900-014",
-    "Equipment Name": "Reactor Coolant Pump 900MW",
-    "Site Equipment Id": "RCP-B-024",
-    "tipRevision": "001A",
-    "equipmentType": "Pump",
-    "revisions": [
-      {
-        "_id": "68e0271356dd1014cc097904",
-        "revision status date": "2025-10-03T00:00:00.000Z",
-        "revision status": "PENDING",
-        "equipmentId": "RCP-900-014",
-        "original": {
-            "properties": [
-               {
-                  "val": "Westinghouse",
-                  "name": "Manufacturer",
-                  "type": "string"
-               },
-               {
-                  "val": "RCP-900",
-                  "name": "Model",
-                  "type": "string"
-               },
-               {
-                  "val": "Class 1",
-                  "name": "Safety Class",
-                  "type": "string"
-               },
-               {
-                  "val": "Operational",
-                  "name": "Operating Status",
-                  "type": "string"
-               },
-               {
-                  "val": "2025-01-22T00:00:00Z",
-                  "name": "Operational Status Date",
-                  "type": "date"
-               }
-            ],
-            "TechnicalParameters": [
-               {
-                  "val": 2100,
-                  "unit": "gpm",
-                  "name": "FlowRate",
-                  "type": "number"
-               },
-               {
-                  "val": 10,
-                  "unit": "MW",
-                  "name": "Power",
-                  "type": "number"
-               }
-            ]
-         },
-         "edited": {
-            "properties": [
-               {
-                  "val": "KSB",
-                  "name": "Manufacturer",
-                  "type": "string"
-               },
-               {
-                  "val": "RSR",
-                  "name": "Model",
-                  "type": "string"
-               },
-            //    {
-            //       "val": "2024-10-25T00:00:00Z",
-            //       "name": "Operational Status Date",
-            //       "type": "date"
-            //    }
-            ],
-         },
-        "properties": [
-          {
-            "val": "KSB",
-            "name": "Manufacturer",
-            "type": "string"
-          },
-          {
-            "val": "RSR",
-            "name": "Model",
-            "type": "string"
-          },
-          {
-            "val": "Class 1",
-            "name": "Safety Class",
-            "type": "string"
-          },
-          {
-            "val": "Operational",
-            "name": "Operating Status",
-            "type": "string"
-          },
-          {
-            "val": "2024-10-25T00:00:00Z",
-            "name": "Operational Status Date",
-            "type": "date"
-          }
-        ],
-        "revision": "001A",
-        "TechnicalParameters": [
-          {
-            "val": 2800,
-            "unit": "gpm",
-            "name": "FlowRate",
-            "type": "number"
-          },
-          {
-            "val": 18,
-            "unit": "MW",
-            "name": "Power",
-            "type": "number"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "_id": "68dedc2e56dd1014cc0874cb",
-    "unitType": "900 MW",
-    "systemId": "RCS",
-    "Equipment Id": "RCP-900-012",
-    "Equipment Name": "Reactor Coolant Pump 900MW",
-    "Site Equipment Id": "RCP-B-022",
-    "tipRevision": "001",
-    "equipmentType": "Pump",
-    "revisions": [
-      {
-        "_id": "68dedc2e56dd1014cc0874db",
-        "revision status date": "2011-03-15T00:00:00Z",
-        "revision status": "ISSUED",
-        "equipmentId": "RCP-900-012",
-        "properties": [
-          {
-            "val": "Westinghouse",
-            "name": "Manufacturer",
-            "type": "string"
-          },
-          {
-            "val": "RCP-900",
-            "name": "Model",
-            "type": "string"
-          },
-          {
-            "val": "Class 1",
-            "name": "Safety Class",
-            "type": "string"
-          },
-          {
-            "val": "Operational",
-            "name": "Operating Status",
-            "type": "string"
-          },
-          {
-            "val": "2025-01-22T00:00:00Z",
-            "name": "Operational Status Date",
-            "type": "date"
-          }
-        ],
-        "revision": "001",
-        "TechnicalParameters": [
-          {
-            "val": 2100,
-            "unit": "gpm",
-            "name": "FlowRate",
-            "type": "number"
-          },
-          {
-            "val": 10,
-            "unit": "MW",
-            "name": "Power",
-            "type": "number"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "_id": "68dedc2e56dd1014cc0874cc",
-    "unitType": "900 MW",
-    "systemId": "RCS",
-    "Equipment Id": "RCP-900-013",
-    "Equipment Name": "Reactor Coolant Pump 900MW",
-    "Site Equipment Id": "RCP-B-023",
-    "tipRevision": "001A",
-    "equipmentType": "Pump",
+// const siteEq = [
+//   {
+//     "_id": "68dedc2e56dd1014cc0874ca",
+//     "unitType": "900 MW",
+//     "systemId": "RCS",
+//     "Equipment Id": "RCP-900-011",
+//     "Equipment Name": "Reactor Coolant Pump 900MW",
+//     "Site Equipment Id": "RCP-B-021",
+//     "tipRevision": "001",
+//     "equipmentType": "Pump",
+//     "revisions": [
+//       {
+//         "_id": "68dedc2e56dd1014cc0874da",
+//         "revision status date": "2011-03-15T00:00:00Z",
+//         "revision status": "ISSUED",
+//         "equipmentId": "RCP-900-011",
+//         "properties": [
+//           {
+//             "val": "Westinghouse",
+//             "name": "Manufacturer",
+//             "type": "string"
+//           },
+//           {
+//             "val": "RCP-900",
+//             "name": "Model",
+//             "type": "string"
+//           },
+//           {
+//             "val": "Class 1",
+//             "name": "Safety Class",
+//             "type": "string"
+//           },
+//           {
+//             "val": "Operational",
+//             "name": "Operating Status",
+//             "type": "string"
+//           },
+//           {
+//             "val": "2025-01-22T00:00:00Z",
+//             "name": "Operational Status Date",
+//             "type": "date"
+//           }
+//         ],
+//         "revision": "001",
+//         "TechnicalParameters": [
+//           {
+//             "val": 2100,
+//             "unit": "gpm",
+//             "name": "FlowRate",
+//             "type": "number"
+//           },
+//           {
+//             "val": 10,
+//             "unit": "MW",
+//             "name": "Power",
+//             "type": "number"
+//           }
+//         ]
+//       }
+//     ]
+//   },
+//   {
+//     "_id": "68dedc2e56dd1014cc0874cd",
+//     "unitType": "900 MW",
+//     "systemId": "RCS",
+//     "Equipment Id": "RCP-900-014",
+//     "Equipment Name": "Reactor Coolant Pump 900MW",
+//     "Site Equipment Id": "RCP-B-024",
+//     "tipRevision": "001A",
+//     "equipmentType": "Pump",
+//     "revisions": [
+//       {
+//         "_id": "68e0271356dd1014cc097904",
+//         "revision status date": "2025-10-03T00:00:00.000Z",
+//         "revision status": "PENDING",
+//         "equipmentId": "RCP-900-014",
+//         "original": {
+//             "properties": [
+//                {
+//                   "val": "Westinghouse",
+//                   "name": "Manufacturer",
+//                   "type": "string"
+//                },
+//                {
+//                   "val": "RCP-900",
+//                   "name": "Model",
+//                   "type": "string"
+//                },
+//                {
+//                   "val": "Class 1",
+//                   "name": "Safety Class",
+//                   "type": "string"
+//                },
+//                {
+//                   "val": "Operational",
+//                   "name": "Operating Status",
+//                   "type": "string"
+//                },
+//                {
+//                   "val": "2025-01-22T00:00:00Z",
+//                   "name": "Operational Status Date",
+//                   "type": "date"
+//                }
+//             ],
+//             "TechnicalParameters": [
+//                {
+//                   "val": 2100,
+//                   "unit": "gpm",
+//                   "name": "FlowRate",
+//                   "type": "number"
+//                },
+//                {
+//                   "val": 10,
+//                   "unit": "MW",
+//                   "name": "Power",
+//                   "type": "number"
+//                }
+//             ]
+//          },
+//          "edited": {
+//             "properties": [
+//                {
+//                   "val": "KSB",
+//                   "name": "Manufacturer",
+//                   "type": "string"
+//                },
+//                {
+//                   "val": "RSR",
+//                   "name": "Model",
+//                   "type": "string"
+//                },
+//             //    {
+//             //       "val": "2024-10-25T00:00:00Z",
+//             //       "name": "Operational Status Date",
+//             //       "type": "date"
+//             //    }
+//             ],
+//          },
+//         "properties": [
+//           {
+//             "val": "KSB",
+//             "name": "Manufacturer",
+//             "type": "string"
+//           },
+//           {
+//             "val": "RSR",
+//             "name": "Model",
+//             "type": "string"
+//           },
+//           {
+//             "val": "Class 1",
+//             "name": "Safety Class",
+//             "type": "string"
+//           },
+//           {
+//             "val": "Operational",
+//             "name": "Operating Status",
+//             "type": "string"
+//           },
+//           {
+//             "val": "2024-10-25T00:00:00Z",
+//             "name": "Operational Status Date",
+//             "type": "date"
+//           }
+//         ],
+//         "revision": "001A",
+//         "TechnicalParameters": [
+//           {
+//             "val": 2800,
+//             "unit": "gpm",
+//             "name": "FlowRate",
+//             "type": "number"
+//           },
+//           {
+//             "val": 18,
+//             "unit": "MW",
+//             "name": "Power",
+//             "type": "number"
+//           }
+//         ]
+//       }
+//     ]
+//   },
+//   {
+//     "_id": "68dedc2e56dd1014cc0874cb",
+//     "unitType": "900 MW",
+//     "systemId": "RCS",
+//     "Equipment Id": "RCP-900-012",
+//     "Equipment Name": "Reactor Coolant Pump 900MW",
+//     "Site Equipment Id": "RCP-B-022",
+//     "tipRevision": "001",
+//     "equipmentType": "Pump",
+//     "revisions": [
+//       {
+//         "_id": "68dedc2e56dd1014cc0874db",
+//         "revision status date": "2011-03-15T00:00:00Z",
+//         "revision status": "ISSUED",
+//         "equipmentId": "RCP-900-012",
+//         "properties": [
+//           {
+//             "val": "Westinghouse",
+//             "name": "Manufacturer",
+//             "type": "string"
+//           },
+//           {
+//             "val": "RCP-900",
+//             "name": "Model",
+//             "type": "string"
+//           },
+//           {
+//             "val": "Class 1",
+//             "name": "Safety Class",
+//             "type": "string"
+//           },
+//           {
+//             "val": "Operational",
+//             "name": "Operating Status",
+//             "type": "string"
+//           },
+//           {
+//             "val": "2025-01-22T00:00:00Z",
+//             "name": "Operational Status Date",
+//             "type": "date"
+//           }
+//         ],
+//         "revision": "001",
+//         "TechnicalParameters": [
+//           {
+//             "val": 2100,
+//             "unit": "gpm",
+//             "name": "FlowRate",
+//             "type": "number"
+//           },
+//           {
+//             "val": 10,
+//             "unit": "MW",
+//             "name": "Power",
+//             "type": "number"
+//           }
+//         ]
+//       }
+//     ]
+//   },
+//   {
+//     "_id": "68dedc2e56dd1014cc0874cc",
+//     "unitType": "900 MW",
+//     "systemId": "RCS",
+//     "Equipment Id": "RCP-900-013",
+//     "Equipment Name": "Reactor Coolant Pump 900MW",
+//     "Site Equipment Id": "RCP-B-023",
+//     "tipRevision": "001A",
+//     "equipmentType": "Pump",
     
-    "revisions": [
-      {
-        "_id": "68e0148d277eea0741e299ae",
-        "revision status date": "2025-10-03T00:00:00.000Z",
-        "revision status": "PENDING",
-        "equipmentId": "RCP-900-013",
-        //edited and original property arrays should be here somewhere
-        "original": {
-            "properties": [
-               {
-                  "val": "Westinghouse",
-                  "name": "Manufacturer",
-                  "type": "string"
-               },
-               {
-                  "val": "RCP-900",
-                  "name": "Model",
-                  "type": "string"
-               },
-               {
-                  "val": "Class 1",
-                  "name": "Safety Class",
-                  "type": "string"
-               },
-               {
-                  "val": "Operational",
-                  "name": "Operating Status",
-                  "type": "string"
-               },
-               {
-                  "val": "2025-01-22T00:00:00Z",
-                  "name": "Operational Status Date",
-                  "type": "date"
-               }
-            ],
-            "TechnicalParameters": [
-               {
-                  "val": 2100,
-                  "unit": "gpm",
-                  "name": "FlowRate",
-                  "type": "number"
-               },
-               {
-                  "val": 10,
-                  "unit": "MW",
-                  "name": "Power",
-                  "type": "number"
-               }
-            ]
-         },
-         "edited": {
-            "properties": [
-               {
-                  "val": "KSB",
-                  "name": "Manufacturer",
-                  "type": "string"
-               },
-               {
-                  "val": "RSR",
-                  "name": "Model",
-                  "type": "string"
-               },
-            ],
-            "TechnicalParameters": [
-               {
-                  "val": 2800,
-                  "unit": "gpm",
-                  "name": "FlowRate",
-                  "type": "number"
-               },
-               {
-                  "val": 18,
-                  "unit": "MW",
-                  "name": "Power",
-                  "type": "number"
-               }
-            ]
-         },
-        "properties": [
-          {
-            "val": "KSB",
-            "name": "Manufacturer",
-            "type": "string"
-          },
-          {
-            "val": "RSR",
-            "name": "Model",
-            "type": "string"
-          },
-          {
-            "val": "Class 1",
-            "name": "Safety Class",
-            "type": "string"
-          },
-          {
-            "val": "Operational",
-            "name": "Operating Status",
-            "type": "string"
-          },
-          {
-            "val": "2024-10-25T00:00:00Z",
-            "name": "Operational Status Date",
-            "type": "date"
-          }
-        ],
-        "revision": "001A",
-        "TechnicalParameters": [
-          {
-            "val": 2800,
-            "unit": "gpm",
-            "name": "FlowRate",
-            "type": "number"
-          },
-          {
-            "val": 18,
-            "unit": "MW",
-            "name": "Power",
-            "type": "number"
-          }
-        ]
-      }
-    ]
-  }
-]
+//     "revisions": [
+//       {
+//         "_id": "68e0148d277eea0741e299ae",
+//         "revision status date": "2025-10-03T00:00:00.000Z",
+//         "revision status": "PENDING",
+//         "equipmentId": "RCP-900-013",
+//         //edited and original property arrays should be here somewhere
+//         "original": {
+//             "properties": [
+//                {
+//                   "val": "Westinghouse",
+//                   "name": "Manufacturer",
+//                   "type": "string"
+//                },
+//                {
+//                   "val": "RCP-900",
+//                   "name": "Model",
+//                   "type": "string"
+//                },
+//                {
+//                   "val": "Class 1",
+//                   "name": "Safety Class",
+//                   "type": "string"
+//                },
+//                {
+//                   "val": "Operational",
+//                   "name": "Operating Status",
+//                   "type": "string"
+//                },
+//                {
+//                   "val": "2025-01-22T00:00:00Z",
+//                   "name": "Operational Status Date",
+//                   "type": "date"
+//                }
+//             ],
+//             "TechnicalParameters": [
+//                {
+//                   "val": 2100,
+//                   "unit": "gpm",
+//                   "name": "FlowRate",
+//                   "type": "number"
+//                },
+//                {
+//                   "val": 10,
+//                   "unit": "MW",
+//                   "name": "Power",
+//                   "type": "number"
+//                }
+//             ]
+//          },
+//          "edited": {
+//             "properties": [
+//                {
+//                   "val": "KSB",
+//                   "name": "Manufacturer",
+//                   "type": "string"
+//                },
+//                {
+//                   "val": "RSR",
+//                   "name": "Model",
+//                   "type": "string"
+//                },
+//             ],
+//             "TechnicalParameters": [
+//                {
+//                   "val": 2800,
+//                   "unit": "gpm",
+//                   "name": "FlowRate",
+//                   "type": "number"
+//                },
+//                {
+//                   "val": 18,
+//                   "unit": "MW",
+//                   "name": "Power",
+//                   "type": "number"
+//                }
+//             ]
+//          },
+//         "properties": [
+//           {
+//             "val": "KSB",
+//             "name": "Manufacturer",
+//             "type": "string"
+//           },
+//           {
+//             "val": "RSR",
+//             "name": "Model",
+//             "type": "string"
+//           },
+//           {
+//             "val": "Class 1",
+//             "name": "Safety Class",
+//             "type": "string"
+//           },
+//           {
+//             "val": "Operational",
+//             "name": "Operating Status",
+//             "type": "string"
+//           },
+//           {
+//             "val": "2024-10-25T00:00:00Z",
+//             "name": "Operational Status Date",
+//             "type": "date"
+//           }
+//         ],
+//         "revision": "001A",
+//         "TechnicalParameters": [
+//           {
+//             "val": 2800,
+//             "unit": "gpm",
+//             "name": "FlowRate",
+//             "type": "number"
+//           },
+//           {
+//             "val": 18,
+//             "unit": "MW",
+//             "name": "Power",
+//             "type": "number"
+//           }
+//         ]
+//       }
+//     ]
+//   }
+// ]
 
 
 const matchedRevision = siteEq?.map(item => {
@@ -527,341 +527,6 @@ const matchedRevision = siteEq?.map(item => {
   return item;
 });
 
-
-// console.log('matchedRevision', JSON.stringify(matchedRevision, null, 2));
-
-// const matchedRevision = [
-// {
-// "_id": "68dedc2b56dd1014cc08743a",
-// "unitType": "900 MW",
-// "systemId": "RCS",
-// "Equipment Id": "RCP-900-011",
-// "Equipment Name": "Reactor Coolant Pump 900MW",
-// "Site Equipment Id": "RCP-A-011",
-// "tipRevision": "001",
-// "equipmentType": "Pump",
-// "revisions": [
-// {
-// "_id": "68dedc2b56dd1014cc08744a",
-// "revision status date": "2010-09-01T00:00:00Z",
-// "revision status": "ISSUED",
-// "equipmentId": "RCP-900-011",
-// "properties": [
-// {
-// "val": "Westinghouse",
-// "name": "Manufacturer",
-// "type": "string"
-// },
-// {
-// "val": "RCP-900",
-// "name": "Model",
-// "type": "string"
-// },
-// {
-// "val": "Class 1",
-// "name": "Safety Class",
-// "type": "string"
-// },
-// {
-// "val": "Operational",
-// "name": "Operating Status",
-// "type": "string"
-// },
-// {
-// "val": "2024-10-25T00:00:00Z",
-// "name": "Operational Status Date",
-// "type": "date"
-// }
-// ],
-// "revision": "001",
-// "TechnicalParameters": [
-// {
-// "val": 2100,
-// "unit": "gpm",
-// "name": "FlowRate",
-// "type": "number"
-// },
-// {
-// "val": 10,
-// "unit": "MW",
-// "name": "Power",
-// "type": "number"
-// }
-// ]
-// }
-// ]
-// },
-// {
-// "_id": "68dedc2b56dd1014cc08743b",
-// "unitType": "900 MW",
-// "systemId": "RCS",
-// "Equipment Id": "RCP-900-012",
-// "Equipment Name": "Reactor Coolant Pump 900MW",
-// "Site Equipment Id": "RCP-A-012",
-// "tipRevision": "001A",
-// "equipmentType": "Pump",
-//    "original": {
-//       "properties": [
-//          {
-//             "val": "Westinghouse",
-//             "name": "Manufacturer",
-//             "type": "string"
-//          },
-//          {
-//             "val": "RCP-900",
-//             "name": "Model",
-//             "type": "string"
-//          },
-//          {
-//             "val": "Class 1",
-//             "name": "Safety Class",
-//             "type": "string"
-//          },
-//          {
-//             "val": "Operational",
-//             "name": "Operating Status",
-//             "type": "string"
-//          },
-//          {
-//             "val": "2025-01-22T00:00:00Z",
-//             "name": "Operational Status Date",
-//             "type": "date"
-//          }
-//       ],
-//       "TechnicalParameters": [
-//          {
-//             "val": 2100,
-//             "unit": "gpm",
-//             "name": "FlowRate",
-//             "type": "number"
-//          },
-//          {
-//             "val": 10,
-//             "unit": "MW",
-//             "name": "Power",
-//             "type": "number"
-//          }
-//       ]
-//    },
-//    "edited": {
-//       "properties": [
-//          {
-//             "val": "KSB",
-//             "name": "Manufacturer",
-//             "type": "string"
-//          },
-//          {
-//             "val": "RSR",
-//             "name": "Model",
-//             "type": "string"
-//          },
-//          {
-//             "val": "2024-10-25T00:00:00Z",
-//             "name": "Operational Status Date",
-//             "type": "date"
-//          }
-//       ],
-//       "TechnicalParameters": [
-//          {
-//             "val": 2800,
-//             "unit": "gpm",
-//             "name": "FlowRate",
-//             "type": "number"
-//          },
-//          {
-//             "val": 18,
-//             "unit": "MW",
-//             "name": "Power",
-//             "type": "number"
-//          }
-//       ]
-//    },
-
-// "revisions": [
-// {
-// "_id": "68dedc2b56dd1014cc08744b",
-// "revision status date": "2010-09-01T00:00:00Z",
-// "revision status": "PENDING",
-// "equipmentId": "RCP-900-012",
-// "properties": [
-// {
-// "val": "Westinghouse",
-// "name": "Manufacturer",
-// "type": "string"
-// },
-// {
-// "val": "RCP-900",
-// "name": "Model",
-// "type": "string"
-// },
-// {
-// "val": "Class 1",
-// "name": "Safety Class",
-// "type": "string"
-// },
-// {
-// "val": "Operational",
-// "name": "Operating Status",
-// "type": "string"
-// },
-// {
-// "val": "2024-10-25T00:00:00Z",
-// "name": "Operational Status Date",
-// "type": "date"
-// }
-// ],
-// "revision": "001A",
-// "TechnicalParameters": [
-// {
-// "val": 2100,
-// "unit": "gpm",
-// "name": "FlowRate",
-// "type": "number"
-// },
-// {
-// "val": 10,
-// "unit": "MW",
-// "name": "Power",
-// "type": "number"
-// }
-// ]
-// }
-// ]
-// }
-// ]
-
-// const matchedRevision = [
-//   {
-//     _id: "68d64f9656dd1014cc019240",
-//     unitType: "900 MW",
-//     systemId: "RCS",
-//     "Equipment Id": "RCP-900-011",
-//     "Equipment Name": "Reactor Coolant Pump 900MW",
-//     "Site Equipment Id": "RCP-A-011",
-//     tipRevision: "001",
-//     equipmentType: "Pump",
-//     revisions: [
-//       {
-//         _id: "68d64f9656dd1014cc019250",
-//         "revision status date": "2010-09-01T00:00:00Z",
-//         "revision status": "ISSUED",
-//         equipmentId: "RCP-900-011",
-//         properties: [
-//           {
-//             val: "Westinghouse",
-//             name: "Manufacturer",
-//             type: "string",
-//           },
-//           {
-//             val: "RCP-900",
-//             name: "Model",
-//             type: "string",
-//           },
-//           {
-//             val: "Class 1",
-//             name: "Safety Class",
-//             type: "string",
-//           },
-//           {
-//             val: "Operational",
-//             name: "Operating Status",
-//             type: "string",
-//           },
-//           {
-//             val: "2024-10-25T00:00:00Z",
-//             name: "Operational Status Date",
-//             type: "date",
-//           },
-//         ],
-//         revision: "001",
-//         TechnicalParameters: [
-//           {
-//             val: 2100,
-//             unit: "gpm",
-//             name: "FlowRate",
-//             type: "number",
-//           },
-//           {
-//             val: 10,
-//             unit: "MW",
-//             name: "Power",
-//             type: "number",
-//           },
-//         ],
-//       },
-//     ],
-//   },
-//   {
-//     _id: "68d64f9656dd1014cc019241",
-//     unitType: "900 MW",
-//     systemId: "RCS",
-//     "Equipment Id": "RCP-900-012",
-//     "Equipment Name": "Reactor Coolant Pump 900MW",
-//     "Site Equipment Id": "RCP-A-012",
-//     tipRevision: "001A",
-//     equipmentType: "Pump",
-    
-//     revisions: [
-//       {
-//         _id: "68d64f9656dd1014cc019251",
-//         "revision status date": "2010-09-01T00:00:00Z",
-//         "revision status": "PENDING",
-//         edited: {
-//                   "properties": [
-//                      {
-//                         "val": "KSB",
-//                         "name": "Manufacturer",
-//                         "type": "string"
-//                      },
-//                   ],
-//                },
-//         equipmentId: "RCP-900-012",
-//         properties: [
-//           {
-//             val: "Westinghouse",
-//             name: "Manufacturer",
-//             type: "string",
-//           },
-//           {
-//             val: "RCP-900",
-//             name: "Model",
-//             type: "string",
-//           },
-//           {
-//             val: "Class 1",
-//             name: "Safety Class",
-//             type: "string",
-//           },
-//           {
-//             val: "Operational",
-//             name: "Operating Status",
-//             type: "string",
-//           },
-//           {
-//             val: "2024-10-25T00:00:00Z",
-//             name: "Operational Status Date",
-//             type: "date",
-//           },
-//         ],
-//         revision: "001A",
-//         TechnicalParameters: [
-//           {
-//             val: 2100,
-//             unit: "gpm",
-//             name: "FlowRate",
-//             type: "number",
-//           },
-//           {
-//             val: 10,
-//             unit: "MW",
-//             name: "Power",
-//             type: "number",
-//           },
-//         ],
-//       },
-//     ],
-//   },
-// ];
 
 console.log('EC8 matchedRevision', JSON.stringify(matchedRevision, null, 2));
 console.log('EC8 matchedRevision normal', matchedRevision);
