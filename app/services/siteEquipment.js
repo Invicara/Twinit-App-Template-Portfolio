@@ -10,7 +10,7 @@ export async function siteEquipmentService(changes, facilityId, buildingId, equi
   const type = changes?.['EC TYPE'];
   const ecid = changes?.['EC ID'];
 
-      let getUrls = [
+    let getUrls = [
         `${baseOmapiUrl}/engineeringchanges/${ecid}/equipment?facility=${facilityId}&unit=${buildingId}`
       ]
 
@@ -125,7 +125,7 @@ export async function siteEquipmentService(changes, facilityId, buildingId, equi
   const siteEq = getResults?.[0]?.result?._result?.ec?.siteEquipment;
   const refs = getResults?.[0]?.result?._result?.ec?.referenceRevisions;
 
-//   console.log('EC9 siteEq', JSON.stringify(siteEq, null, 2));
+   console.log('EC9 siteEq', siteEq);
   
 //   const latestRevision = siteEq.map(item => {
 //   if (Array.isArray(item.revisions) && item.revisions.length > 0) {
@@ -568,30 +568,46 @@ function mergeReferenceRevisions(refs, siteEq) {
   if (!Array.isArray(refs)) return siteEq;
   if (!Array.isArray(siteEq)) return [];
 
-  refs.forEach(ref => {
-    const matchEq = siteEq.find(se => se['Equipment Id'] === ref.equipmentId);
-    if (!matchEq) return;
+  function toArray(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'object') {
+      return Object.entries(val).map(([name, obj]) => ({ name, ...obj }));
+    }
+    return [];
+  }
 
-    const matchRev = matchEq.revisions?.find(r => r.revision === ref.revision);
-    if (!matchRev) return;
+  return siteEq.map(eq => {
+    const matchRef = refs.find(r => r.equipmentId === eq['Equipment Id'] || r.equipmentId === eq.equipmentId);
+    if (!matchRef) return eq;
 
-    // safe map for tech params
-    matchRev.TechnicalParameters = (matchRev.TechnicalParameters || []).map(tp => {
-      const refParam = (ref.TechnicalParameters || []).find(rtp => rtp.name === tp.name);
+    const eqRev = eq.revisions?.[0];
+    if (!eqRev) return eq;
+
+    const refTech = toArray(matchRef.TechnicalParameters);
+    const refProps = toArray(matchRef.properties);
+
+    const updatedTech = toArray(eqRev.TechnicalParameters).map(tp => {
+      const refParam = refTech.find(rtp => rtp.name === tp.name);
       return refParam ? { ...tp, refVal: refParam.val } : tp;
     });
 
-    // safe map for props
-    matchRev.properties = (matchRev.properties || []).map(p => {
-      if (p.name === 'Manufacturer' || p.name === 'Model') {
-        const refProp = (ref.properties || []).find(rp => rp.name === p.name);
-        return refProp ? { ...p, refVal: refProp.val } : p;
-      }
-      return p;
+    const updatedProps = toArray(eqRev.properties).map(p => {
+      const refProp = refProps.find(rp => rp.name === p.name);
+      return refProp ? { ...p, refVal: refProp.val } : p;
     });
-  });
 
-  return siteEq;
+    return {
+      ...eq,
+      revisions: [
+        {
+          ...eqRev,
+          TechnicalParameters: updatedTech,
+          properties: updatedProps,
+        },
+      ],
+    };
+  });
 }
 
 
@@ -980,7 +996,7 @@ function extractTipRevisionRevisions(refResults) {
         equipmentType: eq.equipmentType,
         systemId: eq.systemId,
         tipRevision: tipRev,
-        revision: matched,   // ✅ only the revision you asked for
+        revision: matched,   
       });
     } else {
       processed.push({
@@ -1044,6 +1060,20 @@ function mergeRefVals(latestVersion, referenceRevisions) {
   });
 }
 
+function toArray(objOrArr) {
+  if (Array.isArray(objOrArr)) return objOrArr;
+  if (objOrArr && typeof objOrArr === 'object') {
+    return Object.entries(objOrArr).map(([name, { val, type, refVal, unit }]) => ({
+      name,
+      val,
+      type,
+      refVal,
+      unit
+    }));
+  }
+  return [];
+}
+
 function mergeEditsIntoEquipments(equipmentList) {
   if (!Array.isArray(equipmentList)) return [];
 
@@ -1053,67 +1083,46 @@ function mergeEditsIntoEquipments(equipmentList) {
     return {
       ...eq,
       revisions: eq.revisions.map(rev => {
-        const isPending = rev['revision status'] === 'PENDING';
+        const edited = rev.edited || eq.edited || {};
+        const original = rev.original || eq.original || {};
 
-        // Always preserve edited/original blocks if present
-        const edited = rev.edited && typeof rev.edited === 'object' ? rev.edited : {};
-        const original = rev.original && typeof rev.original === 'object' ? rev.original : {};
+        const editedProps = toArray(edited.properties);
+        const editedTechs = toArray(edited.TechnicalParameters);
 
-        const editedProps = Array.isArray(edited.properties) ? edited.properties : [];
-        const editedTechs = Array.isArray(edited.TechnicalParameters) ? edited.TechnicalParameters : [];
+        const originalProps = toArray(original.properties);
+        const originalTechs = toArray(original.TechnicalParameters);
 
-        const originalProps = Array.isArray(original.properties) ? original.properties : [];
-        const originalTechs = Array.isArray(original.TechnicalParameters) ? original.TechnicalParameters : [];
+        const props = toArray(rev.properties);
+        const techs = toArray(rev.TechnicalParameters);
 
-        // Properties
-        const mergedProps = (rev.properties || []).map(prop => {
-          if (isPending) {
-            const editMatch = editedProps.find(e => e.name === prop.name);
-            const origMatch = originalProps.find(o => o.name === prop.name);
-
-            if (editMatch) {
-              return {
-                ...prop,
-                val: editMatch.val,      
-                refVal: editMatch.val,    
-                originalVal: origMatch ? origMatch.val : prop.val,
-                isEdited: true
-              };
-            }
+        const mergedProps = props.map(prop => {
+          const match = editedProps.find(e => e.name === prop.name);
+          if (match) {
+            const originalMatch = originalProps.find(o => o.name === prop.name);
+            return {
+              ...prop,
+              originalVal: originalMatch ? originalMatch.val : undefined,
+              isEdited: true
+            };
           }
-          // Non-edited or non-pending
-          return {
-            ...prop,
-            refVal: prop.refVal ?? prop.val
-          };
+          return prop;
         });
 
-        // Technical Parameters
-        const mergedTechs = (rev.TechnicalParameters || []).map(param => {
-          if (isPending) {
-            const editMatch = editedTechs.find(e => e.name === param.name);
-            const origMatch = originalTechs.find(o => o.name === param.name);
-
-            if (editMatch) {
-              return {
-                ...param,
-                val: editMatch.val,
-                refVal: editMatch.val,
-                originalVal: origMatch ? origMatch.val : param.val,
-                isEdited: true
-              };
-            }
+        const mergedTechs = techs.map(param => {
+          const match = editedTechs.find(e => e.name === param.name);
+          if (match) {
+            const originalMatch = originalTechs.find(o => o.name === param.name);
+            return {
+              ...param,
+              originalVal: originalMatch ? originalMatch.val : undefined,
+              isEdited: true
+            };
           }
-          return {
-            ...param,
-            refVal: param.refVal ?? param.val
-          };
+          return param;
         });
 
         return {
           ...rev,
-          edited,
-          original,
           properties: mergedProps,
           TechnicalParameters: mergedTechs
         };
