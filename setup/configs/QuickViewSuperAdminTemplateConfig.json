@@ -18,6 +18,18 @@
       "path": "/engineeringChange",
       "config": {}
     },
+    "modelImport": {
+      "title": "Model Import",
+      "icon": "fas fa-file-import fa-2x",
+      "shortName": "modelimp",
+      "description": "Model Import",
+      "pageComponent": "modelImport/SimpleModelImportView",
+      "path": "/modelimp",
+      "config": {
+        "bimpkUserType": "bimpk_importer",
+        "sgpkUserType": "sgpk_importer"
+      }
+    },
     "modelView": {
       "title": "Model View",
       "icon": "fas fa-building fa-2x",
@@ -27,6 +39,27 @@
       "path": "/modelview",
       "config": {
         "manageFiles": true
+      }
+    },
+    "mapboxSettings": {
+      "title": "Mapbox Settings",
+      "icon": "fas fa-map-marked-alt fa-2x",
+      "pageComponent": "mapboxSettings/MapboxSettingsView",
+      "path": "/mapboxsettings",
+      "config": {}
+    },
+    "userGroups": {
+      "title": "User Group",
+      "actionTitle": "User Group Actions",
+      "icon": "fas fa-users fa-2x",
+      "pageComponent": "users/UserGroupView",
+      "path": "/UserGroupView",
+      "config": {
+        "appUrl": "/",
+        "allowUserGroupEdit": true,
+        "allowUserGroupInvite": true,
+        "allowManageInvites": true,
+        "allowManageUsers": true
       }
     },
     "portfolioOverview": {
@@ -76,6 +109,20 @@
         {
           "page": "Model Comparison",
           "handler": "modelComparison"
+        },
+        {
+          "page": "Model Import",
+          "handler": "modelImport"
+        }
+      ]
+    },
+    "settings": {
+      "icon": "fas fa-tools fa-2x",
+      "position": 4,
+      "pages": [
+        {
+          "page": "Mapbox Settings",
+          "handler": "mapboxSettings"
         }
       ]
     }
@@ -85,7 +132,6 @@
     "appImage": {
       "url": "https://lib.invicara.io/hitachi/Hitachi%20Logo%20white.png"
     },
-    "headerComponent": "components/HeaderBar/HeaderBar",
     "modelSelection": [
       "Facility-A_Unit-01",
       "Facility-A_Unit-02",
@@ -93,6 +139,7 @@
       "Facility-B_Unit-02",
       "ReferenceDesign"
     ],
+    "headerComponent": "components/HeaderBar/HeaderBar",
     "styles": {
       "--app-accent-color": "#C71784",
       "--head-bkg-color": "black",
