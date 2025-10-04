@@ -879,13 +879,21 @@ function EquipmentCard({
 
 const handleEditClick = async () => {
   if (item.isEditing) {
-    onToggleEdit(index);
+    const hasChanges =
+      JSON.stringify(item.properties) !== JSON.stringify(draft.properties) ||
+      JSON.stringify(item.TechnicalParameters) !== JSON.stringify(draft.TechnicalParameters);
 
-    await onSave(index, draft);
+    if (hasChanges) {
+      await onSave(index, draft);
+    } else {
+      console.log('No changes detected, skipping save');
+      onToggleEdit(index); 
+    }
   } else {
     onToggleEdit(index);
   }
 };
+
   return (
     <Paper key={item._id || index} className={classes.card}>
       <div className={classes.headerRow}>
