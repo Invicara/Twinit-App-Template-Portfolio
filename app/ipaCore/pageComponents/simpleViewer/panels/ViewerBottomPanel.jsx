@@ -346,6 +346,8 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
               buildingId,
               equipmentId,
             );
+
+                 console.log('EC new data', items);
             setProperties(
               items.map((el) => ({
                 ...flattenEquipment(el),
@@ -570,6 +572,8 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
           buildingId,
           draft.equipmentId,
         );
+
+   
         setProperties(
           refreshed.map((el) => ({
             ...flattenEquipment(el),
@@ -839,6 +843,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
               // };
 
               const dynamicSchema = buildSchema(prop, editableFields);
+
 
               return (
                 <EquipmentCard
