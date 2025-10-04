@@ -1347,14 +1347,21 @@ function mergeRefVals(latestVersion, referenceRevisions) {
 
     const refRev = ref.revision;
 
+    function toArray(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  // convert object { FlowRate: {...}, Power: {...} } → [{ name: "FlowRate", ...}, { name: "Power", ...}]
+  return Object.entries(val).map(([name, obj]) => ({ name, ...obj }));
+}
+
     // enrich TechnicalParameters
-    const enrichedTech = (lvRev.TechnicalParameters || []).map(tp => {
+    const enrichedTech = toArray(lvRev.TechnicalParameters).map(tp => {
       const refTp = (refRev.TechnicalParameters || []).find(rtp => rtp.name === tp.name);
       return refTp ? { ...tp, refVal: refTp.val } : tp;
     });
 
     // enrich properties
-    const enrichedProps = (lvRev.properties || []).map(prop => {
+    const enrichedProps = toArray(lvRev.properties).map(prop => {
       const refProp = (refRev.properties || []).find(rp => rp.name === prop.name);
       return refProp ? { ...prop, refVal: refProp.val } : prop;
     });
@@ -1402,8 +1409,8 @@ function mergeEditsIntoEquipments(equipmentList) {
             if (editMatch) {
               return {
                 ...prop,
-                val: editMatch.val,          // edited value shown
-                refVal: editMatch.val,       // expected value
+                val: editMatch.val,      
+                refVal: editMatch.val,    
                 originalVal: origMatch ? origMatch.val : prop.val,
                 isEdited: true
               };

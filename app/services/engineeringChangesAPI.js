@@ -319,51 +319,100 @@ export async function treeLevels(facility, unit) {
   }
 }
 
+function cleanForApi(equipment) {
+  const propsArr = Array.isArray(equipment.properties)
+    ? equipment.properties
+    : Object.entries(equipment.properties || {}).map(([name, p]) => ({ name, ...p }));
+
+  const techArr = Array.isArray(equipment.TechnicalParameters)
+    ? equipment.TechnicalParameters
+    : Object.entries(equipment.TechnicalParameters || {}).map(([name, t]) => ({ name, ...t }));
+
+  const cleanProps = propsArr.map(p => ({
+    val: p.val,
+    name: p.name,
+    type: p.type,
+  }));
+
+  const cleanTechs = techArr.map(tp => ({
+    val: tp.val,
+    unit: tp.unit,
+    name: tp.name,
+    type: tp.type,
+  }));
+
+  return {
+    ...equipment,
+    properties: cleanProps,
+    TechnicalParameters: cleanTechs,
+  };
+}
+
 export async function engineeringChangePendingRevision(ECObj) {
   const ctx = IafProj.getCurrent();
-  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`
+  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
 
-  const {facility, unit, equipmentId, siteEquipmentId, properties, TechnicalParameters, username} = ECObj
+  const { facility, unit, equipmentId, siteEquipmentId, properties, TechnicalParameters, username } = ECObj;
 
-   const siteEqurl = {
-      url: `${baseOmapiUrl}/siteequip/pendingrevision`,
-      body: {
-        facility, 
-        unit, 
-        equipmentId, 
-        siteEquipmentId, 
-        properties, 
-        TechnicalParameters, 
-        username
+  // const siteEqurl = {
+  //   url: `${baseOmapiUrl}/siteequip/pendingrevision`,
+  //   body: {
+  //     facility,
+  //     unit,
+  //     equipmentId,
+  //     siteEquipmentId,
+  //     properties,
+  //     TechnicalParameters,
+  //     username
+  //   },
+  // };
+
+  console.log('ECObj', ECObj);
+
+  const cleaned = cleanForApi(ECObj);
+
+    const siteEqurl = {
+    url: `${baseOmapiUrl}/siteequip/pendingrevision`,
+    body: cleaned,
+  };
+
+  try {
+    const response = await fetch(siteEqurl.url, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify(siteEqurl.body),
+    });
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: `Request failed with status ${response.status} ${response.statusText}`,
+      };
+    }
+
+    const result = await response.json();
+
+    if (result?._result?.status === 200) {
+      return {
+        success: true,
+        message: 'Engineering change pending revision created successfully',
+        data: result._result,
+      };
+    } else {
+      return {
+        success: false,
+        message: result?._result?.message || 'Unexpected response from API',
+        data: result,
+      };
+    }
+  } catch (err) {
+    return {
+      success: false,
+      message: err.message,
     };
-
-    const res = JSON.stringify(siteEqurl.body)
-
-
-      // Has not been testing yet, waiting for HIT-91
-  // try {
-  //   let response = await fetch(siteEqurl/url, {
-  //         method: 'POST',
-  //         mode: 'cors',
-  //         headers: {
-  //           Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
-  //           'Content-Type': 'application/json'
-  //         },
-  //        body: JSON.stringify(siteEqurl.body),
-  //     })
-
-  //   if (response.ok) {
-  //     let result = await response.json()
-  //     if (result._result.status === 200) {
-  //         res.push(result._result.ec)
-  //     } else {
-  //         res.push({testUrl, message: `ERROR: OMAPI ${testUrl} call returned status other than 200`})
-  //     }
-  //   } else {
-  //     res.push({testUrl, message: `ERROR: OMAPI ${testUrl} call failed`})
-  //   }
-  // } catch(err) {
-  //     console.log(err)
-  // }
+  }
 }
