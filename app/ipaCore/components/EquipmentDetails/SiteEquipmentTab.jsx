@@ -156,39 +156,42 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
     })
   }
 
-  const handleSearchKeyDown = (e) => {
-    if (e.type === 'keydown' && e.key !== 'Enter') return
-    const query = searchText.trim()
-    if (!query) return
+const handleSearchKeyDown = (e) => {
+  if (e.type === 'keydown' && e.key !== 'Enter') return;
+  const query = searchText.trim();
+  if (!query) return;
 
-    const matchedIds = findNodeAndDescendants(levelData, query)
-
-    setCheckedItems(prev => {
-      const updated = { ...prev }
-      matchedIds.forEach(id => (updated[id] = true))
-
-      const thirdLevelIds = getSelectedThirdLevelIds(levelData, updated)
-      focusLogsInViewer(setSliceElementsByQuery, setSiteEquipment, thirdLevelIds).then((value) => {
-        setRejectedIds(value)
-        if (thirdLevelIds.length > 0) {
-          setIsBottomECPanelOpen(true)
-        }
-      })
-
-      return updated
-    })
-
-    const { checkedItems: cleanedChecked, indeterminateItems: newIndeterminate } =
-    calculateTreeSelectionState(levelData, updated)
-
-    setCheckedItems(cleanedChecked)
-    setIndeterminateItems(newIndeterminate)
-
-    // Expand all parent paths for matches
-    const newExpanded = Array.from(expandAllParents(levelData, matchedIds))
-    setExpanded(newExpanded)
+  // Find matching nodes by name or ID
+  const matchedIds = findNodeAndDescendants(levelData, query);
+  if (!matchedIds.length) {
+    // Optionally clear selections when nothing matches
+    setCheckedItems({});
+    setIndeterminateItems({});
+    setExpanded([]);
+    return;
   }
 
+  // ✅ Clear previous selections — start fresh each time
+  const updated = {};
+  matchedIds.forEach(id => (updated[id] = true));
+
+  // ✅ Recalculate tree state
+  const { checkedItems: cleanedChecked, indeterminateItems: newIndeterminate } =
+    calculateTreeSelectionState(levelData, updated);
+
+  setCheckedItems(cleanedChecked);
+  setIndeterminateItems(newIndeterminate);
+
+  const thirdLevelIds = getSelectedThirdLevelIds(levelData, cleanedChecked);
+  focusLogsInViewer(setSliceElementsByQuery, setSiteEquipment, thirdLevelIds, data)
+    .then((value) => {
+      setRejectedIds(value);
+      if (thirdLevelIds.length > 0) setIsBottomECPanelOpen(true);
+    });
+
+  const newExpanded = Array.from(expandAllParents(levelData, matchedIds));
+  setExpanded(newExpanded);
+};
   const renderTree = nodes =>
     nodes?.map(node => (
       <SiteEquipTreeSearch
