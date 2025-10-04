@@ -79,7 +79,6 @@ const propSchema = schema?.properties?.[key];
      <Box
     ref={rowRef}
     p={0}
-    onBlur={onRowBlur}
     sx={{
       backgroundColor: propSchema?.isEdited ? '#ECF5FB' : 'transparent',
       borderRadius: 1,   

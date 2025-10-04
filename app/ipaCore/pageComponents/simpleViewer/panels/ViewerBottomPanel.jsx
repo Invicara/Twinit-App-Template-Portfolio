@@ -337,31 +337,182 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
     if (isBottomECPanelOpen) setIsOpen(true)
   }, [isBottomECPanelOpen])
 
-  const toggleEdit = (index) => {
-    const facilityId = siteEquipment?.data[0]?.site;
-    const buildingId = siteEquipment?.data[0]?.unit;
-    const siteEquipmentId = siteEquipment?.data[0]?.['Equipment Id'];
-    const userName = siteEquipment?.data[0]?.username;
+//   const toggleEdit = (index) => {
+//     const facilityId = siteEquipment?.data[0]?.site;
+//     const buildingId = siteEquipment?.data[0]?.unit;
+//     const siteEquipmentId = siteEquipment?.data[0]?.['Equipment Id'];
+//     const userName = siteEquipment?.data[0]?.username;
 
-    setProperties(prev =>
-      prev.map((p, i) => {
-        if (i !== index) return p;
+//     setProperties(prev =>
+//       prev.map((p, i) => {
+//         if (i !== index) return p;
 
-        if (p.isEditing) {
-          const updateObject = {
-            facility: facilityId, 
-            unit: buildingId,
-            equipmentId: siteEquipmentId,
-            siteEquipmentId: p.equipmentId,
-            properties: p.properties,
-            TechnicalParameters: p.TechnicalParameters,
-            username: userName
+//         if (p.isEditing) {
+//                 console.log('EC edited', p.properties);
+//           const updateObject = {
+//             facility: facilityId, 
+//             unit: buildingId,
+//             equipmentId: siteEquipmentId,
+//             siteEquipmentId: p.equipmentId,
+//             properties: p.properties,
+//             TechnicalParameters: p.TechnicalParameters,
+//             username: userName
+//           }
+//           //engineeringChangePendingRevision(updateObject)
+//         }
+
+//         return { ...p, isEditing: !p.isEditing };
+//       })
+//   );
+// };
+
+
+// const toggleEdit = (index) => {
+//   setProperties(prev =>
+//     prev.map((p, i) => {
+//       if (i !== index) return p;
+
+//       if (p.isEditing) {
+//         // merge drafts into the actual properties on Save
+//         const draft = drafts[index] || {};
+//         const updated = { ...p };
+
+//         Object.entries(draft).forEach(([field, val]) => {
+//           if (['FlowRate', 'Power'].includes(field)) {
+//             updated.TechnicalParameters = {
+//               ...updated.TechnicalParameters,
+//               [field]: {
+//                 ...updated.TechnicalParameters?.[field],
+//                 val
+//               }
+//             };
+//           } else {
+//             updated.properties = {
+//               ...updated.properties,
+//               [field]: {
+//                 ...updated.properties?.[field],
+//                 val
+//               }
+//             };
+//           }
+//         });
+
+     
+//      //  engineeringChangePendingRevision(updated)
+//       }
+
+//       return { ...p, isEditing: !p.isEditing };
+//     })
+//   );
+
+
+//   setDrafts(prev => {
+//     const newDrafts = { ...prev };
+//     delete newDrafts[index];
+//     return newDrafts;
+//   });
+// };
+
+const handleDraftChange = (index, name, value) => {
+  setDrafts(prev => ({
+    ...prev,
+    [index]: {
+      ...(prev[index] || {}),
+      [name]: value
+    }
+  }));
+};
+
+// on Save toggle
+const toggleEdit = (index) => {
+  setProperties(prev =>
+    prev.map((p, i) => {
+      if (i !== index) return p;
+
+      if (p.isEditing) {
+        // merge draft values into real properties
+        const draft = drafts[index] || {};
+        const updated = { ...p };
+
+        Object.entries(draft).forEach(([field, val]) => {
+          if (['FlowRate', 'Power'].includes(field)) {
+            updated.TechnicalParameters = {
+              ...updated.TechnicalParameters,
+              [field]: {
+                ...updated.TechnicalParameters?.[field],
+                val
+              }
+            };
+          } else {
+            updated.properties = {
+              ...updated.properties,
+              [field]: {
+                ...updated.properties?.[field],
+                val
+              }
+            };
           }
-          engineeringChangePendingRevision(updateObject)
-        }
+        });
 
-        return { ...p, isEditing: !p.isEditing };
-      })
+        console.log('Saving edits', updated);
+        return { ...updated, isEditing: false };
+      }
+
+      return { ...p, isEditing: true };
+    })
+  );
+
+  // clear draft for this row after save
+  setDrafts(prev => {
+    const copy = { ...prev };
+    delete copy[index];
+    return copy;
+  });
+};
+
+const handleSave = async (index, draft) => {
+  const facilityId = siteEquipment?.data[0]?.site;
+  const buildingId = siteEquipment?.data[0]?.unit;
+  const siteEquipmentId = siteEquipment?.data[0]?.['Equipment Id'];
+  const userName = siteEquipment?.data[0]?.username;
+
+  const updateObject = {
+    facility: facilityId,
+    unit: buildingId,
+    equipmentId: siteEquipmentId,
+    siteEquipmentId: draft.equipmentId,
+    properties: draft.properties,
+    TechnicalParameters: draft.TechnicalParameters,
+    username: userName,
+  };
+
+  try {
+    setLoading(true);
+    await engineeringChangePendingRevision(updateObject);
+
+    // 🔹 only reload after saving
+    if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
+      const refreshed = await siteEquipmentService(siteEquipment.EC, facilityId, buildingId, draft.equipmentId);
+      setProperties(refreshed.map(el => ({ ...flattenEquipment(el), isEditing: false })));
+      setData(refreshed);
+    } else {
+      const modelName = selectedModelComposite?._name || '';
+      const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
+      const fac = match ? match[1].toUpperCase() : null;
+      const bld = match ? match[2] : null;
+      const refreshed = await siteEquipmentForTreeService(fac, bld, siteEquipment?.data);
+      setProperties(refreshed.map(el => ({ ...flattenEquipment(el), isEditing: false })));
+      setData(refreshed);
+    }
+  } finally {
+    setLoading(false);
+  }
+};
+
+// keep your existing toggleEdit but don’t call the API here anymore
+const onToggleEdit = (idx) => {
+  setProperties(prev =>
+    prev.map((p, i) => (i === idx ? { ...p, isEditing: !p.isEditing } : p))
   );
 };
 
@@ -381,6 +532,9 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
   return newObj
 }
 
+const [drafts, setDrafts] = useState({}); 
+
+
 const handleReject = async (item) => {
 
 
@@ -393,10 +547,10 @@ const handleReject = async (item) => {
     setLoading(true);
 
     const res = await rejectPendingRevision(facilityId, buildingId, item.equipmentId, item.revision);
-    console.log('Reject success:', res);
+  
 
     if (res.success) {
-
+  console.log('Reject success:', res);
       if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
         // EC mode
         const refreshed = await siteEquipmentService(
@@ -525,15 +679,7 @@ const handleChange = (index, name, value) => {
           ) : properties && properties.length > 0 ? (
       properties.map((prop, index) => {
 
-        console.log('DEBUG PROP', {
-  id: prop._id,
-  revision: prop.revision,
-  status: prop['revision status'],
-  edited: prop.edited
-});
-
        
-
           const editRequests = countEdits(prop.edited);
             const hasEdits = editRequests > 0;
 
@@ -580,94 +726,16 @@ const handleChange = (index, name, value) => {
    const dynamicSchema = buildSchema(prop, editableFields);
 
         return (
-          <Paper key={prop._id || index} className={classes.card}>
-          <div className={classes.headerRow}>
-  <Typography variant='subtitle1' style={{ fontWeight: 'bold' }}>
-    Current Properties: {prop.siteEquipmentId || prop.equipmentId} ({prop.revision})
-  </Typography>
-
-  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-  <Button
-  className={classes.editButton}
-  size="small"
-  startIcon={prop.isEditing ? <SaveIcon fontSize="small" /> : <EditIcon fontSize="small" />}
-  onClick={() => toggleEdit(index)}
-  style={{
-    padding: '6px 14px',   
-    minHeight: 34,       
-    fontSize: '0.85rem',
-    marginLeft: '4px'
-  }}
->
-  {prop.isEditing ? 'Save' : 'Edit'}
-</Button>
-  {hasEdits && (
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      backgroundColor: '#e6f0fa',
-      padding: '3px 8px', 
-      borderRadius: 6,
-      height: 28,          
-    }}
-  >
-    <Typography
-      style={{
-        fontWeight: 600,
-        fontSize: '0.8rem', 
-        color: '#1976d2',
-        marginRight: 8,
-        lineHeight: 1.2,
-      }}
-    >
-      Edit Requests ({editRequests})
-    </Typography>
-
-    <Typography
-      style={{
-        fontSize: '0.8rem',
-        color: '#1976d2',
-        cursor: 'pointer',
-        marginRight: 6,
-        lineHeight: 1.2,
-      }}
-      onClick={() => handleReject(prop)}
-    >
-      Reject
-    </Typography>
-
-    <Divider orientation="vertical" flexItem style={{ margin: '0 6px', height: 16 }} />
-
-    <Typography
-      style={{
-        fontSize: '0.8rem',
-        color: '#1976d2',
-        cursor: 'pointer',
-        marginRight: 6,
-        lineHeight: 1.2,
-      }}
-      onClick={() => handleApprove(prop)}
-    >
-      Approve
-    </Typography>
-
-    <AssignmentLateIcon style={{ color: '#1976d2', fontSize: 18 }} />
-  </div>
-)}
-
-  </div>
-</div>
-
-            <InfoComponent
-               entity={prop}
-              type={dynamicSchema}   
-              entityType="equipment"
-              hidePropertyActions={true}
-              disabled={!prop.isEditing} 
-              handleChange={(val, name) => handleChange(index, name, val)}
-            />
-          </Paper>
+            <EquipmentCard
+      key={`${prop.equipmentId}-${prop.revision}-${index}`}
+      classes={classes}
+      item={prop}
+      index={index}
+      onSave={handleSave}
+      onToggleEdit={onToggleEdit}
+      onApprove={handleApprove}
+      onReject={handleReject}
+    />
         )
       })
     ) : (
@@ -743,3 +811,146 @@ function countEdits(edited) {
   }, 0);
 }
 
+
+
+function EquipmentCard({
+  classes,
+  item,         
+  index,
+  onSave,         
+  onToggleEdit,  
+  onApprove,      
+  onReject,        
+}) {
+  const [draft, setDraft] = React.useState(item);
+  const wasEditingRef = React.useRef(item.isEditing);
+
+  React.useEffect(() => {
+    if (!wasEditingRef.current && item.isEditing) {
+      setDraft(item);
+    }
+    wasEditingRef.current = item.isEditing;
+  }, [item.isEditing, item]); 
+
+  const editableFields = item.isEditing
+    ? ['Manufacturer', 'Model', 'FlowRate', 'Power']
+    : [];
+
+  const dynamicSchema = React.useMemo(
+    () => buildSchema(item, editableFields),
+    [item, item.isEditing] 
+  );
+
+  const handleLocalChange = (val, name) => {
+    setDraft(prev => {
+      let next = { ...prev, [name]: val };
+
+      if (['FlowRate', 'Power'].includes(name)) {
+        next = {
+          ...next,
+          TechnicalParameters: {
+            ...prev.TechnicalParameters,
+            [name]: {
+              ...prev.TechnicalParameters?.[name],
+              val,
+            },
+          },
+        };
+      } else {
+        next = {
+          ...next,
+          properties: {
+            ...prev.properties,
+            [name]: {
+              ...prev.properties?.[name],
+              val,
+            },
+          },
+        };
+      }
+      return next;
+    });
+  };
+
+  const editRequests = countEdits(item.edited);
+  const hasEdits = editRequests > 0;
+  const showEditRequests =
+    item.revision?.endsWith('A') && item['revision status'] === 'PENDING';
+
+const handleEditClick = async () => {
+  if (item.isEditing) {
+    onToggleEdit(index);
+
+    await onSave(index, draft);
+  } else {
+    onToggleEdit(index);
+  }
+};
+  return (
+    <Paper key={item._id || index} className={classes.card}>
+      <div className={classes.headerRow}>
+        <Typography variant='subtitle1' style={{ fontWeight: 'bold' }}>
+          Current Properties: {item.siteEquipmentId || item.equipmentId} ({item.revision})
+        </Typography>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Button
+            className={classes.editButton}
+            size="small"
+            startIcon={item.isEditing ? <SaveIcon fontSize="small" /> : <EditIcon fontSize="small" />}
+            onClick={handleEditClick}
+            style={{ padding: '6px 14px', minHeight: 34, fontSize: '0.85rem', marginLeft: '4px' }}
+          >
+            {item.isEditing ? 'Save' : 'Edit'}
+          </Button>
+
+          {hasEdits && showEditRequests && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                backgroundColor: '#e6f0fa',
+                padding: '3px 8px',
+                borderRadius: 6,
+                height: 28,
+              }}
+            >
+              <Typography
+                style={{ fontWeight: 600, fontSize: '0.8rem', color: '#1976d2', marginRight: 8, lineHeight: 1.2 }}
+              >
+                Edit Requests ({editRequests})
+              </Typography>
+
+              <Typography
+                style={{ fontSize: '0.8rem', color: '#1976d2', cursor: 'pointer', marginRight: 6, lineHeight: 1.2 }}
+                onClick={() => onReject(item)}
+              >
+                Reject
+              </Typography>
+
+              <Divider orientation="vertical" flexItem style={{ margin: '0 6px', height: 16 }} />
+
+              <Typography
+                style={{ fontSize: '0.8rem', color: '#1976d2', cursor: 'pointer', marginRight: 6, lineHeight: 1.2 }}
+                onClick={() => onApprove(item)}
+              >
+                Approve
+              </Typography>
+
+              <AssignmentLateIcon style={{ color: '#1976d2', fontSize: 18 }} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <InfoComponent
+        entity={item.isEditing ? draft : item}       // <- use draft while editing
+        type={dynamicSchema}
+        entityType="equipment"
+        hidePropertyActions={true}
+        disabled={!item.isEditing}
+        handleChange={handleLocalChange}
+      />
+    </Paper>
+  );
+}

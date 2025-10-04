@@ -131,7 +131,7 @@ export default function SearchPanel({
                     ? matchingValue
                     : defaultForField(key, cfg);
             }
-            debugger;
+            // debugger;
             return next;
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
