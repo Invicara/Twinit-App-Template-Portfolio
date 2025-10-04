@@ -122,8 +122,10 @@ export async function siteEquipmentService(changes, facilityId, buildingId, equi
   
   const res = results?.[0]?.result?._result?.equipment?._list?.[0];
 
-  const siteEq = getResults?.[0]?.result?._result?.ec?.siteEquipment;
+//   const siteEq = getResults?.[0]?.result?._result?.ec?.siteEquipment;
   const refs = getResults?.[0]?.result?._result?.ec?.referenceRevisions;
+
+//   console.log('EC9 siteEq', JSON.stringify(siteEq, null, 2));
   
 //   const latestRevision = siteEq.map(item => {
 //   if (Array.isArray(item.revisions) && item.revisions.length > 0) {
@@ -134,7 +136,383 @@ export async function siteEquipmentService(changes, facilityId, buildingId, equi
 //   }
 //   return item
 // })
-
+const siteEq = [
+  {
+    "_id": "68dedc2e56dd1014cc0874ca",
+    "unitType": "900 MW",
+    "systemId": "RCS",
+    "Equipment Id": "RCP-900-011",
+    "Equipment Name": "Reactor Coolant Pump 900MW",
+    "Site Equipment Id": "RCP-B-021",
+    "tipRevision": "001",
+    "equipmentType": "Pump",
+    "revisions": [
+      {
+        "_id": "68dedc2e56dd1014cc0874da",
+        "revision status date": "2011-03-15T00:00:00Z",
+        "revision status": "ISSUED",
+        "equipmentId": "RCP-900-011",
+        "properties": [
+          {
+            "val": "Westinghouse",
+            "name": "Manufacturer",
+            "type": "string"
+          },
+          {
+            "val": "RCP-900",
+            "name": "Model",
+            "type": "string"
+          },
+          {
+            "val": "Class 1",
+            "name": "Safety Class",
+            "type": "string"
+          },
+          {
+            "val": "Operational",
+            "name": "Operating Status",
+            "type": "string"
+          },
+          {
+            "val": "2025-01-22T00:00:00Z",
+            "name": "Operational Status Date",
+            "type": "date"
+          }
+        ],
+        "revision": "001",
+        "TechnicalParameters": [
+          {
+            "val": 2100,
+            "unit": "gpm",
+            "name": "FlowRate",
+            "type": "number"
+          },
+          {
+            "val": 10,
+            "unit": "MW",
+            "name": "Power",
+            "type": "number"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "_id": "68dedc2e56dd1014cc0874cd",
+    "unitType": "900 MW",
+    "systemId": "RCS",
+    "Equipment Id": "RCP-900-014",
+    "Equipment Name": "Reactor Coolant Pump 900MW",
+    "Site Equipment Id": "RCP-B-024",
+    "tipRevision": "001A",
+    "equipmentType": "Pump",
+    "revisions": [
+      {
+        "_id": "68e0271356dd1014cc097904",
+        "revision status date": "2025-10-03T00:00:00.000Z",
+        "revision status": "PENDING",
+        "equipmentId": "RCP-900-014",
+        "original": {
+            "properties": [
+               {
+                  "val": "Westinghouse",
+                  "name": "Manufacturer",
+                  "type": "string"
+               },
+               {
+                  "val": "RCP-900",
+                  "name": "Model",
+                  "type": "string"
+               },
+               {
+                  "val": "Class 1",
+                  "name": "Safety Class",
+                  "type": "string"
+               },
+               {
+                  "val": "Operational",
+                  "name": "Operating Status",
+                  "type": "string"
+               },
+               {
+                  "val": "2025-01-22T00:00:00Z",
+                  "name": "Operational Status Date",
+                  "type": "date"
+               }
+            ],
+            "TechnicalParameters": [
+               {
+                  "val": 2100,
+                  "unit": "gpm",
+                  "name": "FlowRate",
+                  "type": "number"
+               },
+               {
+                  "val": 10,
+                  "unit": "MW",
+                  "name": "Power",
+                  "type": "number"
+               }
+            ]
+         },
+         "edited": {
+            "properties": [
+               {
+                  "val": "KSB",
+                  "name": "Manufacturer",
+                  "type": "string"
+               },
+               {
+                  "val": "RSR",
+                  "name": "Model",
+                  "type": "string"
+               },
+            //    {
+            //       "val": "2024-10-25T00:00:00Z",
+            //       "name": "Operational Status Date",
+            //       "type": "date"
+            //    }
+            ],
+         },
+        "properties": [
+          {
+            "val": "KSB",
+            "name": "Manufacturer",
+            "type": "string"
+          },
+          {
+            "val": "RSR",
+            "name": "Model",
+            "type": "string"
+          },
+          {
+            "val": "Class 1",
+            "name": "Safety Class",
+            "type": "string"
+          },
+          {
+            "val": "Operational",
+            "name": "Operating Status",
+            "type": "string"
+          },
+          {
+            "val": "2024-10-25T00:00:00Z",
+            "name": "Operational Status Date",
+            "type": "date"
+          }
+        ],
+        "revision": "001A",
+        "TechnicalParameters": [
+          {
+            "val": 2800,
+            "unit": "gpm",
+            "name": "FlowRate",
+            "type": "number"
+          },
+          {
+            "val": 18,
+            "unit": "MW",
+            "name": "Power",
+            "type": "number"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "_id": "68dedc2e56dd1014cc0874cb",
+    "unitType": "900 MW",
+    "systemId": "RCS",
+    "Equipment Id": "RCP-900-012",
+    "Equipment Name": "Reactor Coolant Pump 900MW",
+    "Site Equipment Id": "RCP-B-022",
+    "tipRevision": "001",
+    "equipmentType": "Pump",
+    "revisions": [
+      {
+        "_id": "68dedc2e56dd1014cc0874db",
+        "revision status date": "2011-03-15T00:00:00Z",
+        "revision status": "ISSUED",
+        "equipmentId": "RCP-900-012",
+        "properties": [
+          {
+            "val": "Westinghouse",
+            "name": "Manufacturer",
+            "type": "string"
+          },
+          {
+            "val": "RCP-900",
+            "name": "Model",
+            "type": "string"
+          },
+          {
+            "val": "Class 1",
+            "name": "Safety Class",
+            "type": "string"
+          },
+          {
+            "val": "Operational",
+            "name": "Operating Status",
+            "type": "string"
+          },
+          {
+            "val": "2025-01-22T00:00:00Z",
+            "name": "Operational Status Date",
+            "type": "date"
+          }
+        ],
+        "revision": "001",
+        "TechnicalParameters": [
+          {
+            "val": 2100,
+            "unit": "gpm",
+            "name": "FlowRate",
+            "type": "number"
+          },
+          {
+            "val": 10,
+            "unit": "MW",
+            "name": "Power",
+            "type": "number"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "_id": "68dedc2e56dd1014cc0874cc",
+    "unitType": "900 MW",
+    "systemId": "RCS",
+    "Equipment Id": "RCP-900-013",
+    "Equipment Name": "Reactor Coolant Pump 900MW",
+    "Site Equipment Id": "RCP-B-023",
+    "tipRevision": "001A",
+    "equipmentType": "Pump",
+    
+    "revisions": [
+      {
+        "_id": "68e0148d277eea0741e299ae",
+        "revision status date": "2025-10-03T00:00:00.000Z",
+        "revision status": "PENDING",
+        "equipmentId": "RCP-900-013",
+        //edited and original property arrays should be here somewhere
+        "original": {
+            "properties": [
+               {
+                  "val": "Westinghouse",
+                  "name": "Manufacturer",
+                  "type": "string"
+               },
+               {
+                  "val": "RCP-900",
+                  "name": "Model",
+                  "type": "string"
+               },
+               {
+                  "val": "Class 1",
+                  "name": "Safety Class",
+                  "type": "string"
+               },
+               {
+                  "val": "Operational",
+                  "name": "Operating Status",
+                  "type": "string"
+               },
+               {
+                  "val": "2025-01-22T00:00:00Z",
+                  "name": "Operational Status Date",
+                  "type": "date"
+               }
+            ],
+            "TechnicalParameters": [
+               {
+                  "val": 2100,
+                  "unit": "gpm",
+                  "name": "FlowRate",
+                  "type": "number"
+               },
+               {
+                  "val": 10,
+                  "unit": "MW",
+                  "name": "Power",
+                  "type": "number"
+               }
+            ]
+         },
+         "edited": {
+            "properties": [
+               {
+                  "val": "KSB",
+                  "name": "Manufacturer",
+                  "type": "string"
+               },
+               {
+                  "val": "RSR",
+                  "name": "Model",
+                  "type": "string"
+               },
+            ],
+            "TechnicalParameters": [
+               {
+                  "val": 2800,
+                  "unit": "gpm",
+                  "name": "FlowRate",
+                  "type": "number"
+               },
+               {
+                  "val": 18,
+                  "unit": "MW",
+                  "name": "Power",
+                  "type": "number"
+               }
+            ]
+         },
+        "properties": [
+          {
+            "val": "KSB",
+            "name": "Manufacturer",
+            "type": "string"
+          },
+          {
+            "val": "RSR",
+            "name": "Model",
+            "type": "string"
+          },
+          {
+            "val": "Class 1",
+            "name": "Safety Class",
+            "type": "string"
+          },
+          {
+            "val": "Operational",
+            "name": "Operating Status",
+            "type": "string"
+          },
+          {
+            "val": "2024-10-25T00:00:00Z",
+            "name": "Operational Status Date",
+            "type": "date"
+          }
+        ],
+        "revision": "001A",
+        "TechnicalParameters": [
+          {
+            "val": 2800,
+            "unit": "gpm",
+            "name": "FlowRate",
+            "type": "number"
+          },
+          {
+            "val": 18,
+            "unit": "MW",
+            "name": "Power",
+            "type": "number"
+          }
+        ]
+      }
+    ]
+  }
+]
 
 
 const matchedRevision = siteEq?.map(item => {
@@ -486,21 +864,39 @@ const matchedRevision = siteEq?.map(item => {
 // ];
 
 console.log('EC8 matchedRevision', JSON.stringify(matchedRevision, null, 2));
+console.log('EC8 matchedRevision normal', matchedRevision);
 
-const normalized = (matchedRevision || []).map(eq => {
-  return {
-    ...eq,
-    revisions: eq.revisions.map(rev => ({
-      ...rev,
-      edited: rev.edited || eq.edited || {},
-      original: rev.original || eq.original || {}
-    }))
-  };
-});
+function normalizeEC(siteEq) {
+  return (siteEq || []).map(eq => {
+    const tip = eq.tipRevision ?? eq.tiprevision ?? eq.TipRevision ?? eq.tipVersion;
+    const revisions = Array.isArray(eq.revisions) ? eq.revisions : [];
+    const chosen = revisions.find(r => String(r.revision).trim() === String(tip).trim())
+      || revisions[revisions.length - 1];
 
-  const mergeSiteRefs = mergeReferenceRevisions(refs, normalized);
-  const mergedEdits = mergeEditsIntoEquipments(mergeSiteRefs);
-  return mergedEdits;
+    return {
+      ...eq,
+      revisions: [
+        {
+          ...chosen,
+          // always preserve top-level edited/original if present
+          edited: chosen?.edited || eq?.edited || null,
+          original: chosen?.original || eq?.original || null,
+        },
+      ],
+    };
+  });
+}
+
+const normalized = normalizeEC(matchedRevision);
+
+console.log('After normalizeEC', JSON.stringify(normalized, null, 2));
+
+const mergeSiteRefs = mergeReferenceRevisions(refs, normalized);
+const mergedEdits = mergeEditsIntoEquipments(mergeSiteRefs);
+
+console.log('After mergeEditsIntoEquipments', JSON.stringify(mergedEdits, null, 2));
+
+return mergedEdits;
 }
 
 function mergeReferenceRevisions(refs, siteEq) {
@@ -869,7 +1265,7 @@ const latestVersion = pickTipRevision(results);
 
 const mergedRefVals = mergeRefVals(latestVersion, referenceRevisions);
 const mergedWithEdits = mergeEditsIntoEquipments(mergedRefVals);
-
+console.log('After mergeEditsIntoEquipments two', JSON.stringify(mergedWithEdits, null, 2));
 return mergedWithEdits;
 
 }
@@ -985,47 +1381,67 @@ function mergeEditsIntoEquipments(equipmentList) {
     return {
       ...eq,
       revisions: eq.revisions.map(rev => {
-     
-        const edited = rev.edited || eq.edited || {};
-        const original = rev.original || eq.original || {};
+        const isPending = rev['revision status'] === 'PENDING';
+
+        // Always preserve edited/original blocks if present
+        const edited = rev.edited && typeof rev.edited === 'object' ? rev.edited : {};
+        const original = rev.original && typeof rev.original === 'object' ? rev.original : {};
+
         const editedProps = Array.isArray(edited.properties) ? edited.properties : [];
         const editedTechs = Array.isArray(edited.TechnicalParameters) ? edited.TechnicalParameters : [];
 
         const originalProps = Array.isArray(original.properties) ? original.properties : [];
         const originalTechs = Array.isArray(original.TechnicalParameters) ? original.TechnicalParameters : [];
 
-        const mergedProps = Array.isArray(rev.properties)
-          ? rev.properties.map(prop => {
-              const match = editedProps.find(e => e.name === prop.name);
-              if (match) {
-                const originalMatch = originalProps.find(o => o.name === prop.name);
-                return {
-                  ...prop,
-                  originalVal: originalMatch ? originalMatch.val : undefined,
-                  isEdited: true
-                };
-              }
-              return prop;
-            })
-          : [];
+        // Properties
+        const mergedProps = (rev.properties || []).map(prop => {
+          if (isPending) {
+            const editMatch = editedProps.find(e => e.name === prop.name);
+            const origMatch = originalProps.find(o => o.name === prop.name);
 
-        const mergedTechs = Array.isArray(rev.TechnicalParameters)
-          ? rev.TechnicalParameters.map(param => {
-              const match = editedTechs.find(e => e.name === param.name);
-              if (match) {
-                const originalMatch = originalTechs.find(o => o.name === param.name);
-                return {
-                  ...param,
-                  originalVal: originalMatch ? originalMatch.val : undefined,
-                  isEdited: true
-                };
-              }
-              return param;
-            })
-          : [];
+            if (editMatch) {
+              return {
+                ...prop,
+                val: editMatch.val,          // edited value shown
+                refVal: editMatch.val,       // expected value
+                originalVal: origMatch ? origMatch.val : prop.val,
+                isEdited: true
+              };
+            }
+          }
+          // Non-edited or non-pending
+          return {
+            ...prop,
+            refVal: prop.refVal ?? prop.val
+          };
+        });
+
+        // Technical Parameters
+        const mergedTechs = (rev.TechnicalParameters || []).map(param => {
+          if (isPending) {
+            const editMatch = editedTechs.find(e => e.name === param.name);
+            const origMatch = originalTechs.find(o => o.name === param.name);
+
+            if (editMatch) {
+              return {
+                ...param,
+                val: editMatch.val,
+                refVal: editMatch.val,
+                originalVal: origMatch ? origMatch.val : param.val,
+                isEdited: true
+              };
+            }
+          }
+          return {
+            ...param,
+            refVal: param.refVal ?? param.val
+          };
+        });
 
         return {
           ...rev,
+          edited,
+          original,
           properties: mergedProps,
           TechnicalParameters: mergedTechs
         };
@@ -1033,7 +1449,6 @@ function mergeEditsIntoEquipments(equipmentList) {
     };
   });
 }
-
 export async function rejectPendingRevision(facilityId, buildingId, equipmentId, revisionId) {
   const ctx = IafProj.getCurrent();  // don’t forget ctx
   const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
@@ -1045,7 +1460,7 @@ export async function rejectPendingRevision(facilityId, buildingId, equipmentId,
       method: "DELETE",
       mode: "cors",
       headers: {
-        Authorization: "Bearer " + ctx.authToken,
+        Authorization: "Bearer " + IafSession.getAuthToken(ctx),
         "Content-Type": "application/json",
       },
     });
@@ -1098,7 +1513,7 @@ export async function approvePendingRevision(revision, facilityId, buildingId, e
       method: 'POST',
       mode: 'cors',
       headers: {
-        Authorization: `Bearer ${ctx.authToken}`,
+        Authorization: "Bearer " + IafSession.getAuthToken(ctx),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(siteEqUrl.body)
