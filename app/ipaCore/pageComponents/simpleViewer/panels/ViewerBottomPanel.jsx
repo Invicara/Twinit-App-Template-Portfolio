@@ -32,15 +32,13 @@ function Alert(props) {
 
 const useStyles = makeStyles((theme) => ({
   panel: {
-    position: "absolute",
-    bottom: 0,
-    left: 360,
-    right: 0,
-    backgroundColor: "#fff",
-    boxShadow: "0 -2px 8px rgba(0,0,0,0.2)",
-    display: "flex",
-    flexDirection: "column",
-    transition: "height 0.3s ease",
+    position: 'absolute',
+  bottom: 0,
+  backgroundColor: '#fff',
+  boxShadow: '0 -2px 8px rgba(0,0,0,0.2)',
+  display: 'flex',
+  flexDirection: 'column',
+  transition: 'left 0.3s ease, width 0.3s ease, height 0.3s ease',
   },
   handle: {
     height: 32,
@@ -303,7 +301,7 @@ function buildSchema(flat, editableFields = []) {
   };
 }
 
-const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
+const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
   const [toast, setToast] = useState({
     open: false,
     severity: "error",
@@ -787,7 +785,14 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
   if (!isBottomECPanelOpen) return null;
 
   return (
-    <div className={classes.panel} style={{ height: isOpen ? 350 : 32 }}>
+    <div 
+        className={classes.panel} 
+        style={{
+            height: isOpen ? 350 : 32,
+            left: isSidePanelOpen ? 360 : 0, 
+            right: 0,
+        }}
+    >
       <div className={classes.handle} onClick={() => setIsOpen(!isOpen)}>
         {isOpen ? <KeyboardArrowDown /> : <KeyboardArrowUp />}
       </div>

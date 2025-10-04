@@ -101,6 +101,26 @@ const SimpleViewerView = ({ handler }) => {
     setBottomECPanelIsOpen(!isBottomECPanelOpen)
   }
 
+const [isAnyDrawerOpen, setIsAnyDrawerOpen] = useState(false);
+
+useEffect(() => {
+  const observer = new MutationObserver(() => {
+    // check if any drawer content is open
+    const anyOpen = !!document.querySelector('.drawer .drawer-content-open');
+    setIsAnyDrawerOpen(anyOpen);
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+  });
+
+  return () => observer.disconnect();
+}, []);
+
+
+
   const [docView, setDocView] = useState()
   const [mapboxToken, setMapboxToken] = useState()
   const [modelComposition, setModelComposition] = useState({
@@ -240,7 +260,7 @@ const SimpleViewerView = ({ handler }) => {
                   />
                 )}
               </div>
-              <ViewerBottomPanel isBottomECPanelOpen={isBottomECPanelOpen} items={dataExample}/>
+              <ViewerBottomPanel isBottomECPanelOpen={isBottomECPanelOpen} items={dataExample} isSidePanelOpen={isAnyDrawerOpen}/>
             </div>
           </div>
         </Panel>
