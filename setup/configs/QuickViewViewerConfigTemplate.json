@@ -1,14 +1,5 @@
 {
   "handlers": {
-    "modelComparison": {
-      "title": "Model Comparison",
-      "icon": "fa fa-clone fa-2x",
-      "shortName": "modelComparison",
-      "description": "Model Comparison",
-      "pageComponent": "modelComparison/ModelComparisonView",
-      "path": "/modelcomparison",
-      "config": {}
-    },
     "modelView": {
       "title": "Model View",
       "icon": "fas fa-building fa-2x",
@@ -51,19 +42,23 @@
         {
           "page": "Model View",
           "handler": "modelView"
-        },
-        {
-          "page": "Model Comparison",
-          "handler": "modelComparison"
         }
       ]
     }
   },
   "settings": {
-    "appTitle": "Quick Model View",
-    "appImage": { "url": "https://lib.invicara.io/hitachi/Hitachi%20Logo%20white.png" },
+    "appTitle": "Fleet Management",
+    "appImage": {
+      "url": "https://lib.invicara.io/hitachi/Hitachi%20Logo%20white.png"
+    },
     "headerComponent": "components/HeaderBar/HeaderBar",
-    "modelSelection": [],
+    "modelSelection": [
+      "Facility-A_Unit-01",
+      "Facility-A_Unit-02",
+      "Facility-B_Unit-01",
+      "Facility-B_Unit-02",
+      "ReferenceDesign"
+    ],
     "styles": {
       "--app-accent-color": "#C71784",
       "--head-bkg-color": "black",
