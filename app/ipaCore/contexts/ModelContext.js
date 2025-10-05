@@ -45,6 +45,8 @@ const ModelContextProvider = ({ children, project, appContext }) => {
    // setSliceElements: <function> the function to set the sliceElements
    const [sliceElements, setSliceElements] = useState([])
 
+   const [refreshECTrigger, setRefreshECTrigger] = useState(0);
+
 
    const [isBottomECPanelOpen, setIsBottomECPanelOpen] = useState(false);
    const [siteEquipment, setSiteEquipment] = useState([]);
@@ -663,6 +665,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          setSelectedPropRefs,
          getElementCount,
          sliceElements,
+         refreshECTrigger,
          setSliceElements,
          setSliceElementsByQuery,
          setSelectedElement,
@@ -670,6 +673,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          getTotalElementCount,
          setIsBottomECPanelOpen,
          setSiteEquipment,
+         setRefreshECTrigger,
          project,
          appContext,
       }
@@ -684,6 +688,7 @@ const ModelContextProvider = ({ children, project, appContext }) => {
       allPropRefs,
       selectedPropRefs,
       isBottomECPanelOpen, 
+      refreshECTrigger,
       siteEquipment,
       sliceElements,
       project,

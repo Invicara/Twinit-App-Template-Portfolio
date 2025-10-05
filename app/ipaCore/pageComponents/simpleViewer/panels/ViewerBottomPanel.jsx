@@ -167,26 +167,6 @@ function normalizeTechParams(arrOrObj) {
   return arrOrObj;
 }
 
-// function flattenEquipment(e) {
-//   const props = normalizeProperties(e.properties);
-//   const tech = normalizeTechParams(e.TechnicalParameters);
-
-//   return {
-//     _id: e._id,
-//     equipmentId: e.equipmentId,
-//     siteEquipmentId: e.siteEquipmentId,
-//     equipmentType: e.equipmentType,
-//     revision: e.revision,
-//     Manufacturer: props?.Manufacturer?.val || '',
-//     Model: props?.Model?.val || '',
-//     'Safety Class': props?.['Safety Class']?.val || '',
-//     'Operating Status': props?.['Operating Status']?.val || '',
-//     'Operational Status Date': props?.['Operational Status Date']?.val || '',
-//     FlowRate: tech?.FlowRate?.val || '',
-//     Power: tech?.Power?.val || '',
-//   };
-// }
-
 function flattenEquipment(siteEq) {
   const rev = Array.isArray(siteEq.revisions)
     ? siteEq.revisions[0]
@@ -194,7 +174,6 @@ function flattenEquipment(siteEq) {
 
   if (!rev) return {};
 
-  // 🔹 Merge in any edits first
   const mergedRev = rev;
 
   const props = normalizeProperties(mergedRev.properties);
@@ -215,28 +194,6 @@ function flattenEquipment(siteEq) {
     "revision status": mergedRev["revision status"] || "",
   };
 }
-
-const equipmentSchema = {
-  type: "object",
-  properties: {
-    equipmentId: { type: "string", title: "Name id" }, // custom label
-    Model: { type: "string", title: "Model" },
-    equipmentType: { type: "string", title: "Equipment Type" },
-    Manufacturer: { type: "string", title: "Manufacturer" },
-    "Safety Class": { type: "string", title: "Safety Class" },
-    FlowRate: { type: "string", title: "Flow Rate" },
-    Power: { type: "string", title: "Power" },
-  },
-  required: [
-    "equipmentId",
-    "Model",
-    "equipmentType",
-    "Manufacturer",
-    "Safety Class",
-    "FlowRate",
-    "Power",
-  ],
-};
 
 function buildSchema(flat, editableFields = []) {
   const allowedOrder = [
@@ -261,7 +218,6 @@ function buildSchema(flat, editableFields = []) {
       readOnly: !isEditable,
     };
 
-    // 🔹 Merge both TechnicalParameters + properties metadata
     const techMeta = flat.TechnicalParameters?.[key];
     const propMeta = flat.properties?.[key];
 
@@ -283,7 +239,7 @@ function buildSchema(flat, editableFields = []) {
 
       if (isEdited) {
         schema.isEdited = true;
-        schema.displayValue = rawVal; // show only current value, hide Expected text
+        schema.displayValue = rawVal; 
       } else if (refVal !== undefined && rawVal !== refVal) {
         schema.isMismatched = true;
         schema.displayValue = `${rawVal} (Expected: ${refVal})`;
@@ -308,8 +264,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
     message: "",
   });
   const classes = useStyles();
-  const { sliceElements, siteEquipment, selectedModelComposite } =
-    useContext(ModelContext);
+  const { sliceElements, siteEquipment, selectedModelComposite, setRefreshECTrigger } = useContext(ModelContext);
   const [isOpen, setIsOpen] = useState(false);
   const [properties, setProperties] = useState([]);
   const [data, setData] = useState(null);
@@ -562,6 +517,9 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
 
       console.log("Save success:", res.data);
 
+
+        setRefreshECTrigger(prev => prev + 1);
+
       // only reload after a successful save
       if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
         const refreshed = await siteEquipmentService(
@@ -570,8 +528,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
           buildingId,
           draft.equipmentId,
         );
-
-   
+        
         setProperties(
           refreshed.map((el) => ({
             ...flattenEquipment(el),
@@ -612,21 +569,6 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
     );
   };
 
-  const setDeepValue = (obj, path, value) => {
-    const keys = path.split(".");
-    const newObj = { ...obj };
-    let cur = newObj;
-    keys.forEach((k, i) => {
-      if (i === keys.length - 1) {
-        cur[k] = value;
-      } else {
-        cur[k] = { ...cur[k] };
-        cur = cur[k];
-      }
-    });
-    return newObj;
-  };
-
   const [drafts, setDrafts] = useState({});
 
   const handleReject = async (item) => {
@@ -647,8 +589,9 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
 
       if (res.success) {
         console.log("Reject success:", res);
+        setRefreshECTrigger(prev => prev + 1);
         if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
-          // EC mode
+
           const refreshed = await siteEquipmentService(
             siteEquipment.EC,
             facilityId,
@@ -705,7 +648,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
       );
 
       if (res.success) {
-        // same refresh logic as reject
+        setRefreshECTrigger(prev => prev + 1);
         if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
           const refreshed = await siteEquipmentService(
             siteEquipment.EC,
