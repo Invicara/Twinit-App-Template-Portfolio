@@ -196,25 +196,25 @@ function flattenEquipment(siteEq) {
 }
 
 function buildSchema(flat, editableFields = []) {
-  const allowedOrder = [
-    "equipmentId",
-    "Model",
-    "equipmentType",
-    "Manufacturer",
-    "Safety Class",
-    "FlowRate",
-    "Power",
+  const fieldConfig = [
+    { key: 'equipmentId', title: 'Name Id' },
+    { key: 'Model', title: 'Model' },
+    { key: 'equipmentType', title: 'Equipment Type' },
+    { key: 'Manufacturer', title: 'Manufacturer' },
+    { key: 'Safety Class', title: 'Safety Class' },
+    { key: 'FlowRate', title: 'Flow Rate' },
+    { key: 'Power', title: 'Power' },
   ];
 
-  const properties = allowedOrder.reduce((acc, key) => {
+  const properties = fieldConfig.reduce((acc, { key, title }) => {
     if (!(key in flat)) return acc;
 
     const isEditable = editableFields.includes(key);
     const rawVal = flat[key];
 
     const schema = {
-      type: typeof rawVal === "number" ? "number" : "string",
-      title: key,
+      type: typeof rawVal === 'number' ? 'number' : 'string',
+      title, 
       readOnly: !isEditable,
     };
 
@@ -239,7 +239,7 @@ function buildSchema(flat, editableFields = []) {
 
       if (isEdited) {
         schema.isEdited = true;
-        schema.displayValue = rawVal; 
+        schema.displayValue = rawVal;
       } else if (refVal !== undefined && rawVal !== refVal) {
         schema.isMismatched = true;
         schema.displayValue = `${rawVal} (Expected: ${refVal})`;
@@ -251,7 +251,7 @@ function buildSchema(flat, editableFields = []) {
   }, {});
 
   return {
-    type: "object",
+    type: 'object',
     properties,
     required: Object.keys(properties),
   };
@@ -344,79 +344,6 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
   useEffect(() => {
     if (isBottomECPanelOpen) setIsOpen(true);
   }, [isBottomECPanelOpen]);
-
-  //   const toggleEdit = (index) => {
-  //     const facilityId = siteEquipment?.data[0]?.site;
-  //     const buildingId = siteEquipment?.data[0]?.unit;
-  //     const siteEquipmentId = siteEquipment?.data[0]?.['Equipment Id'];
-  //     const userName = siteEquipment?.data[0]?.username;
-
-  //     setProperties(prev =>
-  //       prev.map((p, i) => {
-  //         if (i !== index) return p;
-
-  //         if (p.isEditing) {
-  //                 console.log('EC edited', p.properties);
-  //           const updateObject = {
-  //             facility: facilityId,
-  //             unit: buildingId,
-  //             equipmentId: siteEquipmentId,
-  //             siteEquipmentId: p.equipmentId,
-  //             properties: p.properties,
-  //             TechnicalParameters: p.TechnicalParameters,
-  //             username: userName
-  //           }
-  //           //engineeringChangePendingRevision(updateObject)
-  //         }
-
-  //         return { ...p, isEditing: !p.isEditing };
-  //       })
-  //   );
-  // };
-
-  // const toggleEdit = (index) => {
-  //   setProperties(prev =>
-  //     prev.map((p, i) => {
-  //       if (i !== index) return p;
-
-  //       if (p.isEditing) {
-  //         // merge drafts into the actual properties on Save
-  //         const draft = drafts[index] || {};
-  //         const updated = { ...p };
-
-  //         Object.entries(draft).forEach(([field, val]) => {
-  //           if (['FlowRate', 'Power'].includes(field)) {
-  //             updated.TechnicalParameters = {
-  //               ...updated.TechnicalParameters,
-  //               [field]: {
-  //                 ...updated.TechnicalParameters?.[field],
-  //                 val
-  //               }
-  //             };
-  //           } else {
-  //             updated.properties = {
-  //               ...updated.properties,
-  //               [field]: {
-  //                 ...updated.properties?.[field],
-  //                 val
-  //               }
-  //             };
-  //           }
-  //         });
-
-  //      //  engineeringChangePendingRevision(updated)
-  //       }
-
-  //       return { ...p, isEditing: !p.isEditing };
-  //     })
-  //   );
-
-  //   setDrafts(prev => {
-  //     const newDrafts = { ...prev };
-  //     delete newDrafts[index];
-  //     return newDrafts;
-  //   });
-  // };
 
   const handleDraftChange = (index, name, value) => {
     setDrafts((prev) => ({
