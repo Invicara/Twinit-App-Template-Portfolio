@@ -46,13 +46,13 @@ export function RowWithActions({
   const isRequired =
     Array.isArray(schema?.required) && schema.required.includes(key);
 
-  // track the original val and refVal for this row
+
   const originalValRef = useRef(
     propSchema?.displayValue ??
     Resolve.data(controlProps?.data, controlUiSchema.scope)
   );
 
-  // hide edit request instantly when typing and drop isEdited from schema
+
   const handleUserTyping = (e) => {
     const inputVal = e.target.value;
     const prevVal = originalValRef.current;
@@ -60,14 +60,12 @@ export function RowWithActions({
     if (liveEdited && inputVal !== prevVal) {
       setLiveEdited(false);
 
-      // ✅ remove isEdited from schema so it’s treated as a normal row
       if (schema?.properties?.[key]) {
         delete schema.properties[key].isEdited;
       }
     }
   };
 
-  // attach listener for direct DOM inputs while editing
   useEffect(() => {
     if (!rowRef.current || !editing) return;
     const input = rowRef.current.querySelector('input, textarea, select');
@@ -145,14 +143,13 @@ export function RowWithActions({
         </Box>
 
         <Box justifySelf='end' alignSelf='start' pt={3} display='flex' alignItems='center'>
-          {/* mismatch warning */}
+     
           {liveMismatch && !liveEdited && (
             <Tooltip title={'Expected other value'}>
               <WarningIcon fontSize='small' sx={{ color: 'orange', mr: 0.5 }} />
             </Tooltip>
           )}
 
-          {/* edit request */}
           {liveEdited && !editing && (
             <Tooltip
               title={
@@ -181,7 +178,6 @@ export function RowWithActions({
             </Tooltip>
           )}
 
-          {/* edit/close button */}
           {!editing ? (
             <Tooltip
               title={
