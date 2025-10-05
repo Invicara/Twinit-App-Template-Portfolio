@@ -269,6 +269,10 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
   const [properties, setProperties] = useState([]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [panelHeight, setPanelHeight] = useState(350); 
+  const [isDragging, setIsDragging] = useState(false);
+  const [startY, setStartY] = useState(0);
+  const [startHeight, setStartHeight] = useState(350);
 
   const handleCloseToast = () => {
     setToast((prev) => ({ ...prev, open: false }));
@@ -335,72 +339,37 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
     }
   }, [siteEquipment]);
 
-  const handleInfoChange = (value, fieldName, meta) => {
-    const updatedFlat = { ...flat, [fieldName]: value };
-    const expanded = expandEquipment(updatedFlat, equipment);
-    onChange?.(expanded);
-  };
-
   useEffect(() => {
     if (isBottomECPanelOpen) setIsOpen(true);
   }, [isBottomECPanelOpen]);
 
-  const handleDraftChange = (index, name, value) => {
-    setDrafts((prev) => ({
-      ...prev,
-      [index]: {
-        ...(prev[index] || {}),
-        [name]: value,
-      },
-    }));
+   const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setStartY(e.clientY);
+    setStartHeight(panelHeight);
+    e.preventDefault();
   };
 
-  // on Save toggle
-  const toggleEdit = (index) => {
-    setProperties((prev) =>
-      prev.map((p, i) => {
-        if (i !== index) return p;
+  // 🔹 Handle drag move
+  useEffect(() => {
+    if (!isDragging) return;
 
-        if (p.isEditing) {
-          // merge draft values into real properties
-          const draft = drafts[index] || {};
-          const updated = { ...p };
+    const handleMouseMove = (e) => {
+      const delta = startY - e.clientY;
+      const newHeight = Math.min(Math.max(startHeight + delta, 150), 700);
+      setPanelHeight(newHeight);
+    };
 
-          Object.entries(draft).forEach(([field, val]) => {
-            if (["FlowRate", "Power"].includes(field)) {
-              updated.TechnicalParameters = {
-                ...updated.TechnicalParameters,
-                [field]: {
-                  ...updated.TechnicalParameters?.[field],
-                  val,
-                },
-              };
-            } else {
-              updated.properties = {
-                ...updated.properties,
-                [field]: {
-                  ...updated.properties?.[field],
-                  val,
-                },
-              };
-            }
-          });
+    const handleMouseUp = () => setIsDragging(false);
 
-          console.log("Saving edits", updated);
-          return { ...updated, isEditing: false };
-        }
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
 
-        return { ...p, isEditing: true };
-      }),
-    );
-
-    // clear draft for this row after save
-    setDrafts((prev) => {
-      const copy = { ...prev };
-      delete copy[index];
-      return copy;
-    });
-  };
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, startY, startHeight]);
 
   const handleSave = async (index, draft) => {
     const facilityId = siteEquipment?.data[0]?.site;
@@ -445,7 +414,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
       console.log("Save success:", res.data);
 
 
-        setRefreshECTrigger(prev => prev + 1);
+    setRefreshECTrigger(prev => prev + 1);
 
       // only reload after a successful save
       if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
@@ -655,18 +624,41 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
   if (!isBottomECPanelOpen) return null;
 
   return (
-    <div 
-        className={classes.panel} 
-        style={{
-            height: isOpen ? 350 : 32,
-            left: isSidePanelOpen ? 360 : 0, 
-            right: 0,
-        }}
+  <div
+    className={classes.panel}
+    style={{
+      height: isOpen ? panelHeight : 32,
+      left: isSidePanelOpen ? 360 : 0,
+      right: 0,
+      transition: isDragging ? 'none' : 'height 0.25s ease, left 0.3s ease',
+    }}
+  >
+    {/* --- Handle Section --- */}
+    <div
+      className={classes.handle}
+      onMouseDown={handleMouseDown}
+      style={{ cursor: 'ns-resize', position: 'relative' }}
     >
-      <div className={classes.handle} onClick={() => setIsOpen(!isOpen)}>
+      {/* Clickable Arrow Only */}
+      <div
+        style={{
+          position: 'absolute',
+          right: 60,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          cursor: 'pointer',
+          zIndex: 2,
+        }}
+        onClick={(e) => {
+          e.stopPropagation(); // prevent drag trigger
+          setIsOpen(!isOpen);
+        }}
+      >
         {isOpen ? <KeyboardArrowDown /> : <KeyboardArrowUp />}
       </div>
-
+    </div>
       {isOpen && (
         <div className={classes.content}>
           {loading ? (
