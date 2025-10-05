@@ -55,17 +55,19 @@ const useStyles = makeStyles((theme) => ({
     flex: 1,
     overflowX: "auto",
     display: "flex",
-    padding: theme.spacing(2),
+    padding: theme.spacing(0),
   },
   card: {
     minWidth: 500,
     maxHeight: 460,
-    marginRight: theme.spacing(2),
+    marginRight: theme.spacing(0),
     padding: theme.spacing(3),
     border: "1px solid #eee",
-    borderRadius: 8,
     flexShrink: 0,
     overflowY: "auto",
+    '&:last-child': {
+        marginRight: 15, 
+    },
   },
   headerRow: {
     display: "flex",
@@ -643,7 +645,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
       <div
         style={{
           position: 'absolute',
-          right: 60,
+          right: 56,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
