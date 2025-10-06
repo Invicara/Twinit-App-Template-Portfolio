@@ -43,7 +43,7 @@ export default function EquipmentDetails() {
 
   //TODO use real facility/site id
 
-  const { selectedModelComposite } = useContext(ModelContext);
+  const { selectedModelComposite, refreshECTrigger } = useContext(ModelContext);
 
 const modelName = selectedModelComposite?._name || '';
 
@@ -75,7 +75,7 @@ const buildingId = match ? match[2] : null;
     };
 
     fetchData();
-  }, [selectedModelComposite, buildingId]);
+  }, [selectedModelComposite, buildingId,  refreshECTrigger]);
 
     const [levelData, setLevelData] = useState()
     const [loadingLevelData, setLoadingLevelData] = useState(false)

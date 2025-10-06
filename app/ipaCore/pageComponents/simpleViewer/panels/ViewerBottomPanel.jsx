@@ -32,15 +32,13 @@ function Alert(props) {
 
 const useStyles = makeStyles((theme) => ({
   panel: {
-    position: "absolute",
-    bottom: 0,
-    left: 360,
-    right: 0,
-    backgroundColor: "#fff",
-    boxShadow: "0 -2px 8px rgba(0,0,0,0.2)",
-    display: "flex",
-    flexDirection: "column",
-    transition: "height 0.3s ease",
+    position: 'absolute',
+  bottom: 0,
+  backgroundColor: '#fff',
+  boxShadow: '0 -2px 8px rgba(0,0,0,0.2)',
+  display: 'flex',
+  flexDirection: 'column',
+  transition: 'left 0.3s ease, width 0.3s ease, height 0.3s ease',
   },
   handle: {
     height: 32,
@@ -57,17 +55,19 @@ const useStyles = makeStyles((theme) => ({
     flex: 1,
     overflowX: "auto",
     display: "flex",
-    padding: theme.spacing(2),
+    padding: theme.spacing(0),
   },
   card: {
     minWidth: 500,
     maxHeight: 460,
-    marginRight: theme.spacing(2),
+    marginRight: theme.spacing(0),
     padding: theme.spacing(3),
     border: "1px solid #eee",
-    borderRadius: 8,
     flexShrink: 0,
     overflowY: "auto",
+    '&:last-child': {
+        marginRight: 15, 
+    },
   },
   headerRow: {
     display: "flex",
@@ -169,26 +169,6 @@ function normalizeTechParams(arrOrObj) {
   return arrOrObj;
 }
 
-// function flattenEquipment(e) {
-//   const props = normalizeProperties(e.properties);
-//   const tech = normalizeTechParams(e.TechnicalParameters);
-
-//   return {
-//     _id: e._id,
-//     equipmentId: e.equipmentId,
-//     siteEquipmentId: e.siteEquipmentId,
-//     equipmentType: e.equipmentType,
-//     revision: e.revision,
-//     Manufacturer: props?.Manufacturer?.val || '',
-//     Model: props?.Model?.val || '',
-//     'Safety Class': props?.['Safety Class']?.val || '',
-//     'Operating Status': props?.['Operating Status']?.val || '',
-//     'Operational Status Date': props?.['Operational Status Date']?.val || '',
-//     FlowRate: tech?.FlowRate?.val || '',
-//     Power: tech?.Power?.val || '',
-//   };
-// }
-
 function flattenEquipment(siteEq) {
   const rev = Array.isArray(siteEq.revisions)
     ? siteEq.revisions[0]
@@ -196,7 +176,6 @@ function flattenEquipment(siteEq) {
 
   if (!rev) return {};
 
-  // 🔹 Merge in any edits first
   const mergedRev = rev;
 
   const props = normalizeProperties(mergedRev.properties);
@@ -218,52 +197,29 @@ function flattenEquipment(siteEq) {
   };
 }
 
-const equipmentSchema = {
-  type: "object",
-  properties: {
-    equipmentId: { type: "string", title: "Name id" }, // custom label
-    Model: { type: "string", title: "Model" },
-    equipmentType: { type: "string", title: "Equipment Type" },
-    Manufacturer: { type: "string", title: "Manufacturer" },
-    "Safety Class": { type: "string", title: "Safety Class" },
-    FlowRate: { type: "string", title: "Flow Rate" },
-    Power: { type: "string", title: "Power" },
-  },
-  required: [
-    "equipmentId",
-    "Model",
-    "equipmentType",
-    "Manufacturer",
-    "Safety Class",
-    "FlowRate",
-    "Power",
-  ],
-};
-
 function buildSchema(flat, editableFields = []) {
-  const allowedOrder = [
-    "equipmentId",
-    "Model",
-    "equipmentType",
-    "Manufacturer",
-    "Safety Class",
-    "FlowRate",
-    "Power",
+  const fieldConfig = [
+    { key: 'equipmentId', title: 'Name Id' },
+    { key: 'Model', title: 'Model' },
+    { key: 'equipmentType', title: 'Equipment Type' },
+    { key: 'Manufacturer', title: 'Manufacturer' },
+    { key: 'Safety Class', title: 'Safety Class' },
+    { key: 'FlowRate', title: 'Flow Rate' },
+    { key: 'Power', title: 'Power' },
   ];
 
-  const properties = allowedOrder.reduce((acc, key) => {
+  const properties = fieldConfig.reduce((acc, { key, title }) => {
     if (!(key in flat)) return acc;
 
     const isEditable = editableFields.includes(key);
     const rawVal = flat[key];
 
     const schema = {
-      type: typeof rawVal === "number" ? "number" : "string",
-      title: key,
+      type: typeof rawVal === 'number' ? 'number' : 'string',
+      title, 
       readOnly: !isEditable,
     };
 
-    // 🔹 Merge both TechnicalParameters + properties metadata
     const techMeta = flat.TechnicalParameters?.[key];
     const propMeta = flat.properties?.[key];
 
@@ -285,7 +241,7 @@ function buildSchema(flat, editableFields = []) {
 
       if (isEdited) {
         schema.isEdited = true;
-        schema.displayValue = rawVal; // show only current value, hide Expected text
+        schema.displayValue = rawVal;
       } else if (refVal !== undefined && rawVal !== refVal) {
         schema.isMismatched = true;
         schema.displayValue = `${rawVal} (Expected: ${refVal})`;
@@ -297,25 +253,28 @@ function buildSchema(flat, editableFields = []) {
   }, {});
 
   return {
-    type: "object",
+    type: 'object',
     properties,
     required: Object.keys(properties),
   };
 }
 
-const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
+const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
   const [toast, setToast] = useState({
     open: false,
     severity: "error",
     message: "",
   });
   const classes = useStyles();
-  const { sliceElements, siteEquipment, selectedModelComposite } =
-    useContext(ModelContext);
+  const { sliceElements, siteEquipment, selectedModelComposite, setRefreshECTrigger } = useContext(ModelContext);
   const [isOpen, setIsOpen] = useState(false);
   const [properties, setProperties] = useState([]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [panelHeight, setPanelHeight] = useState(350); 
+  const [isDragging, setIsDragging] = useState(false);
+  const [startY, setStartY] = useState(0);
+  const [startHeight, setStartHeight] = useState(350);
 
   const handleCloseToast = () => {
     setToast((prev) => ({ ...prev, open: false }));
@@ -382,145 +341,37 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
     }
   }, [siteEquipment]);
 
-  const handleInfoChange = (value, fieldName, meta) => {
-    const updatedFlat = { ...flat, [fieldName]: value };
-    const expanded = expandEquipment(updatedFlat, equipment);
-    onChange?.(expanded);
-  };
-
   useEffect(() => {
     if (isBottomECPanelOpen) setIsOpen(true);
   }, [isBottomECPanelOpen]);
 
-  //   const toggleEdit = (index) => {
-  //     const facilityId = siteEquipment?.data[0]?.site;
-  //     const buildingId = siteEquipment?.data[0]?.unit;
-  //     const siteEquipmentId = siteEquipment?.data[0]?.['Equipment Id'];
-  //     const userName = siteEquipment?.data[0]?.username;
-
-  //     setProperties(prev =>
-  //       prev.map((p, i) => {
-  //         if (i !== index) return p;
-
-  //         if (p.isEditing) {
-  //                 console.log('EC edited', p.properties);
-  //           const updateObject = {
-  //             facility: facilityId,
-  //             unit: buildingId,
-  //             equipmentId: siteEquipmentId,
-  //             siteEquipmentId: p.equipmentId,
-  //             properties: p.properties,
-  //             TechnicalParameters: p.TechnicalParameters,
-  //             username: userName
-  //           }
-  //           //engineeringChangePendingRevision(updateObject)
-  //         }
-
-  //         return { ...p, isEditing: !p.isEditing };
-  //       })
-  //   );
-  // };
-
-  // const toggleEdit = (index) => {
-  //   setProperties(prev =>
-  //     prev.map((p, i) => {
-  //       if (i !== index) return p;
-
-  //       if (p.isEditing) {
-  //         // merge drafts into the actual properties on Save
-  //         const draft = drafts[index] || {};
-  //         const updated = { ...p };
-
-  //         Object.entries(draft).forEach(([field, val]) => {
-  //           if (['FlowRate', 'Power'].includes(field)) {
-  //             updated.TechnicalParameters = {
-  //               ...updated.TechnicalParameters,
-  //               [field]: {
-  //                 ...updated.TechnicalParameters?.[field],
-  //                 val
-  //               }
-  //             };
-  //           } else {
-  //             updated.properties = {
-  //               ...updated.properties,
-  //               [field]: {
-  //                 ...updated.properties?.[field],
-  //                 val
-  //               }
-  //             };
-  //           }
-  //         });
-
-  //      //  engineeringChangePendingRevision(updated)
-  //       }
-
-  //       return { ...p, isEditing: !p.isEditing };
-  //     })
-  //   );
-
-  //   setDrafts(prev => {
-  //     const newDrafts = { ...prev };
-  //     delete newDrafts[index];
-  //     return newDrafts;
-  //   });
-  // };
-
-  const handleDraftChange = (index, name, value) => {
-    setDrafts((prev) => ({
-      ...prev,
-      [index]: {
-        ...(prev[index] || {}),
-        [name]: value,
-      },
-    }));
+   const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setStartY(e.clientY);
+    setStartHeight(panelHeight);
+    e.preventDefault();
   };
 
-  // on Save toggle
-  const toggleEdit = (index) => {
-    setProperties((prev) =>
-      prev.map((p, i) => {
-        if (i !== index) return p;
+  // 🔹 Handle drag move
+  useEffect(() => {
+    if (!isDragging) return;
 
-        if (p.isEditing) {
-          // merge draft values into real properties
-          const draft = drafts[index] || {};
-          const updated = { ...p };
+    const handleMouseMove = (e) => {
+      const delta = startY - e.clientY;
+      const newHeight = Math.min(Math.max(startHeight + delta, 150), 700);
+      setPanelHeight(newHeight);
+    };
 
-          Object.entries(draft).forEach(([field, val]) => {
-            if (["FlowRate", "Power"].includes(field)) {
-              updated.TechnicalParameters = {
-                ...updated.TechnicalParameters,
-                [field]: {
-                  ...updated.TechnicalParameters?.[field],
-                  val,
-                },
-              };
-            } else {
-              updated.properties = {
-                ...updated.properties,
-                [field]: {
-                  ...updated.properties?.[field],
-                  val,
-                },
-              };
-            }
-          });
+    const handleMouseUp = () => setIsDragging(false);
 
-          console.log("Saving edits", updated);
-          return { ...updated, isEditing: false };
-        }
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
 
-        return { ...p, isEditing: true };
-      }),
-    );
-
-    // clear draft for this row after save
-    setDrafts((prev) => {
-      const copy = { ...prev };
-      delete copy[index];
-      return copy;
-    });
-  };
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, startY, startHeight]);
 
   const handleSave = async (index, draft) => {
     const facilityId = siteEquipment?.data[0]?.site;
@@ -564,6 +415,9 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
 
       console.log("Save success:", res.data);
 
+
+    setRefreshECTrigger(prev => prev + 1);
+
       // only reload after a successful save
       if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
         const refreshed = await siteEquipmentService(
@@ -572,8 +426,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
           buildingId,
           draft.equipmentId,
         );
-
-   
+        
         setProperties(
           refreshed.map((el) => ({
             ...flattenEquipment(el),
@@ -614,21 +467,6 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
     );
   };
 
-  const setDeepValue = (obj, path, value) => {
-    const keys = path.split(".");
-    const newObj = { ...obj };
-    let cur = newObj;
-    keys.forEach((k, i) => {
-      if (i === keys.length - 1) {
-        cur[k] = value;
-      } else {
-        cur[k] = { ...cur[k] };
-        cur = cur[k];
-      }
-    });
-    return newObj;
-  };
-
   const [drafts, setDrafts] = useState({});
 
   const handleReject = async (item) => {
@@ -649,8 +487,9 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
 
       if (res.success) {
         console.log("Reject success:", res);
+        setRefreshECTrigger(prev => prev + 1);
         if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
-          // EC mode
+
           const refreshed = await siteEquipmentService(
             siteEquipment.EC,
             facilityId,
@@ -707,7 +546,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
       );
 
       if (res.success) {
-        // same refresh logic as reject
+        setRefreshECTrigger(prev => prev + 1);
         if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
           const refreshed = await siteEquipmentService(
             siteEquipment.EC,
@@ -787,11 +626,41 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
   if (!isBottomECPanelOpen) return null;
 
   return (
-    <div className={classes.panel} style={{ height: isOpen ? 350 : 32 }}>
-      <div className={classes.handle} onClick={() => setIsOpen(!isOpen)}>
+  <div
+    className={classes.panel}
+    style={{
+      height: isOpen ? panelHeight : 32,
+      left: isSidePanelOpen ? 360 : 0,
+      right: 0,
+      transition: isDragging ? 'none' : 'height 0.25s ease, left 0.3s ease',
+    }}
+  >
+    {/* --- Handle Section --- */}
+    <div
+      className={classes.handle}
+      onMouseDown={handleMouseDown}
+      style={{ cursor: 'ns-resize', position: 'relative' }}
+    >
+      {/* Clickable Arrow Only */}
+      <div
+        style={{
+          position: 'absolute',
+          right: 56,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          cursor: 'pointer',
+          zIndex: 2,
+        }}
+        onClick={(e) => {
+          e.stopPropagation(); // prevent drag trigger
+          setIsOpen(!isOpen);
+        }}
+      >
         {isOpen ? <KeyboardArrowDown /> : <KeyboardArrowUp />}
       </div>
-
+    </div>
       {isOpen && (
         <div className={classes.content}>
           {loading ? (

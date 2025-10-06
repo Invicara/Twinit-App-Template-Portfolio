@@ -79,12 +79,6 @@ const isFieldDeletable = (schema, fieldName) => {
 };
 
 export const InfoComponent = ({ entity, handleChange, type, entityType, originalEntity, disabled = false, onFieldRemove, modifyTypeCallback, debounceTime=700, allowReadOnlyOverride = false }) => {
- console.log('infcomponent entity', entity);
- console.log('infocomponent handlechange', handleChange);
- console.log('infocomponent type', type );
-  console.log('infocomponent entitytype', entityType)
-   console.log('infocomponent originalEntity',originalEntity );
-    console.log('infocomponent modifyTypecallback',modifyTypeCallback )
     // Modal states
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [modifyModalOpen, setModifyModalOpen] = useState(false);
@@ -189,30 +183,10 @@ const handleUpdate = (newValue, name) => {
 
     const {processedType, uiSchema, renderers, optionsResolver, ajv, materialCells, materialRenderers} = useInfoComponentJsonForms({schema: type, layouts, allowReadOnlyOverride});
 
-// const flowPowerTester = rankWith(
-//   5,
-//   (uischema, schema) => {
-//     if (!uischema?.scope) return false; // skip layouts etc.
-//     console.log('tester check', uischema.scope);
-//     return (
-//       uischema.scope.endsWith('FlowRate') ||
-//       uischema.scope.endsWith('Power')
-//     );
-//   }
-// );
-
-// const extendedRenderers = [
-//   ...renderers,
-//   { tester: flowPowerTester, renderer: FlowPowerCellRenderer }
-// ];
-// console.log('infocomponent schema', uiSchema);
-
-    // track previous value so we can call your handleChange(name, value, meta)
     const prevRef = useRef(localValue);
     useEffect(() => { prevRef.current = localValue; }, [localValue]);
 
     const onJsonFormsChange = ({ data }) => {
-        // Compute a changed key (shallow compare)
         const prev = prevRef.current || {};
         const keys = new Set([...Object.keys(prev), ...Object.keys(data)]);
         for (const k of keys) {
