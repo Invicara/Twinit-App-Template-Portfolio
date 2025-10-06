@@ -188,6 +188,14 @@
                   }
                },
                {
+                  "path": "/siteequip/facilities/:facility/units/:unit/systems/:systemId",
+                  "method": "GET",
+                  "script": {
+                     "_userType": "hitachi-siteequip-omapi",
+                     "_scriptName": "getUnitSystemEquipments"
+                  }
+               },
+               {
                   "path": "/siteequip/pendingrevision",
                   "method": "POST",
                   "script": {

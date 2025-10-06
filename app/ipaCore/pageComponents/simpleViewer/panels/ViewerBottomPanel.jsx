@@ -1,67 +1,90 @@
-import React, { useState, useContext, useEffect } from 'react'
-import { makeStyles } from '@material-ui/core/styles'
-import { Paper, Typography, Button, Divider } from '@material-ui/core'
-import { Edit as EditIcon, Save as SaveIcon, KeyboardArrowUp, KeyboardArrowDown } from '@material-ui/icons'
-import { ModelContext } from '../../../contexts/ModelContext'
-import { InfoComponent } from '../../../components/InfoComponent/InfoComponent'
-import { siteEquipmentService, siteEquipmentForTreeService } from '../../../../services/siteEquipment';
-import { Warning as WarningIcon } from '@mui/icons-material';
+import React, { useState, useContext, useEffect } from "react";
+import { makeStyles } from "@material-ui/core/styles";
+import {
+  Paper,
+  Typography,
+  Button,
+  Divider,
+  CircularProgress,
+  Snackbar,
+} from "@material-ui/core";
+import {
+  Edit as EditIcon,
+  Save as SaveIcon,
+  KeyboardArrowUp,
+  KeyboardArrowDown,
+} from "@material-ui/icons";
+import { ModelContext } from "../../../contexts/ModelContext";
+import { InfoComponent } from "../../../components/InfoComponent/InfoComponent";
+import {
+  siteEquipmentService,
+  siteEquipmentForTreeService,
+  rejectPendingRevision,
+  approvePendingRevision,
+} from "../../../../services/siteEquipment";
+import AssignmentLateIcon from "@material-ui/icons/AssignmentLate";
+import { engineeringChangePendingRevision } from "../../../../services/engineeringChangesAPI";
+import MuiAlert from "@material-ui/lab/Alert";
+
+function Alert(props) {
+  return <MuiAlert elevation={6} variant="filled" {...props} />;
+}
 
 const useStyles = makeStyles((theme) => ({
   panel: {
     position: 'absolute',
-    bottom: 0,
-    left: 360,
-    right: 0,
-    backgroundColor: '#fff',
-    boxShadow: '0 -2px 8px rgba(0,0,0,0.2)',
-    display: 'flex',
-    flexDirection: 'column',
-    transition: 'height 0.3s ease',
+  bottom: 0,
+  backgroundColor: '#fff',
+  boxShadow: '0 -2px 8px rgba(0,0,0,0.2)',
+  display: 'flex',
+  flexDirection: 'column',
+  transition: 'left 0.3s ease, width 0.3s ease, height 0.3s ease',
   },
   handle: {
     height: 32,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
     borderTopLeftRadius: 4,
     borderTopRightRadius: 4,
-    display: 'flex',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingRight: theme.spacing(4),
-    cursor: 'pointer',
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    paddingRight: theme.spacing(6),
+    cursor: "pointer",
   },
   content: {
     flex: 1,
-    overflowX: 'auto',
-    display: 'flex',
-    padding: theme.spacing(2),
+    overflowX: "auto",
+    display: "flex",
+    padding: theme.spacing(0),
   },
   card: {
     minWidth: 500,
     maxHeight: 460,
-    marginRight: theme.spacing(2),
+    marginRight: theme.spacing(0),
     padding: theme.spacing(3),
-    border: '1px solid #eee',
-    borderRadius: 8,
+    border: "1px solid #eee",
     flexShrink: 0,
-    overflowY: 'auto',
+    overflowY: "auto",
+    '&:last-child': {
+        marginRight: 15, 
+    },
   },
   headerRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: theme.spacing(2),
   },
   property: {
     marginBottom: theme.spacing(2),
     paddingBottom: theme.spacing(1),
-    borderBottom: '1px solid #eee',
+    borderBottom: "1px solid #eee",
   },
   label: {
     fontSize: 12,
     fontWeight: 500,
     color: theme.palette.text.secondary,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     marginBottom: 4,
   },
   value: {
@@ -70,36 +93,45 @@ const useStyles = makeStyles((theme) => ({
     color: theme.palette.text.primary,
   },
   input: {
-    width: '100%',
+    width: "100%",
     fontSize: 14,
     padding: theme.spacing(1),
-    border: '1px solid #ccc',
+    border: "1px solid #ccc",
     borderRadius: 4,
-    outline: 'none',
+    outline: "none",
   },
   editButton: {
     backgroundColor: theme.palette.primary.main,
-    color: '#fff',
-    textTransform: 'none',
-    '&:hover': {
+    color: "#fff",
+    textTransform: "none",
+    "&:hover": {
       backgroundColor: theme.palette.primary.dark,
     },
   },
   valueInput: {
-    width: '100%',
+    width: "100%",
     fontSize: 14,
     fontWeight: 400,
-    color: '#333',
-    border: 'none',
-    outline: 'none',
+    color: "#333",
+    border: "none",
+    outline: "none",
     padding: 0,
     margin: 0,
-    backgroundColor: 'transparent',
-    borderBottom: '1px solid #ccc',
-    lineHeight: '1.6',
-},
-}))
-
+    backgroundColor: "transparent",
+    borderBottom: "1px solid #ccc",
+    lineHeight: "1.6",
+  },
+  loaderWrapper: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    zIndex: 10,
+    backgroundColor: "rgba(255,255,255,0.8)",
+    borderRadius: 8,
+    padding: theme.spacing(2),
+  },
+}));
 
 const equipment = {
   _id: "68d64f9771aa127e59875140",
@@ -137,72 +169,46 @@ function normalizeTechParams(arrOrObj) {
   return arrOrObj;
 }
 
-// function flattenEquipment(e) {
-//   const props = normalizeProperties(e.properties);
-//   const tech = normalizeTechParams(e.TechnicalParameters);
-
-//   return {
-//     _id: e._id,
-//     equipmentId: e.equipmentId,
-//     siteEquipmentId: e.siteEquipmentId,
-//     equipmentType: e.equipmentType,
-//     revision: e.revision,
-//     Manufacturer: props?.Manufacturer?.val || '',
-//     Model: props?.Model?.val || '',
-//     'Safety Class': props?.['Safety Class']?.val || '',
-//     'Operating Status': props?.['Operating Status']?.val || '',
-//     'Operational Status Date': props?.['Operational Status Date']?.val || '',
-//     FlowRate: tech?.FlowRate?.val || '',
-//     Power: tech?.Power?.val || '',
-//   };
-// }
-
 function flattenEquipment(siteEq) {
-  const rev = Array.isArray(siteEq.revisions) ? siteEq.revisions[0] : siteEq.revisions?._list?.[0];
+  const rev = Array.isArray(siteEq.revisions)
+    ? siteEq.revisions[0]
+    : siteEq.revisions?._list?.[0];
+
   if (!rev) return {};
 
-  const props = normalizeProperties(rev.properties);
-  const tech = normalizeTechParams(rev.TechnicalParameters);
+  const mergedRev = rev;
+
+  const props = normalizeProperties(mergedRev.properties);
+  const tech = normalizeTechParams(mergedRev.TechnicalParameters);
 
   return {
-    equipmentId: siteEq['Site Equipment Id'] || siteEq.equipmentId || '',
-    Model: props?.Model?.val || '',
-    Manufacturer: props?.Manufacturer?.val || '',
-    'Safety Class': props?.['Safety Class']?.val || '',
-    equipmentType: siteEq.equipmentType || '',
-    FlowRate: tech?.FlowRate?.val ?? '',
-    Power: tech?.Power?.val ?? '',
+    equipmentId: siteEq["Site Equipment Id"] || siteEq.equipmentId || "",
+    Model: props?.Model?.val || "",
+    Manufacturer: props?.Manufacturer?.val || "",
+    "Safety Class": props?.["Safety Class"]?.val || "",
+    equipmentType: siteEq.equipmentType || "",
+    FlowRate: tech?.FlowRate?.val ?? "",
+    Power: tech?.Power?.val ?? "",
     TechnicalParameters: tech,
-    properties: props, // ✅ keep full object with refVal
-    revision: rev.revision || ''
+    properties: props,
+    revision: mergedRev.revision || "",
+    edited: mergedRev.edited || {},
+    "revision status": mergedRev["revision status"] || "",
   };
 }
-const equipmentSchema = {
-  type: 'object',
-  properties: {
-    equipmentId: { type: 'string', title: 'Name id' },   // custom label
-    Model: { type: 'string', title: 'Model' },
-    equipmentType: { type: 'string', title: 'Equipment Type' },
-    Manufacturer: { type: 'string', title: 'Manufacturer' },
-    'Safety Class': { type: 'string', title: 'Safety Class' },
-    FlowRate: { type: 'string', title: 'Flow Rate' },
-    Power: { type: 'string', title: 'Power' },
-  },
-  required: ['equipmentId', 'Model', 'equipmentType', 'Manufacturer', 'Safety Class', 'FlowRate', 'Power'],
-};
 
 function buildSchema(flat, editableFields = []) {
-  const allowedOrder = [
-    'equipmentId',
-    'Model',
-    'equipmentType',
-    'Manufacturer',
-    'Safety Class',
-    'FlowRate',
-    'Power'
+  const fieldConfig = [
+    { key: 'equipmentId', title: 'Name Id' },
+    { key: 'Model', title: 'Model' },
+    { key: 'equipmentType', title: 'Equipment Type' },
+    { key: 'Manufacturer', title: 'Manufacturer' },
+    { key: 'Safety Class', title: 'Safety Class' },
+    { key: 'FlowRate', title: 'Flow Rate' },
+    { key: 'Power', title: 'Power' },
   ];
 
-  const properties = allowedOrder.reduce((acc, key) => {
+  const properties = fieldConfig.reduce((acc, { key, title }) => {
     if (!(key in flat)) return acc;
 
     const isEditable = editableFields.includes(key);
@@ -210,25 +216,33 @@ function buildSchema(flat, editableFields = []) {
 
     const schema = {
       type: typeof rawVal === 'number' ? 'number' : 'string',
-      title: key,
+      title, 
       readOnly: !isEditable,
     };
 
-    if (flat.TechnicalParameters?.[key]) {
-      const { refVal, unit } = flat.TechnicalParameters[key];
-      schema.options = { refVal, unit };
+    const techMeta = flat.TechnicalParameters?.[key];
+    const propMeta = flat.properties?.[key];
+
+    if (techMeta) {
+      const { refVal, unit, isEdited, originalVal } = techMeta;
+      schema.options = { ...(schema.options || {}), refVal, unit, originalVal };
       if (refVal !== undefined && rawVal != refVal) {
         schema.isMismatched = true;
         schema.displayValue = unit
           ? `${rawVal} ${unit} (Expected: ${refVal} ${unit})`
           : `${rawVal} (Expected: ${refVal})`;
       }
+      if (isEdited) schema.isEdited = true;
     }
 
-    if (flat.properties?.[key]?.refVal !== undefined) {
-      const refVal = flat.properties[key].refVal;
-      schema.options = { ...(schema.options || {}), refVal };
-      if (rawVal !== refVal) {
+    if (propMeta) {
+      const { refVal, isEdited, originalVal } = propMeta;
+      schema.options = { ...(schema.options || {}), refVal, originalVal };
+
+      if (isEdited) {
+        schema.isEdited = true;
+        schema.displayValue = rawVal;
+      } else if (refVal !== undefined && rawVal !== refVal) {
         schema.isMismatched = true;
         schema.displayValue = `${rawVal} (Expected: ${refVal})`;
       }
@@ -245,239 +259,529 @@ function buildSchema(flat, editableFields = []) {
   };
 }
 
-const ViewerBottomPanel = ({ isBottomECPanelOpen=true, items }) => {
-  const classes = useStyles()
-  const { sliceElements, siteEquipment, selectedModelComposite } = useContext(ModelContext)
-  const [isOpen, setIsOpen] = useState(false)
-  const [properties, setProperties] = useState([])
+const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
+  const [toast, setToast] = useState({
+    open: false,
+    severity: "error",
+    message: "",
+  });
+  const classes = useStyles();
+  const { sliceElements, siteEquipment, selectedModelComposite, setRefreshECTrigger } = useContext(ModelContext);
+  const [isOpen, setIsOpen] = useState(false);
+  const [properties, setProperties] = useState([]);
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [panelHeight, setPanelHeight] = useState(350); 
+  const [isDragging, setIsDragging] = useState(false);
+  const [startY, setStartY] = useState(0);
+  const [startHeight, setStartHeight] = useState(350);
 
-  function extractEquipmentIds(siteEquipmentArray) {
-  return siteEquipmentArray.map(item => ({
-    'Equipment Id': item['Equipment Id']
-  }));
-}
-
-   useEffect(() => {
-
-    if(siteEquipment && siteEquipment?.data?.length > 0) {
-        const facilityId = siteEquipment?.data[0]?.site;
-        const EC = siteEquipment.EC;
-        const buildingId = siteEquipment?.data[0]?.unit;
-        const equipmentId = siteEquipment?.data[0]?.['Equipment Id'];
-
-        const equipmentIdArray = extractEquipmentIds(siteEquipment?.data);
-        const run = async () => {
-            
-        if(Object.keys(EC).length > 0) {
-
-           const items = await siteEquipmentService(EC, facilityId, buildingId, equipmentId);
-           setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
-           console.log('EC items', items);
-            setData(items);
-
-            // const match = selectedModelComposite?._name?.match(/_(\d+)$/);
-            // const bId = match ? match[1].slice(-2) : null;
-            // const fId = bId == '01' ? 'A' : 'B';
-            // const items = await siteEquipmentForTreeService(fId, bId, equipmentIdArray);
-            //  setProperties(items.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
-            //  setData(items);
-        } else {
-             const match = selectedModelComposite?._name?.match(/_(\d+)$/);
-            const bId = match ? match[1].slice(-2) : null;
-            const fId = bId == '01' ? 'A' : 'B';
-            const siteEqItems = await siteEquipmentForTreeService(fId, bId, siteEquipment?.data);
-            setProperties(siteEqItems.map((el) => ({ ...flattenEquipment(el), isEditing: false })));
-            setData(siteEqItems);
-        }
-        }
-
-        run();
-    }
-  }, [siteEquipment])
-
-  const handleInfoChange = (value, fieldName, meta) => {
-    const updatedFlat = { ...flat, [fieldName]: value };
-    const expanded = expandEquipment(updatedFlat, equipment);
-    onChange?.(expanded);
+  const handleCloseToast = () => {
+    setToast((prev) => ({ ...prev, open: false }));
   };
 
-
-  useEffect(() => {
-    if (isBottomECPanelOpen) setIsOpen(true)
-  }, [isBottomECPanelOpen])
-
-  const toggleEdit = (index) => {
-    setProperties((prev) =>
-      prev.map((p, i) =>
-        i === index ? { ...p, isEditing: !p.isEditing } : p
-      )
-    )
+  function extractEquipmentIds(siteEquipmentArray) {
+    return siteEquipmentArray.map((item) => ({
+      "Equipment Id": item["Equipment Id"],
+    }));
   }
 
- const setDeepValue = (obj, path, value) => {
-  const keys = path.split('.')
-  const newObj = { ...obj }
-  let cur = newObj
-  keys.forEach((k, i) => {
-    if (i === keys.length - 1) {
-      cur[k] = value
-    } else {
-      cur[k] = { ...cur[k] }
-      cur = cur[k]
-    }
-  })
-  return newObj
-}
+  useEffect(() => {
+    if (siteEquipment && siteEquipment?.data?.length > 0) {
+      const facilityId = siteEquipment?.data[0]?.site;
+      const EC = siteEquipment.EC;
+      const buildingId = siteEquipment?.data[0]?.unit;
+      const equipmentId = siteEquipment?.data[0]?.["Equipment Id"];
 
-const handleChange = (index, name, value) => {
-  setProperties((prev) =>
-    prev.map((p, i) => {
-      if (i !== index) return p;
+      const equipmentIdArray = extractEquipmentIds(siteEquipment?.data);
+      const run = async () => {
+        try {
+          setLoading(true);
 
-      return {
-        ...p,
-        [name]: value,
-        TechnicalParameters: {
-          ...p.TechnicalParameters,
-          [name]: {
-            ...p.TechnicalParameters?.[name],
-            val: value,   // keep tech params in sync
+          if (Object.keys(EC).length > 0) {
+            const items = await siteEquipmentService(
+              EC,
+              facilityId,
+              buildingId,
+              equipmentId,
+            );
+
+                 console.log('EC new data', items);
+            setProperties(
+              items.map((el) => ({
+                ...flattenEquipment(el),
+                isEditing: false,
+              })),
+            );
+            setData(items);
+          } else {
+            const modelName = selectedModelComposite?._name || "";
+            const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
+            const facilityId = match ? match[1].toUpperCase() : null;
+            const buildingId = match ? match[2] : null;
+            const siteEqItems = await siteEquipmentForTreeService(
+              facilityId,
+              buildingId,
+              siteEquipment?.data,
+            );
+            setProperties(
+              siteEqItems.map((el) => ({
+                ...flattenEquipment(el),
+                isEditing: false,
+              })),
+            );
+            setData(siteEqItems);
           }
+        } finally {
+          setLoading(false);
         }
       };
-    })
-  );
-};
-  if (!isBottomECPanelOpen) return null
+
+      run();
+    }
+  }, [siteEquipment]);
+
+  useEffect(() => {
+    if (isBottomECPanelOpen) setIsOpen(true);
+  }, [isBottomECPanelOpen]);
+
+   const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setStartY(e.clientY);
+    setStartHeight(panelHeight);
+    e.preventDefault();
+  };
+
+  // 🔹 Handle drag move
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e) => {
+      const delta = startY - e.clientY;
+      const newHeight = Math.min(Math.max(startHeight + delta, 150), 700);
+      setPanelHeight(newHeight);
+    };
+
+    const handleMouseUp = () => setIsDragging(false);
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, startY, startHeight]);
+
+  const handleSave = async (index, draft) => {
+    const facilityId = siteEquipment?.data[0]?.site;
+    const buildingId = siteEquipment?.data[0]?.unit;
+    const siteEquipmentId = siteEquipment?.data[0]?.["Equipment Id"];
+    const userName = siteEquipment?.data[0]?.username;
+
+    const updateObject = {
+      facility: facilityId,
+      unit: buildingId,
+      equipmentId: siteEquipmentId,
+      siteEquipmentId: draft.equipmentId,
+      properties: draft.properties,
+      TechnicalParameters: draft.TechnicalParameters,
+      username: userName,
+    };
+
+    try {
+      setLoading(true);
+
+      const res = await engineeringChangePendingRevision(updateObject);
+
+      if (!res.success) {
+        console.error("Save failed:", res.message);
+
+        if (
+          res.message?.includes("Engineering Change") &&
+          (res.message?.includes("not found") ||
+            (res.message?.includes("instructs") &&
+              res.message?.includes("increment any further")))
+        ) {
+          setToast({
+            open: true,
+            severity: "error",
+            message: `No open Engineering Change found for ${draft.equipmentId}`,
+          });
+        }
+
+        return;
+      }
+
+      console.log("Save success:", res.data);
+
+
+    setRefreshECTrigger(prev => prev + 1);
+
+      // only reload after a successful save
+      if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
+        const refreshed = await siteEquipmentService(
+          siteEquipment.EC,
+          facilityId,
+          buildingId,
+          draft.equipmentId,
+        );
+        
+        setProperties(
+          refreshed.map((el) => ({
+            ...flattenEquipment(el),
+            isEditing: false,
+          })),
+        );
+        setData(refreshed);
+      } else {
+        const modelName = selectedModelComposite?._name || "";
+        const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
+        const fac = match ? match[1].toUpperCase() : null;
+        const bld = match ? match[2] : null;
+
+        const refreshed = await siteEquipmentForTreeService(
+          fac,
+          bld,
+          siteEquipment?.data,
+        );
+        setProperties(
+          refreshed.map((el) => ({
+            ...flattenEquipment(el),
+            isEditing: false,
+          })),
+        );
+        setData(refreshed);
+      }
+
+      return true;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // keep your existing toggleEdit but don’t call the API here anymore
+  const onToggleEdit = (idx) => {
+    setProperties((prev) =>
+      prev.map((p, i) => (i === idx ? { ...p, isEditing: !p.isEditing } : p)),
+    );
+  };
+
+  const [drafts, setDrafts] = useState({});
+
+  const handleReject = async (item) => {
+    const modelName = selectedModelComposite?._name || "";
+    const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
+    const facilityId = match ? match[1].toUpperCase() : null;
+    const buildingId = match ? match[2] : null;
+
+    try {
+      setLoading(true);
+
+      const res = await rejectPendingRevision(
+        facilityId,
+        buildingId,
+        item.equipmentId,
+        item.revision,
+      );
+
+      if (res.success) {
+        console.log("Reject success:", res);
+        setRefreshECTrigger(prev => prev + 1);
+        if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
+
+          const refreshed = await siteEquipmentService(
+            siteEquipment.EC,
+            facilityId,
+            buildingId,
+            item.equipmentId,
+          );
+          setProperties(
+            refreshed.map((el) => ({
+              ...flattenEquipment(el),
+              isEditing: false,
+            })),
+          );
+          setData(refreshed);
+        } else {
+          const refreshed = await siteEquipmentForTreeService(
+            facilityId,
+            buildingId,
+            siteEquipment?.data,
+          );
+          setProperties(
+            refreshed.map((el) => ({
+              ...flattenEquipment(el),
+              isEditing: false,
+            })),
+          );
+          setData(refreshed);
+        }
+      } else {
+        console.error("Reject failed:", res.message);
+      }
+    } catch (err) {
+      console.error("Reject failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = async (item) => {
+    const modelName = selectedModelComposite?._name || "";
+    const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
+    const facilityId = match ? match[1].toUpperCase() : null;
+    const buildingId = match ? match[2] : null;
+
+    try {
+      setLoading(true);
+
+      let username = "Bob";
+      const res = await approvePendingRevision(
+        item.revision,
+        facilityId,
+        buildingId,
+        item.equipmentId,
+        username,
+      );
+
+      if (res.success) {
+        setRefreshECTrigger(prev => prev + 1);
+        if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
+          const refreshed = await siteEquipmentService(
+            siteEquipment.EC,
+            facilityId,
+            buildingId,
+            item.equipmentId,
+          );
+          setProperties(
+            refreshed.map((el) => ({
+              ...flattenEquipment(el),
+              isEditing: false,
+            })),
+          );
+          setData(refreshed);
+        } else {
+          const refreshed = await siteEquipmentForTreeService(
+            facilityId,
+            buildingId,
+            siteEquipment?.data,
+          );
+          setProperties(
+            refreshed.map((el) => ({
+              ...flattenEquipment(el),
+              isEditing: false,
+            })),
+          );
+          setData(refreshed);
+        }
+      } else {
+        console.error("Approve failed:", res.message);
+      }
+    } catch (err) {
+      console.error("Approve failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (index, name, value) => {
+    setProperties((prev) =>
+      prev.map((p, i) => {
+        if (i !== index) return p;
+
+        // Copy the original object
+        let updated = { ...p, [name]: value };
+
+        if (["FlowRate", "Power"].includes(name)) {
+          // Update only TechnicalParameters for numeric fields
+          updated = {
+            ...updated,
+            TechnicalParameters: {
+              ...p.TechnicalParameters,
+              [name]: {
+                ...p.TechnicalParameters?.[name],
+                val: value,
+              },
+            },
+          };
+        } else {
+          // Update all other editable fields in properties
+          updated = {
+            ...updated,
+            properties: {
+              ...p.properties,
+              [name]: {
+                ...p.properties?.[name],
+                val: value,
+              },
+            },
+          };
+        }
+        return updated;
+      }),
+    );
+  };
+
+  if (!isBottomECPanelOpen) return null;
 
   return (
-    <div className={classes.panel} style={{ height: isOpen ? 350 : 32 }}>
-      <div className={classes.handle} onClick={() => setIsOpen(!isOpen)}>
+  <div
+    className={classes.panel}
+    style={{
+      height: isOpen ? panelHeight : 32,
+      left: isSidePanelOpen ? 360 : 0,
+      right: 0,
+      transition: isDragging ? 'none' : 'height 0.25s ease, left 0.3s ease',
+    }}
+  >
+    {/* --- Handle Section --- */}
+    <div
+      className={classes.handle}
+      onMouseDown={handleMouseDown}
+      style={{ cursor: 'ns-resize', position: 'relative' }}
+    >
+      {/* Clickable Arrow Only */}
+      <div
+        style={{
+          position: 'absolute',
+          right: 56,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          cursor: 'pointer',
+          zIndex: 2,
+        }}
+        onClick={(e) => {
+          e.stopPropagation(); // prevent drag trigger
+          setIsOpen(!isOpen);
+        }}
+      >
         {isOpen ? <KeyboardArrowDown /> : <KeyboardArrowUp />}
       </div>
-
-      {isOpen && (
-  <div className={classes.content}>
-    {properties && properties.length > 0 ? (
-      properties.map((prop, index) => {
-
-        const editableFields = prop.isEditing
-            ? ['Manufacturer', 'Model', 'FlowRate', 'Power']
-            : [];
-
-        //ADD to test mismatches
-
-//      const testProp = {
-//   ...prop,
-//   Manufacturer: prop.Manufacturer, 
-//   Model: prop.Model,
-//   TechnicalParameters: {
-//     ...prop.TechnicalParameters,
-//     FlowRate: {
-//       ...prop.TechnicalParameters?.FlowRate,
-//       refVal: 104   // force mismatch for testing
-//     },
-//     Power: {
-//       ...prop.TechnicalParameters?.Power,
-//       refVal: prop.TechnicalParameters?.Power?.val
-//     }
-//   },
-//   // Add refVals for Manufacturer and Model
-//   properties: {
-//     ...prop.properties,
-//     Manufacturer: {
-//       ...prop.properties?.Manufacturer,
-//       refVal: 'SomeOtherManufacturer' // force mismatch
-//     },
-//     Model: {
-//       ...prop.properties?.Model,
-//       refVal: 'DifferentModel' // force mismatch
-//     }
-//   }
-// };
-
-console.log('EC8 PROPS', prop);
-
-   const dynamicSchema = buildSchema(prop, editableFields);
-
-        return (
-          <Paper key={prop._id || index} className={classes.card}>
-            <div className={classes.headerRow}>
-              <Typography variant='subtitle1' style={{ fontWeight: 'bold' }}>
-                Current Properties: {prop.siteEquipmentId || prop.equipmentId} ({prop.revision})
-              </Typography>
-              <Button
-                className={classes.editButton}
-                startIcon={prop.isEditing ? <SaveIcon /> : <EditIcon />}
-                onClick={() => toggleEdit(index)}
-              >
-                {prop.isEditing ? 'Save' : 'Edit'}
-              </Button>
-            </div>
-
-            <InfoComponent
-               entity={prop}
-              type={dynamicSchema}   
-              entityType="equipment"
-              hidePropertyActions={true}
-              disabled={!prop.isEditing} 
-                handleChange={(val, name) => {
-        //   setProperties(prev => {
-        //     const next = [...prev];
-        //     next[index] = { ...next[index], [name]: val };
-        //     return next;
-        // });
-        }}
-             // handleChange={(val, name) => handleChange(index, name, val)}
-            />
-          </Paper>
-        )
-      })
-    ) : (
-      <Typography variant='body2' color='textSecondary'>
-        No engineering change data available
-      </Typography>
-    )}
-  </div>
-)}
     </div>
-  )
-}
+      {isOpen && (
+        <div className={classes.content}>
+          {loading ? (
+            <div className={classes.loaderWrapper}>
+              <CircularProgress size={48} color="primary" />
+            </div>
+          ) : properties && properties.length > 0 ? (
+            properties.map((prop, index) => {
+              const editRequests = countEdits(prop.edited);
+              const hasEdits = editRequests > 0;
 
-export default ViewerBottomPanel
+              const showEditRequests =
+                prop.revision?.endsWith("A") &&
+                prop["revision status"] === "PENDING";
+
+              const editableFields = prop.isEditing
+                ? ["Manufacturer", "Model", "FlowRate", "Power"]
+                : [];
+
+              //ADD to test mismatches
+
+              //      const testProp = {
+              //   ...prop,
+              //   Manufacturer: prop.Manufacturer,
+              //   Model: prop.Model,
+              //   TechnicalParameters: {
+              //     ...prop.TechnicalParameters,
+              //     FlowRate: {
+              //       ...prop.TechnicalParameters?.FlowRate,
+              //       refVal: 104   // force mismatch for testing
+              //     },
+              //     Power: {
+              //       ...prop.TechnicalParameters?.Power,
+              //       refVal: prop.TechnicalParameters?.Power?.val
+              //     }
+              //   },
+              //   // Add refVals for Manufacturer and Model
+              //   properties: {
+              //     ...prop.properties,
+              //     Manufacturer: {
+              //       ...prop.properties?.Manufacturer,
+              //       refVal: 'SomeOtherManufacturer' // force mismatch
+              //     },
+              //     Model: {
+              //       ...prop.properties?.Model,
+              //       refVal: 'DifferentModel' // force mismatch
+              //     }
+              //   }
+              // };
+
+              const dynamicSchema = buildSchema(prop, editableFields);
+
+
+              return (
+                <EquipmentCard
+                  key={`${prop.equipmentId}-${prop.revision}-${index}`}
+                  classes={classes}
+                  item={prop}
+                  index={index}
+                  onSave={handleSave}
+                  onToggleEdit={onToggleEdit}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                />
+              );
+            })
+          ) : (
+            <Typography variant="body2" color="textSecondary">
+              No engineering change data available
+            </Typography>
+          )}
+        </div>
+      )}
+
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={4000}
+        onClose={handleCloseToast}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert onClose={handleCloseToast} severity={toast.severity}>
+          {toast.message}
+        </Alert>
+      </Snackbar>
+    </div>
+  );
+};
+
+export default ViewerBottomPanel;
 
 function Property({ label, value, editable, onChange }) {
-  const classes = useStyles()
+  const classes = useStyles();
   return (
     <div className={classes.property}>
       <Typography className={classes.label}>{label}</Typography>
       {editable ? (
         <input
-          type='text'
+          type="text"
           className={classes.valueInput}
-          value={value || ''}
+          value={value || ""}
           onChange={(e) => onChange(e.target.value)}
         />
       ) : (
-        <Typography className={classes.value}>{value || '-'}</Typography>
+        <Typography className={classes.value}>{value || "-"}</Typography>
       )}
     </div>
-  )
+  );
 }
 
 function UnitInput({ value, unit, onChange, disabled }) {
   const handleChange = (e) => {
     // only update the number, keep the unit
-    const num = e.target.value.replace(/[^\d.]/g, ''); // allow only numbers + decimal
-    onChange(num ? `${num} ${unit}` : '');
+    const num = e.target.value.replace(/[^\d.]/g, ""); // allow only numbers + decimal
+    onChange(num ? `${num} ${unit}` : "");
   };
 
   // split number from unit for display
-  const [numVal] = value ? value.split(' ') : [''];
+  const [numVal] = value ? value.split(" ") : [""];
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center' }}>
+    <div style={{ display: "flex", alignItems: "center" }}>
       <input
         type="text"
         value={numVal}
@@ -485,10 +789,10 @@ function UnitInput({ value, unit, onChange, disabled }) {
         onChange={handleChange}
         style={{
           flex: 1,
-          border: 'none',
-          borderBottom: '1px solid #ccc',
-          padding: '4px',
-          outline: 'none',
+          border: "none",
+          borderBottom: "1px solid #ccc",
+          padding: "4px",
+          outline: "none",
         }}
       />
       <span style={{ marginLeft: 4 }}>{unit}</span>
@@ -496,3 +800,197 @@ function UnitInput({ value, unit, onChange, disabled }) {
   );
 }
 
+function countEdits(edited) {
+  if (!edited) return 0;
+  return Object.values(edited).reduce((count, val) => {
+    if (Array.isArray(val)) {
+      return count + val.length;
+    }
+    return count + 1;
+  }, 0);
+}
+
+function EquipmentCard({
+  classes,
+  item,
+  index,
+  onSave,
+  onToggleEdit,
+  onApprove,
+  onReject,
+}) {
+  const [draft, setDraft] = React.useState(item);
+  const wasEditingRef = React.useRef(item.isEditing);
+
+  React.useEffect(() => {
+    if (!wasEditingRef.current && item.isEditing) {
+      setDraft(item);
+    }
+    wasEditingRef.current = item.isEditing;
+  }, [item.isEditing, item]);
+
+  const editableFields = item.isEditing
+    ? ["Manufacturer", "Model", "FlowRate", "Power", "Safety Class"]
+    : [];
+
+  const dynamicSchema = React.useMemo(
+    () => buildSchema(item, editableFields),
+    [item, item.isEditing],
+  );
+
+  const handleLocalChange = (val, name) => {
+    setDraft((prev) => {
+      let next = { ...prev, [name]: val };
+
+      if (["FlowRate", "Power"].includes(name)) {
+        next = {
+          ...next,
+          TechnicalParameters: {
+            ...prev.TechnicalParameters,
+            [name]: {
+              ...prev.TechnicalParameters?.[name],
+              val,
+            },
+          },
+        };
+      } else {
+        next = {
+          ...next,
+          properties: {
+            ...prev.properties,
+            [name]: {
+              ...prev.properties?.[name],
+              val,
+            },
+          },
+        };
+      }
+      return next;
+    });
+  };
+
+  const editRequests = countEdits(item.edited);
+  const hasEdits = editRequests > 0;
+  const showEditRequests =
+    item.revision?.endsWith("A") && item["revision status"] === "PENDING";
+
+  const handleEditClick = async () => {
+    if (item.isEditing) {
+      const hasChanges =
+        JSON.stringify(item.properties) !== JSON.stringify(draft.properties) ||
+        JSON.stringify(item.TechnicalParameters) !==
+          JSON.stringify(draft.TechnicalParameters);
+
+      if (hasChanges) {
+        await onSave(index, draft);
+      } else {
+        console.log("No changes detected, skipping save");
+        onToggleEdit(index);
+      }
+    } else {
+      onToggleEdit(index);
+    }
+  };
+
+  return (
+    <Paper key={item._id || index} className={classes.card}>
+      <div className={classes.headerRow}>
+        <Typography variant="subtitle1" style={{ fontWeight: "bold" }}>
+          Current Properties: {item.siteEquipmentId || item.equipmentId} (
+          {item.revision})
+        </Typography>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Button
+            className={classes.editButton}
+            size="small"
+            startIcon={
+              item.isEditing ? (
+                <SaveIcon fontSize="small" />
+              ) : (
+                <EditIcon fontSize="small" />
+              )
+            }
+            onClick={handleEditClick}
+            style={{
+              padding: "6px 14px",
+              minHeight: 34,
+              fontSize: "0.85rem",
+              marginLeft: "4px",
+            }}
+          >
+            {item.isEditing ? "Save" : "Edit"}
+          </Button>
+
+          {hasEdits && showEditRequests && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                backgroundColor: "#e6f0fa",
+                padding: "3px 8px",
+                borderRadius: 6,
+                height: 28,
+              }}
+            >
+              <Typography
+                style={{
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  color: "#1976d2",
+                  marginRight: 8,
+                  lineHeight: 1.2,
+                }}
+              >
+                Edit Requests ({editRequests})
+              </Typography>
+
+              <Typography
+                style={{
+                  fontSize: "0.8rem",
+                  color: "#1976d2",
+                  cursor: "pointer",
+                  marginRight: 6,
+                  lineHeight: 1.2,
+                }}
+                onClick={() => onReject(item)}
+              >
+                Reject
+              </Typography>
+
+              <Divider
+                orientation="vertical"
+                flexItem
+                style={{ margin: "0 6px", height: 16 }}
+              />
+
+              <Typography
+                style={{
+                  fontSize: "0.8rem",
+                  color: "#1976d2",
+                  cursor: "pointer",
+                  marginRight: 6,
+                  lineHeight: 1.2,
+                }}
+                onClick={() => onApprove(item)}
+              >
+                Approve
+              </Typography>
+
+              <AssignmentLateIcon style={{ color: "#1976d2", fontSize: 18 }} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <InfoComponent
+        entity={item.isEditing ? draft : item} // <- use draft while editing
+        type={dynamicSchema}
+        entityType="equipment"
+        hidePropertyActions={true}
+        disabled={!item.isEditing}
+        handleChange={handleLocalChange}
+      />
+    </Paper>
+  );
+}

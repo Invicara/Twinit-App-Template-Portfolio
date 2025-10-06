@@ -6,18 +6,14 @@ import { Typography, Box } from '@mui/material';
 import { OptionsContext } from '../../jsonForms/renderers/OptionsContext.jsx';
 import {renderNumberPreview} from "./numberFormat.js";
 
-// pull "name" from "#/properties/name"
 const controlKey = (scope) => scope.match(/#\/properties\/(.+)$/)?.[1] ?? scope;
 
-// simple safe getter for "a.b.c"
 const getAt = (obj, path) =>
     !path ? obj : path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj);
 
-// format a primitive/array/boolean nicely
 function formatValue({ value, propSchema }) {
   if (value == null || value === '') return '—';
 
-  // If this is FlowRate or Power with unit
   if ((propSchema?.title === 'FlowRate' || propSchema?.title === 'Power') && propSchema?.options) {
     const { refVal, unit } = propSchema.options;
     if (refVal !== undefined && value != refVal) {
@@ -49,30 +45,32 @@ export default function ValuePresenter({ controlUiSchema, schema, path, labelPla
   let display = formatValue({ value: rawValue, propSchema });
   let isMismatch = false;
 
-  // FlowRate / Power (numeric w/unit)
-  if ((key === 'FlowRate' || key === 'Power') && unit) {
-    const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue);
-    if (!Number.isNaN(numeric)) {
-      if (refVal !== undefined && numeric != refVal) {
-        display = `${numeric} ${unit} (Expected: ${refVal} ${unit})`;
-        isMismatch = true;
-      } else {
-        display = `${numeric} ${unit}`;
-      }
-    }
-  }
+if (propSchema?.isEdited) {
+  display = String(rawValue);
+  isMismatch = false;
+}
 
-  // Manufacturer / Model (string mismatch)
-  if ((key === 'Manufacturer' || key === 'Model') && refVal !== undefined) {
-    if (rawValue !== refVal) {
-      display = `${rawValue} (Expected: ${refVal})`;
+else if ((key === 'FlowRate' || key === 'Power') && unit) {
+  const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+  if (!Number.isNaN(numeric)) {
+    if (refVal !== undefined && numeric != refVal) {
+      display = `${numeric} ${unit} (Expected: ${refVal} ${unit})`;
       isMismatch = true;
     } else {
-      display = rawValue;
+      display = `${numeric} ${unit}`;
     }
   }
+}
 
-  // report mismatch live back to RowWithActions
+else if ((key === 'Manufacturer' || key === 'Model') && refVal !== undefined) {
+  if (rawValue !== refVal) {
+    display = `${rawValue} (Expected: ${refVal})`;
+    isMismatch = true;
+  } else {
+    display = rawValue;
+  }
+}
+
   React.useEffect(() => {
     if (onEvaluate) {
       onEvaluate({ isMismatch });
@@ -91,7 +89,6 @@ export default function ValuePresenter({ controlUiSchema, schema, path, labelPla
       columnGap={1}
     >
       {labelPlacement === 'left' ? (
-        // Label on the left
         <Box>
           <Typography variant="body2" fontWeight={600}>
             {label}
@@ -103,7 +100,6 @@ export default function ValuePresenter({ controlUiSchema, schema, path, labelPla
           </Typography>
         </Box>
       ) : (
-        // Label above the value
         <Typography variant="caption" color="textSecondary">
           {label}
           {isRequired && (

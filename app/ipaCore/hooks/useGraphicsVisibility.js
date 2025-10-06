@@ -40,7 +40,7 @@ export function useGraphicsVisibility({mapInstance, portContext}){
 
         const remainingMeshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
             const featureIds = currentState.context.data[l.state]
-                .filter(el => valuesPerLevelKey.some(([k, v]) => el[k] !== v))
+                .filter(el => valuesPerLevelKey.every(([k, v]) => el[k] !== v))
                 .map(f => f[l.idKey]);
 
             return {[l.state]: featureIds}

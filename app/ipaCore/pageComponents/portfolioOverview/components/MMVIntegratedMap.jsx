@@ -93,30 +93,27 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
             position: 'relative',
             cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
         }}>
-            <AutoSizer>
-                {({ height, width }) => (
-                    <div
-                        ref={mmvContainerRef}
-                        style={{
-                            width,
-                            height,
-                            cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
-                        }}
-                    >
-                        {mapboxToken && <IafMultiModalViewer
-                            mode={"mmvGIS"}
-                            config={{...mergedMMVConfig, width, height}}
-                            eventHandler={handleMMVEvent}
-                            appId={appId}
-                            command={command}
-                            style={{
-                                cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
-                            }}
-                            {...{ width, height }}
-                        />}
-                    </div>
-                )}
-            </AutoSizer>
+            <div
+                ref={mmvContainerRef}
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
+                }}
+            >
+                {mapboxToken && <IafMultiModalViewer
+                    mode={"mmvGIS"}
+                    config={{...mergedMMVConfig}}
+                    eventHandler={handleMMVEvent}
+                    appId={appId}
+                    command={command}
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
+                    }}
+                />}
+            </div>
         </div>
     );
 }
