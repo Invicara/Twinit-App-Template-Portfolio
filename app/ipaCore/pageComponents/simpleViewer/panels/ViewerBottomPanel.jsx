@@ -210,7 +210,6 @@ function prettifyLabel(str) {
 function buildSchema(flat, editableFields = []) {
   if (!flat) return { type: 'object', properties: {}, required: [] };
 
-  // ✅ Merge TechnicalParameters directly into flat
   const mergedFlat = {
     ...flat,
     ...(flat.TechnicalParameters
@@ -221,11 +220,9 @@ function buildSchema(flat, editableFields = []) {
       : {}),
   };
 
-  // ✅ Detect available parameters
   const hasCooling = !!flat?.TechnicalParameters?.CoolingCapacity;
   const hasSurface = !!flat?.TechnicalParameters?.['Surface Area'];
 
-  // ✅ Build ordered field list
   const fieldConfig = [
     { key: 'equipmentId', title: 'Name Id' },
     { key: 'Model', title: 'Model' },
@@ -384,7 +381,6 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
     e.preventDefault();
   };
 
-  // 🔹 Handle drag move
   useEffect(() => {
     if (!isDragging) return;
 
@@ -492,7 +488,6 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
     }
   };
 
-  // keep your existing toggleEdit but don’t call the API here anymore
   const onToggleEdit = (idx) => {
     setProperties((prev) =>
       prev.map((p, i) => (i === idx ? { ...p, isEditing: !p.isEditing } : p)),
@@ -625,7 +620,6 @@ const handleChange = (index, name, value) => {
       let updated = { ...p, [name]: value };
 
       if (p.TechnicalParameters && name in p.TechnicalParameters) {
-        // It's a technical parameter → update there
         updated = {
           ...updated,
           TechnicalParameters: {
@@ -637,7 +631,6 @@ const handleChange = (index, name, value) => {
           },
         };
       } else {
-        // Otherwise it's a normal property
         updated = {
           ...updated,
           properties: {
@@ -804,8 +797,7 @@ function Property({ label, value, editable, onChange }) {
 
 function UnitInput({ value, unit, onChange, disabled }) {
   const handleChange = (e) => {
-    // only update the number, keep the unit
-    const num = e.target.value.replace(/[^\d.]/g, ""); // allow only numbers + decimal
+    const num = e.target.value.replace(/[^\d.]/g, ""); 
     onChange(num ? `${num} ${unit}` : "");
   };
 
@@ -1016,7 +1008,7 @@ function EquipmentCard({
       </div>
 
       <InfoComponent
-        entity={item.isEditing ? draft : item} // <- use draft while editing
+        entity={item.isEditing ? draft : item} 
         type={dynamicSchema}
         entityType="equipment"
         hidePropertyActions={true}
