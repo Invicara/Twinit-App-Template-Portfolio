@@ -45,7 +45,7 @@ export default function BuildingInfo({context}) {
 
     const handleSelectModel = () => {
         // Example modelElementId - you can modify this based on your needs
-        const modelElementId = currentBuilding.ModelName;
+        const modelElementId = currentBuilding.ModelName || currentStructure.modelName;
 
         // Send event to xState machine to set modelElementId - include siteId as specified
         if (send) {

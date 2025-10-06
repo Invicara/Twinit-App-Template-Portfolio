@@ -1,26 +1,24 @@
-import React, { useMemo } from "react";
-import { Box, Divider, IconButton, Tooltip, Typography } from "@mui/material";
-import { composePaths, toDataPath, Resolve } from '@jsonforms/core';
-import ValuePresenter from "./ValuePresenter.jsx";
+import React, { useMemo, useEffect, useRef, useState } from 'react';
+import { Box, Divider, IconButton, Tooltip, Typography } from '@mui/material';
 import {
-  CancelOutlined as CloseIcon,
   DeleteForeverOutlined,
   EditOutlined as EditIcon,
   InfoOutlined,
   SettingsOutlined,
   Warning as WarningIcon,
-ErrorOutline as ErrorIcon
-} from "@mui/icons-material";
+  CancelOutlined as CloseIcon,
+  AssignmentLate as AssignmentLateIcon
+} from '@mui/icons-material';
+import { composePaths, toDataPath, Resolve } from '@jsonforms/core';
+import ValuePresenter from './ValuePresenter.jsx';
 
-
-// Extract "name" from "#/properties/name"
 const controlKey = (scope) => scope.match(/#\/properties\/(.+)$/)?.[1] ?? scope;
 
 export function RowWithActions({
   schema,
   path,
   enabled,
-  labelPlacement = "auto",
+  labelPlacement = 'auto',
   Control,
   controlProps,
   controlUiSchema = {},
@@ -30,74 +28,102 @@ export function RowWithActions({
   onOpenModify,
   onOpenDelete,
   disabledForm,
-  entityType
 }) {
-  const rowRef = React.useRef(null);
+  const rowRef = useRef(null);
   const key = controlKey(controlUiSchema.scope);
-  const controlPath = composePaths(path ?? '', toDataPath(controlUiSchema.scope));
+  const absPath = composePaths(path ?? '', toDataPath(controlUiSchema.scope));
+
   const canModify = getIsModifiable(key);
   const canDelete = getIsDeletable(key);
   const canEdit = getIsEditable(key);
 
-  const [editing, setEditing] = React.useState(false);
+  const [editing, setEditing] = useState(false);
+  const [liveMismatch, setLiveMismatch] = useState(false);
+  const [liveEdited, setLiveEdited] = useState(!!schema?.properties?.[key]?.isEdited);
 
-  // label & required
-  const labelText = controlUiSchema.label ?? schema?.properties?.[key]?.title ?? key;
+  const propSchema = schema?.properties?.[key];
+  const labelText = controlUiSchema.label ?? propSchema?.title ?? key;
   const isRequired =
     Array.isArray(schema?.required) && schema.required.includes(key);
 
-//  const propSchema = schema?.properties?.[key];
-// const showMismatch = !!propSchema?.isMismatched;
 
-const propSchema = schema?.properties?.[key];
-  const [liveMismatch, setLiveMismatch] = React.useState(!!propSchema?.isMismatched);
+  const originalValRef = useRef(
+    propSchema?.displayValue ??
+    Resolve.data(controlProps?.data, controlUiSchema.scope)
+  );
+
+
+  const handleUserTyping = (e) => {
+    const inputVal = e.target.value;
+    const prevVal = originalValRef.current;
+
+    if (liveEdited && inputVal !== prevVal) {
+      setLiveEdited(false);
+
+      if (schema?.properties?.[key]) {
+        delete schema.properties[key].isEdited;
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!rowRef.current || !editing) return;
+    const input = rowRef.current.querySelector('input, textarea, select');
+    if (!input) return;
+    input.addEventListener('input', handleUserTyping);
+    return () => input.removeEventListener('input', handleUserTyping);
+  }, [editing, liveEdited]);
 
   const controlUiSchemaWithOptionalLabel = useMemo(
     () => ({ ...controlUiSchema, label: controlUiSchema.label }),
     [controlUiSchema]
   );
 
-  // focus handling
   const isInMuiPicker = (el) =>
     !!el?.closest?.(
       '.MuiPickersPopper-root, .MuiModal-root, .MuiPickersModal-dialogRoot, [role="dialog"]'
     );
-  const onRowBlur = (e) => {
-  if (!editing) return;
-  if (key === 'FlowRate' || key === 'Power') return;
 
-  requestAnimationFrame(() => {
-    const next = e.relatedTarget || document.activeElement;
-    const inRow = rowRef.current?.contains(next);
-    if (!inRow && !isInMuiPicker(next)) {
-      setEditing(false);
-    }
-  });
-};
+  const onRowBlur = (e) => {
+    if (!editing) return;
+    if (key === 'FlowRate' || key === 'Power') return;
+    requestAnimationFrame(() => {
+      const next = e.relatedTarget || document.activeElement;
+      const inRow = rowRef.current?.contains(next);
+      if (!inRow && !isInMuiPicker(next)) setEditing(false);
+    });
+  };
 
   return (
-    <Box ref={rowRef}  p={0}>
+    <Box
+      ref={rowRef}
+      onBlur={onRowBlur}
+      p={0}
+      sx={{
+        backgroundColor: liveEdited ? '#ECF5FB' : 'transparent',
+        borderRadius: 0,
+        transition: 'background-color 0.25s ease',
+      }}
+    >
       <Box
-        display="grid"
-        gridTemplateColumns={`${labelPlacement == "auto" ? "" : "33% "} 1fr auto`}
-        alignItems="center"
+        display='grid'
+        gridTemplateColumns={`${labelPlacement === 'auto' ? '' : '33% '} 1fr auto`}
+        alignItems='center'
         columnGap={1}
       >
-        {/* LEFT: fixed label */}
-        {labelPlacement == "left" && (
+        {labelPlacement === 'left' && (
           <Box>
-            <Typography variant="body2" fontWeight={600}>
+            <Typography variant='body2' fontWeight={600}>
               {labelText}
-              {isRequired ? (
-                <Typography component="span" color="error">
+              {isRequired && (
+                <Typography component='span' color='error'>
                   &nbsp;*
                 </Typography>
-              ) : null}
+              )}
             </Typography>
           </Box>
         )}
 
-        {/* RIGHT: value presenter or editable control */}
         <Box>
           {editing ? (
             <Control
@@ -111,16 +137,44 @@ const propSchema = schema?.properties?.[key];
               schema={schema}
               path={path}
               labelPlacement={labelPlacement}
-            onEvaluate={({ isMismatch }) => setLiveMismatch(isMismatch)}
+              onEvaluate={({ isMismatch }) => setLiveMismatch(isMismatch)}
             />
           )}
         </Box>
 
-        {/* Actions: warning + edit/info + modify/delete */}
-        <Box justifySelf="end" alignSelf="start" pt={3} display="flex" alignItems="center">
-              {liveMismatch && (
+        <Box justifySelf='end' alignSelf='start' pt={3} display='flex' alignItems='center'>
+     
+          {liveMismatch && !liveEdited && (
             <Tooltip title={'Expected other value'}>
-              <WarningIcon fontSize="small" sx={{ color: "orange", mr: 0.5 }} />
+              <WarningIcon fontSize='small' sx={{ color: 'orange', mr: 0.5 }} />
+            </Tooltip>
+          )}
+
+          {liveEdited && !editing && (
+            <Tooltip
+              title={
+                <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: 'white' }}>
+                  {`Edit suggestion to update ${
+                    propSchema?.options?.originalVal ?? '—'
+                  } to ${
+                    propSchema?.displayValue ??
+                    propSchema?.options?.refVal ??
+                    Resolve.data(controlProps?.data, controlUiSchema.scope) ??
+                    '—'
+                  }`}
+                </Typography>
+              }
+              arrow
+            >
+              <Box display='flex' alignItems='center' mr={1}>
+                <Typography
+                  variant='caption'
+                  sx={{ color: '#1976d2', fontWeight: 600, mr: 0.5 }}
+                >
+                  Edit Request
+                </Typography>
+                <AssignmentLateIcon fontSize='small' sx={{ color: '#1976d2' }} />
+              </Box>
             </Tooltip>
           )}
 
@@ -128,69 +182,70 @@ const propSchema = schema?.properties?.[key];
             <Tooltip
               title={
                 disabledForm
-                  ? "Editing is disabled"
+                  ? 'Editing is disabled'
                   : !canEdit
-                  ? "This property is not editable"
-                  : "Edit value"
+                  ? 'This property is not editable'
+                  : 'Edit value'
               }
             >
               <span>
                 <IconButton
-                  size="small"
+                  size='small'
                   onClick={() => canEdit && !disabledForm && setEditing(true)}
                   disabled={disabledForm || !canEdit}
                 >
                   {(!canEdit || disabledForm) ? (
-                    <InfoOutlined fontSize="small" />
+                    <InfoOutlined fontSize='small' />
                   ) : (
-                    <EditIcon fontSize="small" />
+                    <EditIcon fontSize='small' />
                   )}
                 </IconButton>
               </span>
             </Tooltip>
           ) : (
-            <Tooltip title="Close edit">
-              <IconButton size="small" onClick={() => setEditing(false)}>
-                <CloseIcon fontSize="small" />
+            <Tooltip title='Close edit'>
+              <IconButton size='small' onClick={() => setEditing(false)}>
+                <CloseIcon fontSize='small' />
               </IconButton>
             </Tooltip>
           )}
 
           {canModify && (
-            <Tooltip title="Modify Property">
+            <Tooltip title='Modify Property'>
               <span>
                 <IconButton
-                  size="small"
+                  size='small'
                   onClick={() => onOpenModify?.(key)}
                   disabled={disabledForm}
                 >
-                  <SettingsOutlined fontSize="small" />
+                  <SettingsOutlined fontSize='small' />
                 </IconButton>
               </span>
             </Tooltip>
           )}
 
           {canDelete && (
-            <Tooltip title="Delete Property">
+            <Tooltip title='Delete Property'>
               <span>
                 <IconButton
-                  size="small"
+                  size='small'
                   onClick={() => onOpenDelete?.(key)}
                   disabled={disabledForm}
                 >
-                  <DeleteForeverOutlined fontSize="small" />
+                  <DeleteForeverOutlined fontSize='small' />
                 </IconButton>
               </span>
             </Tooltip>
           )}
         </Box>
       </Box>
+
       <Divider
-        style={{
-          marginTop: 6,
-          borderBottomWidth: "0px",
-          height: "1px",
-          backgroundColor: "#e7e7e7"
+        sx={{
+          mt: 0.5,
+          borderBottomWidth: '0px',
+          height: '1px',
+          backgroundColor: '#e7e7e7',
         }}
       />
     </Box>

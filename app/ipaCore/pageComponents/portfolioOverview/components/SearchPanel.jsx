@@ -89,6 +89,14 @@ export default function SearchPanel({
         selectedOptionsRef.current = selectOptions
     },[selectOptions])
 
+    // This effect runs only when a brand new `initialFilter` or formConfig/context changes.
+    // It flattens the rule tree into leaf nodes and lets each field's `fromRule` decide
+    // its starting value. This is how we *initialize* filters from external rules.
+    // NOTE: This must stay separate from the reconciliation effect:
+    // This one is about bootstrapping filter values from the initial rule structure.
+    // The reconciliation effect when options change comes later,
+    // mixing selectedOptions dependency here would cause loops
+    // (or make it unclear which one is responsible for initialization vs. ongoing correction)
     useEffect(() => {
         // Flatten rules from {op:'and'|'or'|...} into a simple array of leaf nodes
         const gatherLeaves = (node, acc = []) => {
@@ -128,6 +136,43 @@ export default function SearchPanel({
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialFilter, formConfig, context]);
+
+    const optionsSig = useMemo(() => JSON.stringify(selectOptions), [selectOptions]);
+    const lastAppliedSigRef = useRef('');
+
+    // This effect makes sure filters stay valid when options change (because they might be linked).
+    // It checks if a filter value is no longer in the new options,
+    // and if so, replaces it with a safe default.
+    // The signature guard stops it from running in a loop
+    useEffect(() => {
+        // Reconcile only when options change
+        //build a clamped "filters" candidate WITHOUT mutating
+        const next = (() => {
+            let changed = false;
+            const copy = { ...filters };
+            for (const [key, opts] of Object.entries(selectOptions)) {
+                const cfg = formConfig?.fields?.[key];
+                if (cfg?.type !== 'select') continue;
+                const val = copy[key] ?? '';
+                const exists = (opts || []).some(o => String(o.value) === String(val));
+                if (!exists && val !== '') {
+                    copy[key] = cfg?.default ?? cfg?.initial ?? '';
+                    changed = true;
+                }
+            }
+            return changed ? copy : filters; // idempotent
+        })();
+
+        // If nothing changed, bail early
+        if (next === filters) return;
+
+        // Prevent ping-pong: only apply if resulting state differs from what we last applied
+        const nextSig = JSON.stringify(next);
+        if (nextSig === lastAppliedSigRef.current) return;
+
+        lastAppliedSigRef.current = nextSig;
+        setFilters(next);
+    }, [optionsSig, formConfig]); // ← note: not depending on `filters`
 
     const handleChange = (e) => {
         const { name, value } = e.target;

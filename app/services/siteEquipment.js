@@ -2,224 +2,280 @@ import React from "react";
 import { IafProj, IafSession, IafItemSvc } from "@dtplatform/platform-api";
 import { convertFieldResponseIntoMuiTextFieldProps } from "@mui/x-date-pickers/internals";
 
-export async function siteEquipmentService(changes, facilityId, buildingId, equipmentId) {
+export async function siteEquipmentService(
+  changes,
+  facilityId,
+  buildingId,
+  equipmentId,
+) {
   const ctx = IafProj.getCurrent();
 
   const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
 
-  const type = changes?.['EC TYPE'];
-  const ecid = changes?.['EC ID'];
+  const type = changes?.["EC TYPE"];
+  const ecid = changes?.["EC ID"];
 
-      let getUrls = [
-        `${baseOmapiUrl}/engineeringchanges/${ecid}/equipment?facility=${facilityId}&unit=${buildingId}`
-      ]
+  let getUrls = [
+    `${baseOmapiUrl}/engineeringchanges/${ecid}/equipment?facility=${facilityId}&unit=${buildingId}`,
+  ];
 
+  let postUrl = {
+    url: `${baseOmapiUrl}/siteequip/search`,
+    body: {
+      facility: facilityId,
+      unit: buildingId,
+      equipmentId: equipmentId,
+      equipmentType: type,
+    },
+  };
+  let referenceUrl = {
+    url: `${baseOmapiUrl}/references/search`,
+    body: { equipmentId: equipmentId, equipmentType: type },
+  };
 
+  let results = [];
+  let refResults = [];
+  let getResults = [];
 
-   let postUrl = { url: `${baseOmapiUrl}/siteequip/search`, body: { facility: facilityId, unit: buildingId, equipmentId: equipmentId, equipmentType: type } };
-   let referenceUrl = { url: `${baseOmapiUrl}/references/search`, body: { equipmentId: equipmentId, equipmentType: type } }
+  for (const testUrl of getUrls) {
+    let response = await fetch(testUrl, {
+      method: "GET",
+      mode: "cors",
+      headers: {
+        Authorization: "Bearer " + IafSession.getAuthToken(ctx),
+        "Content-Type": "application/json",
+      },
+    });
 
-   let results = [];
-   let refResults = [];
-   let getResults = [];
-
-
-    for (const testUrl of getUrls) {
-      let response = await fetch(testUrl, {
-        method: "GET",
-        mode: "cors",
-        headers: {
-          Authorization: "Bearer " + IafSession.getAuthToken(ctx),
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.ok) {
-        let result = await response.json();
-        if (result._result.status === 200) {
-          getResults.push({ testUrl, result });
-        } else {
-          getResults.push({
-            testUrl,
-            message: `ERROR: OMAPI ${testUrl} call returned status other than 200`,
-          });
-        }
+    if (response.ok) {
+      let result = await response.json();
+      if (result._result.status === 200) {
+        getResults.push({ testUrl, result });
       } else {
         getResults.push({
           testUrl,
-          message: `ERROR: OMAPI ${testUrl} call failed`,
+          message: `ERROR: OMAPI ${testUrl} call returned status other than 200`,
         });
       }
-    }
-
-    const passUrl = postUrl.url;
-    const refUrl = referenceUrl.url;
-
-      try {
-      let response = await fetch(postUrl.url, {
-        method: "POST",
-        mode: "cors",
-        headers: {
-          Authorization: "Bearer " + IafSession.getAuthToken(ctx),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(postUrl.body),
+    } else {
+      getResults.push({
+        testUrl,
+        message: `ERROR: OMAPI ${testUrl} call failed`,
       });
+    }
+  }
 
-      if (response.ok) {
-        let result = await response.json();
-        if (result._result.status === 200) {
-          results.push({ passUrl, result });
-        } else {
-          results.push({
-            passUrl,
-            message: `ERROR: OMAPI ${passUrl} call returned status other than 200`,
-          });
-        }
+  const passUrl = postUrl.url;
+  const refUrl = referenceUrl.url;
+
+  try {
+    let response = await fetch(postUrl.url, {
+      method: "POST",
+      mode: "cors",
+      headers: {
+        Authorization: "Bearer " + IafSession.getAuthToken(ctx),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(postUrl.body),
+    });
+
+    if (response.ok) {
+      let result = await response.json();
+      if (result._result.status === 200) {
+        results.push({ passUrl, result });
       } else {
         results.push({
           passUrl,
-          message: `ERROR: OMAPI ${passUrl} call failed`,
+          message: `ERROR: OMAPI ${passUrl} call returned status other than 200`,
         });
       }
+    } else {
+      results.push({
+        passUrl,
+        message: `ERROR: OMAPI ${passUrl} call failed`,
+      });
+    }
     // }
   } catch (error) {
     results.push({ message: error });
   }
 
-      try {
-      let response = await fetch(referenceUrl.url, {
-        method: "POST",
-        mode: "cors",
-        headers: {
-          Authorization: "Bearer " + IafSession.getAuthToken(ctx),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(referenceUrl.body),
-      });
+  try {
+    let response = await fetch(referenceUrl.url, {
+      method: "POST",
+      mode: "cors",
+      headers: {
+        Authorization: "Bearer " + IafSession.getAuthToken(ctx),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(referenceUrl.body),
+    });
 
-      if (response.ok) {
-        let result = await response.json();
-        if (result._result.status === 200) {
-          refResults.push({ refUrl, result });
-        } else {
-          refResults.push({
-            refUrl,
-            message: `ERROR: OMAPI ${refUrl} call returned status other than 200`,
-          });
-        }
+    if (response.ok) {
+      let result = await response.json();
+      if (result._result.status === 200) {
+        refResults.push({ refUrl, result });
       } else {
         refResults.push({
           refUrl,
-          message: `ERROR: OMAPI ${refUrl} call failed`,
+          message: `ERROR: OMAPI ${refUrl} call returned status other than 200`,
         });
       }
+    } else {
+      refResults.push({
+        refUrl,
+        message: `ERROR: OMAPI ${refUrl} call failed`,
+      });
+    }
     // }
   } catch (error) {
     refResults.push({ message: error });
   }
 
-  
   const res = results?.[0]?.result?._result?.equipment?._list?.[0];
 
   const siteEq = getResults?.[0]?.result?._result?.ec?.siteEquipment;
-  const refs = getResults?.[0]?.result?._result?.ec?.referenceRevisions;
   
-//   const latestRevision = siteEq.map(item => {
-//   if (Array.isArray(item.revisions) && item.revisions.length > 0) {
-//     return {
-//       ...item,
-//       revisions: [item.revisions[item.revisions.length - 1]], // keep only last
-//     }
-//   }
-//   return item
-// })
+  const refs = getResults?.[0]?.result?._result?.ec?.referenceRevisions;
 
-const matchedRevision = siteEq.map(item => {
-  if (Array.isArray(item.revisions) && item.revisions.length > 0) {
-    const match = item.revisions.find(r => r.revision === item.tipVersion);
+  const matchedRevision = siteEq?.map((item) => {
+    if (Array.isArray(item.revisions) && item.revisions.length > 0) {
+      const match = item.revisions.find((r) => r.revision === item.tipVersion);
 
-    return {
-      ...item,
-      revisions: match ? [match] : [item.revisions[item.revisions.length - 1]], 
-    };
+      return {
+        ...item,
+        revisions: match
+          ? [match]
+          : [item.revisions[item.revisions.length - 1]],
+      };
+    }
+    return item;
+  });
+
+  console.log("EC8 matchedRevision", JSON.stringify(matchedRevision, null, 2));
+  console.log("EC8 matchedRevision normal", matchedRevision);
+
+  function normalizeEC(siteEq) {
+    return (siteEq || []).map((eq) => {
+      const tip =
+        eq.tipRevision ?? eq.tiprevision ?? eq.TipRevision ?? eq.tipVersion;
+      const revisions = Array.isArray(eq.revisions) ? eq.revisions : [];
+      const chosen =
+        revisions.find(
+          (r) => String(r.revision).trim() === String(tip).trim(),
+        ) || revisions[revisions.length - 1];
+
+      return {
+        ...eq,
+        revisions: [
+          {
+            ...chosen,
+            edited: chosen?.edited || eq?.edited || null,
+            original: chosen?.original || eq?.original || null,
+          },
+        ],
+      };
+    });
   }
-  return item;
-});
 
-  const mergeSiteRefs = mergeReferenceRevisions(refs, matchedRevision);
-  return mergeSiteRefs;
+  const normalized = normalizeEC(matchedRevision);
+
+  console.log("After normalizeEC", JSON.stringify(normalized, null, 2));
+
+  const mergeSiteRefs = mergeReferenceRevisions(refs, normalized);
+  const mergedEdits = mergeEditsIntoEquipments(mergeSiteRefs);
+
+  console.log(
+    "After mergeEditsIntoEquipments",
+    JSON.stringify(mergedEdits, null, 2),
+  );
+
+  return mergedEdits;
 }
 
 function mergeReferenceRevisions(refs, siteEq) {
-  refs.forEach(ref => {
-    const matchEq = siteEq.find(se => se['Equipment Id'] === ref.equipmentId);
-    if (!matchEq) return;
+  if (!Array.isArray(refs)) return siteEq;
+  if (!Array.isArray(siteEq)) return [];
 
-    const matchRev = matchEq.revisions.find(r => r.revision === ref.revision);
-    if (!matchRev) return;
+  function toArray(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === "object") {
+      return Object.entries(val).map(([name, obj]) => ({ name, ...obj }));
+    }
+    return [];
+  }
 
- 
-    matchRev.TechnicalParameters = matchRev.TechnicalParameters.map(tp => {
-      const refParam = ref.TechnicalParameters.find(rtp => rtp.name === tp.name);
-      if (refParam) {
-        return { ...tp, refVal: refParam.val }; 
-      }
-      return tp;
+  return siteEq.map((eq) => {
+    const matchRef = refs.find(
+      (r) =>
+        r.equipmentId === eq["Equipment Id"] ||
+        r.equipmentId === eq.equipmentId,
+    );
+    if (!matchRef) return eq;
+
+    const eqRev = eq.revisions?.[0];
+    if (!eqRev) return eq;
+
+    const refTech = toArray(matchRef.TechnicalParameters);
+    const refProps = toArray(matchRef.properties);
+
+    const updatedTech = toArray(eqRev.TechnicalParameters).map((tp) => {
+      const refParam = refTech.find((rtp) => rtp.name === tp.name);
+      return refParam ? { ...tp, refVal: refParam.val } : tp;
     });
- 
-    matchRev.properties = matchRev.properties.map(p => {
-      if (p.name === 'Manufacturer' || p.name === 'Model') {
-        const refProp = ref.properties?.find(rp => rp.name === p.name);
-        if (refProp) {
-          return { ...p, refVal: refProp.val }; 
-        }
-      }
-      return p;
+
+    const updatedProps = toArray(eqRev.properties).map((p) => {
+      const refProp = refProps.find((rp) => rp.name === p.name);
+      return refProp ? { ...p, refVal: refProp.val } : p;
     });
+
+    return {
+      ...eq,
+      revisions: [
+        {
+          ...eqRev,
+          TechnicalParameters: updatedTech,
+          properties: updatedProps,
+        },
+      ],
+    };
   });
-
-  return siteEq;
 }
 
-
-export async function siteEquipmentForTreeService(facilityId, buildingId, equipmentIds) {
+export async function siteEquipmentForTreeService(
+  facilityId,
+  buildingId,
+  equipmentIds,
+) {
   const ctx = IafProj.getCurrent();
 
   const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
 
-
-    // const siteEqurl = { url: `${baseOmapiUrl}/siteequip/search`, body: { facility: facilityId, unit: buildingId, equipmentId: 'SG-900-001', equipmentType: "Pump" }};
-
-  //   const siteUrl = siteEqurl.url;
-
-  const refUrl =   { url: `${baseOmapiUrl}/references/search`, body: { equipmentId: 'SG-900-001', equipmentType: "Pump" } }
-
   const results = [];
   const refResults = [];
-   
+
   for (const eq of equipmentIds) {
-    const equipmentId = eq['Equipment Id'] || eq['equipmentId'];
+    const equipmentId = eq["Equipment Id"] || eq["equipmentId"];
     if (!equipmentId) continue;
 
-    // 🔹 Site Equipment POST
     const siteEqurl = {
       url: `${baseOmapiUrl}/siteequip/search`,
       body: {
         facility: facilityId,
         unit: buildingId,
         equipmentId,
-        equipmentType: 'Pump',
+        equipmentType: "Pump",
       },
     };
 
     try {
       const response = await fetch(siteEqurl.url, {
-        method: 'POST',
-        mode: 'cors',
+        method: "POST",
+        mode: "cors",
         headers: {
-          Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
-          'Content-Type': 'application/json',
+          Authorization: "Bearer " + IafSession.getAuthToken(ctx),
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(siteEqurl.body),
       });
@@ -255,22 +311,21 @@ export async function siteEquipmentForTreeService(facilityId, buildingId, equipm
       });
     }
 
-    // 🔹 References POST (per equipmentId)
     const refUrl = {
       url: `${baseOmapiUrl}/references/search`,
       body: {
         equipmentId,
-        equipmentType: 'Pump',
+        equipmentType: "Pump",
       },
     };
 
     try {
       const refResponse = await fetch(refUrl.url, {
-        method: 'POST',
-        mode: 'cors',
+        method: "POST",
+        mode: "cors",
         headers: {
-          Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
-          'Content-Type': 'application/json',
+          Authorization: "Bearer " + IafSession.getAuthToken(ctx),
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(refUrl.body),
       });
@@ -302,28 +357,32 @@ export async function siteEquipmentForTreeService(facilityId, buildingId, equipm
     }
   }
 
+  console.log("EC results for tree view", results);
+
   const latestVersion = pickTipRevision(results);
   const referenceRevisions = extractTipRevisionRevisions(refResults);
 
   const mergedRefVals = mergeRefVals(latestVersion, referenceRevisions);
-
-  return mergedRefVals;
-
+  const mergedWithEdits = mergeEditsIntoEquipments(mergedRefVals);
+  console.log(
+    "After mergeEditsIntoEquipments two",
+    JSON.stringify(mergedWithEdits, null, 2),
+  );
+  return mergedWithEdits;
 }
 
 function pickTipRevision(equipmentArray) {
   if (!Array.isArray(equipmentArray)) return [];
 
-  return equipmentArray.map(item => {
+  return equipmentArray.map((item) => {
     const revisions = item.revisions?._list || [];
 
-    // Normalize both to string for comparison
     const tip = String(item.tipRevision).trim();
-    const match = revisions.find(r => String(r.revision).trim() === tip);
+    const match = revisions.find((r) => String(r.revision).trim() === tip);
 
     return {
       ...item,
-      revisions: match ? [match] : [], // only keep the matched one
+      revisions: match ? [match] : [],
     };
   });
 }
@@ -340,29 +399,28 @@ function extractTipRevisionRevisions(refResults) {
 
     if (!tipRev || !Array.isArray(revisions)) {
       processed.push({
-        equipmentId: eq['Equipment Id'] || eq.equipmentId,
-        message: 'No tipRevision or revisions found',
+        equipmentId: eq["Equipment Id"] || eq.equipmentId,
+        message: "No tipRevision or revisions found",
       });
       continue;
     }
 
-    // find the revision with revision === tipRevision
-    const matched = revisions.find(r => r.revision === tipRev);
+    const matched = revisions.find((r) => r.revision === tipRev);
 
     if (matched) {
       processed.push({
-        equipmentId: eq['Equipment Id'] || eq.equipmentId,
-        equipmentName: eq['Equipment Name'] || eq.equipmentName,
+        equipmentId: eq["Equipment Id"] || eq.equipmentId,
+        equipmentName: eq["Equipment Name"] || eq.equipmentName,
         equipmentType: eq.equipmentType,
         systemId: eq.systemId,
         tipRevision: tipRev,
-        revision: matched,   // ✅ only the revision you asked for
+        revision: matched,
       });
     } else {
       processed.push({
-        equipmentId: eq['Equipment Id'] || eq.equipmentId,
+        equipmentId: eq["Equipment Id"] || eq.equipmentId,
         tipRevision: tipRev,
-        available: revisions.map(r => r.revision),
+        available: revisions.map((r) => r.revision),
         message: `No revision found matching tipRevision=${tipRev}`,
       });
     }
@@ -372,31 +430,38 @@ function extractTipRevisionRevisions(refResults) {
 }
 
 function mergeRefVals(latestVersion, referenceRevisions) {
-  return latestVersion.map(lv => {
-    const eqId = lv['Equipment Id'] || lv.equipmentId;
+  return latestVersion.map((lv) => {
+    const eqId = lv["Equipment Id"] || lv.equipmentId;
     const lvRev = lv.revisions?.[0];
 
     if (!eqId || !lvRev) return lv;
 
-    // find matching reference item
-    const ref = referenceRevisions.find(r =>
-      (r.equipmentId === eqId) &&
-      (r.revision?.revision === r.tipRevision) // sanity check
+    const ref = referenceRevisions.find(
+      (r) => r.equipmentId === eqId && r.revision?.revision === r.tipRevision, // sanity check
     );
 
     if (!ref || !ref.revision) return lv;
 
     const refRev = ref.revision;
 
-    // enrich TechnicalParameters
-    const enrichedTech = (lvRev.TechnicalParameters || []).map(tp => {
-      const refTp = (refRev.TechnicalParameters || []).find(rtp => rtp.name === tp.name);
+    function toArray(val) {
+      if (!val) return [];
+      if (Array.isArray(val)) return val;
+
+      return Object.entries(val).map(([name, obj]) => ({ name, ...obj }));
+    }
+
+    const enrichedTech = toArray(lvRev.TechnicalParameters).map((tp) => {
+      const refTp = (refRev.TechnicalParameters || []).find(
+        (rtp) => rtp.name === tp.name,
+      );
       return refTp ? { ...tp, refVal: refTp.val } : tp;
     });
 
-    // enrich properties
-    const enrichedProps = (lvRev.properties || []).map(prop => {
-      const refProp = (refRev.properties || []).find(rp => rp.name === prop.name);
+    const enrichedProps = toArray(lvRev.properties).map((prop) => {
+      const refProp = (refRev.properties || []).find(
+        (rp) => rp.name === prop.name,
+      );
       return refProp ? { ...prop, refVal: refProp.val } : prop;
     });
 
@@ -407,8 +472,179 @@ function mergeRefVals(latestVersion, referenceRevisions) {
           ...lvRev,
           TechnicalParameters: enrichedTech,
           properties: enrichedProps,
-        }
-      ]
+        },
+      ],
     };
   });
+}
+
+function toArray(objOrArr) {
+  if (Array.isArray(objOrArr)) return objOrArr;
+  if (objOrArr && typeof objOrArr === "object") {
+    return Object.entries(objOrArr).map(
+      ([name, { val, type, refVal, unit }]) => ({
+        name,
+        val,
+        type,
+        refVal,
+        unit,
+      }),
+    );
+  }
+  return [];
+}
+
+function mergeEditsIntoEquipments(equipmentList) {
+  if (!Array.isArray(equipmentList)) return [];
+
+  return equipmentList.map((eq) => {
+    if (!Array.isArray(eq.revisions)) return eq;
+
+    return {
+      ...eq,
+      revisions: eq.revisions.map((rev) => {
+        const edited = rev.edited || eq.edited || {};
+        const original = rev.original || eq.original || {};
+
+        const editedProps = toArray(edited.properties);
+        const editedTechs = toArray(edited.TechnicalParameters);
+
+        const originalProps = toArray(original.properties);
+        const originalTechs = toArray(original.TechnicalParameters);
+
+        const props = toArray(rev.properties);
+        const techs = toArray(rev.TechnicalParameters);
+
+        const mergedProps = props.map((prop) => {
+          const match = editedProps.find((e) => e.name === prop.name);
+          if (match) {
+            const originalMatch = originalProps.find(
+              (o) => o.name === prop.name,
+            );
+            return {
+              ...prop,
+              originalVal: originalMatch ? originalMatch.val : undefined,
+              isEdited: true,
+            };
+          }
+          return prop;
+        });
+
+        const mergedTechs = techs.map((param) => {
+          const match = editedTechs.find((e) => e.name === param.name);
+          if (match) {
+            const originalMatch = originalTechs.find(
+              (o) => o.name === param.name,
+            );
+            return {
+              ...param,
+              originalVal: originalMatch ? originalMatch.val : undefined,
+              isEdited: true,
+            };
+          }
+          return param;
+        });
+
+        return {
+          ...rev,
+          properties: mergedProps,
+          TechnicalParameters: mergedTechs,
+        };
+      }),
+    };
+  });
+}
+export async function rejectPendingRevision(
+  facilityId,
+  buildingId,
+  equipmentId,
+  revisionId,
+) {
+  const ctx = IafProj.getCurrent(); // don’t forget ctx
+  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
+
+  const url = `${baseOmapiUrl}/siteequip/facilities/${facilityId}/units/${buildingId}/siteequipment/${equipmentId}/revisions/${revisionId}/pendingrevision`;
+
+  try {
+    const response = await fetch(url, {
+      method: "DELETE",
+      mode: "cors",
+      headers: {
+        Authorization: "Bearer " + IafSession.getAuthToken(ctx),
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Delete failed with status ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result?._result?.status === 200) {
+      return {
+        success: true,
+        message: "Pending revision successfully rejected",
+        result: result._result,
+      };
+    }
+
+    return {
+      success: false,
+      message: result?._result?.message || "Unknown error",
+      result: result._result,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      message: err.message,
+    };
+  }
+}
+
+export async function approvePendingRevision(
+  revision,
+  facilityId,
+  buildingId,
+  equipmentId,
+  username,
+) {
+  const ctx = IafProj.getCurrent(); // don’t forget ctx
+  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
+
+  const siteEqUrl = {
+    url: `${baseOmapiUrl}/siteequip/approvedrevision`,
+    body: {
+      revision: revision,
+      facility: facilityId,
+      unit: buildingId,
+      siteEquipmentId: equipmentId,
+      username: username,
+    },
+  };
+
+  try {
+    const response = await fetch(siteEqUrl.url, {
+      method: "POST",
+      mode: "cors",
+      headers: {
+        Authorization: "Bearer " + IafSession.getAuthToken(ctx),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(siteEqUrl.body),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Approve failed: ${response.status} ${response.statusText} - ${errorText}`,
+      );
+    }
+
+    const result = await response.json();
+    return { success: true, result };
+  } catch (err) {
+    console.error("approvePendingRevision error:", err);
+    return { success: false, message: err.message };
+  }
 }
