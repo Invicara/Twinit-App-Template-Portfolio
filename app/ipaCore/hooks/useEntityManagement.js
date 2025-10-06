@@ -191,6 +191,8 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 Longitude: centerLng,
                 latitude: centerLat,
                 Latitude: centerLat,
+                size: 1,
+                rotation: 0,
                 structureName: selectedStructure.name,
                 graphicRefId: selectedGraphicReference._id,
                 isDraft: true
