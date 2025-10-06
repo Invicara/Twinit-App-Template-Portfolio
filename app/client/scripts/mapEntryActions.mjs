@@ -818,6 +818,10 @@ async function createCubeWrapperFeatures(features, loadedGraphics, getContext) {
         const lng = parseFloat(longitude);
         const lat = parseFloat(latitude);
 
+        // Extract rotation and size from feature properties with defaults
+        const rotation = feature.properties?.rotation ?? 0;
+        const sizeProportion = feature.properties?.size ?? 1;
+
         // Get graphic information for sizing using new lookup chain (optional - use defaults if not available)
         const structureName = feature.properties?.structureName;
         let height = defaultHeightMeters;
@@ -838,6 +842,10 @@ async function createCubeWrapperFeatures(features, loadedGraphics, getContext) {
             }
         }
 
+        // Apply size proportion
+        height *= sizeProportion;
+        cubeSize *= sizeProportion;
+
         // Create cube footprint coordinates
         const { dLat, dLon } = metersToDegrees(cubeSize / 3, lat);
         const ring = [
@@ -857,6 +865,8 @@ async function createCubeWrapperFeatures(features, loadedGraphics, getContext) {
                 type: '3d_model',
                 height: height,
                 elevation: 0,
+                rotation: rotation,
+                size: sizeProportion,
                 cube_wrapper: true // Mark as wrapper feature
             },
             geometry: {
@@ -942,10 +952,239 @@ async function setupGraphicLayers({ map, sourceId, level, features, loadedGraphi
 }
 
 /**
- * Helper function to get and control 3D graphics layer visibility
+ * Update 3D graphic transform programmatically
  * @param {Object} map - Mapbox map instance
  * @param {string} sourceId - The source ID for the graphics layer
- * @returns {Object} - Object with methods to control 3D graphics visibility
+ * @param {string} featureId - The feature ID to update
+ * @param {Object} transform - Transform parameters
+ * @param {Array} [transform.centroid] - New [longitude, latitude] position
+ * @param {number} [transform.rotation] - New rotation in degrees
+ * @param {number} [transform.size] - New size proportion
+ * @param {boolean} [updateWrapper=true] - Whether to also update the cube wrapper
+ * @returns {boolean} - Success status
+ */
+export function update3DGraphicTransform(map, sourceId, featureId, transform = {}, updateWrapper = true) {
+    console.log('Updating 3D graphic transform:', { featureId, transform });
+    
+    const customLayerId = `${sourceId}-3d-graphics`;
+    const layer = map.getLayer(customLayerId);
+    
+    if (!layer || layer.type !== 'custom') {
+        console.warn(`3D graphics layer not found: ${customLayerId}`);
+        return false;
+    }
+    
+    // Find the feature
+    const keyProperty = layer.metadata?.featureInfo?.idProperty || 'buildingId';
+    const feature = layer.features.find(f => f.properties[keyProperty] === featureId);
+    
+    if (!feature) {
+        console.warn(`Feature not found: ${featureId}`);
+        return false;
+    }
+    
+    let updated = false;
+    
+    // Update position if provided
+    if (transform.centroid && Array.isArray(transform.centroid) && transform.centroid.length === 2) {
+        const [lng, lat] = transform.centroid;
+        feature.centroid = [lng, lat];
+        
+        const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat([lng, lat], 0);
+        feature.transform.translateX = modelAsMercatorCoordinate.x;
+        feature.transform.translateY = modelAsMercatorCoordinate.y;
+        feature.transform.translateZ = modelAsMercatorCoordinate.z;
+        
+        // Update properties
+        feature.properties.longitude = lng;
+        feature.properties.latitude = lat;
+        
+        updated = true;
+        console.log(`Updated position to [${lng}, ${lat}]`);
+    }
+    
+    // Update rotation if provided
+    if (transform.rotation !== undefined && transform.rotation !== null) {
+        const rotation = parseFloat(transform.rotation);
+        if (!isNaN(rotation)) {
+            feature.transform.rotateY = rotation * -(Math.PI / 180);
+            feature.properties.rotation = rotation;
+            updated = true;
+            console.log(`Updated rotation to ${rotation}°`);
+        }
+    }
+    
+    // Update size if provided
+    if (transform.size !== undefined && transform.size !== null) {
+        const size = parseFloat(transform.size);
+        if (!isNaN(size) && size > 0) {
+            const centroid = feature.centroid;
+            const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(centroid, 0);
+            const baseScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
+            feature.transform.scale = baseScale * size;
+            feature.properties.size = size;
+            updated = true;
+            console.log(`Updated size to ${size}x`);
+        }
+    }
+    
+    if (updated) {
+        // Trigger map repaint to show changes
+        map.triggerRepaint();
+        
+        // Update cube wrapper if requested
+        if (updateWrapper) {
+            updateCubeWrapperForFeature(map, feature, sourceId);
+        }
+        
+        console.log('3D graphic transform updated successfully:', {
+            featureId,
+            centroid: feature.centroid,
+            rotation: feature.properties.rotation,
+            size: feature.properties.size
+        });
+    }
+    
+    return updated;
+}
+
+/**
+ * Update cube wrapper for a specific feature after transformation
+ * @param {Object} map - Mapbox map instance
+ * @param {Object} feature - The 3D feature that was transformed
+ * @param {string} sourceId - The source ID for the graphics layer
+ */
+function updateCubeWrapperForFeature(map, feature, sourceId) {
+    console.log('Updating cube wrapper for feature:', feature.properties);
+    
+    const existingSource = map.getSource(sourceId);
+    if (!existingSource) {
+        console.warn(`Source not found: ${sourceId}`);
+        return false;
+    }
+
+    const keyProperty = feature.layer?.metadata?.featureInfo?.idProperty || 'buildingId';
+    const featureId = feature.properties[keyProperty];
+    
+    if (!featureId) {
+        console.warn('Feature ID not found for cube wrapper update');
+        return false;
+    }
+
+    // Get current data
+    const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
+    
+    // Find the cube wrapper for this feature
+    const wrapperIndex = currentData.features.findIndex(f => 
+        f.properties?.[keyProperty] === featureId || f.id === featureId
+    );
+    
+    if (wrapperIndex === -1) {
+        console.warn(`Cube wrapper not found for feature: ${featureId}`);
+        return false;
+    }
+
+    // Get geometry info from loaded geometries
+    const geometryInfo = globalLoadedGeometries.get(feature.graphicId);
+    
+    // Default values
+    const defaultCubeSizeMeters = 20;
+    const defaultHeightMeters = 50;
+    
+    // Extract rotation and size from feature transform
+    const rotation = feature.properties?.rotation ?? 0;
+    const sizeProportion = feature.properties?.size ?? 1;
+    
+    // Calculate current scale from transform
+    const currentScale = feature.transform.scale;
+    const centroid = feature.centroid;
+    const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(centroid, 0);
+    const baseScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
+    const actualSizeProportion = currentScale / baseScale;
+    
+    // Get sizing information
+    let height = defaultHeightMeters;
+    let cubeSize = defaultCubeSizeMeters;
+    
+    if (geometryInfo && geometryInfo.sizeInMeters) {
+        height = geometryInfo.sizeInMeters.height || defaultHeightMeters;
+        cubeSize = Math.max(
+            geometryInfo.sizeInMeters.width || defaultCubeSizeMeters,
+            geometryInfo.sizeInMeters.depth || defaultCubeSizeMeters
+        );
+    }
+    
+    // Apply size proportion
+    height *= actualSizeProportion;
+    cubeSize *= actualSizeProportion;
+    
+    // Helper function to convert meters to degrees
+    const metersToDegrees = (meters, lat) => ({
+        dLat: meters / 111320,
+        dLon: meters / (111320 * Math.cos((lat * Math.PI) / 180))
+    });
+    
+    const lng = centroid[0];
+    const lat = centroid[1];
+    
+    // Create cube footprint coordinates with rotation consideration
+    const { dLat, dLon } = metersToDegrees(cubeSize / 3, lat);
+    
+    // Note: For simplicity, we're not rotating the cube wrapper polygon itself
+    // The rotation is handled by the 3D model's transform
+    // If you need to rotate the wrapper polygon, you'd need to apply rotation matrix to these points
+    const ring = [
+        [lng - dLon, lat - dLat],
+        [lng + dLon, lat - dLat],
+        [lng + dLon, lat + dLat],
+        [lng - dLon, lat + dLat],
+        [lng - dLon, lat - dLat]
+    ];
+    
+    // Update the cube wrapper feature
+    const updatedWrapper = {
+        type: 'Feature',
+        id: featureId,
+        properties: {
+            ...currentData.features[wrapperIndex].properties,
+            ...feature.properties,
+            height: height,
+            elevation: 0,
+            rotation: rotation,
+            size: actualSizeProportion,
+            cube_wrapper: true
+        },
+        geometry: {
+            type: 'Polygon',
+            coordinates: [ring]
+        }
+    };
+    
+    // Replace the wrapper in the features array
+    const updatedFeatures = [...currentData.features];
+    updatedFeatures[wrapperIndex] = updatedWrapper;
+    
+    // Update the source
+    existingSource.setData({
+        type: 'FeatureCollection',
+        features: updatedFeatures
+    });
+    
+    console.log(`Updated cube wrapper for feature ${featureId}:`, {
+        position: centroid,
+        rotation,
+        size: actualSizeProportion,
+        height
+    });
+    
+    return true;
+}
+
+/**
+ * Helper function to get and control 3D graphics layer with move, rotate, and scale functionality
+ * @param {Object} map - Mapbox map instance
+ * @param {string} sourceId - The source ID for the graphics layer
+ * @returns {Object} - Object with methods to control 3D graphics visibility and transformations
  */
 export function get3DGraphicsController(map, sourceId) {
     const customLayerId = `${sourceId}-3d-graphics`;
@@ -955,6 +1194,439 @@ export function get3DGraphicsController(map, sourceId) {
         console.warn(`3D graphics layer not found: ${customLayerId}`);
         return null;
     }
+
+    // State for tracking interaction mode and handlers
+    let interactionState = {
+        mode: null, // 'move', 'rotate', 'scale', or null
+        activeFeatureId: null,
+        activeFeature: null,
+        isDragging: false,
+        startPosition: null,
+        startRotation: 0,
+        startScale: 1,
+        activeHandle: null,
+        
+        // Event handlers (stored for cleanup)
+        mouseMoveHandler: null,
+        mouseDownHandler: null,
+        mouseUpHandler: null
+    };
+
+    /**
+     * Enable move mode for a specific feature
+     * @param {string} featureId - The feature ID to enable move mode for
+     */
+    const enableMove = (featureId) => {
+        if (interactionState.mode) {
+            console.warn('Another interaction mode is active. Disable it first.');
+            return false;
+        }
+
+        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
+        if (!feature) {
+            console.error(`Feature not found: ${featureId}`);
+            return false;
+        }
+
+        interactionState.mode = 'move';
+        interactionState.activeFeatureId = featureId;
+        interactionState.activeFeature = feature;
+
+        // Add visual handles
+        if (layer.startEditingFeature) {
+            layer.startEditingFeature(featureId);
+        }
+
+        // Attach move-specific event handlers
+        attachMoveHandlers();
+        
+        console.log(`Move mode enabled for feature: ${featureId}`);
+        map.triggerRepaint();
+        return true;
+    };
+
+    /**
+     * Enable rotate mode for a specific feature
+     * @param {string} featureId - The feature ID to enable rotate mode for
+     */
+    const enableRotate = (featureId) => {
+        if (interactionState.mode) {
+            console.warn('Another interaction mode is active. Disable it first.');
+            return false;
+        }
+
+        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
+        if (!feature) {
+            console.error(`Feature not found: ${featureId}`);
+            return false;
+        }
+
+        interactionState.mode = 'rotate';
+        interactionState.activeFeatureId = featureId;
+        interactionState.activeFeature = feature;
+
+        // Add visual handles
+        if (layer.startEditingFeature) {
+            layer.startEditingFeature(featureId);
+        }
+
+        // Attach rotate-specific event handlers
+        attachRotateHandlers();
+        
+        console.log(`Rotate mode enabled for feature: ${featureId}`);
+        map.triggerRepaint();
+        return true;
+    };
+
+    /**
+     * Enable scale mode for a specific feature
+     * @param {string} featureId - The feature ID to enable scale mode for
+     */
+    const enableScale = (featureId) => {
+        if (interactionState.mode) {
+            console.warn('Another interaction mode is active. Disable it first.');
+            return false;
+        }
+
+        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
+        if (!feature) {
+            console.error(`Feature not found: ${featureId}`);
+            return false;
+        }
+
+        interactionState.mode = 'scale';
+        interactionState.activeFeatureId = featureId;
+        interactionState.activeFeature = feature;
+
+        // Add visual handles
+        if (layer.startEditingFeature) {
+            layer.startEditingFeature(featureId);
+        }
+
+        // Attach scale-specific event handlers
+        attachScaleHandlers();
+        
+        console.log(`Scale mode enabled for feature: ${featureId}`);
+        map.triggerRepaint();
+        return true;
+    };
+
+    /**
+     * Disable the current interaction mode
+     * @param {Array<Function>} callbacks - Optional array of callback functions to execute with the updated feature
+     */
+    const disableInteraction = (callbacks = null) => {
+        if (!interactionState.mode) {
+            return true;
+        }
+
+        // Store reference to active feature before clearing state
+        const activeFeature = interactionState.activeFeature;
+        const previousMode = interactionState.mode;
+
+        // Remove event handlers
+        if (interactionState.mouseMoveHandler) {
+            map.off('mousemove', interactionState.mouseMoveHandler);
+        }
+        if (interactionState.mouseDownHandler) {
+            map.off('mousedown', interactionState.mouseDownHandler);
+        }
+        if (interactionState.mouseUpHandler) {
+            map.off('mouseup', interactionState.mouseUpHandler);
+        }
+
+        // Clear visual handles
+        if (layer.clearEditingState) {
+            layer.clearEditingState();
+        }
+
+        // Reset cursor
+        map.getCanvas().style.cursor = '';
+        map.dragPan.enable();
+
+        // Execute callbacks with the updated feature
+        if (activeFeature) {
+            // Default callback: update cube wrapper
+            const defaultCallback = (feature) => {
+                updateCubeWrapperForFeature(map, feature, sourceId);
+            };
+
+            // Combine default callback with user-provided callbacks
+            const allCallbacks = [defaultCallback, ...(callbacks || [])];
+            
+            allCallbacks.forEach(callback => {
+                try {
+                    callback(activeFeature);
+                } catch (error) {
+                    console.error('Error executing callback:', error);
+                }
+            });
+        }
+
+        // Clear state
+        interactionState = {
+            mode: null,
+            activeFeatureId: null,
+            activeFeature: null,
+            isDragging: false,
+            startPosition: null,
+            startRotation: 0,
+            startScale: 1,
+            activeHandle: null,
+            mouseMoveHandler: null,
+            mouseDownHandler: null,
+            mouseUpHandler: null
+        };
+
+        console.log(`${previousMode} mode disabled`);
+        map.triggerRepaint();
+        return true;
+    };
+
+    /**
+     * Attach event handlers for move mode
+     */
+    const attachMoveHandlers = () => {
+        interactionState.mouseMoveHandler = (e) => {
+            const point = { x: e.point.x, y: e.point.y };
+
+            if (!interactionState.isDragging && layer.detectHandle) {
+                // Handle hover detection for cursor changes
+                const handleInfo = layer.detectHandle(point);
+                if (layer.updateCursor) {
+                    layer.updateCursor(handleInfo);
+                }
+                return;
+            }
+
+            // Handle active drag operation for move
+            if (interactionState.isDragging && interactionState.activeHandle === 'move') {
+                const position = [e.lngLat.lng, e.lngLat.lat];
+                
+                // Update feature position
+                const feature = interactionState.activeFeature;
+                feature.centroid = position;
+                
+                const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(position, 0);
+                feature.transform.translateX = modelAsMercatorCoordinate.x;
+                feature.transform.translateY = modelAsMercatorCoordinate.y;
+                feature.transform.translateZ = modelAsMercatorCoordinate.z;
+                
+                map.triggerRepaint();
+            }
+        };
+
+        interactionState.mouseDownHandler = (e) => {
+            const point = { x: e.point.x, y: e.point.y };
+            
+            if (layer.detectHandle) {
+                const handleInfo = layer.detectHandle(point);
+                
+                if (handleInfo && handleInfo.type === 'moveHandle') {
+                    interactionState.activeHandle = 'move';
+                    interactionState.isDragging = true;
+                    interactionState.startPosition = point;
+                    map.getCanvas().style.cursor = 'grabbing';
+                    map.dragPan.disable();
+                    e.preventDefault();
+                }
+            }
+        };
+
+        interactionState.mouseUpHandler = (e) => {
+            if (interactionState.isDragging) {
+                interactionState.isDragging = false;
+                interactionState.activeHandle = null;
+                map.dragPan.enable();
+                
+                const point = { x: e.point.x, y: e.point.y };
+                if (layer.detectHandle) {
+                    const handleInfo = layer.detectHandle(point);
+                    if (layer.updateCursor) {
+                        layer.updateCursor(handleInfo);
+                    }
+                }
+            }
+        };
+
+        map.on('mousemove', interactionState.mouseMoveHandler);
+        map.on('mousedown', interactionState.mouseDownHandler);
+        map.on('mouseup', interactionState.mouseUpHandler);
+    };
+
+    /**
+     * Attach event handlers for rotate mode
+     */
+    const attachRotateHandlers = () => {
+        interactionState.mouseMoveHandler = (e) => {
+            const point = { x: e.point.x, y: e.point.y };
+
+            if (!interactionState.isDragging && layer.detectHandle) {
+                const handleInfo = layer.detectHandle(point);
+                if (layer.updateCursor) {
+                    layer.updateCursor(handleInfo);
+                }
+                return;
+            }
+
+            // Handle active drag operation for rotate
+            if (interactionState.isDragging && interactionState.activeHandle === 'rotate') {
+                const feature = interactionState.activeFeature;
+                const center = feature.centroid;
+                const centerPixel = map.project(center);
+                
+                // Calculate rotation angle in 2D screen space
+                const angle = Math.atan2(e.point.y - centerPixel.y, e.point.x - centerPixel.x);
+                const startAngle = Math.atan2(
+                    interactionState.startPosition.y - centerPixel.y,
+                    interactionState.startPosition.x - centerPixel.x
+                );
+                const deltaAngle = (angle - startAngle) * (180 / Math.PI);
+                const newRotation = (interactionState.startRotation + deltaAngle) % 360;
+                
+                // Update feature rotation (Y-axis rotation to keep building upright)
+                feature.transform.rotateY = newRotation * -(Math.PI / 180);
+                
+                // Update feature properties to track rotation
+                feature.properties.rotation = newRotation;
+                
+                map.triggerRepaint();
+            }
+        };
+
+        interactionState.mouseDownHandler = (e) => {
+            const point = { x: e.point.x, y: e.point.y };
+            
+            if (layer.detectHandle) {
+                const handleInfo = layer.detectHandle(point);
+                
+                if (handleInfo && handleInfo.type === 'boundingBox') {
+                    interactionState.activeHandle = 'rotate';
+                    interactionState.isDragging = true;
+                    interactionState.startPosition = point;
+                    
+                    // Extract current rotation from transform
+                    const currentRotateY = interactionState.activeFeature.transform.rotateY || 0;
+                    interactionState.startRotation = currentRotateY * -(180 / Math.PI);
+                    
+                    map.getCanvas().style.cursor = 'grabbing';
+                    map.dragPan.disable();
+                    e.preventDefault();
+                }
+            }
+        };
+
+        interactionState.mouseUpHandler = (e) => {
+            if (interactionState.isDragging) {
+                interactionState.isDragging = false;
+                interactionState.activeHandle = null;
+                map.dragPan.enable();
+                
+                const point = { x: e.point.x, y: e.point.y };
+                if (layer.detectHandle) {
+                    const handleInfo = layer.detectHandle(point);
+                    if (layer.updateCursor) {
+                        layer.updateCursor(handleInfo);
+                    }
+                }
+            }
+        };
+
+        map.on('mousemove', interactionState.mouseMoveHandler);
+        map.on('mousedown', interactionState.mouseDownHandler);
+        map.on('mouseup', interactionState.mouseUpHandler);
+    };
+
+    /**
+     * Attach event handlers for scale mode
+     */
+    const attachScaleHandlers = () => {
+        interactionState.mouseMoveHandler = (e) => {
+            const point = { x: e.point.x, y: e.point.y };
+
+            if (!interactionState.isDragging && layer.detectHandle) {
+                const handleInfo = layer.detectHandle(point);
+                if (layer.updateCursor) {
+                    layer.updateCursor(handleInfo);
+                }
+                return;
+            }
+
+            // Handle active drag operation for scale
+            if (interactionState.isDragging && interactionState.activeHandle === 'scale') {
+                const feature = interactionState.activeFeature;
+                const center = feature.centroid;
+                const centerPixel = map.project(center);
+                
+                const currentDistance = Math.sqrt(
+                    Math.pow(e.point.x - centerPixel.x, 2) + 
+                    Math.pow(e.point.y - centerPixel.y, 2)
+                );
+                const startDistance = Math.sqrt(
+                    Math.pow(interactionState.startPosition.x - centerPixel.x, 2) + 
+                    Math.pow(interactionState.startPosition.y - centerPixel.y, 2)
+                );
+                
+                const scaleFactor = startDistance > 0 ? currentDistance / startDistance : 1;
+                const newScale = Math.max(0.1, Math.min(3.0, interactionState.startScale * scaleFactor));
+                
+                // Update feature scale
+                const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(center, 0);
+                feature.transform.scale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() * newScale;
+                
+                // Update feature properties to track size
+                feature.properties.size = newScale;
+                
+                map.triggerRepaint();
+            }
+        };
+
+        interactionState.mouseDownHandler = (e) => {
+            const point = { x: e.point.x, y: e.point.y };
+            
+            if (layer.detectHandle) {
+                const handleInfo = layer.detectHandle(point);
+                
+                if (handleInfo && handleInfo.type === 'scaleHandle') {
+                    interactionState.activeHandle = 'scale';
+                    interactionState.isDragging = true;
+                    interactionState.startPosition = point;
+                    
+                    // Extract current scale from transform
+                    const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
+                        interactionState.activeFeature.centroid,
+                        0
+                    );
+                    const baseScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
+                    interactionState.startScale = interactionState.activeFeature.transform.scale / baseScale;
+                    
+                    map.getCanvas().style.cursor = 'nw-resize';
+                    map.dragPan.disable();
+                    e.preventDefault();
+                }
+            }
+        };
+
+        interactionState.mouseUpHandler = (e) => {
+            if (interactionState.isDragging) {
+                interactionState.isDragging = false;
+                interactionState.activeHandle = null;
+                map.dragPan.enable();
+                
+                const point = { x: e.point.x, y: e.point.y };
+                if (layer.detectHandle) {
+                    const handleInfo = layer.detectHandle(point);
+                    if (layer.updateCursor) {
+                        layer.updateCursor(handleInfo);
+                    }
+                }
+            }
+        };
+
+        map.on('mousemove', interactionState.mouseMoveHandler);
+        map.on('mousedown', interactionState.mouseDownHandler);
+        map.on('mouseup', interactionState.mouseUpHandler);
+    };
 
     return {
         // Layer-wide visibility control
@@ -969,6 +1641,43 @@ export function get3DGraphicsController(map, sourceId) {
         toggleFeatures: (featureIds, forceVisible = null) => layer.toggleFeatures && layer.toggleFeatures(featureIds, forceVisible),
         getFeatureVisibility: (featureIds) => layer.getFeatureVisibility && layer.getFeatureVisibility(featureIds),
         getAllFeatureVisibility: () => layer.getAllFeatureVisibility && layer.getAllFeatureVisibility(),
+
+        // Transformation controls with visual overlays and callbacks
+        enableMove,
+        enableRotate,
+        enableScale,
+        disableInteraction,
+        
+        // Programmatic transform update
+        updateTransform: (featureId, transform, updateWrapper = true) => {
+            return update3DGraphicTransform(map, sourceId, featureId, transform, updateWrapper);
+        },
+        
+        // Get feature transform data
+        getFeatureTransform: (featureId) => {
+            const keyProperty = layer.metadata?.featureInfo?.idProperty || 'buildingId';
+            const feature = layer.features.find(f => f.properties[keyProperty] === featureId);
+            
+            if (!feature) {
+                console.warn(`Feature not found: ${featureId}`);
+                return null;
+            }
+            
+            return {
+                centroid: feature.centroid,
+                rotation: feature.properties.rotation ?? 0,
+                size: feature.properties.size ?? 1,
+                transform: { ...feature.transform },
+                properties: { ...feature.properties }
+            };
+        },
+        
+        // Get current interaction state
+        getInteractionState: () => ({
+            mode: interactionState.mode,
+            activeFeatureId: interactionState.activeFeatureId,
+            isDragging: interactionState.isDragging
+        }),
 
         // Direct layer access for advanced usage
         layer: layer
@@ -1164,6 +1873,259 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             return result;
         },
 
+        // Start editing an existing feature with visual handles
+        startEditingFeature: function(featureId) {
+            console.log("Starting edit for feature:", featureId);
+            
+            // Clear any existing editing state first
+            this.clearEditingState();
+            
+            // Find the feature to edit
+            const feature = this.features.find(f => f.properties[this.metadata.featureInfo.idProperty] === featureId);
+            if (!feature) {
+                console.error("Feature not found for editing:", featureId);
+                return false;
+            }
+
+            // Set editing state
+            this.editingFeatureId = featureId;
+            
+            // Apply editing opacity (0.7) to this specific feature
+            this.setFeatureOpacity(feature, 0.7);
+            
+            // Create handles for this specific feature
+            const handleGroup = this.createHandleGroup(feature);
+            if (handleGroup) {
+                feature.handles = handleGroup;
+                feature.model.add(handleGroup);
+            }
+            
+            return true;
+        },
+
+        // Clear editing state and remove handles from any existing graphics
+        clearEditingState: function() {
+            this.features.forEach(feature => {
+                if (feature.handles) {
+                    // Remove handles from the feature
+                    feature.model.remove(feature.handles);
+                    // Dispose of handle resources
+                    this.disposeHandleGroup(feature.handles);
+                    feature.handles = null;
+                }
+                // Restore full opacity
+                this.setFeatureOpacity(feature, 1.0);
+            });
+            this.editingFeatureId = null;
+        },
+
+        // Set opacity for a specific feature
+        setFeatureOpacity: function(feature, opacity) {
+            const targetModel = feature.modelMesh || feature.model;
+            targetModel.traverse((node) => {
+                if (node.isMesh && node.material) {
+                    if (Array.isArray(node.material)) {
+                        node.material.forEach(mat => {
+                            mat.transparent = opacity < 1.0;
+                            mat.opacity = opacity;
+                        });
+                    } else {
+                        node.material.transparent = opacity < 1.0;
+                        node.material.opacity = opacity;
+                    }
+                }
+            });
+        },
+
+        // Dispose of handle group resources
+        disposeHandleGroup: function(handleGroup) {
+            if (!handleGroup) return;
+            handleGroup.traverse((child) => {
+                if (child.isMesh) {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(mat => mat.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                }
+            });
+        },
+
+        // Create handle group for a specific feature
+        createHandleGroup: function(feature) {
+            // Get geometry info from loaded geometries if available
+            const geometryInfo = globalLoadedGeometries.get(feature.graphicId);
+            if (!geometryInfo) {
+                console.error('Geometry info not available for feature handles:', feature.graphicId);
+                return null;
+            }
+
+            const handleGroup = new THREE.Group();
+            handleGroup.name = 'editingHandles';
+            
+            const bbox = geometryInfo.boundingBox;
+            
+            // Building outline box - covers entire building shape
+            const boxGeometry = new THREE.BoxGeometry(
+                bbox.max.x - bbox.min.x,
+                bbox.max.y - bbox.min.y,
+                bbox.max.z - bbox.min.z
+            );
+            const boxMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ffff,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.6
+            });
+            const boundingBoxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
+            boundingBoxMesh.position.y = (bbox.max.y + bbox.min.y) / 2;
+            boundingBoxMesh.userData = { type: 'boundingBox', isEditingHandle: true };
+            handleGroup.add(boundingBoxMesh);
+
+            // Scale handles (corner cubes)
+            const handleSize = 0.05;
+            const scalePositions = [
+                [bbox.max.x, bbox.max.y, bbox.max.z], // top-front-right
+                [bbox.min.x, bbox.max.y, bbox.max.z], // top-front-left
+                [bbox.max.x, bbox.min.y, bbox.max.z], // top-back-right
+                [bbox.min.x, bbox.min.y, bbox.max.z]  // top-back-left
+            ];
+
+            scalePositions.forEach((pos, index) => {
+                const handleGeometry = new THREE.BoxGeometry(handleSize, handleSize, handleSize);
+                const scaleHandleMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const handle = new THREE.Mesh(handleGeometry, scaleHandleMaterial);
+                handle.position.set(pos[0], pos[1], pos[2]);
+                handle.userData = { type: 'scaleHandle', index, isEditingHandle: true };
+                handleGroup.add(handle);
+            });
+
+            // Center move handle
+            const moveGeometry = new THREE.SphereGeometry(0.03, 16, 16);
+            const moveMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+            const moveHandle = new THREE.Mesh(moveGeometry, moveMaterial);
+            moveHandle.position.set(0, bbox.max.y + 0.05, 0);
+            moveHandle.userData = { type: 'moveHandle', isEditingHandle: true };
+            handleGroup.add(moveHandle);
+
+            return handleGroup;
+        },
+
+        // Handle detection using distance-based approach
+        detectHandle: function(point) {
+            console.log("detectHandle called", {point, editingFeatureId: this.editingFeatureId});
+            
+            // Check for editing handles on existing features
+            if (this.editingFeatureId) {
+                const editingFeature = this.features.find(f => f.properties[this.metadata.featureInfo.idProperty] === this.editingFeatureId);
+                if (editingFeature && editingFeature.handles) {
+                    return this.detectHandleAtPosition(point, editingFeature);
+                }
+            }
+            
+            console.log("No handles available for detection");
+            return null;
+        },
+
+        // Common handle detection logic for features
+        detectHandleAtPosition: function(point, feature) {
+            // Simple distance-based detection
+            const canvas = this.map.getCanvas();
+            
+            // Get the feature's screen position
+            const featureWorldPosition = new THREE.Vector3(
+                feature.transform.translateX,
+                feature.transform.translateY,
+                feature.transform.translateZ
+            );
+
+            // Convert world position to lng/lat using map transform
+            const mercatorCoord = {
+                x: feature.transform.translateX,
+                y: feature.transform.translateY,
+                z: feature.transform.translateZ
+            };
+            const featureLngLat = this.map.transform.coordinateLocation(mercatorCoord);
+            
+            const featureScreenPos = this.map.project(featureLngLat);
+            
+            // Calculate distance from click point to feature center
+            const distanceToCenter = Math.sqrt(
+                Math.pow(point.x - featureScreenPos.x, 2) + 
+                Math.pow(point.y - featureScreenPos.y, 2)
+            );
+            
+            console.log("Distance calculation", {
+                clickPoint: point,
+                featureScreenPos,
+                distanceToCenter
+            });
+
+            // Define interaction zones (in pixels)
+            const moveHandleRadius = 30;        // Blue sphere - move
+            const scaleHandleRadius = 50;       // Red cubes - scale  
+            const boundingBoxRadius = 80;       // Blue wireframe - rotate
+            
+            // Check which handle zone we're in (from innermost to outermost)
+            if (distanceToCenter <= moveHandleRadius) {
+                console.log("Detected move handle (blue sphere)");
+                return {
+                    type: 'moveHandle',
+                    index: 0,
+                    object: null,
+                    point: point,
+                    feature: feature
+                };
+            } else if (distanceToCenter <= scaleHandleRadius) {
+                console.log("Detected scale handle (red cubes)");
+                return {
+                    type: 'scaleHandle',
+                    index: 0,
+                    object: null,
+                    point: point,
+                    feature: feature
+                };
+            } else if (distanceToCenter <= boundingBoxRadius) {
+                console.log("Detected bounding box (blue wireframe - rotation)");
+                return {
+                    type: 'boundingBox',
+                    index: 0,
+                    object: null,
+                    point: point,
+                    feature: feature
+                };
+            }
+
+            console.log("No handle detected");
+            return null;
+        },
+
+        // Update cursor based on handle hover
+        updateCursor: function(handleInfo) {
+            const canvas = this.map.getCanvas();
+            if (!handleInfo) {
+                canvas.style.cursor = 'default';
+                return;
+            }
+
+            switch(handleInfo.type) {
+                case 'moveHandle':
+                    canvas.style.cursor = 'move';        // Blue sphere - move
+                    break;
+                case 'scaleHandle':
+                    canvas.style.cursor = 'nw-resize';   // Red cubes - scale
+                    break;
+                case 'boundingBox':
+                    canvas.style.cursor = 'grab';        // Blue wireframe - rotate
+                    break;
+                default:
+                    canvas.style.cursor = 'pointer';
+            }
+        },
+
         // Create optimized instance that shares geometries for better memory efficiency
         createModelInstance: function(scene, cloneMaterials = false, materialOverrides = null) {
             if (materialOverrides) {
@@ -1336,6 +2298,10 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
 
             console.log(`Created optimized instance for ${instanceId}: sharing geometry (${totalVertices} vertices) with individual materials`);
 
+            // Extract rotation and size from feature properties with fallback values
+            const rotation = featureProperties?.rotation ?? 0; // Default rotation: 0 degrees
+            const sizeProportion = featureProperties?.size ?? 1; // Default size proportion: 1
+
             // Calculate model transform for this instance
             const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
                 centroid,
@@ -1346,10 +2312,10 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                 translateX: modelAsMercatorCoordinate.x,
                 translateY: modelAsMercatorCoordinate.y,
                 translateZ: modelAsMercatorCoordinate.z,
-                rotateX: Math.PI / 2, // defaultModelRotate[0]
-                rotateY: 0, // defaultModelRotate[1]
-                rotateZ: 0, // defaultModelRotate[2]
-                scale: modelAsMercatorCoordinate.meterInMercatorCoordinateUnits()
+                rotateX: Math.PI / 2, // Fixed: 90° to make building stand upright (never changes)
+                rotateY: rotation * -(Math.PI / 180), // Variable: user-controlled rotation around vertical axis
+                rotateZ: 0, // Fixed: 0° to prevent tilting (never changes)
+                scale: modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() * sizeProportion
             };
 
             const keyProperty = this.metadata.featureInfo.idProperty
@@ -2063,8 +3029,9 @@ export async function getEntryAction({mapMachineInput }) {
  * @param {Array} params.centroid - [longitude, latitude] coordinates
  * @param {Object} params.geometryInfo - Geometry information from loaded graphics
  * @param {Function} params.getContext - Function to get Redux context
+ * @param {Object} params.featureProperties - Optional feature properties (for rotation and size)
  */
-function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, getContext }) {
+function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, getContext, featureProperties = {} }) {
     const sourceId = 'building-features';
     const wrapperLayerId = 'building-features-layer';
 
@@ -2078,6 +3045,10 @@ function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, ge
     // Default cube size and height
     const defaultCubeSizeMeters = 20; // square footprint side length
     const defaultHeightMeters = 50;
+
+    // Extract rotation and size from feature properties with defaults
+    const rotation = featureProperties?.rotation ?? 0;
+    const sizeProportion = featureProperties?.size ?? 1;
 
     // Helper function to convert meters to degrees
     const metersToDegrees = (meters, lat) => ({
@@ -2101,6 +3072,10 @@ function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, ge
         );
     }
 
+    // Apply size proportion
+    height *= sizeProportion;
+    cubeSize *= sizeProportion;
+
     // Create cube footprint coordinates
     const { dLat, dLon } = metersToDegrees(cubeSize / 3, lat);
     const ring = [
@@ -2122,7 +3097,10 @@ function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, ge
             type: '3d_model',
             height: height,
             elevation: 0,
-            cube_wrapper: true // Mark as wrapper feature
+            rotation: rotation,
+            size: sizeProportion,
+            cube_wrapper: true, // Mark as wrapper feature
+            ...featureProperties // Include any additional properties
         },
         geometry: {
             type: 'Polygon',
@@ -2141,7 +3119,12 @@ function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, ge
     // Update the source with the new cube wrapper
     existingSource.setData(updatedFeatureCollection);
 
-    console.log(`Added cube wrapper for building ${buildingId}`);
+    console.log(`Added cube wrapper for building ${buildingId}:`, {
+        position: centroid,
+        rotation,
+        size: sizeProportion,
+        height
+    });
     return true;
 }
 

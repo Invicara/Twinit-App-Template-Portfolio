@@ -1,10 +1,10 @@
 import React, { useContext, useEffect, useState, useMemo } from 'react';
-import { Typography, Divider, Box, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@material-ui/core';
+import { Typography, Divider, Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Grid } from '@material-ui/core';
 import CustomButton from '../../../../../components/atoms/CustomButton.jsx';
 import { useDispatch, useSelector } from 'react-redux';
 import { getMapTypes, setMapTypes } from '../../../../../redux/pageComponentState.js';
 import { MapMachineContext, MapContext } from '../../../PortfolioOverview.jsx';
-import { addFeatureToMapLayer, removeFeatureFromMapLayer, removeMeshElementFromMap } from '../../../../../../client/scripts/mapEntryActions.mjs';
+import { addFeatureToMapLayer, get3DGraphicsController, removeFeatureFromMapLayer, removeMeshElementFromMap } from '../../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache } from "@invicara/ipa-core/modules/IpaUtils";
 import { InfoComponent } from '../../../../../components/InfoComponent/InfoComponent.jsx';
 import { IafItemSvc } from '@dtplatform/platform-api';
@@ -56,6 +56,14 @@ export default function BuildingDetails({ context }) {
     // Delete modal state
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
+    // Positioning mode state
+    const [isPositioningMode, setIsPositioningMode] = useState(false);
+    
+    const [controller, setController] = useState();
+
+    // Cache for original positioning values when entering positioning mode
+    const [cachedPositioning, setCachedPositioning] = useState(null);
+
     // Check if this entity is a draft that needs perimeter drawing
     const isDraftEntity = currentEntity?.isDraft === true;
 
@@ -65,6 +73,16 @@ export default function BuildingDetails({ context }) {
     // Entity is in edit mode if it's either draft or being edited
     const isInEditMode = isDraftEntity || isEditingEntity;
 
+    useEffect(() => {
+        if(isPositioningMode){
+            const sourceId = `${namedPath.state}-features`;
+            const newController = get3DGraphicsController(mapInstance, sourceId);
+            setController(newController);
+        } else {
+            controller?.disableInteraction();
+            setController();
+        }
+    }, [isPositioningMode, namedPath, entityId])
 
     useEffect(() => {
         if(!currentEntity?.isDraft && !currentEntity?.isEditing){
@@ -201,6 +219,8 @@ export default function BuildingDetails({ context }) {
         }
 
         if (!cachedOriginalEntity) return;
+        setCachedPositioning(null);
+        setIsPositioningMode(false);
 
         // For non-draft entities, restore the original entity data
         const currentData = currentState.context?.data || {};
@@ -240,6 +260,9 @@ export default function BuildingDetails({ context }) {
             ...currentData,
             [currentElementType]: updatedEntities
         };
+
+        setCachedPositioning(null);
+        setIsPositioningMode(false);
 
         // Send event to update XState context with finalized entity
         send({
@@ -306,6 +329,9 @@ export default function BuildingDetails({ context }) {
             type: 'UPDATE_DATA',
             data: updatedData
         });
+
+        setCachedPositioning(null);
+        setIsPositioningMode(false);
 
         // If there were changes, update the backend
         if (hasChanges) {
@@ -415,6 +441,109 @@ export default function BuildingDetails({ context }) {
         }
     };
 
+    // Handle positioning value changes
+    const handlePositioningChange = (field, value) => {
+        if (!currentEntity) return;
+
+        // Parse numeric values
+        let parsedValue = value;
+        if (field === 'longitude' || field === 'latitude') {
+            parsedValue = parseFloat(value) || 0;
+        } else if (field === 'size') {
+            parsedValue = parseFloat(value) || 1;
+        } else if (field === 'rotation') {
+            parsedValue = parseFloat(value) || 0;
+        }
+
+        // Update the entity with new positioning value
+        const updatedEntity = {
+            ...currentEntity,
+            [field]: parsedValue
+        };
+
+        controller.updateTransform(entityId, {
+            centroid: [updatedEntity.longitude, updatedEntity.latitude],
+            rotation: updatedEntity.rotation,
+            size: updatedEntity.size
+        });
+
+        // Update XState context
+        const currentData = currentState.context?.data || {};
+        const currentEntities = currentData[currentElementType] || [];
+        const updatedEntities = currentEntities.map(b =>
+            b[idKey] === entityId ? updatedEntity : b
+        );
+        const updatedData = {
+            ...currentData,
+            [currentElementType]: updatedEntities
+        };
+
+        // Send event to update XState context with new data
+        send({
+            type: 'UPDATE_DATA',
+            data: updatedData
+        });
+
+        console.log('Positioning value updated:', { field, value: parsedValue, updatedEntity });
+    };
+
+    // Start positioning mode
+    const startPositioningMode = () => {
+        // Cache the current positioning values before starting
+        if (currentEntity) {
+            setCachedPositioning({
+                longitude: currentEntity.longitude ?? 0,
+                latitude: currentEntity.latitude ?? 0,
+                size: currentEntity.size ?? 1,
+                rotation: currentEntity.rotation ?? 0
+            });
+        }
+        setIsPositioningMode(true);
+        console.log('Started positioning mode');
+    };
+
+    // Cancel positioning mode
+    const cancelPositioningMode = () => {
+        // Restore cached positioning values if positioning is cancelled
+        if (cachedPositioning && currentEntity) {
+            const currentData = currentState.context?.data || {};
+            const currentEntities = currentData[currentElementType] || [];
+            const restoredEntities = currentEntities.map(b =>
+                b[idKey] === entityId ? { ...b, ...cachedPositioning } : b
+            );
+            const restoredData = {
+                ...currentData,
+                [currentElementType]: restoredEntities
+            };
+
+            controller.updateTransform(entityId, {
+                centroid: [cachedPositioning.longitude, cachedPositioning.latitude],
+                rotation: cachedPositioning.rotation,
+                size: cachedPositioning.size
+            });
+
+            // Update XState context with restored data
+            send({
+                type: 'UPDATE_DATA',
+                data: restoredData
+            });
+        }
+
+        // Clear cached positioning
+        setCachedPositioning(null);
+        setIsPositioningMode(false);
+        console.log('Cancelled positioning mode');
+    };
+
+    // Toggle positioning mode
+    const togglePositioningMode = () => {
+        if (isPositioningMode) {
+            cancelPositioningMode();
+        } else {
+            startPositioningMode();
+        }
+    };
+
     return (
         <div>
             {/* Entity Info - Always displayed */}
@@ -503,6 +632,92 @@ export default function BuildingDetails({ context }) {
                     </Box>
                 </Box>
             </Box>
+
+            {isInEditMode && (
+                <Box p={2}>
+                    <Divider style={{ margin: '16px 0px' }} />
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: 16 }}>
+                            3D Model Positioning
+                        </Typography>
+                    </div>
+
+                    {!isPositioningMode ? (
+                        <CustomButton
+                            variant="contained"
+                            color="primary"
+                            onClick={togglePositioningMode}
+                            fullWidth
+                        >
+                            Adjust Positioning
+                        </CustomButton>
+                    ) : (
+                        <Box>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        label="Longitude"
+                                        type="number"
+                                        value={currentEntity?.longitude ?? 0}
+                                        onChange={(e) => handlePositioningChange('longitude', e.target.value)}
+                                        fullWidth
+                                        variant="outlined"
+                                        size="small"
+                                        inputProps={{ step: 0.000001 }}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        label="Latitude"
+                                        type="number"
+                                        value={currentEntity?.latitude ?? 0}
+                                        onChange={(e) => handlePositioningChange('latitude', e.target.value)}
+                                        fullWidth
+                                        variant="outlined"
+                                        size="small"
+                                        inputProps={{ step: 0.000001 }}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        label="Size"
+                                        type="number"
+                                        value={currentEntity?.size ?? 1}
+                                        onChange={(e) => handlePositioningChange('size', e.target.value)}
+                                        fullWidth
+                                        variant="outlined"
+                                        size="small"
+                                        inputProps={{ step: 0.1, min: 0.1 }}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        label="Rotation (degrees)"
+                                        type="number"
+                                        value={currentEntity?.rotation ?? 0}
+                                        onChange={(e) => handlePositioningChange('rotation', e.target.value)}
+                                        fullWidth
+                                        variant="outlined"
+                                        size="small"
+                                        inputProps={{ step: 1 }}
+                                    />
+                                </Grid>
+                            </Grid>
+                            
+                            <Box style={{ marginTop: 16, display: 'flex', gap: 16 }}>
+                                <CustomButton
+                                    variant="outlined"
+                                    color="secondary"
+                                    onClick={cancelPositioningMode}
+                                    style={{ flex: 1 }}
+                                >
+                                    Cancel Re-Positioning
+                                </CustomButton>
+                            </Box>
+                        </Box>
+                    )}
+                </Box>
+            )}
 
             {isInEditMode && (
                 <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between"}}>
