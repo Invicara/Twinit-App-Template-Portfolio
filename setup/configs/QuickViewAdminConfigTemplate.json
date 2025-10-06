@@ -30,7 +30,7 @@
       }
     },
     "portfolioOverview": {
-      "title": "Portfolio Overview",
+      "title": "Fleet Overview",
       "icon": "fas fa-map-marked-alt fa-2x",
       "pageComponent": "portfolioOverview/PortfolioOverview",
       "path": "/portfoliomap",
@@ -50,7 +50,7 @@
       "position": 1,
       "pages": [
         {
-          "page": "Portfolio Overview",
+          "page": "Fleet Overview",
           "handler": "portfolioOverview"
         }
       ]
