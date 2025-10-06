@@ -316,6 +316,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
   const [properties, setProperties] = useState([]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [engineeringChange, setEngineeringChange] = useState()
 
   const handleCloseToast = () => {
     setToast((prev) => ({ ...prev, open: false }));
@@ -334,6 +335,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
       const buildingId = siteEquipment?.data[0]?.unit;
       const equipmentId = siteEquipment?.data[0]?.["Equipment Id"];
 
+      setEngineeringChange(EC)
       const equipmentIdArray = extractEquipmentIds(siteEquipment?.data);
       const run = async () => {
         try {
@@ -786,6 +788,17 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
 
   if (!isBottomECPanelOpen) return null;
 
+  const canEditSE = (property, engineeringChange) => {
+    let isEditable = true    
+    engineeringChange?.logs?.map((log) => {
+      if(property.equipmentId === log['Site Equipment Id'] && log.status === 'CLOSED') {
+        isEditable = false
+      }
+    })
+    return isEditable
+  }
+
+
   return (
     <div className={classes.panel} style={{ height: isOpen ? 350 : 32 }}>
       <div className={classes.handle} onClick={() => setIsOpen(!isOpen)}>
@@ -800,6 +813,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
             </div>
           ) : properties && properties.length > 0 ? (
             properties.map((prop, index) => {
+              const canEdit = canEditSE(prop, engineeringChange)
               const editRequests = countEdits(prop.edited);
               const hasEdits = editRequests > 0;
 
@@ -855,6 +869,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items }) => {
                   onToggleEdit={onToggleEdit}
                   onApprove={handleApprove}
                   onReject={handleReject}
+                  canEdit={canEdit}
                 />
               );
             })
@@ -949,6 +964,7 @@ function EquipmentCard({
   onToggleEdit,
   onApprove,
   onReject,
+  canEdit
 }) {
   const [draft, setDraft] = React.useState(item);
   const wasEditingRef = React.useRef(item.isEditing);
@@ -1032,7 +1048,7 @@ function EquipmentCard({
         </Typography>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Button
+          {canEdit ? <Button
             className={classes.editButton}
             size="small"
             startIcon={
@@ -1052,6 +1068,7 @@ function EquipmentCard({
           >
             {item.isEditing ? "Save" : "Edit"}
           </Button>
+          : null}
 
           {hasEdits && showEditRequests && (
             <div
@@ -1105,7 +1122,7 @@ function EquipmentCard({
                 }}
                 onClick={() => onApprove(item)}
               >
-                Approve
+                Accept
               </Typography>
 
               <AssignmentLateIcon style={{ color: "#1976d2", fontSize: 18 }} />
