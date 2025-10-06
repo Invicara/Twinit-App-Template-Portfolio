@@ -130,7 +130,7 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
         <Box sx={{ mt: 2 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: 16 }}>
-                    Select Building Type
+                    Select Structure Type
                 </Typography>
                 <CustomButton
                     variant="outlined"
@@ -1080,7 +1080,7 @@ export default function SiteDetails({ context }) {
                 <BuildingThumbnails {...{mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath, send, currentEntity}} />
             ) : (
                 <>
-                    <Typography variant="body2">Buildings: {buildings.length}</Typography>
+                    <Typography variant="body2">Units: {buildings.length}</Typography>
                     {buildings.map((unit, i) => (
                         <Typography key={i} variant="body2">
                             {unit.name}
