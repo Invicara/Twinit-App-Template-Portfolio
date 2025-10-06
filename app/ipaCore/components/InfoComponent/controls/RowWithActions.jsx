@@ -156,7 +156,7 @@ export function RowWithActions({
                 <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: 'white' }}>
                   {`Edit suggestion to update ${
                     propSchema?.options?.originalVal ?? '—'
-                  } → ${
+                  } to ${
                     propSchema?.displayValue ??
                     propSchema?.options?.refVal ??
                     Resolve.data(controlProps?.data, controlUiSchema.scope) ??
