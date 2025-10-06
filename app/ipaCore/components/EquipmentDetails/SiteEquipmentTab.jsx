@@ -27,19 +27,32 @@ import './SiteEquipmentTab.scss'
 const focusLogsInViewer = async (
   setSliceElementsByQuery, 
   setSiteEquipment,
-  selectedSiteEquipId,
+  selectedSiteEquipObj,
+  data
 ) => {
   const elementIds = ["RCP-900-011", "RCP-900-012", "RCP-900-013", "RCP-900-014"]
   let selectedIds = []
   let rejectedIDs = []
 
-  selectedSiteEquipId.forEach((siteEquipId) => {
-    if (elementIds.includes(siteEquipId)) {
-      selectedIds.push(siteEquipId)
-    } else {
-      rejectedIDs.push(siteEquipId)
-    }
-  })
+// selectedSiteEquipObj  = {
+//     "siteEquipId": [
+//         "PRZ-900-001",
+//         "TG-900-001"
+//     ],
+//     "siteEquipName": [
+//         "PRZ-A-011",
+//         "TG-A-011"
+//     ]
+// }
+
+selectedSiteEquipObj.siteEquipId.map((SEId, idx) => {
+   if (elementIds.includes(SEId)) {
+    selectedIds.push(SEId)
+   } else {
+    rejectedIDs.push(selectedSiteEquipObj.siteEquipName[idx])
+   }
+})
+
 
   // update the 3D viewer
   await setSliceElementsByQuery?.([
@@ -49,9 +62,25 @@ const focusLogsInViewer = async (
     }
   ])
 
+  function findLogsByEquipIds(data, equipIds) {
+    return data
+      .map(obj => {
+        const matchingLogs = (obj.logs || []).filter(log =>
+          equipIds.includes(log["Equipment Id"])
+        )
+        return matchingLogs.length > 0
+          // ? { ecId: obj.id, logs: matchingLogs }
+          ? { logs: matchingLogs }
+          : null
+      })
+      .filter(Boolean)
+  }
+
+  const EcLogs = findLogsByEquipIds(data, selectedSiteEquipObj.siteEquipId)
+
   // push into ModelContext like EngineeringChangesTab does
   setSiteEquipment({
-    data: selectedSiteEquipId.map(id => ({ 'Equipment Id': id })), // minimal structure
+     data: EcLogs[0]?.logs,
     EC: {} // nothing here yet
   })
 
@@ -78,7 +107,7 @@ const useStyles = makeStyles(theme => ({
   }
 }))
 
-export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetched}) {
+export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetched, data}) {
   const classes = useStyles()
   const { setSliceElementsByQuery, setSiteEquipment, setIsBottomECPanelOpen } = useContext(ModelContext)
 
@@ -113,10 +142,10 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
       setIndeterminateItems(newIndeterminate)
 
       // Update viewer focus
-      const selectedSiteEquipId = getSelectedThirdLevelIds(tree, cleanedChecked)
-      focusLogsInViewer(setSliceElementsByQuery, setSiteEquipment,  selectedSiteEquipId).then((value) => {
+      const selectedSiteEquipObj = getSelectedThirdLevelIds(tree, cleanedChecked)
+      focusLogsInViewer(setSliceElementsByQuery, setSiteEquipment, selectedSiteEquipObj, data).then((value) => {
         setRejectedIds(value)
-        if (selectedSiteEquipId.length > 0) {
+        if (selectedSiteEquipObj.siteEquipId.length > 0) {
           setIsBottomECPanelOpen(true)
         }
       })
@@ -177,7 +206,7 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
       <SiteEquipTreeSearch
         key={node.id}
         nodeId={node.id}
-        labelText={node.siteEquipId ? node.siteEquipId : node.name}
+        labelText={node.name}
         checked={!!checkedItems[node.id]}
         indeterminate={!!indeterminateItems[node.id]}
         onCheck={(id, checked) => handleCheck(id, checked, node, levelData)}

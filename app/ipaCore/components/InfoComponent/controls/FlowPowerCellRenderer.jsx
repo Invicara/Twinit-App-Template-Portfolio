@@ -8,8 +8,6 @@ const FlowPowerCellRenderer = ({ data, path, handleChange, schema }) => {
   const refVal = schema?.options?.refVal;
   const unit = schema?.options?.unit;
 
-  console.log('FlowPowerCellRenderer hit!', { field, val, refVal });
-
   const showAlert = val !== undefined && refVal !== undefined && val != refVal;
 
   return (
@@ -28,5 +26,4 @@ const FlowPowerCellRenderer = ({ data, path, handleChange, schema }) => {
   );
 };
 
-// 👇 very important
 export default withJsonFormsControlProps(FlowPowerCellRenderer);
