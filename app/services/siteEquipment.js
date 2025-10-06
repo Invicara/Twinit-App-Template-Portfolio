@@ -135,10 +135,8 @@ export async function siteEquipmentService(
   const res = results?.[0]?.result?._result?.equipment?._list?.[0];
 
   const siteEq = getResults?.[0]?.result?._result?.ec?.siteEquipment;
-  c;
+  
   const refs = getResults?.[0]?.result?._result?.ec?.referenceRevisions;
-
-  console.log("EC9 siteEq", siteEq);
 
   const matchedRevision = siteEq?.map((item) => {
     if (Array.isArray(item.revisions) && item.revisions.length > 0) {
