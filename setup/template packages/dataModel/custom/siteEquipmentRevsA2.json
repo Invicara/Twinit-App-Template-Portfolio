@@ -147,6 +147,55 @@
       }
    },
    {
+      "equipmentIds": ["RCP-900-014"],
+      "revision": {
+         "revision": "001A",
+         "revision status": "PENDING",
+         "revision status date": "2025-05-23T00:00:00Z",
+         "properties": [
+            {
+               "name": "Manufacturer",
+               "val": "KSB",
+               "type": "string"
+            },
+            {
+               "name": "Model",
+               "val": "RSR",
+               "type": "string"
+            },
+            {
+               "name": "Safety Class",
+               "val": "Class 1",
+               "type": "string"
+            },
+            {
+               "name": "Operating Status",
+               "val": "Operational",
+               "type": "string"
+            },
+            {
+               "name": "Operational Status Date",
+               "val": "2025-01-26T00:00:00Z",
+               "type": "date"
+            }
+         ],
+         "TechnicalParameters": [
+            {
+               "name": "FlowRate",
+               "val": 2800,
+               "unit": "gpm",
+               "type": "number"
+            },
+            {
+               "name": "Power",
+               "val": 18,
+               "unit": "MW",
+               "type": "number"
+            }
+         ]
+      }
+   },
+   {
       "equipmentIds": ["RCP-900-013"],
       "revision": {
          "revision": "002",

@@ -6,18 +6,14 @@ import { Typography, Box } from '@mui/material';
 import { OptionsContext } from '../../jsonForms/renderers/OptionsContext.jsx';
 import {renderNumberPreview} from "./numberFormat.js";
 
-// pull "name" from "#/properties/name"
 const controlKey = (scope) => scope.match(/#\/properties\/(.+)$/)?.[1] ?? scope;
 
-// simple safe getter for "a.b.c"
 const getAt = (obj, path) =>
     !path ? obj : path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj);
 
-// format a primitive/array/boolean nicely
 function formatValue({ value, propSchema }) {
   if (value == null || value === '') return '—';
 
-  // If this is FlowRate or Power with unit
   if ((propSchema?.title === 'FlowRate' || propSchema?.title === 'Power') && propSchema?.options) {
     const { refVal, unit } = propSchema.options;
     if (refVal !== undefined && value != refVal) {
@@ -54,7 +50,6 @@ if (propSchema?.isEdited) {
   isMismatch = false;
 }
 
-// 2. Otherwise handle FlowRate/Power mismatches
 else if ((key === 'FlowRate' || key === 'Power') && unit) {
   const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue);
   if (!Number.isNaN(numeric)) {
@@ -67,7 +62,6 @@ else if ((key === 'FlowRate' || key === 'Power') && unit) {
   }
 }
 
-// 3. Otherwise handle Manufacturer/Model mismatches
 else if ((key === 'Manufacturer' || key === 'Model') && refVal !== undefined) {
   if (rawValue !== refVal) {
     display = `${rawValue} (Expected: ${refVal})`;
@@ -77,7 +71,6 @@ else if ((key === 'Manufacturer' || key === 'Model') && refVal !== undefined) {
   }
 }
 
-  // report mismatch live back to RowWithActions
   React.useEffect(() => {
     if (onEvaluate) {
       onEvaluate({ isMismatch });
@@ -96,7 +89,6 @@ else if ((key === 'Manufacturer' || key === 'Model') && refVal !== undefined) {
       columnGap={1}
     >
       {labelPlacement === 'left' ? (
-        // Label on the left
         <Box>
           <Typography variant="body2" fontWeight={600}>
             {label}
@@ -108,7 +100,6 @@ else if ((key === 'Manufacturer' || key === 'Model') && refVal !== undefined) {
           </Typography>
         </Box>
       ) : (
-        // Label above the value
         <Typography variant="caption" color="textSecondary">
           {label}
           {isRequired && (

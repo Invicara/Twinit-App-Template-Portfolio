@@ -45,14 +45,15 @@ export const expandAllParents = (nodes, matched, parents = []) => {
 }
 
 export const getSelectedThirdLevelIds = (tree, checkedItems) => {
-  let result = []
+  let result = {siteEquipId: [], siteEquipName: []}
 
   const traverse = (nodes) => {
     nodes.forEach(node => {
       if (!node.children || node.children.length === 0) {
         // It's a leaf node (3rd level)
         if (checkedItems[node.id]) {
-          result.push(node.siteEquipId)
+          result.siteEquipId.push(node.siteEquipId)
+          result.siteEquipName.push(node.name)
         }
       } else {
         traverse(node.children)
