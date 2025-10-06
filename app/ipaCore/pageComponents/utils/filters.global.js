@@ -62,6 +62,10 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
                         // Treat missing model as OTHER only if specifically requested
                         return wanted.has('OTHER');
                     }
+                    if (buildings && models.length < buildings.length) {
+                        // Treat missing model as OTHER only if specifically requested
+                        return wanted.has('OTHER');
+                    }
 
                     // 3) Palier patterns (precise & case-insensitive)
                     const isN4     = (m) => /\bN4\b/.test(m) || /\bN4\s+REP\s+1450\b/.test(m);
@@ -414,8 +418,8 @@ export class FilterCompiler {
         this.fns = fns
     }
     compileFilter(node) {
-        if (!this.fns) {
-            return () => true;
+        if (!this.fns || !node) {
+            return Boolean;
         }
         if ("fn" in node) {
             const factory = (this.fns)[node.fn];
@@ -436,6 +440,6 @@ export class FilterCompiler {
         }
         // Exhaustiveness
         console.warn("Invalid filter node", node);
-        return () => true;
+        return Boolean;
     }
 }

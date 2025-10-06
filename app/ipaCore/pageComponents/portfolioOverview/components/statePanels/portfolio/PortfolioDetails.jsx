@@ -4,7 +4,12 @@ import SearchPanel from '../../SearchPanel.jsx';
 import {Box} from "@mui/material";
 import {useDispatch, useSelector} from "react-redux";
 import {getFilter, setFilter} from "../../../../../redux/filters.js";
-import {mergeFiltersGeneric, toggleScopedFilter} from "../../../../utils/filters.global.js";
+import {
+    FilterCompiler,
+    getGlobalFilterFunctions,
+    mergeFiltersGeneric,
+    toggleScopedFilter
+} from "../../../../utils/filters.global.js";
 
 
 const sampleFormConfig = {
@@ -34,12 +39,14 @@ const sampleFormConfig = {
                     {id: 'CP0/CPY', label: 'CP0/CPY Palier', test: "reactorPalierIn", color: "#8ecbff"},
                     {id: "P4/P'4", label: "P4/P'4 Palier",test: "reactorPalierIn", color: "#1DC0F7"},
                     {id: 'N4', label: 'N4 Palier', test: "reactorPalierIn", color: "#0072BC"},
+                    {id: 'EPR',  label: 'EPR (Gen III)',  test: 'reactorPalierIn', color: "#014772"},
+                    {id: 'EPR2', label: 'EPR2 (Gen III+)', test: 'reactorPalierIn', color: "#02304d"},
                     {id: 'Other', label: 'Other',test: () => true},
                 ];
                 return bins.map((bin, index) => ({ value: bin.id, label: bin.label, meta: { bin } }));
             },
             toRule: (value, _ctx, meta) => {
-                return value !== '' && meta?.bin
+                return value !== ''
                     ? {fn: 'reactorPalierIn', args: {values: [value]}}
                     : null
             },
@@ -70,12 +77,16 @@ const sampleFormConfig = {
             label: 'Facility Location',
             type: 'select',
             rule: "facilityIn",
-            options: ({context}) => {
+            options: ({context, filters}) => {
+                const fns = getGlobalFilterFunctions("site", false);
+                const filterCompiler = new FilterCompiler(fns);
+                const rules = [sampleFormConfig.fields.group.toRule(filters['group'], context)].filter(r=>!!r);
+                const filterFn = filterCompiler.compileFilter(sampleFormConfig.compile(rules));
                 const bins = context?.data?.["site"] || [];
-                return bins.map((bin, index) => ({ value: bin.siteId, label: bin.name, meta: { bin } }));
+                return bins.filter(filterFn ? filterFn : Boolean).map((bin, index) => ({ value: bin.siteId, label: bin.name, meta: { bin } }));
             },
-            toRule: (value, _ctx, meta) => {
-                return value !== '' && meta?.bin
+            toRule: (value, _ctx) => {
+                return value !== ''
                     ? {fn: 'facilityIn', args: {values: [value]}}
                     : null
             },
@@ -107,12 +118,15 @@ const sampleFormConfig = {
             type: 'select',
             rule: "unitIn",
             options: ({context, filters}) => {
-                const locationId = filters['location'];
+                const fns = getGlobalFilterFunctions("building", false);
+                const filterCompiler = new FilterCompiler(fns);
+                const rules = [sampleFormConfig.fields['group'].toRule(filters['group'], context),sampleFormConfig.fields['location'].toRule(filters['location'], context)].filter(r=>!!r);
+                const filterFn = filterCompiler.compileFilter(sampleFormConfig.compile(rules));
                 const bins = context?.data?.["building"] || [];
-                return bins.filter(b=>locationId && locationId.length>0 ? b.siteId == locationId : true).map((bin, index) => ({ value: bin.buildingId, label: bin.name, meta: { bin } }));
+                return bins.filter(filterFn ? filterFn : Boolean).map((bin, index) => ({ value: bin.buildingId, label: bin.name, meta: { bin } }));
             },
             toRule: (value, _ctx, meta) => {
-                return value !== '' && meta?.bin
+                return value !== ''
                     ? {fn: 'unitIn', args: {values: [value]}}
                     : null
             },
