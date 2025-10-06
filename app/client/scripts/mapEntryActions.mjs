@@ -352,7 +352,7 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
 }
 
 // Fetch features and convert to GeoJSON for a level
-export async function fetchFeaturesForLevel(levelDef, parentFeatures) {
+export async function fetchFeaturesForLevel(levelDef, parent={}) {
     if (!levelDef.api) return [];
     const ctx = await IafProj.getCurrent();
     let data = [];
@@ -369,6 +369,21 @@ export async function fetchFeaturesForLevel(levelDef, parentFeatures) {
         data = omapiResponse._result;
     } catch (e) {
         console.error(e);
+    }
+
+    const {features: parentFeatures, level: parentLevelDef} = parent;
+    //fix site features -> where platform relation has not been created fix the relation here on load
+    if(parentFeatures && parentLevelDef.state == "site"){
+        parentFeatures.forEach(siteFeature => {
+            if(data){
+                for(const building of data) {
+                    if(building[parentLevelDef.idKey]  && building[parentLevelDef.idKey] == siteFeature?.properties[parentLevelDef.idKey] && siteFeature?.properties?.buildings && !siteFeature.properties.buildings.find(b=>b[levelDef.idKey]==building[levelDef.idKey])){
+                        siteFeature.properties.buildings.push(building);
+                    }
+                }
+            }
+
+        })
     }
 
     if (levelDef.feature === 'point') {
@@ -965,44 +980,44 @@ async function setupGraphicLayers({ map, sourceId, level, features, loadedGraphi
  */
 export function update3DGraphicTransform(map, sourceId, featureId, transform = {}, updateWrapper = true) {
     console.log('Updating 3D graphic transform:', { featureId, transform });
-    
+
     const customLayerId = `${sourceId}-3d-graphics`;
     const layer = map.getLayer(customLayerId);
-    
+
     if (!layer || layer.type !== 'custom') {
         console.warn(`3D graphics layer not found: ${customLayerId}`);
         return false;
     }
-    
+
     // Find the feature
     const keyProperty = layer.metadata?.featureInfo?.idProperty || 'buildingId';
     const feature = layer.features.find(f => f.properties[keyProperty] === featureId);
-    
+
     if (!feature) {
         console.warn(`Feature not found: ${featureId}`);
         return false;
     }
-    
+
     let updated = false;
-    
+
     // Update position if provided
     if (transform.centroid && Array.isArray(transform.centroid) && transform.centroid.length === 2) {
         const [lng, lat] = transform.centroid;
         feature.centroid = [lng, lat];
-        
+
         const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat([lng, lat], 0);
         feature.transform.translateX = modelAsMercatorCoordinate.x;
         feature.transform.translateY = modelAsMercatorCoordinate.y;
         feature.transform.translateZ = modelAsMercatorCoordinate.z;
-        
+
         // Update properties
         feature.properties.longitude = lng;
         feature.properties.latitude = lat;
-        
+
         updated = true;
         console.log(`Updated position to [${lng}, ${lat}]`);
     }
-    
+
     // Update rotation if provided
     if (transform.rotation !== undefined && transform.rotation !== null) {
         const rotation = parseFloat(transform.rotation);
@@ -1013,7 +1028,7 @@ export function update3DGraphicTransform(map, sourceId, featureId, transform = {
             console.log(`Updated rotation to ${rotation}°`);
         }
     }
-    
+
     // Update size if provided
     if (transform.size !== undefined && transform.size !== null) {
         const size = parseFloat(transform.size);
@@ -1027,16 +1042,16 @@ export function update3DGraphicTransform(map, sourceId, featureId, transform = {
             console.log(`Updated size to ${size}x`);
         }
     }
-    
+
     if (updated) {
         // Trigger map repaint to show changes
         map.triggerRepaint();
-        
+
         // Update cube wrapper if requested
         if (updateWrapper) {
             updateCubeWrapperForFeature(map, feature, sourceId);
         }
-        
+
         console.log('3D graphic transform updated successfully:', {
             featureId,
             centroid: feature.centroid,
@@ -1044,7 +1059,7 @@ export function update3DGraphicTransform(map, sourceId, featureId, transform = {
             size: feature.properties.size
         });
     }
-    
+
     return updated;
 }
 
@@ -1056,7 +1071,7 @@ export function update3DGraphicTransform(map, sourceId, featureId, transform = {
  */
 function updateCubeWrapperForFeature(map, feature, sourceId) {
     console.log('Updating cube wrapper for feature:', feature.properties);
-    
+
     const existingSource = map.getSource(sourceId);
     if (!existingSource) {
         console.warn(`Source not found: ${sourceId}`);
@@ -1065,7 +1080,7 @@ function updateCubeWrapperForFeature(map, feature, sourceId) {
 
     const keyProperty = feature.layer?.metadata?.featureInfo?.idProperty || 'buildingId';
     const featureId = feature.properties[keyProperty];
-    
+
     if (!featureId) {
         console.warn('Feature ID not found for cube wrapper update');
         return false;
@@ -1073,12 +1088,12 @@ function updateCubeWrapperForFeature(map, feature, sourceId) {
 
     // Get current data
     const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
-    
+
     // Find the cube wrapper for this feature
-    const wrapperIndex = currentData.features.findIndex(f => 
+    const wrapperIndex = currentData.features.findIndex(f =>
         f.properties?.[keyProperty] === featureId || f.id === featureId
     );
-    
+
     if (wrapperIndex === -1) {
         console.warn(`Cube wrapper not found for feature: ${featureId}`);
         return false;
@@ -1086,26 +1101,26 @@ function updateCubeWrapperForFeature(map, feature, sourceId) {
 
     // Get geometry info from loaded geometries
     const geometryInfo = globalLoadedGeometries.get(feature.graphicId);
-    
+
     // Default values
     const defaultCubeSizeMeters = 20;
     const defaultHeightMeters = 50;
-    
+
     // Extract rotation and size from feature transform
     const rotation = feature.properties?.rotation ?? 0;
     const sizeProportion = feature.properties?.size ?? 1;
-    
+
     // Calculate current scale from transform
     const currentScale = feature.transform.scale;
     const centroid = feature.centroid;
     const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(centroid, 0);
     const baseScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
     const actualSizeProportion = currentScale / baseScale;
-    
+
     // Get sizing information
     let height = defaultHeightMeters;
     let cubeSize = defaultCubeSizeMeters;
-    
+
     if (geometryInfo && geometryInfo.sizeInMeters) {
         height = geometryInfo.sizeInMeters.height || defaultHeightMeters;
         cubeSize = Math.max(
@@ -1113,23 +1128,23 @@ function updateCubeWrapperForFeature(map, feature, sourceId) {
             geometryInfo.sizeInMeters.depth || defaultCubeSizeMeters
         );
     }
-    
+
     // Apply size proportion
     height *= actualSizeProportion;
     cubeSize *= actualSizeProportion;
-    
+
     // Helper function to convert meters to degrees
     const metersToDegrees = (meters, lat) => ({
         dLat: meters / 111320,
         dLon: meters / (111320 * Math.cos((lat * Math.PI) / 180))
     });
-    
+
     const lng = centroid[0];
     const lat = centroid[1];
-    
+
     // Create cube footprint coordinates with rotation consideration
     const { dLat, dLon } = metersToDegrees(cubeSize / 3, lat);
-    
+
     // Note: For simplicity, we're not rotating the cube wrapper polygon itself
     // The rotation is handled by the 3D model's transform
     // If you need to rotate the wrapper polygon, you'd need to apply rotation matrix to these points
@@ -1140,7 +1155,7 @@ function updateCubeWrapperForFeature(map, feature, sourceId) {
         [lng - dLon, lat + dLat],
         [lng - dLon, lat - dLat]
     ];
-    
+
     // Update the cube wrapper feature
     const updatedWrapper = {
         type: 'Feature',
@@ -1159,24 +1174,24 @@ function updateCubeWrapperForFeature(map, feature, sourceId) {
             coordinates: [ring]
         }
     };
-    
+
     // Replace the wrapper in the features array
     const updatedFeatures = [...currentData.features];
     updatedFeatures[wrapperIndex] = updatedWrapper;
-    
+
     // Update the source
     existingSource.setData({
         type: 'FeatureCollection',
         features: updatedFeatures
     });
-    
+
     console.log(`Updated cube wrapper for feature ${featureId}:`, {
         position: centroid,
         rotation,
         size: actualSizeProportion,
         height
     });
-    
+
     return true;
 }
 
@@ -1205,7 +1220,7 @@ export function get3DGraphicsController(map, sourceId) {
         startRotation: 0,
         startScale: 1,
         activeHandle: null,
-        
+
         // Event handlers (stored for cleanup)
         mouseMoveHandler: null,
         mouseDownHandler: null,
@@ -1239,7 +1254,7 @@ export function get3DGraphicsController(map, sourceId) {
 
         // Attach move-specific event handlers
         attachMoveHandlers();
-        
+
         console.log(`Move mode enabled for feature: ${featureId}`);
         map.triggerRepaint();
         return true;
@@ -1272,7 +1287,7 @@ export function get3DGraphicsController(map, sourceId) {
 
         // Attach rotate-specific event handlers
         attachRotateHandlers();
-        
+
         console.log(`Rotate mode enabled for feature: ${featureId}`);
         map.triggerRepaint();
         return true;
@@ -1305,7 +1320,7 @@ export function get3DGraphicsController(map, sourceId) {
 
         // Attach scale-specific event handlers
         attachScaleHandlers();
-        
+
         console.log(`Scale mode enabled for feature: ${featureId}`);
         map.triggerRepaint();
         return true;
@@ -1353,7 +1368,7 @@ export function get3DGraphicsController(map, sourceId) {
 
             // Combine default callback with user-provided callbacks
             const allCallbacks = [defaultCallback, ...(callbacks || [])];
-            
+
             allCallbacks.forEach(callback => {
                 try {
                     callback(activeFeature);
@@ -1402,26 +1417,26 @@ export function get3DGraphicsController(map, sourceId) {
             // Handle active drag operation for move
             if (interactionState.isDragging && interactionState.activeHandle === 'move') {
                 const position = [e.lngLat.lng, e.lngLat.lat];
-                
+
                 // Update feature position
                 const feature = interactionState.activeFeature;
                 feature.centroid = position;
-                
+
                 const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(position, 0);
                 feature.transform.translateX = modelAsMercatorCoordinate.x;
                 feature.transform.translateY = modelAsMercatorCoordinate.y;
                 feature.transform.translateZ = modelAsMercatorCoordinate.z;
-                
+
                 map.triggerRepaint();
             }
         };
 
         interactionState.mouseDownHandler = (e) => {
             const point = { x: e.point.x, y: e.point.y };
-            
+
             if (layer.detectHandle) {
                 const handleInfo = layer.detectHandle(point);
-                
+
                 if (handleInfo && handleInfo.type === 'moveHandle') {
                     interactionState.activeHandle = 'move';
                     interactionState.isDragging = true;
@@ -1438,7 +1453,7 @@ export function get3DGraphicsController(map, sourceId) {
                 interactionState.isDragging = false;
                 interactionState.activeHandle = null;
                 map.dragPan.enable();
-                
+
                 const point = { x: e.point.x, y: e.point.y };
                 if (layer.detectHandle) {
                     const handleInfo = layer.detectHandle(point);
@@ -1474,7 +1489,7 @@ export function get3DGraphicsController(map, sourceId) {
                 const feature = interactionState.activeFeature;
                 const center = feature.centroid;
                 const centerPixel = map.project(center);
-                
+
                 // Calculate rotation angle in 2D screen space
                 const angle = Math.atan2(e.point.y - centerPixel.y, e.point.x - centerPixel.x);
                 const startAngle = Math.atan2(
@@ -1483,32 +1498,32 @@ export function get3DGraphicsController(map, sourceId) {
                 );
                 const deltaAngle = (angle - startAngle) * (180 / Math.PI);
                 const newRotation = (interactionState.startRotation + deltaAngle) % 360;
-                
+
                 // Update feature rotation (Y-axis rotation to keep building upright)
                 feature.transform.rotateY = newRotation * -(Math.PI / 180);
-                
+
                 // Update feature properties to track rotation
                 feature.properties.rotation = newRotation;
-                
+
                 map.triggerRepaint();
             }
         };
 
         interactionState.mouseDownHandler = (e) => {
             const point = { x: e.point.x, y: e.point.y };
-            
+
             if (layer.detectHandle) {
                 const handleInfo = layer.detectHandle(point);
-                
+
                 if (handleInfo && handleInfo.type === 'boundingBox') {
                     interactionState.activeHandle = 'rotate';
                     interactionState.isDragging = true;
                     interactionState.startPosition = point;
-                    
+
                     // Extract current rotation from transform
                     const currentRotateY = interactionState.activeFeature.transform.rotateY || 0;
                     interactionState.startRotation = currentRotateY * -(180 / Math.PI);
-                    
+
                     map.getCanvas().style.cursor = 'grabbing';
                     map.dragPan.disable();
                     e.preventDefault();
@@ -1521,7 +1536,7 @@ export function get3DGraphicsController(map, sourceId) {
                 interactionState.isDragging = false;
                 interactionState.activeHandle = null;
                 map.dragPan.enable();
-                
+
                 const point = { x: e.point.x, y: e.point.y };
                 if (layer.detectHandle) {
                     const handleInfo = layer.detectHandle(point);
@@ -1557,41 +1572,41 @@ export function get3DGraphicsController(map, sourceId) {
                 const feature = interactionState.activeFeature;
                 const center = feature.centroid;
                 const centerPixel = map.project(center);
-                
+
                 const currentDistance = Math.sqrt(
-                    Math.pow(e.point.x - centerPixel.x, 2) + 
+                    Math.pow(e.point.x - centerPixel.x, 2) +
                     Math.pow(e.point.y - centerPixel.y, 2)
                 );
                 const startDistance = Math.sqrt(
-                    Math.pow(interactionState.startPosition.x - centerPixel.x, 2) + 
+                    Math.pow(interactionState.startPosition.x - centerPixel.x, 2) +
                     Math.pow(interactionState.startPosition.y - centerPixel.y, 2)
                 );
-                
+
                 const scaleFactor = startDistance > 0 ? currentDistance / startDistance : 1;
                 const newScale = Math.max(0.1, Math.min(3.0, interactionState.startScale * scaleFactor));
-                
+
                 // Update feature scale
                 const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(center, 0);
                 feature.transform.scale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() * newScale;
-                
+
                 // Update feature properties to track size
                 feature.properties.size = newScale;
-                
+
                 map.triggerRepaint();
             }
         };
 
         interactionState.mouseDownHandler = (e) => {
             const point = { x: e.point.x, y: e.point.y };
-            
+
             if (layer.detectHandle) {
                 const handleInfo = layer.detectHandle(point);
-                
+
                 if (handleInfo && handleInfo.type === 'scaleHandle') {
                     interactionState.activeHandle = 'scale';
                     interactionState.isDragging = true;
                     interactionState.startPosition = point;
-                    
+
                     // Extract current scale from transform
                     const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
                         interactionState.activeFeature.centroid,
@@ -1599,7 +1614,7 @@ export function get3DGraphicsController(map, sourceId) {
                     );
                     const baseScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
                     interactionState.startScale = interactionState.activeFeature.transform.scale / baseScale;
-                    
+
                     map.getCanvas().style.cursor = 'nw-resize';
                     map.dragPan.disable();
                     e.preventDefault();
@@ -1612,7 +1627,7 @@ export function get3DGraphicsController(map, sourceId) {
                 interactionState.isDragging = false;
                 interactionState.activeHandle = null;
                 map.dragPan.enable();
-                
+
                 const point = { x: e.point.x, y: e.point.y };
                 if (layer.detectHandle) {
                     const handleInfo = layer.detectHandle(point);
@@ -1647,22 +1662,22 @@ export function get3DGraphicsController(map, sourceId) {
         enableRotate,
         enableScale,
         disableInteraction,
-        
+
         // Programmatic transform update
         updateTransform: (featureId, transform, updateWrapper = true) => {
             return update3DGraphicTransform(map, sourceId, featureId, transform, updateWrapper);
         },
-        
+
         // Get feature transform data
         getFeatureTransform: (featureId) => {
             const keyProperty = layer.metadata?.featureInfo?.idProperty || 'buildingId';
             const feature = layer.features.find(f => f.properties[keyProperty] === featureId);
-            
+
             if (!feature) {
                 console.warn(`Feature not found: ${featureId}`);
                 return null;
             }
-            
+
             return {
                 centroid: feature.centroid,
                 rotation: feature.properties.rotation ?? 0,
@@ -1671,7 +1686,7 @@ export function get3DGraphicsController(map, sourceId) {
                 properties: { ...feature.properties }
             };
         },
-        
+
         // Get current interaction state
         getInteractionState: () => ({
             mode: interactionState.mode,
@@ -1876,10 +1891,10 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
         // Start editing an existing feature with visual handles
         startEditingFeature: function(featureId) {
             console.log("Starting edit for feature:", featureId);
-            
+
             // Clear any existing editing state first
             this.clearEditingState();
-            
+
             // Find the feature to edit
             const feature = this.features.find(f => f.properties[this.metadata.featureInfo.idProperty] === featureId);
             if (!feature) {
@@ -1889,17 +1904,17 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
 
             // Set editing state
             this.editingFeatureId = featureId;
-            
+
             // Apply editing opacity (0.7) to this specific feature
             this.setFeatureOpacity(feature, 0.7);
-            
+
             // Create handles for this specific feature
             const handleGroup = this.createHandleGroup(feature);
             if (handleGroup) {
                 feature.handles = handleGroup;
                 feature.model.add(handleGroup);
             }
-            
+
             return true;
         },
 
@@ -1965,9 +1980,9 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
 
             const handleGroup = new THREE.Group();
             handleGroup.name = 'editingHandles';
-            
+
             const bbox = geometryInfo.boundingBox;
-            
+
             // Building outline box - covers entire building shape
             const boxGeometry = new THREE.BoxGeometry(
                 bbox.max.x - bbox.min.x,
@@ -2017,7 +2032,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
         // Handle detection using distance-based approach
         detectHandle: function(point) {
             console.log("detectHandle called", {point, editingFeatureId: this.editingFeatureId});
-            
+
             // Check for editing handles on existing features
             if (this.editingFeatureId) {
                 const editingFeature = this.features.find(f => f.properties[this.metadata.featureInfo.idProperty] === this.editingFeatureId);
@@ -2025,7 +2040,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                     return this.detectHandleAtPosition(point, editingFeature);
                 }
             }
-            
+
             console.log("No handles available for detection");
             return null;
         },
@@ -2034,7 +2049,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
         detectHandleAtPosition: function(point, feature) {
             // Simple distance-based detection
             const canvas = this.map.getCanvas();
-            
+
             // Get the feature's screen position
             const featureWorldPosition = new THREE.Vector3(
                 feature.transform.translateX,
@@ -2049,15 +2064,15 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                 z: feature.transform.translateZ
             };
             const featureLngLat = this.map.transform.coordinateLocation(mercatorCoord);
-            
+
             const featureScreenPos = this.map.project(featureLngLat);
-            
+
             // Calculate distance from click point to feature center
             const distanceToCenter = Math.sqrt(
-                Math.pow(point.x - featureScreenPos.x, 2) + 
+                Math.pow(point.x - featureScreenPos.x, 2) +
                 Math.pow(point.y - featureScreenPos.y, 2)
             );
-            
+
             console.log("Distance calculation", {
                 clickPoint: point,
                 featureScreenPos,
@@ -2066,9 +2081,9 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
 
             // Define interaction zones (in pixels)
             const moveHandleRadius = 30;        // Blue sphere - move
-            const scaleHandleRadius = 50;       // Red cubes - scale  
+            const scaleHandleRadius = 50;       // Red cubes - scale
             const boundingBoxRadius = 80;       // Blue wireframe - rotate
-            
+
             // Check which handle zone we're in (from innermost to outermost)
             if (distanceToCenter <= moveHandleRadius) {
                 console.log("Detected move handle (blue sphere)");
@@ -2457,7 +2472,6 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
 // Main function to add all feature layers from a namedPath
 export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext }) {
     const allFeatureLayers = {}
-    let parentFeatures = [];
 
     // Access Redux state through getContext if available
     const contextData = getContext ? getContext() : {};
@@ -2478,6 +2492,8 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
     //     );
     // }
 
+    let parentLevelWithFeatures = {};
+    const fetchedFeatures = [];
 
     for (const level of namedPath) {
         if (!level.feature) continue;
@@ -2486,7 +2502,20 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
         const clusterOptions = options.cluster || {};
         const {sourceOptions} = clusterOptions;
 
-        const features = await fetchFeaturesForLevel(level, parentFeatures);
+        const features = await fetchFeaturesForLevel(level, parentLevelWithFeatures);
+        parentLevelWithFeatures = {features, level};
+        fetchedFeatures.push({...level, features})
+    }
+
+
+    for (const level of fetchedFeatures) {
+        if (!level.feature) continue;
+
+        const options = level.options || {};
+        const clusterOptions = options.cluster || {};
+        const {sourceOptions} = clusterOptions;
+
+        const features = level.features;
 
         if(level.feature === "mesh" && reduxState?.pageComponentState?.mapGraphicReferences){
             try{
@@ -2515,8 +2544,6 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
             }
         }
 
-
-        parentFeatures = features; // propagate if needed
         allFeatureLayers[level.state] = features.map(f=>f.properties);
 
         const turfFeatures = features.map(f => {
@@ -2798,7 +2825,7 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
                 } finally {
                     release();
                 }
-                
+
                 if (path == "site" && visibleFeatures && visibleFeatures.length > 0) {
 
                     const ids = visibleFeatures.map(f => f.properties["siteId"]);
