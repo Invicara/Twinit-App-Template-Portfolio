@@ -3,10 +3,12 @@ import {markHandled} from "./mapEntryActions.mjs";
 import {get} from "lodash";
 import {FilterCompiler} from "../../ipaCore/pageComponents/utils/filters.global.js";
 import {getGlobalFilterFunctions} from "../../ipaCore/pageComponents/utils/filters.global.js";
+import {Mutex} from "./mutex.js";
 
 const PIE_SIZE  = 48;
 const PIE_ALPHA = 0.7; // (lower -> more transparent)
 
+export const markersMutex = new Mutex();//we have to lock on the markers map access
 const markers = new Map();
 
 function binIndexFor(val, bins) {
@@ -190,6 +192,10 @@ function createSingleMarker(context, feature, {bins, property, showLabel = true,
     }
 }
 
+export function getMarkers() {
+    return markers;
+}
+
 export function addMarkers(graphic) {
     markers.set(graphic.id, graphic);
 }
@@ -265,10 +271,8 @@ export async function renderAllMarkers(e, {self}, markersInfo) {
         const markerId = `${path}-${keyVal}`;
         return markerId;
     })
-
-    const previousMarkerIds = [...markers.keys()];
     const currentMarkerIds = markerGraphics.map(mg => mg.markerId);
-    return {allFeatures, graphics, visibleFeatures, allFeaturesMarkerIds, previousMarkerIds, currentMarkerIds, filters};
+    return {allFeatures, graphics, visibleFeatures, allFeaturesMarkerIds, currentMarkerIds, filters};
 }
 
 

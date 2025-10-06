@@ -45,10 +45,14 @@ export default function EquipmentDetails() {
 
   const { selectedModelComposite } = useContext(ModelContext);
 
-  const match = selectedModelComposite?._name?.match(/_(\d+)$/);
-  const buildingId = match ? match[1].slice(-2) : null;
-//TODO FIX
-  const facilityId = buildingId == '01' ? 'A' : 'B';
+const modelName = selectedModelComposite?._name || '';
+
+const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
+
+const facilityId = match ? match[1].toUpperCase() : null;
+const buildingId = match ? match[2] : null;
+
+
   useEffect(() => {
     if (!selectedModelComposite || !buildingId) {
       setECs([]);
@@ -121,7 +125,7 @@ export default function EquipmentDetails() {
             className={classes.tab}
           />
         )}
-        {tab === 1 && <SiteEquipmentTab className={classes.tab} levelData={levelData} loadingLevelData={loadingLevelData} hasFetched={hasFetched} />}
+        {tab === 1 && <SiteEquipmentTab className={classes.tab} levelData={levelData} loadingLevelData={loadingLevelData} hasFetched={hasFetched} data={ECs} />}
       </div>
     </Box>
   );
