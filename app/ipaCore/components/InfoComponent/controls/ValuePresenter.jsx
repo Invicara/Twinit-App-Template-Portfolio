@@ -14,7 +14,7 @@ const getAt = (obj, path) =>
 function formatValue({ value, propSchema }) {
   if (value == null || value === '') return '—';
 
-  if ((propSchema?.title === 'FlowRate' || propSchema?.title === 'Power') && propSchema?.options) {
+  if ((propSchema?.title === 'FlowRate' || propSchema?.title === 'Power' || propSchema?.title === 'CoolerCapacity' || propSchema?.title === 'Surface Area') && propSchema?.options) {
     const { refVal, unit } = propSchema.options;
     if (refVal !== undefined && value != refVal) {
       return `${value} ${unit} (Expected: ${refVal} ${unit})`;
@@ -43,14 +43,24 @@ export default function ValuePresenter({ controlUiSchema, schema, path, labelPla
   const refVal = propSchema?.options?.refVal;
 
   let display = formatValue({ value: rawValue, propSchema });
-  let isMismatch = false;
+let isMismatch = false;
+
+console.log('keys for mismatch check:', key);
 
 if (propSchema?.isEdited) {
-  display = String(rawValue);
+  const unit = propSchema?.options?.unit;
+  const formattedVal = renderNumberPreview
+    ? renderNumberPreview(rawValue)
+    : rawValue;
+
+  display = unit ? `${formattedVal} ${unit}` : String(formattedVal);
   isMismatch = false;
 }
 
-else if ((key === 'FlowRate' || key === 'Power') && unit) {
+else if (
+  (key === 'FlowRate' || key === 'Power' || key === 'Surface Area' || key === 'CoolerCapacity') &&
+  unit
+) {
   const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue);
   if (!Number.isNaN(numeric)) {
     if (refVal !== undefined && numeric != refVal) {
@@ -70,12 +80,11 @@ else if ((key === 'Manufacturer' || key === 'Model') && refVal !== undefined) {
     display = rawValue;
   }
 }
-
   React.useEffect(() => {
     if (onEvaluate) {
-      onEvaluate({ isMismatch });
+      onEvaluate({ isMismatch, rawValue });
     }
-  }, [isMismatch, onEvaluate]);
+  }, [isMismatch, onEvaluate, rawValue]);
 
   const label = controlUiSchema.label ?? propSchema.title ?? key;
 
