@@ -167,15 +167,11 @@ export default function EngineeringChangesTab({ data, loading }) {
   };
 
   useEffect(() => {
-    if (sliceElements && sliceElements.length > 0) {
       setActiveCardId(clickedCardIndex);
-    } else {
-      setActiveCardId(null);
-    }
   }, [sliceElements, clickedCardIndex]);
 
   useEffect(() => {
-  if (triggeredByFocusLogs && sliceElements && sliceElements.length > 0) {
+  if (triggeredByFocusLogs) {
     setIsBottomECPanelOpen(true);
     setTriggeredByFocusLogs(false);
   } else {

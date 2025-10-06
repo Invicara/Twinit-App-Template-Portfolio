@@ -189,44 +189,79 @@ function flattenEquipment(siteEq) {
     equipmentType: siteEq.equipmentType || "",
     FlowRate: tech?.FlowRate?.val ?? "",
     Power: tech?.Power?.val ?? "",
-    TechnicalParameters: tech,
     properties: props,
     revision: mergedRev.revision || "",
     edited: mergedRev.edited || {},
     "revision status": mergedRev["revision status"] || "",
+     CoolingCapacity: tech?.CoolingCapacity?.val ?? "",
+    "Surface Area": tech?.["Surface Area"]?.val ?? "",
+    TechnicalParameters: tech,
   };
 }
 
+function prettifyLabel(str) {
+  if (!str) return str;
+  return str
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\b([a-z])/g, (m) => m.toUpperCase())
+    .trim();
+}
+
 function buildSchema(flat, editableFields = []) {
+  if (!flat) return { type: 'object', properties: {}, required: [] };
+
+  // ✅ Merge TechnicalParameters directly into flat
+  const mergedFlat = {
+    ...flat,
+    ...(flat.TechnicalParameters
+      ? Object.entries(flat.TechnicalParameters).reduce((acc, [k, v]) => {
+          acc[k] = v?.val ?? ''; // store actual value
+          return acc;
+        }, {})
+      : {}),
+  };
+
+  // ✅ Detect available parameters
+  const hasCooling = !!flat?.TechnicalParameters?.CoolingCapacity;
+  const hasSurface = !!flat?.TechnicalParameters?.['Surface Area'];
+
+  // ✅ Build ordered field list
   const fieldConfig = [
     { key: 'equipmentId', title: 'Name Id' },
     { key: 'Model', title: 'Model' },
     { key: 'equipmentType', title: 'Equipment Type' },
     { key: 'Manufacturer', title: 'Manufacturer' },
     { key: 'Safety Class', title: 'Safety Class' },
-    { key: 'FlowRate', title: 'Flow Rate' },
-    { key: 'Power', title: 'Power' },
+    ...(hasSurface
+    ? [
+        { key: 'Surface Area', title: prettifyLabel('Surface Area') },
+      ]
+    : [
+        { key: 'FlowRate', title: prettifyLabel('FlowRate') },
+        { key: 'Power', title: prettifyLabel('Power') },
+      ]),
   ];
 
   const properties = fieldConfig.reduce((acc, { key, title }) => {
-    if (!(key in flat)) return acc;
+    if (!(key in mergedFlat)) return acc;
 
+    const rawVal = mergedFlat[key];
     const isEditable = editableFields.includes(key);
-    const rawVal = flat[key];
 
     const schema = {
       type: typeof rawVal === 'number' ? 'number' : 'string',
-      title, 
+      title,
       readOnly: !isEditable,
     };
 
-    const techMeta = flat.TechnicalParameters?.[key];
-    const propMeta = flat.properties?.[key];
+    // Get metadata if exists
+    const techMeta = flat?.TechnicalParameters?.[key];
+    const propMeta = flat?.properties?.[key];
 
     if (techMeta) {
       const { refVal, unit, isEdited, originalVal } = techMeta;
-      schema.options = { ...(schema.options || {}), refVal, unit, originalVal };
-      if (refVal !== undefined && rawVal != refVal) {
+      schema.options = { refVal, unit: unit || '-', originalVal };
+      if (refVal !== undefined && refVal !== '' && rawVal != refVal) {
         schema.isMismatched = true;
         schema.displayValue = unit
           ? `${rawVal} ${unit} (Expected: ${refVal} ${unit})`
@@ -238,11 +273,8 @@ function buildSchema(flat, editableFields = []) {
     if (propMeta) {
       const { refVal, isEdited, originalVal } = propMeta;
       schema.options = { ...(schema.options || {}), refVal, originalVal };
-
-      if (isEdited) {
-        schema.isEdited = true;
-        schema.displayValue = rawVal;
-      } else if (refVal !== undefined && rawVal !== refVal) {
+      if (isEdited) schema.isEdited = true;
+      else if (refVal !== undefined && refVal !== '' && rawVal !== refVal) {
         schema.isMismatched = true;
         schema.displayValue = `${rawVal} (Expected: ${refVal})`;
       }
@@ -585,43 +617,43 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
     }
   };
 
-  const handleChange = (index, name, value) => {
-    setProperties((prev) =>
-      prev.map((p, i) => {
-        if (i !== index) return p;
+const handleChange = (index, name, value) => {
+  setProperties((prev) =>
+    prev.map((p, i) => {
+      if (i !== index) return p;
 
-        // Copy the original object
-        let updated = { ...p, [name]: value };
+      let updated = { ...p, [name]: value };
 
-        if (["FlowRate", "Power"].includes(name)) {
-          // Update only TechnicalParameters for numeric fields
-          updated = {
-            ...updated,
-            TechnicalParameters: {
-              ...p.TechnicalParameters,
-              [name]: {
-                ...p.TechnicalParameters?.[name],
-                val: value,
-              },
+      if (p.TechnicalParameters && name in p.TechnicalParameters) {
+        // It's a technical parameter → update there
+        updated = {
+          ...updated,
+          TechnicalParameters: {
+            ...p.TechnicalParameters,
+            [name]: {
+              ...p.TechnicalParameters[name],
+              val: value,
             },
-          };
-        } else {
-          // Update all other editable fields in properties
-          updated = {
-            ...updated,
-            properties: {
-              ...p.properties,
-              [name]: {
-                ...p.properties?.[name],
-                val: value,
-              },
+          },
+        };
+      } else {
+        // Otherwise it's a normal property
+        updated = {
+          ...updated,
+          properties: {
+            ...p.properties,
+            [name]: {
+              ...p.properties?.[name],
+              val: value,
             },
-          };
-        }
-        return updated;
-      }),
-    );
-  };
+          },
+        };
+      }
+
+      return updated;
+    })
+  );
+};
 
   if (!isBottomECPanelOpen) return null;
 
@@ -677,7 +709,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
                 prop["revision status"] === "PENDING";
 
               const editableFields = prop.isEditing
-                ? ["Manufacturer", "Model", "FlowRate", "Power"]
+                ? ["Manufacturer", "Model", "FlowRate", "Power", "Surface Area"]
                 : [];
 
               //ADD to test mismatches
@@ -830,7 +862,7 @@ function EquipmentCard({
   }, [item.isEditing, item]);
 
   const editableFields = item.isEditing
-    ? ["Manufacturer", "Model", "FlowRate", "Power", "Safety Class"]
+    ? ["Manufacturer", "Model", "FlowRate", "Power", "Safety Class", "Surface Area"]
     : [];
 
   const dynamicSchema = React.useMemo(
@@ -842,7 +874,7 @@ function EquipmentCard({
     setDraft((prev) => {
       let next = { ...prev, [name]: val };
 
-      if (["FlowRate", "Power"].includes(name)) {
+      if (['FlowRate', 'Power', 'CoolingCapacity', 'Surface Area'].includes(name)) {
         next = {
           ...next,
           TechnicalParameters: {
