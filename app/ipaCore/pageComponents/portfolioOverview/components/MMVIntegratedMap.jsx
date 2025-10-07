@@ -2,7 +2,6 @@ import React, {useEffect, useMemo, useRef, useState} from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { getTemporaryMapBoxToken } from "../../utils/mapboxUtils.js";
-import AutoSizer from 'react-virtualized-auto-sizer';
 import { IafMultiModalViewer } from "@invicara/ipa-core-mmv"
 import { setClickEvent } from '../../../redux/pageComponentState.js';
 import { useDispatch, useSelector } from 'react-redux';
@@ -32,19 +31,19 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
     }
 
     useEffect(() => {
-        // enable mapbox and refresh token every hour
         getMapboxToken();
+        // enable mapbox and refresh token every hour
         intervalRef.current = setInterval(() => {
             getMapboxToken();
         }, 1000*60*60);
+        return ()=> {
+            clearInterval(intervalRef.current);
+        }
     }, []);
 
     useEffect(() => {
         if(!mapboxToken) return;
-
-        clearInterval(intervalRef.current);
         mapboxgl.accessToken = mapboxToken;
-
     }, [mapboxToken]);
 
     // Handle MMV events and extract map reference
@@ -103,7 +102,7 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
             >
                 {mapboxToken && <IafMultiModalViewer
                     mode={"mmvGIS"}
-                    config={{...mergedMMVConfig}}
+                    config={mergedMMVConfig}
                     eventHandler={handleMMVEvent}
                     appId={appId}
                     command={command}
