@@ -222,6 +222,10 @@ export function clearStaleMarkersByPath(path){
     return [...markerIds];
 }
 
+export function clearAllMarkers(){
+    markers.clear();
+}
+
 const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
 
 export async function renderAllMarkers(e, {self}, markersInfo) {

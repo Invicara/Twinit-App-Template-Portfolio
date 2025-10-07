@@ -9,7 +9,7 @@ import {v4 as uuid} from "uuid"
 import bbox from "@turf/bbox";
 import centroid from "@turf/centroid";
 import {
-    addMarkers,
+    addMarkers, clearAllMarkers,
     clearStaleMarkers,
     clearStaleMarkersByPath, getMarkers,
     makeMarkerShell,
@@ -2771,7 +2771,8 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
     if(context.manageMarkers[stateValue]){
         context.map.off('moveend', context.manageMarkers[stateValue]);
         context.map.off('idle', context.manageMarkers[stateValue]);
-        context.map.off('sourcedata', context.manageMarkers[stateValue])
+        context.map.off('sourcedata', context.manageMarkers[stateValue]);
+        context.map.off('remove', clearAllMarkers);
     }
 
     if(markersConfig){
@@ -2898,6 +2899,7 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
             context.map.on('moveend', manageMarkers);
             context.map.on('idle', manageMarkers);
             context.map.on('sourcedata', manageMarkers);
+            context.map.on('remove', clearAllMarkers);
         }
         manageMarkers();
     }
