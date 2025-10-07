@@ -40,6 +40,7 @@ export function RowWithActions({
   const [editing, setEditing] = useState(false);
   const [liveMismatch, setLiveMismatch] = useState(false);
   const [liveEdited, setLiveEdited] = useState(!!schema?.properties?.[key]?.isEdited);
+  const [currentRawValue, setCurrentRawValue] = useState(null);
 
   const propSchema = schema?.properties?.[key];
   const labelText = controlUiSchema.label ?? propSchema?.title ?? key;
@@ -137,7 +138,10 @@ export function RowWithActions({
               schema={schema}
               path={path}
               labelPlacement={labelPlacement}
-              onEvaluate={({ isMismatch }) => setLiveMismatch(isMismatch)}
+               onEvaluate={({ isMismatch, rawValue }) => {
+                 setLiveMismatch(isMismatch);
+               setCurrentRawValue(rawValue); 
+  }}
             />
           )}
         </Box>
@@ -154,15 +158,23 @@ export function RowWithActions({
             <Tooltip
               title={
                 <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: 'white' }}>
-                  {`Edit suggestion to update ${
-                    propSchema?.options?.originalVal ?? '—'
-                  } to ${
-                    propSchema?.displayValue ??
-                    propSchema?.options?.refVal ??
-                    Resolve.data(controlProps?.data, controlUiSchema.scope) ??
-                    '—'
-                  }`}
-                </Typography>
+                  {(() => {
+                    const originalVal =
+                      propSchema?.options?.originalVal ??
+                      propSchema?.options?.refVal ??
+                      '—';
+
+                    const currentVal =
+                      currentRawValue ??
+                      propSchema?.displayValue ??
+                      propSchema?.options?.val ??
+                      '—';
+
+                    const unit = propSchema?.options?.unit ? ` ${propSchema.options.unit}` : '';
+
+                    return `Edit suggestion to update ${originalVal}${unit} to ${currentVal}${unit}`;
+                  })()}
+      </Typography>
               }
               arrow
             >
