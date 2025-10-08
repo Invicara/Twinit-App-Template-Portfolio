@@ -1,6 +1,5 @@
-// generateMapMachine.js (XState v5 compatible)
-import {assign, fromPromise, setup, sendTo} from 'xstate';
-import {getEntryAction, getInitAction, getExitAction} from './utils/scriptedEntryActions';
+import {assign, fromPromise, setup, sendTo, spawnChild} from 'xstate';
+import {getEntryAction, getInitAction, getExitAction, onDataUpdatedAction} from './utils/scriptedEntryActions';
 
 export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
 
@@ -379,17 +378,28 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                 actions: assign(({ event }) => ({ pendingEvent: event }))
             },
             UPDATE_DATA: {
-                actions: assign(({ event }) => ({
-                    data: event.data
-                }))
+                actions: [assign(({ event }) => ({
+                        data: event.data
+                    })),
+                    //new context will only be available in a service after async tick
+                    sendTo(({ self }) => self, { type: 'APPLY_DATA' }, { delay: 0 })
+                ]
             },
             UPDATE_FILTERS: {
                 actions: [
                     assign(({ event }) => ({
                         filters: event.filters
                     })),
+                    //new context will only be available in a service after async tick
                     sendTo(({ self }) => self, { type: 'APPLY_FILTERS' }, { delay: 0 })],
 
+            },
+            APPLY_DATA: {
+                actions: [
+                    spawnChild('onDataUpdated', {
+                        input: ({ context, event, self }) => ({ context, event, self }),
+                    }),
+                ],
             },
             APPLY_FILTERS: {
                 actions: [({context, self})=>{
@@ -405,7 +415,8 @@ export const createMachine = (id = 'mapMachine', paths, machineSetup = {}) => {
     const machineDef = generateMapMachine(id, paths, {
         initializeService: 'initializeService',
         entryService: 'entryService',
-        exitService: 'exitService'
+        exitService: 'exitService',
+        onDataUpdated: 'onDataUpdated'
     });
 
     // Merge any additional initial context (like Redux store/dispatch)
@@ -422,6 +433,10 @@ export const createMachine = (id = 'mapMachine', paths, machineSetup = {}) => {
             initializeService: fromPromise(async ({ input }) => {
                 const {context, sendBack} = input;
                 return getInitAction(input);
+            }),
+            onDataUpdated: fromPromise(async ({ input }) => {
+                const {context, sendBack} = input;
+                return onDataUpdatedAction(input);
             }),
             entryService: fromPromise(async ({input}) => {
                 //console.log(`Entry Args`, {input});
