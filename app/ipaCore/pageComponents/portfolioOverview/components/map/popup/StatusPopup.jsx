@@ -121,18 +121,18 @@ export default function StatusPopup({ data: initialData, actor, config = {}, cla
     const data = useMemo(() => {
         // If the popup data's ID matches an entity in the current state, use the updated entity data
         if (initialData && currentState?.context?.data) {
-            const entityType = Object.keys(currentState.context.data).find(type => 
-                currentState.context.data[type].some(entity => 
-                    entity._id === initialData._id || 
+            const entityType = statusPopup.entityType || Object.keys(currentState.context.data).find(type =>
+                currentState.context.data[type].some(entity =>
+                    entity.buildingId === initialData.buildingId ||
                     entity.siteId === initialData.siteId ||
-                    entity.buildingId === initialData.buildingId
+                    entity._id === initialData._id
                 )
             );
 
             const namedPaths = currentState.context.namedPaths[0];
             const namedPath = namedPaths.find(p => p.state === entityType);
             const { idKey } = namedPath || {};
-            
+
             if (entityType) {
                 const updatedEntity = currentState.context.data[entityType]
                     .find(entity => entity[idKey] === initialData?.properties?.[idKey]);
