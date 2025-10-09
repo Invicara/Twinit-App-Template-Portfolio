@@ -197,6 +197,36 @@ const handleUpdate = (newValue, name) => {
         }
     };
 
+  const isEquipment = entityType === 'equipment';
+
+  const escapePtr = (s) => s?.replace(/~/g, '~0')?.replace(/\//g, '~1') ?? '';
+
+  const finalOrder = useMemo(
+    () => [
+      'equipmentId',
+      'Model',
+      'equipmentType',
+      'Manufacturer',
+      'Safety Class',
+      ...Object.keys(entity?.TechnicalParameters || {})
+    ],
+    [entity?.TechnicalParameters]
+  );
+
+  const orderedUiSchema = useMemo(() => {
+    if (!isEquipment) return uiSchema;
+    const elements = finalOrder
+      .filter((k) => processedType?.properties?.[k])
+      .map((k) => ({
+        type: 'Control',
+        scope: `#/properties/${escapePtr(k)}`,
+      }));
+    return { type: 'VerticalLayout', elements };
+  }, [isEquipment, finalOrder, processedType, uiSchema]);
+
+  const uiSchemaToUse = isEquipment ? orderedUiSchema : uiSchema;
+
+
     return (
         <ThemeProvider theme={formTheme}>
             {!type?.properties || !entity ? (
@@ -208,7 +238,7 @@ const handleUpdate = (newValue, name) => {
                             <JsonForms
                                 data={localValue}
                                 schema={processedType}
-                                uischema={uiSchema}
+                                uischema={uiSchemaToUse} 
                                 onChange={onJsonFormsChange}
                                 renderers={renderers}
                                 cells={materialCells}

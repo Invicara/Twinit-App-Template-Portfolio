@@ -87,7 +87,7 @@ export function RowWithActions({
 
   const onRowBlur = (e) => {
     if (!editing) return;
-    if (key === 'FlowRate' || key === 'Power') return;
+    if (schema?.properties?.[key]?.options?.unit) return;
     requestAnimationFrame(() => {
       const next = e.relatedTarget || document.activeElement;
       const inRow = rowRef.current?.contains(next);
