@@ -14,17 +14,21 @@ const getAt = (obj, path) =>
 function formatValue({ value, propSchema }) {
   if (value == null || value === '') return '—';
 
-  if ((propSchema?.title === 'FlowRate' || propSchema?.title === 'Power' || propSchema?.title === 'CoolerCapacity' || propSchema?.title === 'Surface Area') && propSchema?.options) {
-    const { refVal, unit } = propSchema.options;
+  const { options } = propSchema || {};
+  const { unit, refVal } = options || {};
+
+  // If it's a technical parameter (has a unit or reference value)
+  if (unit || refVal !== undefined) {
+    const displayVal = `${value}${unit ? ` ${unit}` : ''}`;
     if (refVal !== undefined && value != refVal) {
-      return `${value} ${unit} (Expected: ${refVal} ${unit})`;
+      return `${displayVal} (Expected: ${refVal}${unit ? ` ${unit}` : ''})`;
     }
-    return `${value} ${unit}`;
+    return displayVal;
   }
 
+  // Generic handling
   if (Array.isArray(value)) return value.join(', ');
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-
   return String(value);
 }
 
@@ -57,10 +61,7 @@ if (propSchema?.isEdited) {
   isMismatch = false;
 }
 
-else if (
-  (key === 'FlowRate' || key === 'Power' || key === 'Surface Area' || key === 'CoolerCapacity') &&
-  unit
-) {
+else if (unit) {
   const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue);
   if (!Number.isNaN(numeric)) {
     if (refVal !== undefined && numeric != refVal) {
