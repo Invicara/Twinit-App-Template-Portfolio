@@ -147,8 +147,15 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             else return [];
         }).find(el => el[1]) || [];
 
-        if(draftElement && prevElementType === draftingType && currentElementType !== draftingType){
-            handleCancelElement(draftElement, draftingType, namedPathDict[draftingType]);
+        if (draftElement && prevElementType === draftingType && currentElementType !== draftingType) {
+            const prev = namedPathDict[prevElementType];
+            const next = namedPathDict[currentElementType];
+            if (!prev || !next) return;
+            const movingToChild = next.scopeLevel > prev.scopeLevel && next.parentState === prev.state;
+            // Only cancel if we are NOT moving to the child of the current draft
+            if (!movingToChild) {
+                handleCancelElement(draftElement, draftingType, namedPathDict[draftingType]);
+            }
         }
     }, [currentState, prevElementType, currentElementType, namedPathDict]);
 
