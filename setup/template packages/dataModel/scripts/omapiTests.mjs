@@ -349,7 +349,6 @@ let scriptModule = {
          `${baseOmapiUrl}/siteequip/facilities/A/units`,
          `${baseOmapiUrl}/siteequip/facilities/B/units/02/systems`,
          `${baseOmapiUrl}/siteequip/facilities/A/units/02/systems/RCS`,
-         `${baseOmapiUrl}/siteequip/facilities/A/units/01/equipments/RCP-A-011/ecs`,
          `${baseOmapiUrl}/siteequip/facilities/B/units/02/systems/RCS/equipmenttypes`,
          `${baseOmapiUrl}/siteequip/facilities/B/units/02/systems/RCS/equipmenttypes/Pump/equipment`
          `${baseOmapiUrl}/siteequip/facilities/A/units/01/equipments/ecs?ids=RCP-A-011,RCP-A-012,RCP-A-013`,

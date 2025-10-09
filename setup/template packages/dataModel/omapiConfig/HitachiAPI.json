@@ -196,19 +196,11 @@
                   }
                },
                {
-                  "path": "/siteequip/facilities/:facility/units/:unit/equipments/:siteEquipmentId/ecs",
-                  "method": "GET",
-                  "script": {
-                     "_userType": "hitachi-siteequip-omapi",
-                     "_scriptName": "getSiteEquipEcs"
-                  }
-               },
-               {
                   "path": "/siteequip/facilities/:facility/units/:unit/equipments/ecs",
                   "method": "GET",
                   "script": {
                      "_userType": "hitachi-siteequip-omapi",
-                     "_scriptName": "getSiteEquipsEcs"
+                     "_scriptName": "getSiteEquipEcs"
                   }
                },
                {
