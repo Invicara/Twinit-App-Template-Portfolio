@@ -365,7 +365,10 @@ function dataToFeatures(levelDef, data) {
     if (levelDef.feature === 'polygon') {
         return data.map(d => ({
             type: 'Feature',
-            geometry: d.coordinates,
+            geometry: {
+                type: 'Polygon',
+                coordinates: d.coordinates
+            },
             properties: { ...d}
         }));
     }
