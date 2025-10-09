@@ -21,7 +21,7 @@ import {
   useSelector as useXstateSelector,
   useMachine,
 } from "@xstate/react";
-import { CircularProgress } from "@material-ui/core"; // add this at the top
+import { CircularProgress } from "@material-ui/core"; 
 
 const useStyles = makeStyles((theme) => ({
   filterBox: {
@@ -140,6 +140,7 @@ export default function EngineeringChangesTab({ data, loading }) {
   const [activeCardId, setActiveCardId] = useState(null);
   const [clickedCardIndex, setClickedCardIndex] = useState(null);
   const [ecsData, setEcsData] = useState(null);
+  const [isFilteringMode, setIsFilteringMode] = useState(false);
   const [triggeredByFocusLogs, setTriggeredByFocusLogs] = useState(false);
 
   const handleExpandClick = (id) =>
@@ -148,6 +149,7 @@ export default function EngineeringChangesTab({ data, loading }) {
 
   const handleCardClick = async (ec, index) => {
     setExpanded({});
+    setIsFilteringMode(false); 
 
     if (activeCardId === index) {
       setClickedCardIndex(null);
@@ -174,9 +176,7 @@ export default function EngineeringChangesTab({ data, loading }) {
   if (triggeredByFocusLogs) {
     setIsBottomECPanelOpen(true);
     setTriggeredByFocusLogs(false);
-  } else {
-   // setIsBottomECPanelOpen(false);
-  }
+  } 
 }, [sliceElements, triggeredByFocusLogs]);
 
   const filterByLabel =
@@ -210,7 +210,10 @@ export default function EngineeringChangesTab({ data, loading }) {
         <FormControl className={classes.formControl}>
           <Select
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              setIsFilteringMode(true); 
+            }}
             displayEmpty
             disableUnderline
             renderValue={() => (
@@ -278,7 +281,9 @@ export default function EngineeringChangesTab({ data, loading }) {
         </Box>
       ) : (
         filteredData.map((ec, index) => {
-          if (activeCardId !== null && activeCardId !== index) return null; // hide non-active cards
+          if (!isFilteringMode && activeCardId !== null && activeCardId !== index) {
+            return null; 
+          }
           const orderedFields = [
             "Base Revision",
             "Equipment Revision",
@@ -286,11 +291,11 @@ export default function EngineeringChangesTab({ data, loading }) {
             "EC ID",
             "Date Reviewed",
           ];
-
+          const isActive = activeCardId === index;
           return (
             <Card
               key={index}
-              className={`${classes.card} ${activeCardId === index ? classes.activeCard : ""}`}
+              className={`${classes.card} ${isActive ? classes.activeCard : ''}`}
               onClick={() => handleCardClick(ec, index)}
             >
               <CardContent>
