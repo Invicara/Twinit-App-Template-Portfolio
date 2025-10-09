@@ -62,6 +62,26 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
 import scriptModule from "../../../setup/scripts/mmv_config.mjs";
 
+
+// Function to generate square coordinates around a centroid
+// widthInMeters: width of the square in meters (default 500m)
+// Returns array of [lng, lat] coordinates forming a closed polygon
+export function generateSquareCoordinates(centerLng, centerLat, widthInMeters = 500) {
+    // Convert meters to degrees (rough approximation)
+    // 1 degree of longitude ≈ 111,320 meters * cos(latitude)
+    // 1 degree of latitude ≈ 110,540 meters
+    const halfWidthLng = (widthInMeters / 2) / (111320 * Math.cos(centerLat * Math.PI / 180));
+    const halfWidthLat = (widthInMeters / 2) / 110540;
+
+    // Create square coordinates (clockwise from top-left)
+    return [
+        [centerLng - halfWidthLng, centerLat + halfWidthLat], // Top-left
+        [centerLng + halfWidthLng, centerLat + halfWidthLat], // Top-right
+        [centerLng + halfWidthLng, centerLat - halfWidthLat], // Bottom-right
+        [centerLng - halfWidthLng, centerLat - halfWidthLat], // Bottom-left
+        [centerLng - halfWidthLng, centerLat + halfWidthLat]  // Close polygon
+    ];
+}
 /**
  * Properly dispose of THREE.js resources to prevent memory leaks
  * @param {THREE.Object3D} obj - The 3D object to dispose
@@ -204,75 +224,80 @@ function makeBinColorExpression(config) {
  * }}
  */
 function buildGroupsFromBins(map, layerId, idKey, binConfig) {
-    const layer = map.getLayer(layerId);
-    if (!layer) throw new Error(`Layer "${layerId}" not found`);
 
-    const sourceId = layer.source;
-    const src = map.getSource(sourceId);
-    if (!src) throw new Error(`Source "${sourceId}" not found for layer "${layerId}"`);
-
-    // Collect features we can access
-    let features = [];
-    if (src.type === 'geojson') {
-        const data = src._data;
-        features = Array.isArray(data?.features) ? data.features : [];
-    } else if (src.type === 'vector') {
-        const sourceLayer = layer['source-layer'];
-        if (!sourceLayer) throw new Error(`Layer "${layerId}" is vector-backed but missing "source-layer"`);
-        features = map.querySourceFeatures(sourceId, { sourceLayer });
-    } else {
-        throw new Error(`Unsupported source type for binning: ${src.type}`);
-    }
-
-    const propName = binConfig.property;
-    const bins = binConfig.bins || [];
-
-    // Determine which keys are "control" keys we shouldn't copy as paint props
-    const CONTROL_KEYS = new Set(['id', 'min', 'max', 'label', 'ids']);
-
-    // Extract top-level extra props to apply to every group (unless overridden)
-    const topLevelExtras = Object.fromEntries(
-        Object.entries(binConfig).filter(([k]) => !['property', 'bins'].includes(k))
-    );
-
-    // Prepare groups keyed by bin id, prefilled with top-level extras
     const groupsObject = {};
-    for (const bin of bins) {
-        const base = { ids: [] };
+    try {
+        const layer = map.getLayer(layerId);
+        if (!layer) throw new Error(`Layer "${layerId}" not found`);
 
-        // Start with top-level extras…
-        for (const [k, v] of Object.entries(topLevelExtras)) {
-            base[k] = isColorProp(k) ? normalizeColorRGB(v) : v;
+        const sourceId = layer.source;
+        const src = map.getSource(sourceId);
+        if (!src) throw new Error(`Source "${sourceId}" not found for layer "${layerId}"`);
+
+        // Collect features we can access
+        let features = [];
+        if (src.type === 'geojson') {
+            const data = src._data;
+            features = Array.isArray(data?.features) ? data.features : [];
+        } else if (src.type === 'vector') {
+            const sourceLayer = layer['source-layer'];
+            if (!sourceLayer) throw new Error(`Layer "${layerId}" is vector-backed but missing "source-layer"`);
+            features = map.querySourceFeatures(sourceId, { sourceLayer });
+        } else {
+            throw new Error(`Unsupported source type for binning: ${src.type}`);
         }
-        // …then apply per-bin props (these override top-level extras)
-        for (const [k, v] of Object.entries(bin)) {
-            if (!CONTROL_KEYS.has(k)) {
-                base[k] = isColorProp(k) ? normalizeColorRGB(v) : v; // includes 'color' and any explicit paint prop like 'circle-radius'
+
+        const propName = binConfig.property;
+        const bins = binConfig.bins || [];
+
+        // Determine which keys are "control" keys we shouldn't copy as paint props
+        const CONTROL_KEYS = new Set(['id', 'min', 'max', 'label', 'ids']);
+
+        // Extract top-level extra props to apply to every group (unless overridden)
+        const topLevelExtras = Object.fromEntries(
+            Object.entries(binConfig).filter(([k]) => !['property', 'bins'].includes(k))
+        );
+
+        // Prepare groups keyed by bin id, prefilled with top-level extras
+        for (const bin of bins) {
+            const base = { ids: [] };
+
+            // Start with top-level extras…
+            for (const [k, v] of Object.entries(topLevelExtras)) {
+                base[k] = isColorProp(k) ? normalizeColorRGB(v) : v;
+            }
+            // …then apply per-bin props (these override top-level extras)
+            for (const [k, v] of Object.entries(bin)) {
+                if (!CONTROL_KEYS.has(k)) {
+                    base[k] = isColorProp(k) ? normalizeColorRGB(v) : v; // includes 'color' and any explicit paint prop like 'circle-radius'
+                }
+            }
+            groupsObject[bin.id] = base;
+        }
+
+        // Assign features to bins
+        for (const f of features) {
+            const props = f?.properties || {};
+            const id = props?.[idKey];
+            if (id == null) continue;
+
+            const rawVal = props?.[propName];
+            const val = typeof rawVal === 'number' ? rawVal : Number(rawVal);
+            if (Number.isNaN(val)) continue;
+
+            const bin = bins.find(b =>
+                (b.min == null || val >= b.min) &&
+                (b.max == null || val <  b.max)
+            );
+            if (bin) {
+                groupsObject[bin.id].ids.push(String(id));
             }
         }
-        groupsObject[bin.id] = base;
+    } catch (e) {
+        console.error(e)
+    } finally {
+        return { groupsObject };
     }
-
-    // Assign features to bins
-    for (const f of features) {
-        const props = f?.properties || {};
-        const id = props?.[idKey];
-        if (id == null) continue;
-
-        const rawVal = props?.[propName];
-        const val = typeof rawVal === 'number' ? rawVal : Number(rawVal);
-        if (Number.isNaN(val)) continue;
-
-        const bin = bins.find(b =>
-            (b.min == null || val >= b.min) &&
-            (b.max == null || val <  b.max)
-        );
-        if (bin) {
-            groupsObject[bin.id].ids.push(String(id));
-        }
-    }
-
-    return { groupsObject };
 }
 
 
@@ -352,37 +377,28 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
 }
 
 function dataToFeatures(levelDef, data) {
-    if (levelDef.feature === 'point') {
-        return data.filter(d => d.longitude && d.latitude).map(d => ({
-            type: 'Feature',
-            geometry: {
-                type: 'Point',
-                coordinates: [parseFloat(d.longitude), parseFloat(d.latitude)]
-            },
-            properties: { ...d }
-        }));
+    if(!data){
+        return null;
     }
-    if (levelDef.feature === 'polygon') {
-        return data.map(d => ({
-            type: 'Feature',
-            geometry: {
-                type: 'Polygon',
-                coordinates: d.coordinates
-            },
-            properties: { ...d}
-        }));
-    }
-    if (levelDef.feature === 'mesh') {
-        return data.filter(d => d.longitude && d.latitude).map(d => ({
-            type: 'Feature',
-            geometry: {
-                type: 'Point',
-                coordinates: [parseFloat(d.longitude), parseFloat(d.latitude)]
-            },
-            properties: { ...d }
-        }));
-    }
-    return null;
+    const features = data.map(d => {
+            let coordinates = d.coordinates;
+            if (levelDef.feature === 'point' && !coordinates) {
+                coordinates = [parseFloat(d.longitude), parseFloat(d.latitude)]
+            }
+            if (levelDef.feature === 'mesh' && !coordinates) {
+                const squareCoords = generateSquareCoordinates(d.longitude, d.latitude, 1);
+                coordinates = [squareCoords];
+            }
+            let f;
+            try {
+                f = featureFromKnownType(levelDef.feature, coordinates, {...d});
+            } catch (e) {
+                console.error("featureFromKnownType",e)
+            }
+            return f;
+        }
+    ).filter(f=>!!f);
+    return features;
 }
 
 export function fixParentFeaturesUsingChildData(levelDef, data, parent={}) {
@@ -401,8 +417,6 @@ export function fixParentFeaturesUsingChildData(levelDef, data, parent={}) {
 
         })
     }
-
-    return dataToFeatures(levelDef, data) || [];
 }
 // Fetch features and convert to GeoJSON for a level
 export async function fetchFeaturesForLevel(levelDef, parent={}) {
@@ -430,14 +444,26 @@ export async function fetchFeaturesForLevel(levelDef, parent={}) {
 }
 
 function getFeatureLayers(namedPath) {
-    return namedPath
-        .map((lvl, i) => ({
+    const layers = namedPath
+        ?.map((lvl, i) => ({
             state: lvl.state,
             idKey: lvl.idKey || null,
             feature: lvl.feature || null,
             layerId: `${lvl.state}-features-layer`
         }))
         .filter(l => !!l.feature); // only states with feature layers
+    // Add 3D wrapper layer for mesh levels so clicks hit the mesh footprint
+    namedPath?.forEach(lvl => {
+        if (lvl.feature === 'mesh') {
+            layers.push({
+                state: lvl.state,
+                idKey: lvl.idKey,
+                feature: 'polygon',
+                layerId: `${lvl.state}-features-3d-graphics`
+            });
+        }
+    });
+    return layers || [];
 }
 const CLICK_HANDLED = Symbol('map.click.handled');
 
@@ -562,12 +588,9 @@ export function featureFromKnownType(type, coords, properties = {}) {
     const t = String(type).toLowerCase();
 
     switch (t) {
+        //case 'mesh':
         case 'point': {
             if (!isPos(coords)) throw new Error('Point coords must be [lng, lat]');
-            return point(coords, properties);
-        }
-        case 'mesh': {
-            if (!isPos(coords)) throw new Error('Mesh coords must be [lng, lat]');
             return point(coords, properties);
         }
         case 'multipoint': {
@@ -585,9 +608,12 @@ export function featureFromKnownType(type, coords, properties = {}) {
                 throw new Error('MultiLineString must be [[[lng,lat],...], ...]');
             return multiLineString(coords, properties);
         }
+        case 'mesh':
         case 'polygon': {
-            if (!Array.isArray(coords) || !Array.isArray(coords[0]) || !coords[0].every(isPos))
-                throw new Error('Polygon must be [[[lng,lat],...], ...]');
+            if (!Array.isArray(coords) || !Array.isArray(coords[0]) || !coords[0].every(isPos)) {
+                console.log("featureFromKnownType mesh", {coords, properties});
+                throw new Error('Polygon must be [[[lng,lat],...], ...]', {coords, properties});
+            }
             const rings = coords.map(closeRing);
             return polygon(rings, properties);
         }
@@ -956,12 +982,6 @@ async function setupGraphicLayers({ map, sourceId, level, features, loadedGraphi
                 'fill-extrusion-opacity': 0.0 // Transparent
             }
         });
-
-        // Add click handler
-        const handler = makeMapOnClickHandler({ map, namedPath, send: self.send, getContext });
-        map.on('click', handler);
-        map.on('mouseenter', wrapperLayerId, () => { map.getCanvas().style.cursor = 'pointer'; });
-        map.on('mouseleave', wrapperLayerId, () => { map.getCanvas().style.cursor = ''; });
     }
 
     // Create or update 3D custom layer
@@ -2595,12 +2615,13 @@ async function upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, 
                         ? { 'circle-radius': 0.01, 'circle-color': '#fff' }//TODO: or also make invisible by default?
                         : { 'fill-color': '#fff', 'fill-opacity': 0.18 }//TODO: or also make invisible by default?
                 });
-                const handler = makeMapOnClickHandler({ map, namedPath, send: self.send, getContext });
-                map.on('click', handler);
-                map.on('mouseenter', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = 'pointer'; });
-                map.on('mouseleave', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = ''; });
+
             }
         }
+        const handler = makeMapOnClickHandler({ map, namedPath, send: self.send, getContext });
+        map.on('click', handler);
+        map.on('mouseenter', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = ''; });
         // Optionally add/update CLUSTERED layer
         if (!map.getLayer(`${sourceId}-layer-clustered`) && level.feature === 'point' && sourceOptions?.cluster) {
             map.addLayer({
@@ -2612,14 +2633,17 @@ async function upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, 
             });
         }
 
-        // Always add/update centroids layer for polygon features
-        if ((level.feature === "polygon" || level.feature === "multiPolygon")) {
+        // Always add/update centroids layer for polygon/mesh features
+        if ((level.feature === "polygon" || level.feature === "multiPolygon" || level.feature === "mesh")) {
             let centroidFeatures = turfFeatures.map(f => {
                 const c = centroid(f);
                 // copy over properties so pies can use them
                 c.properties = { ...f.properties };
                 return c;
             });
+            if(level.feature === "mesh"){
+                debugger;
+            }
             const centroidFc = featureCollection(centroidFeatures);
             if (!map.getSource(`${sourceId}-centroids`)) {
                 map.addSource(`${sourceId}-centroids`, {type: "geojson", data: centroidFc});
@@ -2658,6 +2682,7 @@ export async function addAllFeatureLayers({ map, namedPath, getContext, self }) 
         const {sourceOptions} = clusterOptions;
 
         const features = await fetchFeaturesForLevel(level, parentLevelWithFeatures);
+        console.log("addAllFeatureLayers", features)
         parentLevelWithFeatures = {features, level};
         fetchedFeatures.push({...level, features})
     }
@@ -2684,6 +2709,7 @@ export async function updateAllFeatureLayers({ map, namedPath, getContext, self 
         fixParentFeaturesUsingChildData(level, scopedData, parentLevelWithFeatures);
         const features = dataToFeatures(level, scopedData) || [];
         parentLevelWithFeatures = {features, level};
+
         fetchedFeatures.push({...level, features})
     }
     const allFeatureLayers = upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, self })
@@ -3231,7 +3257,8 @@ function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, ge
         features: updatedFeatures
     };
 
-    // Update the source with the new cube wrapper
+    // do not modify the buildings, just modify the layer features
+
     existingSource.setData(updatedFeatureCollection);
 
     console.log(`Added cube wrapper for building ${buildingId}:`, {

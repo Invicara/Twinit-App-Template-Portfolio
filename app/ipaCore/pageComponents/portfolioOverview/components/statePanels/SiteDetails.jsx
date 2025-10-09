@@ -32,37 +32,37 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
         const requirements = structure.requiredBackgroundProperties;
         const reasons = [];
         let compatible = true;
-        
+
         // Check each required property
         for (const [propertyKey, requirement] of Object.entries(requirements)) {
             const entityValue = currentEntity[propertyKey];
             const requiredValues = requirement.values || [];
-            
+
             // If entity doesn't have the property or its value is not in required values, it's incompatible
             if (!entityValue || !requiredValues.includes(entityValue)) {
                 compatible = false;
-                const reason = entityValue 
+                const reason = entityValue
                     ? `${propertyKey}: "${entityValue}" not in [${requiredValues.join(', ')}]`
                     : `${propertyKey}: not set (required: [${requiredValues.join(', ')}])`;
                 reasons.push(reason);
             }
         }
-        
+
         return { compatible, reasons };
     };
 
     // Get available structures with their corresponding graphic references
     const availableStructures = useMemo(() => {
         if (!structures || !mapGraphicReferences) return [];
-        
+
         return Object.values(structures)
             .map(structure => {
                 // Find matching graphic reference by _id === mapGraphicRefId
                 const graphicRef = mapGraphicReferences.find(ref => ref._id === structure.mapGraphicRefId);
                 if (!graphicRef) return null;
-                
+
                 const { compatible, reasons } = getStructureCompatibility(structure);
-                
+
                 return {
                     structure,
                     graphicRef,
@@ -85,7 +85,7 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
     const handleThumbnailClick = (structure, graphicReference, compatible) => {
         // Don't allow selection of incompatible structures
         if (!compatible) return;
-        
+
         if(selectedStructure !== structure){
             dispatch(setDraftType(lowerNamedPath.state));
             dispatch(setIsSelectingPosition(true));
@@ -95,7 +95,7 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
         } else {
             dispatch(setDraftType());
             dispatch(setIsSelectingPosition(false));
-            dispatch(setSelectedStructure());            
+            dispatch(setSelectedStructure());
             dispatch(setSelectedGraphicReference());
             send({ type: "END_DRAFT" });
         }
@@ -152,7 +152,7 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
                     {availableStructures.map((item, index) => {
                         const { structure, graphicRef, compatible, incompatibilityReasons } = item;
                         const isSelected = structure === selectedStructure;
-                        
+
                         // Create tooltip content for incompatible structures
                         const tooltipTitle = compatible ? '' : (
                             <Box>
@@ -166,7 +166,7 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
                                 ))}
                             </Box>
                         );
-                        
+
                         const cardComponent = (
                             <Card
                                 style={{
@@ -188,7 +188,7 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
                                         height="80"
                                         image={thumbnailUrls[graphicRef.thumbnail]}
                                         alt={structure.name || 'Structure thumbnail'}
-                                        sx={{ 
+                                        sx={{
                                             objectFit: 'cover',
                                             filter: compatible ? 'none' : 'grayscale(100%)'
                                         }}
@@ -208,11 +208,11 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
                                     </Box>
                                 )}
                                 <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
-                                    <Typography 
-                                        variant="caption" 
-                                        display="block" 
-                                        sx={{ 
-                                            textAlign: 'center', 
+                                    <Typography
+                                        variant="caption"
+                                        display="block"
+                                        sx={{
+                                            textAlign: 'center',
                                             fontSize: '0.75rem',
                                             color: compatible ? 'inherit' : 'text.disabled'
                                         }}
@@ -220,11 +220,11 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
                                         {structure.name || `Structure ${index + 1}`}
                                     </Typography>
                                     {!compatible && (
-                                        <Typography 
-                                            variant="caption" 
-                                            display="block" 
-                                            sx={{ 
-                                                textAlign: 'center', 
+                                        <Typography
+                                            variant="caption"
+                                            display="block"
+                                            sx={{
+                                                textAlign: 'center',
                                                 fontSize: '0.65rem',
                                                 color: 'error.main',
                                                 fontStyle: 'italic'
@@ -236,15 +236,15 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
                                 </CardContent>
                             </Card>
                         );
-                        
+
                         return (
                             <Grid item xs={6} sm={4} md={3} key={structure._id || index}>
                                 {compatible ? (
                                     cardComponent
                                 ) : (
-                                    <Tooltip 
-                                        title={tooltipTitle} 
-                                        arrow 
+                                    <Tooltip
+                                        title={tooltipTitle}
+                                        arrow
                                         placement="top"
                                         componentsProps={{
                                             tooltip: {

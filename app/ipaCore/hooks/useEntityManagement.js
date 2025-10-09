@@ -1,17 +1,24 @@
 import React, { useContext, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
-import { 
-    selectDraftType, 
-    selectIsSelectingPosition, 
-    selectSelectedCoordinate, 
-    setDraftType, 
-    setIsSelectingPosition, 
-    setSelectedCoordinate 
+import {
+    selectDraftType,
+    selectIsSelectingPosition,
+    selectSelectedCoordinate,
+    setDraftType,
+    setIsSelectingPosition,
+    setSelectedCoordinate
 } from "../redux/siteSetup";
 import { v4 as uuid } from "uuid";
 import { getClickEvent, getMapTypes, getSelectedGraphicReference, getSelectedStructure, setSelectedGraphicReference } from "../redux/pageComponentState";
-import { addFeatureToMapLayer, removeFeatureFromMapLayer, addBuildingToMap, getGeometryInfo, removeMeshElementFromMap } from "../../client/scripts/mapEntryActions.mjs";
+import {
+    addFeatureToMapLayer,
+    removeFeatureFromMapLayer,
+    addBuildingToMap,
+    getGeometryInfo,
+    removeMeshElementFromMap,
+    generateSquareCoordinates
+} from "../../client/scripts/mapEntryActions.mjs";
 import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from "lodash";
 import { getActiveLevels } from "../../services/utils";
@@ -23,7 +30,7 @@ export const defaultNewBuildingId = "<newBuilding>";
 export const useNewEntityManagement = ({portContext, mapInstance}) => {
 
     const dispatch = useDispatch();
-    
+
     const clickEvent = useSelector(getClickEvent);
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
     const selectedCoordinate = useSelector(selectSelectedCoordinate);
@@ -55,28 +62,8 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
 
     const previousClick = usePrevious(clickEvent);
     const previousIsSelectingPosition = usePrevious(isSelectingPosition);
-    
+
     const draftTypeSchema = types[draftType];
-
-    // Function to generate square coordinates around a centroid
-    // widthInMeters: width of the square in meters (default 500m)
-    // Returns array of [lng, lat] coordinates forming a closed polygon
-    function generateSquareCoordinates(centerLng, centerLat, widthInMeters = 500) {
-        // Convert meters to degrees (rough approximation)
-        // 1 degree of longitude ≈ 111,320 meters * cos(latitude)
-        // 1 degree of latitude ≈ 110,540 meters
-        const halfWidthLng = (widthInMeters / 2) / (111320 * Math.cos(centerLat * Math.PI / 180));
-        const halfWidthLat = (widthInMeters / 2) / 110540;
-
-        // Create square coordinates (clockwise from top-left)
-        return [
-            [centerLng - halfWidthLng, centerLat + halfWidthLat], // Top-left
-            [centerLng + halfWidthLng, centerLat + halfWidthLat], // Top-right
-            [centerLng + halfWidthLng, centerLat - halfWidthLat], // Bottom-right
-            [centerLng - halfWidthLng, centerLat - halfWidthLat], // Bottom-left
-            [centerLng - halfWidthLng, centerLat + halfWidthLat]  // Close polygon
-        ];
-    }
 
     // Handle element cancellation (remove draft element)
     const handleCancelElement = (elementToRemove, draftingType, namedPath) => {
@@ -105,7 +92,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                     map: mapInstance,
                     levelState: draftingType,
                     featureId: elementToRemove[idKey],
-                    idKey, 
+                    idKey,
                     namedPath
                 });
             }
@@ -119,22 +106,8 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 type: 'UPDATE_DATA',
                 data: updatedData
             });
-        } 
+        }
     };
-    
-    // Function to generate square coordinates around a centroid
-    function generateSquareCoordinates(centerLng, centerLat, widthInMeters = 500) {
-        const halfWidthLng = (widthInMeters / 2) / (111320 * Math.cos(centerLat * Math.PI / 180));
-        const halfWidthLat = (widthInMeters / 2) / 110540;
-
-        return [
-            [centerLng - halfWidthLng, centerLat + halfWidthLat], // Top-left
-            [centerLng + halfWidthLng, centerLat + halfWidthLat], // Top-right
-            [centerLng + halfWidthLng, centerLat - halfWidthLat], // Bottom-right
-            [centerLng - halfWidthLng, centerLat - halfWidthLat], // Bottom-left
-            [centerLng - halfWidthLng, centerLat + halfWidthLat]  // Close polygon
-        ];
-    }
 
     const prevElementType = usePrevious(currentElementType)
 
@@ -188,7 +161,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             }
 
             const newBuildingId = `${defaultNewBuildingId}-${+new Date()}`
-            
+
             // Create new building data with mandatory fields
             const newBuilding = {
                 buildingId: newBuildingId,
@@ -222,7 +195,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             // Get geometry info from selectedGraphicReference for 3D model placement
             let geometryInfo = null;
             let graphicId = null;
-            
+
             if (selectedGraphicReference && selectedGraphicReference._id) {
                 graphicId = selectedGraphicReference.graphic;
                 geometryInfo = getGeometryInfo(graphicId);
@@ -240,7 +213,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                     geometryInfo: geometryInfo,
                     namedPath: draftNamedPath
                 });
-                 
+
                 if (success3D) {
                     console.log('Successfully added new building to 3D map layer');
                 } else {
@@ -264,7 +237,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             dispatch(setIsSelectingPosition(false));
             dispatch(setDraftType());
             dispatch(setSelectedCoordinate([]));
-      
+
         }
         if(selectedCoordinate?.length && !isSelectingPosition && draftNamedPath?.feature === "polygon"){
             const [centerLng, centerLat] = selectedCoordinate;
