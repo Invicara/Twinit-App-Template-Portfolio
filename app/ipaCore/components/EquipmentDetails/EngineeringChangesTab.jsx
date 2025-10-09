@@ -21,7 +21,7 @@ import {
   useSelector as useXstateSelector,
   useMachine,
 } from "@xstate/react";
-import { CircularProgress } from "@material-ui/core"; // add this at the top
+import { CircularProgress } from "@material-ui/core"; 
 
 const useStyles = makeStyles((theme) => ({
   filterBox: {
@@ -176,9 +176,7 @@ export default function EngineeringChangesTab({ data, loading }) {
   if (triggeredByFocusLogs) {
     setIsBottomECPanelOpen(true);
     setTriggeredByFocusLogs(false);
-  } else {
-   // setIsBottomECPanelOpen(false);
-  }
+  } 
 }, [sliceElements, triggeredByFocusLogs]);
 
   const filterByLabel =
