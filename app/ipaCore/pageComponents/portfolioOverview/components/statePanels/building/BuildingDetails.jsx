@@ -584,7 +584,7 @@ export default function BuildingDetails({ context }) {
                     <Divider sx={{ my: 2 }} />
                 </Box>
                 <Box px={2}>
-                    {/* <InfoComponent
+                    <InfoComponent
                         entity={currentEntity}
                         handleChange={handleEntityChange}
                         type={type}
@@ -593,7 +593,7 @@ export default function BuildingDetails({ context }) {
                         disabled={!isInEditMode}
                         modifyTypeCallback={handleTypeModification}
                         allowReadOnlyOverride={currentEntity?.isDraft}
-                    /> */}
+                    />
                 </Box>
                 <Box p={2} style={{ marginTop: 12, display: 'flex', justifyContent: "space-between", gap: 14}}>
                     <Box style={{ display: 'flex', justifyContent: "left", gap: 14}}>
