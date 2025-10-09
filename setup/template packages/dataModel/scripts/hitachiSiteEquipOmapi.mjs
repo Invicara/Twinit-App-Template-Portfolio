@@ -388,6 +388,79 @@ async function getSiteEquipEcs(input, libraries, ctx) {
    }
 }
 
+async function getSiteEquipsEcs(input, libraries, ctx) {
+   const { IafItemSvc } = libraries.PlatformApi
+   const { IafScriptEngine } = libraries
+
+   const facility = input?.facility ? decodeURIComponent(input.facility) : null
+   const unit = input?.unit ? decodeURIComponent(input.unit) : null
+
+   const { openEcs, ids } = input.params
+   const siteEquipmentIds = ids.split(',')
+   const showOnlyOpenEcs = openEcs === 'true'
+
+   const {siteEquipColl} = await getSiteEquipCollections({facility, unit, libraries, ctx})
+   const {ecsColl, ecsLogsColl} = await getEcsCollections({libraries, ctx})
+
+   let equipWithEcs = await IafScriptEngine.findWithRelated({
+      parent: {
+         query: {'Site Equipment Id': { $in: siteEquipmentIds}},
+         collectionDesc: { _userItemId: siteEquipColl._userItemId, _userType: siteEquipColl._userType },
+         options: {
+            page: { _pageSize: 1000, _offset: 0 },
+            sort: { "Site Equipment Id": 1 }
+         }
+      },
+      related: [
+         {
+            relatedDesc: { _relatedUserType: ecsColl._userType, _isInverse: true},
+            as: "ecs"
+         }
+      ]
+   }, ctx)
+
+   if (!equipWithEcs || !equipWithEcs?._list?.length) {
+      return {
+         status: 400,
+         statusMessage: "Bad Request",
+         message: "Site Equipment not found"
+      }
+   }
+
+   const siteEquips = []
+
+   for (const siteEquip of equipWithEcs?._list) {
+      const ecs = siteEquip?.ecs?._list
+      const ecsWithLogs = []
+
+      for (const ec of ecs) {
+         const query = {
+            ecid: ec.id,
+            'Site Equipment Id': siteEquip['Site Equipment Id'],
+         }
+         const ecLogs = await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, {query}, ctx)
+         const ecIsClosed = ecLogs?._list.some(log => log.status == 'CLOSED')
+
+         if (showOnlyOpenEcs && ecIsClosed) continue
+         
+         ec.logs = ecLogs
+         ecsWithLogs.push(ec)
+      }
+
+      delete siteEquip.ecs
+      siteEquip.ecsWithLogs = ecsWithLogs
+      siteEquips.push(siteEquip)
+   }
+
+
+
+   return {
+      status: 200,
+      statusMessage: "Success",
+      siteEquipsWithEcs: siteEquips
+   }
+}
+
 
 // OLD STUFF ======================================================================
 
