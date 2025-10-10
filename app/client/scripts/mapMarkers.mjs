@@ -243,7 +243,7 @@ export async function renderAllMarkers(e, {self}, markersInfo) {
     const filters = context?.filters?.[path];
     try {
         const src = context?.map?.getSource(markersInfo.sourceId);
-        const data = src._data || src.serialize().data;
+        const data = src ? (src._data || src.serialize().data) : [];
 
         features = data?.features;
         allFeatures = features;
