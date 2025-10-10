@@ -329,9 +329,9 @@ async function getSiteEquipEcs(input, libraries, ctx) {
 
    const facility = input?.facility ? decodeURIComponent(input.facility) : null
    const unit = input?.unit ? decodeURIComponent(input.unit) : null
-   const siteEquipmentId = input?.siteEquipmentId ? decodeURIComponent(input.siteEquipmentId) : null
 
-   const { openEcs } = input.params
+   const { openEcs, ids } = input.params
+   const siteEquipmentIds = ids.split(',')
    const showOnlyOpenEcs = openEcs === 'true'
 
    const {siteEquipColl} = await getSiteEquipCollections({facility, unit, libraries, ctx})
@@ -339,7 +339,7 @@ async function getSiteEquipEcs(input, libraries, ctx) {
 
    let equipWithEcs = await IafScriptEngine.findWithRelated({
       parent: {
-         query: {'Site Equipment Id': siteEquipmentId},
+         query: {'Site Equipment Id': { $in: siteEquipmentIds}},
          collectionDesc: { _userItemId: siteEquipColl._userItemId, _userType: siteEquipColl._userType },
          options: {
             page: { _pageSize: 1000, _offset: 0 },
@@ -362,29 +362,37 @@ async function getSiteEquipEcs(input, libraries, ctx) {
       }
    }
 
-   const siteEquip = equipWithEcs?._list?.[0]
-   const ecs = siteEquip?.ecs?._list
+   const siteEquips = []
 
-   const ecsWithLogs = []
+   for (const siteEquip of equipWithEcs?._list) {
+      const ecs = siteEquip?.ecs?._list
+      const ecsWithLogs = []
 
-   for (const ec of ecs) {
-      const query = {
-         ecid: ec.id,
-         'Site Equipment Id': siteEquipmentId,
+      for (const ec of ecs) {
+         const query = {
+            ecid: ec.id,
+            'Site Equipment Id': siteEquip['Site Equipment Id'],
+         }
+         const ecLogs = await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, {query}, ctx)
+         const ecIsClosed = ecLogs?._list.some(log => log.status == 'CLOSED')
+
+         if (showOnlyOpenEcs && ecIsClosed) continue
+         
+         ec.logs = ecLogs
+         ecsWithLogs.push(ec)
       }
-      const ecLogs = await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, {query}, ctx)
-      const ecIsClosed = ecLogs?._list.some(log => log.status == 'CLOSED')
 
-      if (showOnlyOpenEcs && ecIsClosed) continue
-      
-      ec.logs = ecLogs
-      ecsWithLogs.push(ec)
+      delete siteEquip.ecs
+      siteEquip.ecsWithLogs = ecsWithLogs
+      siteEquips.push(siteEquip)
    }
+
+
 
    return {
       status: 200,
       statusMessage: "Success",
-      ecsWithLogs
+      siteEquipsWithEcs: siteEquips
    }
 }
 
