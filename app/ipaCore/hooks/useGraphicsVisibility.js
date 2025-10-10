@@ -30,6 +30,7 @@ export function useGraphicsVisibility({mapInstance, portContext}){
         const meshLevels = [...levels, ...(lowerNamedPath ? [lowerNamedPath] : [])]
             .filter(l => l && l.feature === 'mesh');
 
+        /* prev - only features matching each level
         const meshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
             const featureIds = currentState.context.data[l.state]
                 .filter(el => valuesPerLevelKey.every(([k, v]) => el[k] === v))
@@ -37,14 +38,27 @@ export function useGraphicsVisibility({mapInstance, portContext}){
 
             return {[l.state]: featureIds}
         }));
+        */
 
-        /*const remainingMeshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
-            const featureIds = currentState.context.data[l.state]
-                .filter(el => valuesPerLevelKey.every(([k, v]) => el[k] !== v))
-                .map(f => f[l.idKey]);
-
-            return {[l.state]: featureIds}
-        }));*/
+        //new requirement - show buildings that belong to the same parent as well
+        //so you can position them relative to the other buildings
+        const meshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
+            const parentPath   = (currentState.context.namedPaths[0] || []).find(p => p.state === l.parentState);
+            const parentIdKey  = parentPath?.idKey;
+            const parentIdVal  = parentIdKey ? currentState.context[parentIdKey] : undefined;
+            let featureIds = [];
+            if(parentIdKey && parentIdVal != null) {
+                featureIds = (currentState.context.data[l.state] || [])
+                    // if this level has a parent, require child[parentIdKey] === context[parentIdKey]
+                    .filter(f => f[parentIdKey] === parentIdVal)
+                    .map(f => f[l.idKey]);
+            } else {
+                featureIds = (currentState.context.data[l.state] || [])
+                    .filter(f => valuesPerLevelKey.every(([k, v]) => f[k] === v))
+                    .map(f => f[l.idKey]);
+            }
+            return { [l.state]: featureIds };
+        }));
 
         const remainingMeshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
             const allIds = currentState.context.data[l.state].map(f => f[l.idKey]);
@@ -80,16 +94,6 @@ export function useGraphicsVisibility({mapInstance, portContext}){
                 return;
             }
 
-            // Show new features
-            if (featuresToShow.length > 0) {
-                console.log(`UseGraphicsVisibility: Showing features for ${levelKey}:`, featuresToShow);
-                try {
-                    controller.showFeatures(featuresToShow);
-                } catch (error) {
-                    console.error(`UseGraphicsVisibility: Error showing features for ${levelKey}:`, error);
-                }
-            }
-
             // Hide removed features
             if (featuresToHide.length > 0) {
                 console.log(`UseGraphicsVisibility: Hiding features for ${levelKey}:`, featuresToHide);
@@ -97,6 +101,17 @@ export function useGraphicsVisibility({mapInstance, portContext}){
                     controller.hideFeatures(featuresToHide);
                 } catch (error) {
                     console.error(`UseGraphicsVisibility: Error hiding features for ${levelKey}:`, error);
+                }
+            }
+
+
+            // Show new features
+            if (featuresToShow.length > 0) {
+                console.log(`UseGraphicsVisibility: Showing features for ${levelKey}:`, featuresToShow);
+                try {
+                    controller.showFeatures(featuresToShow);
+                } catch (error) {
+                    console.error(`UseGraphicsVisibility: Error showing features for ${levelKey}:`, error);
                 }
             }
 
