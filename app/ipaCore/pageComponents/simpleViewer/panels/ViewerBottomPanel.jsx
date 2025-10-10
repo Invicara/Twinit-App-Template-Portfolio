@@ -212,26 +212,25 @@ function buildSchema(flat, editableFields = []) {
 
   const tech = flat?.TechnicalParameters || {};
 
-  const baseOrder = [
-    'equipmentId',
-    'Model',
-    'equipmentType',
-    'Manufacturer',
-    'Safety Class',
-  ];
+  const baseOrder = ['equipmentId','Model','equipmentType','Manufacturer','Safety Class'];
   const techOrder = Object.keys(tech);
   const fullOrder = [...baseOrder, ...techOrder];
 
   const properties = {};
 
-  baseOrder.forEach((baseKey) => {
+  // base fields
+  baseOrder.forEach((baseKey, idx) => {
     const val = flat[baseKey];
     if (typeof val === 'undefined') return;
 
     const schema = {
       type: typeof val === 'number' ? 'number' : 'string',
-      title: baseKey === 'equipmentId' ? 'Name Id' : baseKey,
+      title:
+        baseKey === 'equipmentId' ? 'Name Id' :
+        baseKey === 'equipmentType' ? 'Equipment Type' :
+        prettifyLabel(baseKey),
       readOnly: !editableFields.includes(baseKey),
+      propertyOrder: idx + 1,         
     };
 
     const propMeta = flat?.properties?.[baseKey];
@@ -239,7 +238,6 @@ function buildSchema(flat, editableFields = []) {
       const { refVal, isEdited, originalVal } = propMeta;
       schema.options = { ...(schema.options || {}), refVal, originalVal };
       if (isEdited) schema.isEdited = true;
-
       if (refVal != null && refVal !== '' && val !== refVal) {
         schema.isMismatched = true;
         schema.displayValue = `${val} (Expected: ${refVal})`;
@@ -249,12 +247,15 @@ function buildSchema(flat, editableFields = []) {
     properties[baseKey] = schema;
   });
 
-  Object.entries(tech).forEach(([techKey, meta]) => {
-    const val = flat[techKey]; 
+  // technical fields
+  techOrder.forEach((techKey, idx) => {
+    const meta = tech[techKey];
+    const val = flat[techKey];
     const schema = {
       type: typeof val === 'number' ? 'number' : 'string',
       title: prettifyLabel(techKey),
       readOnly: !editableFields.includes(techKey),
+      propertyOrder: baseOrder.length + idx + 1,  
       options: {
         unit: meta?.unit,
         refVal: meta?.refVal,
@@ -275,16 +276,10 @@ function buildSchema(flat, editableFields = []) {
     properties[techKey] = schema;
   });
 
-  const orderedProps = {};
-  fullOrder.forEach((k) => {
-    if (properties[k]) orderedProps[k] = properties[k];
-  });
-
   return {
     type: 'object',
-    properties: orderedProps,
-    required: Object.keys(orderedProps),
-    'ui:order': fullOrder,
+    properties,
+    required: Object.keys(properties),
   };
 }
 
