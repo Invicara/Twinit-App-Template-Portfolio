@@ -265,7 +265,7 @@ export async function siteEquipmentForTreeService(
         facility: facilityId,
         unit: buildingId,
         equipmentId,
-        equipmentType: "Pump",
+        // equipmentType: "Pump",
       },
     };
 
@@ -554,6 +554,59 @@ function mergeEditsIntoEquipments(equipmentList) {
     };
   });
 }
+
+export async function engineeringChangePendingRevision(ECObj) {
+  const ctx = IafProj.getCurrent();
+  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
+
+  const cleaned = cleanForApi(ECObj);
+
+    const siteEqurl = {
+    url: `${baseOmapiUrl}/siteequip/pendingrevision`,
+    body: cleaned,
+  };
+
+  try {
+    const response = await fetch(siteEqurl.url, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(siteEqurl.body),
+    });
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: `Request failed with status ${response.status} ${response.statusText}`,
+      };
+    }
+
+    const result = await response.json();
+
+    if (result?._result?.status === 200) {
+      return {
+        success: true,
+        message: 'Engineering change pending revision created successfully',
+        data: result._result,
+      };
+    } else {
+      return {
+        success: false,
+        message: result?._result?.message || 'Unexpected response from API',
+        data: result,
+      };
+    }
+  } catch (err) {
+    return {
+      success: false,
+      message: err.message,
+    };
+  }
+}
+
 export async function rejectPendingRevision(
   facilityId,
   buildingId,
@@ -647,4 +700,57 @@ export async function approvePendingRevision(
     console.error("approvePendingRevision error:", err);
     return { success: false, message: err.message };
   }
+}
+
+export async function ecLogsForSiteEquipment( facilityId, buildingId, siteEquipmentIds) {
+  const ctx = IafProj.getCurrent();
+  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`
+
+  const url = `${baseOmapiUrl}/siteequip/facilities/${facilityId}/units/${buildingId}/equipments/ecs?ids=${siteEquipmentIds}&openEcs=true`;
+
+  let getResults = []
+
+   try {
+    let response = await fetch(url, {
+      method: "GET",
+      mode: "cors",
+      headers: {
+        Authorization: "Bearer " + IafSession.getAuthToken(ctx),
+        "Content-Type": "application/json",
+      }
+    });
+
+    if (response.ok) {
+      let result = await response.json();
+      if (result._result.status === 200) {
+        getResults.push(result._result.siteEquipsWithEcs)
+      } else {
+        getResults.push({
+          url,
+          message: `ERROR: OMAPI ${url} call returned status other than 200`,
+        });
+      }
+    } else {
+      getResults.push({
+        url,
+        message: `ERROR: OMAPI ${url} call failed`,
+      });
+    }
+  } catch(err) {
+    console.log(err)
+  }
+
+let finalDataResult = {
+  successLogs: [],
+  rejectedSEIds: []
+}
+ getResults[0]?.map((res, idx) => {
+  if(_.isEmpty(res.ecsWithLogs)) {
+    finalDataResult.rejectedSEIds.push(res['Site Equipment Id'])
+  } else {
+    finalDataResult.successLogs.push(res.ecsWithLogs.at(-1).logs._list.at(-1))
+  }
+ })
+ console.log('ecLogsForSiteEquipment - finalDataResult ->', finalDataResult)
+  return finalDataResult
 }
