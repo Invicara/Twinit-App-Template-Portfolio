@@ -361,17 +361,21 @@ export default function BuildingDetails({ context }) {
         const newFieldName = `newField${Date.now()}`;
 
         // Create updated type schema with the new property
+        const props = type.properties || {};
+        const maxOrder = Object.values(props).reduce((m, p) =>
+            Math.max(m, typeof p?.propertyOrder === 'number' ? p.propertyOrder : -1), -1);
+
         const updatedType = {
             ...type,
             properties: {
-                ...type.properties,
+                ...props,
                 [newFieldName]: {
-                    type: 'string',
-                    title: 'New Field',
-                    description: `Custom ${currentElementType} field`,
-                    propertyOrder: Object.keys(type.properties).length + 1
-                }
-            }
+                type: 'string',
+                title: 'New Field',
+                description: `Custom ${currentElementType} field`,
+                propertyOrder: maxOrder + 1,
+                },
+            },
         };
 
         dispatch(setMapTypes({...types, [currentElementType]: updatedType}));
