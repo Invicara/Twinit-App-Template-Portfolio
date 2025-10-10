@@ -583,30 +583,8 @@ export default function BuildingDetails({ context }) {
                     {currentState.context?.[higherNamedPath?.idKey] && <Typography variant="body2">{higherNamedPath.displayName}: {currentState.context[higherNamedPath.idKey]}</Typography>}
                     <Divider sx={{ my: 2 }} />
                 </Box>
-                {isInEditMode && (
-                    <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between"}}>
-                        <Box style={{display: 'flex', gap: 16, padding: "0px 16px 0px 16px" }}>
-                            <CustomButton
-                                variant="outlined"
-                                color="secondary"
-                                onClick={handleCancelEdit}
-                                style={{ flex: 1 }}
-                            >
-                                Cancel
-                            </CustomButton>
-                            <CustomButton
-                                variant="contained"
-                                color="primary"
-                                onClick={isDraftEntity ? handleSubmitEntity : handleSaveEdit}
-                                style={{ flex: 1 }}
-                            >
-                                Save
-                            </CustomButton>
-                        </Box>
-                    </div>
-                )}
                 <Box px={2}>
-                    {/* <InfoComponent
+                    <InfoComponent
                         entity={currentEntity}
                         handleChange={handleEntityChange}
                         type={type}
@@ -615,7 +593,7 @@ export default function BuildingDetails({ context }) {
                         disabled={!isInEditMode}
                         modifyTypeCallback={handleTypeModification}
                         allowReadOnlyOverride={currentEntity?.isDraft}
-                    /> */}
+                    />
                 </Box>
                 <Box p={2} style={{ marginTop: 12, display: 'flex', justifyContent: "space-between", gap: 14}}>
                     <Box style={{ display: 'flex', justifyContent: "left", gap: 14}}>
