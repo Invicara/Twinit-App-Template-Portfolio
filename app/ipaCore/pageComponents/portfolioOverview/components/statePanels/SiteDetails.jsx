@@ -271,7 +271,8 @@ const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, 
 export default function SiteDetails({ context }) {
 
     // Get contexts and state
-    const { send, actor } = useContext(MapMachineContext);
+    const machineContext = useContext(MapMachineContext);
+    const { send, actor } = machineContext || {};
     const currentState = useXstateSelector(actor, state => state);
 
     const [levels, currentElementType, namedPath, namedPaths, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath] = useMemo(() => {
@@ -386,28 +387,6 @@ export default function SiteDetails({ context }) {
                 type: 'GO_TO',
                 ...lowerLevelState,
                 [idKey]: newValue
-            });
-
-            const removeSuccess = removeFeatureFromMapLayer({
-                map: mapInstance,
-                levelState: currentElementType,
-                featureId: oldEntityId,
-                idKey, // explicitly specify the key for entity identification
-                namedPath: namedPath
-            });
-
-            const addSuccess = addFeatureToMapLayer({
-                map: mapInstance,
-                levelState: currentElementType,
-                feature: {
-                    properties: updatedEntity,
-                    geometry: updatedEntity.coordinates ? {
-                        type: 'Polygon',
-                        coordinates: updatedEntity.coordinates
-                    } : null,
-                    coordinates: updatedEntity.coordinates // fallback for coordinate extraction
-                },
-                namedPath: namedPath
             });
 
         }
@@ -842,40 +821,6 @@ export default function SiteDetails({ context }) {
         });
         send({ type: "END_DRAFT" });
 
-        // Update the map layer with new coordinates
-        if (mapInstance && currentState.context?.namedPaths) {
-
-            // Remove old feature and add updated one
-            const sourceId = `${currentElementType}-features`;
-            const existingSource = mapInstance.getSource(sourceId);
-            if (existingSource) {
-                const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
-                const updatedFeatures = currentData.features.map(feature => {
-                    if (feature.properties[idKey] === entityId) {
-                        return {
-                            ...feature,
-                            geometry: {
-                                type: 'Polygon',
-                                coordinates: [closedCoordinates]
-                            },
-                            properties: {
-                                ...feature.properties,
-                                isDraft: false
-                            }
-                        };
-                    }
-                    return feature;
-                });
-
-                existingSource.setData({
-                    type: 'FeatureCollection',
-                    features: updatedFeatures
-                });
-
-                mapInstance.triggerRepaint();
-            }
-        }
-
         // Reset drawing state
         resetDrawingState();
 
@@ -974,7 +919,12 @@ export default function SiteDetails({ context }) {
             startDrawingMode();
         }
     };
-
+    if (!currentEntity) {
+        return (
+            <Box p={2}>
+                <Typography variant="body2"></Typography>
+            </Box>);
+    }
     return (
         <Box p={2}>
             <Typography variant="h6">{namedPath?.displayName}: {plantName}</Typography>
