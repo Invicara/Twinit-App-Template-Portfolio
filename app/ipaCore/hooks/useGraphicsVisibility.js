@@ -32,18 +32,25 @@ export function useGraphicsVisibility({mapInstance, portContext}){
 
         const meshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
             const featureIds = currentState.context.data[l.state]
-                .filter(el => valuesPerLevelKey.some(([k, v]) => el[k] === v))
+                .filter(el => valuesPerLevelKey.every(([k, v]) => el[k] === v))
                 .map(f => f[l.idKey]);
 
             return {[l.state]: featureIds}
         }));
 
-        const remainingMeshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
+        /*const remainingMeshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
             const featureIds = currentState.context.data[l.state]
                 .filter(el => valuesPerLevelKey.every(([k, v]) => el[k] !== v))
                 .map(f => f[l.idKey]);
 
             return {[l.state]: featureIds}
+        }));*/
+
+        const remainingMeshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
+            const allIds = currentState.context.data[l.state].map(f => f[l.idKey]);
+            const showIds = meshFeaturesPerLevel[l.state] || [];
+            const hideIds = allIds.filter(id => !showIds.includes(id));
+            return { [l.state]: hideIds };
         }));
 
         return [meshFeaturesPerLevel, remainingMeshFeaturesPerLevel];
