@@ -351,6 +351,59 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
     zoomToAllFeatures(map, namedPath.map(lvl => `${lvl.state}-features`));
 }
 
+function dataToFeatures(levelDef, data) {
+    if (levelDef.feature === 'point') {
+        return data.filter(d => d.longitude && d.latitude).map(d => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: [parseFloat(d.longitude), parseFloat(d.latitude)]
+            },
+            properties: { ...d }
+        }));
+    }
+    if (levelDef.feature === 'polygon') {
+        return data.map(d => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: d.coordinates
+            },
+            properties: { ...d}
+        }));
+    }
+    if (levelDef.feature === 'mesh') {
+        return data.filter(d => d.longitude && d.latitude).map(d => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: [parseFloat(d.longitude), parseFloat(d.latitude)]
+            },
+            properties: { ...d }
+        }));
+    }
+    return null;
+}
+
+export function fixParentFeaturesUsingChildData(levelDef, data, parent={}) {
+
+    const {features: parentFeatures, level: parentLevelDef} = parent;
+    //fix site features -> where platform relation has not been created fix the relation here on load
+    if(parentFeatures && parentLevelDef.state == "site"){
+        parentFeatures.forEach(siteFeature => {
+            if(data){
+                for(const building of data) {
+                    if(building[parentLevelDef.idKey]  && building[parentLevelDef.idKey] == siteFeature?.properties[parentLevelDef.idKey] && siteFeature?.properties?.buildings && !siteFeature.properties.buildings.find(b=>b[levelDef.idKey]==building[levelDef.idKey])){
+                        siteFeature.properties.buildings.push(building);
+                    }
+                }
+            }
+
+        })
+    }
+
+    return dataToFeatures(levelDef, data) || [];
+}
 // Fetch features and convert to GeoJSON for a level
 export async function fetchFeaturesForLevel(levelDef, parent={}) {
     if (!levelDef.api) return [];
@@ -371,49 +424,9 @@ export async function fetchFeaturesForLevel(levelDef, parent={}) {
         console.error(e);
     }
 
-    const {features: parentFeatures, level: parentLevelDef} = parent;
-    //fix site features -> where platform relation has not been created fix the relation here on load
-    if(parentFeatures && parentLevelDef.state == "site"){
-        parentFeatures.forEach(siteFeature => {
-            if(data){
-                for(const building of data) {
-                    if(building[parentLevelDef.idKey]  && building[parentLevelDef.idKey] == siteFeature?.properties[parentLevelDef.idKey] && siteFeature?.properties?.buildings && !siteFeature.properties.buildings.find(b=>b[levelDef.idKey]==building[levelDef.idKey])){
-                        siteFeature.properties.buildings.push(building);
-                    }
-                }
-            }
+    fixParentFeaturesUsingChildData(levelDef, data, parent);
 
-        })
-    }
-
-    if (levelDef.feature === 'point') {
-        return data.filter(d => d.longitude && d.latitude).map(d => ({
-            type: 'Feature',
-            geometry: {
-                type: 'Point',
-                coordinates: [parseFloat(d.longitude), parseFloat(d.latitude)]
-            },
-            properties: { ...d }
-        }));
-    }
-    if (levelDef.feature === 'polygon') {
-        return data.map(d => ({
-            type: 'Feature',
-            geometry: d.coordinates,
-            properties: { ...d}
-        }));
-    }
-    if (levelDef.feature === 'mesh') {
-        return data.filter(d => d.longitude && d.latitude).map(d => ({
-            type: 'Feature',
-            geometry: {
-                type: 'Point',
-                coordinates: [parseFloat(d.longitude), parseFloat(d.latitude)]
-            },
-            properties: { ...d }
-        }));
-    }
-    return [];
+    return dataToFeatures(levelDef, data) || [];
 }
 
 function getFeatureLayers(namedPath) {
@@ -900,7 +913,7 @@ async function createCubeWrapperFeatures(features, loadedGraphics, getContext) {
  * Setup graphic layers - creates 3D custom layer and transparent wrapper layer
  * @param {Object} params - Parameters for setting up graphic layers
  */
-async function setupGraphicLayers({ map, sourceId, level, features, loadedGraphics, namedPath, sendBack, getContext }) {
+async function setupGraphicLayers({ map, sourceId, level, features, loadedGraphics, namedPath, getContext, self }) {
     const customLayerId = `${sourceId}-3d-graphics`;
     const wrapperLayerId = `${sourceId}-layer`;
 
@@ -945,7 +958,7 @@ async function setupGraphicLayers({ map, sourceId, level, features, loadedGraphi
         });
 
         // Add click handler
-        const handler = makeMapOnClickHandler({ map, namedPath, send: sendBack, getContext });
+        const handler = makeMapOnClickHandler({ map, namedPath, send: self.send, getContext });
         map.on('click', handler);
         map.on('mouseenter', wrapperLayerId, () => { map.getCanvas().style.cursor = 'pointer'; });
         map.on('mouseleave', wrapperLayerId, () => { map.getCanvas().style.cursor = ''; });
@@ -2469,21 +2482,21 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
     };
 }
 
-// Main function to add all feature layers from a namedPath
-export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext }) {
+
+async function upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, self }) {
     const allFeatureLayers = {}
 
     // Access Redux state through getContext if available
     const contextData = getContext ? getContext() : {};
     window.contextData = contextData;
-    const { reduxState, reduxDispatch } = contextData;
+    const { reduxState, reduxDispatch, data } = contextData;
 
     let loadedGraphics = new Map();
     // if (reduxState?.pageComponentState?.mapGraphicReferences) {
     //     console.log('Loading graphics from Redux state...');
     //     window.reduxState = reduxState;
     //     window.namedPath = namedPath;
-        // loadedGraphics = await loadGraphics(reduxState.pageComponentState.mapGraphicReferences);
+    // loadedGraphics = await loadGraphics(reduxState.pageComponentState.mapGraphicReferences);
     //     console.log(`Loaded ${loadedGraphics.size} graphics for use in features`);
 
     //     // Keep backward compatibility - create graphicsDict for reference lookup
@@ -2491,21 +2504,6 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
     //         reduxState.pageComponentState.mapGraphicReferences.map(g => [g._id, g.graphic])
     //     );
     // }
-
-    let parentLevelWithFeatures = {};
-    const fetchedFeatures = [];
-
-    for (const level of namedPath) {
-        if (!level.feature) continue;
-
-        const options = level.options || {};
-        const clusterOptions = options.cluster || {};
-        const {sourceOptions} = clusterOptions;
-
-        const features = await fetchFeaturesForLevel(level, parentLevelWithFeatures);
-        parentLevelWithFeatures = {features, level};
-        fetchedFeatures.push({...level, features})
-    }
 
 
     for (const level of fetchedFeatures) {
@@ -2584,7 +2582,7 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
         // Handle different feature types
         if (level.feature === 'mesh') {
             // For graphic features, create a 3D custom layer and transparent fill layer
-            await setupGraphicLayers({ map, sourceId, level, features: turfFeatures, loadedGraphics, namedPath, sendBack, getContext });
+            await setupGraphicLayers({ map, sourceId, level, features: turfFeatures, loadedGraphics, namedPath, self, getContext });
         } else {
             // Always add/update UNCLUSTERED layer for non-graphic features
             if (!map.getLayer(`${sourceId}-layer`)) {
@@ -2597,7 +2595,7 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
                         ? { 'circle-radius': 0.01, 'circle-color': '#fff' }//TODO: or also make invisible by default?
                         : { 'fill-color': '#fff', 'fill-opacity': 0.18 }//TODO: or also make invisible by default?
                 });
-                const handler = makeMapOnClickHandler({ map, namedPath, send: sendBack, getContext });
+                const handler = makeMapOnClickHandler({ map, namedPath, send: self.send, getContext });
                 map.on('click', handler);
                 map.on('mouseenter', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = 'pointer'; });
                 map.on('mouseleave', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = ''; });
@@ -2615,7 +2613,7 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
         }
 
         // Always add/update centroids layer for polygon features
-        if (!map.getLayer(`${sourceId}-centroids-layer-circle`) && (level.feature === "polygon" || level.feature === "multiPolygon")) {
+        if ((level.feature === "polygon" || level.feature === "multiPolygon")) {
             let centroidFeatures = turfFeatures.map(f => {
                 const c = centroid(f);
                 // copy over properties so pies can use them
@@ -2623,16 +2621,72 @@ export async function addAllFeatureLayers({ map, namedPath, sendBack, getContext
                 return c;
             });
             const centroidFc = featureCollection(centroidFeatures);
-            map.addSource(`${sourceId}-centroids`, { type: "geojson", data: centroidFc });
+            if (!map.getSource(`${sourceId}-centroids`)) {
+                map.addSource(`${sourceId}-centroids`, {type: "geojson", data: centroidFc});
+            } else {
+                map.getSource(`${sourceId}-centroids`).setData(centroidFc);
+            }
 
-            map.addLayer({
-                id: `${sourceId}-centroids-layer-circle`,
-                type: 'circle',
-                source: `${sourceId}-centroids`,
-                paint: { 'circle-radius': 0.01, 'circle-opacity': 0 } // invisible
-            });
+            if(!map.getLayer(`${sourceId}-centroids-layer-circle`)){
+                map.addLayer({
+                    id: `${sourceId}-centroids-layer-circle`,
+                    type: 'circle',
+                    source: `${sourceId}-centroids`,
+                    paint: { 'circle-radius': 0.01, 'circle-opacity': 0 } // invisible
+                });
+            }
         }
     }
+    return allFeatureLayers;
+}
+
+// Main function to add all feature layers from a namedPath
+export async function addAllFeatureLayers({ map, namedPath, getContext, self }) {
+
+    // Access Redux state through getContext if available
+    const contextData = getContext ? getContext() : {};
+    window.contextData = contextData;
+
+    let parentLevelWithFeatures = {};
+    const fetchedFeatures = [];
+
+    for (const level of namedPath) {
+        if (!level.feature) continue;
+
+        const options = level.options || {};
+        const clusterOptions = options.cluster || {};
+        const {sourceOptions} = clusterOptions;
+
+        const features = await fetchFeaturesForLevel(level, parentLevelWithFeatures);
+        parentLevelWithFeatures = {features, level};
+        fetchedFeatures.push({...level, features})
+    }
+
+    const allFeatureLayers = upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, self })
+    return allFeatureLayers;
+}
+
+export async function updateAllFeatureLayers({ map, namedPath, getContext, self }) {
+
+    // Access Redux state through getContext if available
+    const contextData = getContext ? getContext() : {};
+    window.contextData = contextData;
+    const { data } = contextData;
+
+    let parentLevelWithFeatures = {};
+    const fetchedFeatures = [];
+
+    for (const level of namedPath) {
+        const scopedData = data[level.state];
+        if(!scopedData){
+            continue;
+        }
+        fixParentFeaturesUsingChildData(level, scopedData, parentLevelWithFeatures);
+        const features = dataToFeatures(level, scopedData) || [];
+        parentLevelWithFeatures = {features, level};
+        fetchedFeatures.push({...level, features})
+    }
+    const allFeatureLayers = upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, self })
     return allFeatureLayers;
 }
 
@@ -2726,7 +2780,7 @@ export function removeFeatureFromMapLayer({ map, levelState, featureId, idKey, n
 }
 
 // Example: Use this in your addLayersService for XState
-export async function addLayers({ context, sendBack, self }) {
+export async function addLayers({ context, self }) {
     // Choose the correct namedPath for this instance
     // For now, we pick the first path
     const { map, namedPaths, reduxStore, reduxDispatch } = context;
@@ -2742,7 +2796,7 @@ export async function addLayers({ context, sendBack, self }) {
     const allFeatureLayers = await addAllFeatureLayers({
         map,
         namedPath: namedPaths[0],
-        sendBack,
+        self,
         getContext: self ? () => {
             const currentContext = self.getSnapshot().context;
             // Include Redux access in the context
@@ -2764,6 +2818,37 @@ export async function addLayers({ context, sendBack, self }) {
     return {data: allFeatureLayers};
 }
 
+export async function updateLayersFromData({ context, self }) {
+    // Choose the correct namedPath for this instance
+    // For now, we pick the first path
+    const { map, namedPaths, reduxStore, reduxDispatch } = context;
+    if (!map || !namedPaths) return;
+
+    // Access Redux state if available
+    let reduxState = null;
+    if (reduxStore && reduxStore.getState) {
+        reduxState = reduxStore.getState();
+        console.log('Redux state accessible in updateLayers:', reduxState);
+    }
+
+    const allFeatureLayers = await updateAllFeatureLayers({
+        map,
+        namedPath: namedPaths[0],
+        self,
+        getContext: self ? () => {
+            const currentContext = self.getSnapshot().context;
+            // Include Redux access in the context
+            return {
+                ...currentContext,
+                reduxState: currentContext.reduxStore ? currentContext.reduxStore.getState() : null,
+                reduxDispatch: currentContext.reduxDispatch
+            };
+        } : () => context
+    });
+
+    return {}//{data: allFeatureLayers};
+}
+
 async function handleMarkers(stateValue, markersConfig, {context, self}) {
 
     let manageMarkers;
@@ -2782,7 +2867,6 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
             for (const markersInfo of markersConfig) {
                 const {featureDef, config, ...restMarkerInfo} = markersInfo;
                 const {path} = featureDef;
-
                 const sourceId = path + "-features";
                 if (e && e.sourceId === sourceId && e.hasOwnProperty("isSourceLoaded") && !e.isSourceLoaded) {
                     continue;
@@ -2906,7 +2990,9 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
 
     return {manageMarkers}
 }
-
+export async function onDataUpdatedAction({mapMachineInput }) {
+    return updateLayersFromData(mapMachineInput)
+}
 export async function getInitAction({mapMachineInput }) {
     return addLayers(mapMachineInput)
 }
