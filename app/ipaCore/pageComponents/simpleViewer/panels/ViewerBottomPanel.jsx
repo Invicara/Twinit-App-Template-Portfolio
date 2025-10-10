@@ -23,7 +23,7 @@ import {
   approvePendingRevision,
 } from "../../../../services/siteEquipment";
 import AssignmentLateIcon from "@material-ui/icons/AssignmentLate";
-import { engineeringChangePendingRevision } from "../../../../services/engineeringChangesAPI";
+import { engineeringChangePendingRevision } from "../../../../services/siteEquipment";
 import MuiAlert from "@material-ui/lab/Alert";
 
 function Alert(props) {
@@ -318,6 +318,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
 
   useEffect(() => {
     if (siteEquipment && siteEquipment?.data?.length > 0) {
+      setIsOpen(true)
       const facilityId = siteEquipment?.data[0]?.site;
       const EC = siteEquipment.EC;
       const buildingId = siteEquipment?.data[0]?.unit;
@@ -359,6 +360,11 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
               siteEqItems.map((el) => ({
                 ...flattenEquipment(el),
                 isEditing: false,
+                status: siteEquipment.data.map((d) => {
+                  if(d['Site Equipment Id'] === el['Site Equipment Id']) {
+                    return d.status
+                  }
+                }).filter((s) => s !== undefined),
               })),
             );
             setData(siteEqItems);
@@ -369,6 +375,10 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
       };
 
       run();
+    } else if (siteEquipment && _.isEmpty(siteEquipment?.data) && _.isEmpty(siteEquipment?.EC)) {
+      // On Treesearch node unselect, clear selectedproperties and close the bottom panel.
+      setProperties([])
+      setIsOpen(false)
     }
   }, [siteEquipment]);
 
@@ -652,13 +662,10 @@ const handleChange = (index, name, value) => {
 
   if (!isBottomECPanelOpen) return null;
 
-  const canEditSE = (property, engineeringChange) => {
-    let isEditable = true    
-    engineeringChange?.logs?.map((log) => {
-      if(property.equipmentId === log['Site Equipment Id'] && log.status === 'CLOSED') {
-        isEditable = false
-      }
-    })
+  const canEditSE = (property) => {
+    let isEditable = true  
+
+   if(property.status[0] === 'CLOSED') isEditable = false
     return isEditable
   }
 
@@ -707,7 +714,7 @@ const handleChange = (index, name, value) => {
             </div>
           ) : properties && properties.length > 0 ? (
             properties.map((prop, index) => {
-              const canEdit = canEditSE(prop, engineeringChange)
+              const canEdit = canEditSE(prop)
               const editRequests = countEdits(prop.edited);
               const hasEdits = editRequests > 0;
 
