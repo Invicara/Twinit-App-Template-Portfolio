@@ -2,9 +2,9 @@ import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { Typography, Divider, Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Grid } from '@material-ui/core';
 import CustomButton from '../../../../../components/atoms/CustomButton.jsx';
 import { useDispatch, useSelector } from 'react-redux';
-import { getMapTypes, setMapTypes } from '../../../../../redux/pageComponentState.js';
+import { getMapTypes, setMapTypes, getMapGraphicReferences, getStructures } from '../../../../../redux/pageComponentState.js';
 import { MapMachineContext, MapContext } from '../../../PortfolioOverview.jsx';
-import { addFeatureToMapLayer, get3DGraphicsController, removeFeatureFromMapLayer, removeMeshElementFromMap } from '../../../../../../client/scripts/mapEntryActions.mjs';
+import { addBuildingToMap, addFeatureToMapLayer, get3DGraphicsController, getGeometryInfo, removeFeatureFromMapLayer, removeMeshElementFromMap } from '../../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache } from "@invicara/ipa-core/modules/IpaUtils";
 import { InfoComponent } from '../../../../../components/InfoComponent/InfoComponent.jsx';
 import { IafItemSvc } from '@dtplatform/platform-api';
@@ -12,6 +12,7 @@ import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from 'lodash';
 import { Add, Delete, Edit } from '@material-ui/icons';
 import { getActiveLevels } from '../../../../../../services/utils.js';
+import BuildingThumbnails from '../BuildingThumbnails';
 
 export default function BuildingDetails({ context }) {
 
@@ -19,7 +20,7 @@ export default function BuildingDetails({ context }) {
     const { send, actor } = useContext(MapMachineContext);
     const currentState = useXstateSelector(actor, state => state);
 
-    const [levels, currentElementType, namedPaths, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath] = useMemo(() => {
+    const [levels, currentElementType, namedPaths, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath, lowerNamedPath] = useMemo(() => {
         const levels = getActiveLevels(currentState);
 
         const sPath = levels?.map(el => el.state).join(".");
@@ -36,11 +37,12 @@ export default function BuildingDetails({ context }) {
         ));
 
         const higherNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel - 1);
+        const lowerNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel + 1);
 
         const entityId = currentState.context[idKey]
         const currentEntity = currentState.context.data[namedPath.state].find(e => e[idKey] === entityId);
 
-        return [levels, cElementType, namedPaths, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath];
+        return [levels, cElementType, namedPaths, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath, lowerNamedPath];
 
     }, [currentState]);
 
@@ -49,6 +51,8 @@ export default function BuildingDetails({ context }) {
 
     const types = useSelector(getMapTypes);
     const type = (types || {})[currentElementType];
+    const mapGraphicReferences = useSelector(getMapGraphicReferences);
+    const structures = useSelector(getStructures);
 
     // Cache for original entity when entering editing mode
     const [cachedOriginalEntity, setCachedOriginalEntity] = useState(null);
@@ -124,41 +128,46 @@ export default function BuildingDetails({ context }) {
         });
 
         // If entityId was changed, navigate to the new entityId to maintain selection
-        if (propertyName === idKey && newValue !== oldEntityId && newValue.length) {
+        if (["structureName", idKey].includes(propertyName) && newValue !== oldEntityId && newValue.length) {
             console.log('EntityId changed, navigating to new entity:', { oldEntityId, newEntityId: newValue });
 
             // Send GO_TO action to navigate to the updated entityId
-            send({
-                type: 'GO_TO',
-                ...lowerLevelState,
-                [idKey]: newValue
-            });
+            if(propertyName === idKey){
+                send({
+                    type: 'GO_TO',
+                    ...lowerLevelState,
+                    [idKey]: newValue
+                });
+            }
 
-            const removeSuccess = removeFeatureFromMapLayer({
+            const removeSuccess = removeMeshElementFromMap({
                 map: mapInstance,
-                levelState: currentElementType,
                 featureId: oldEntityId,
-                idKey, // explicitly specify the key for entity identification
+                entityType: currentElementType,
                 namedPath: namedPath
             });
 
-            const addSuccess = addFeatureToMapLayer({
+            const structureName = propertyName === "structureName" ? newValue : updatedEntity.structureName;
+            const graphicId = mapGraphicReferences.find(g => g._id === structures[structureName].mapGraphicRefId)?.graphic
+            const geometryInfo = getGeometryInfo(graphicId);
+
+            const addSuccess = addBuildingToMap({
+                entityType: currentElementType,
                 map: mapInstance,
-                levelState: currentElementType,
-                feature: {
-                    properties: updatedEntity,
-                    geometry: updatedEntity.coordinates ? {
-                        type: 'Point',
-                        coordinates: [updatedEntity.longitude, updatedEntity.latitude]
-                    } : null,
-                    coordinates: [updatedEntity.longitude, updatedEntity.latitude] // fallback for coordinate extraction
-                },
+                buildingId: updatedEntity[idKey],
+                centroid: [updatedEntity.longitude, updatedEntity.latitude],
+                graphicId: graphicId,
+                geometryInfo: geometryInfo,
                 namedPath: namedPath
-            });
+            })
         }
 
         console.log('Entity property updated:', { propertyName, newValue, updatedEntity });
     };
+
+    const handleStructureChange = structure => {
+        handleEntityChange(structure.name, "structureName");
+    }
 
     const setEntityForEdition = () => {
 
@@ -218,6 +227,7 @@ export default function BuildingDetails({ context }) {
             return;
         }
 
+        handleEntityChange(cachedOriginalEntity.structureName, "structureName");
         if (!cachedOriginalEntity) return;
         setCachedPositioning(null);
         setIsPositioningMode(false);
@@ -613,6 +623,18 @@ export default function BuildingDetails({ context }) {
 
             {isInEditMode && (
                 <Box p={2}>
+                    <Divider style={{ margin: '16px 0px' }} />
+                    
+                    <BuildingThumbnails 
+                        mapGraphicReferences={mapGraphicReferences}
+                        handleCancelNewBuildingMode={() => {}}
+                        lowerNamedPath={lowerNamedPath}
+                        send={send}
+                        upperLevelEntity={currentEntity}
+                        onStructureChangeCb={handleStructureChange}
+                        currentEntity={currentEntity}
+                    />
+
                     <Divider style={{ margin: '16px 0px' }} />
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: 16 }}>

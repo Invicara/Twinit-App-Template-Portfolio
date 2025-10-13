@@ -2517,16 +2517,13 @@ async function upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, 
 
         if(level.feature === "mesh" && reduxState?.pageComponentState?.mapGraphicReferences){
             try{
-                window.features = features;
-
-                const foundStructures = features.map(f => f.properties.structureName).filter((el, i, s) => s.indexOf(el) === i).map(el => reduxState.pageComponentState.structures[el]).filter(el => el)
+                const foundStructures = Object.values(reduxState.pageComponentState.structures);
 
                 let graphicDict = Object.assign({}, ...reduxState.pageComponentState.mapGraphicReferences
                     .map(r => ({[r._id]: r.graphic})));
 
                 const graphicIds = foundStructures.map(el => graphicDict[el.mapGraphicRefId])
                     .filter((el, i, s) => el && s.indexOf(el) === i);
-                window.graphicIds = graphicIds;
 
                 loadedGraphics = await loadGraphics(graphicIds);
 
