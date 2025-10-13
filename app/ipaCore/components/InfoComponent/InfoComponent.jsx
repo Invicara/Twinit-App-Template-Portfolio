@@ -163,6 +163,7 @@ const handleUpdate = (newValue, name) => {
     const layouts =
         useMemo(() => makeLayouts({
             getIsModifiable: (field) => {
+                if (entityType === 'equipment') return false;
                 const fieldSchema = type?.properties?.[field];
                 // modifiable if field exists and is not readOnly (or readOnly override is allowed)
                 const guard = !!fieldSchema && isFieldEditable(type, field, allowReadOnlyOverride);
