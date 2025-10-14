@@ -6,6 +6,7 @@ import { IafMultiModalViewer } from "@invicara/ipa-core-mmv"
 import { setClickEvent } from '../../../redux/pageComponentState.js';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectIsSelectingPosition } from '../../../redux/siteSetup.js';
+import useAutoRefreshToken from "../../../hooks/useAutoRefreshMapboxToken.jsx";
 
 export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId, mmvEventHandler, command }) {
 
@@ -29,13 +30,15 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
             setMapboxToken(token)
         }
     }
+    useAutoRefreshToken();
 
     useEffect(() => {
         getMapboxToken();
-        // enable mapbox and refresh token every hour
+        // enable mapbox and refresh token every 55 min
         intervalRef.current = setInterval(() => {
             getMapboxToken();
-        }, 1000*60*60);
+        }, 1000*60*55);
+
         return ()=> {
             clearInterval(intervalRef.current);
         }
