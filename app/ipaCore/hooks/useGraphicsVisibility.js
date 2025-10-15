@@ -82,50 +82,51 @@ export function useGraphicsVisibility({mapInstance, portContext}){
         Object.keys(meshFeaturesPerLevel).forEach(levelKey => {
             const featuresToShow = meshFeaturesPerLevel[levelKey] || [];
             const featuresToHide = remainingMeshFeaturesPerLevel[levelKey] || [];
-            console.log("LOOPING_VISIBILITY", {featuresToShow, featuresToHide})
 
             // Get the 3D graphics controller for this level
             const sourceId = `${levelKey}-features`;
             const controller = get3DGraphicsController(mapInstance, sourceId);
-            window.controller = controller;
 
-            if (!controller) {
-                console.warn(`UseGraphicsVisibility: No 3D graphics controller found for level ${levelKey} (sourceId: ${sourceId})`);
-                return;
-            }
-
-            // Hide removed features
-            if (featuresToHide.length > 0) {
-                console.log(`UseGraphicsVisibility: Hiding features for ${levelKey}:`, featuresToHide);
-                try {
-                    controller.hideFeatures(featuresToHide);
-                } catch (error) {
-                    console.error(`UseGraphicsVisibility: Error hiding features for ${levelKey}:`, error);
+            setTimeout(() => {
+                console.log("LOOPING_VISIBILITY", {levelKey, featuresToShow, featuresToHide})
+                if (!controller) {
+                    console.warn(`UseGraphicsVisibility: No 3D graphics controller found for level ${levelKey} (sourceId: ${sourceId})`);
+                    return;
                 }
-            }
 
-
-            // Show new features
-            if (featuresToShow.length > 0) {
-                console.log(`UseGraphicsVisibility: Showing features for ${levelKey}:`, featuresToShow);
-                try {
-                    controller.showFeatures(featuresToShow);
-                } catch (error) {
-                    console.error(`UseGraphicsVisibility: Error showing features for ${levelKey}:`, error);
+                // Hide removed features
+                if (featuresToHide.length > 0) {
+                    console.log(`UseGraphicsVisibility: Hiding features for ${levelKey}:`, featuresToHide);
+                    try {
+                        controller.hideFeatures(featuresToHide);
+                    } catch (error) {
+                        console.error(`UseGraphicsVisibility: Error hiding features for ${levelKey}:`, error);
+                    }
                 }
-            }
 
-            // If no current features, hide the entire layer for performance
-            if (featuresToShow.length === 0 && controller.isVisible()) {
-                console.log(`UseGraphicsVisibility: Hiding entire layer for ${levelKey} (no features)`);
-                controller.hide();
-            }
 
-            // If no current features, hide the entire layer for performance
-            if (featuresToShow.length > 0 && !controller.isVisible()) {
-                console.log(`UseGraphicsVisibility: Showing layer for ${levelKey}`);
-                controller.show();
-            }
+                // Show new features
+                if (featuresToShow.length > 0) {
+                    console.log(`UseGraphicsVisibility: Showing features for ${levelKey}:`, featuresToShow);
+                    try {
+                        controller.showFeatures(featuresToShow);
+                    } catch (error) {
+                        console.error(`UseGraphicsVisibility: Error showing features for ${levelKey}:`, error);
+                    }
+                }
+
+                // If no current features, hide the entire layer for performance
+                if (featuresToShow.length === 0 && controller.isVisible()) {
+                    console.log(`UseGraphicsVisibility: Hiding entire layer for ${levelKey} (no features)`);
+                    controller.hide();
+                }
+
+                // If no current features, hide the entire layer for performance
+                if (featuresToShow.length > 0 && !controller.isVisible()) {
+                    console.log(`UseGraphicsVisibility: Showing layer for ${levelKey}`);
+                    controller.show();
+                }                
+            }, 200);
         });
 
     }, [mapInstance, meshFeaturesPerLevel, remainingMeshFeaturesPerLevel]);
