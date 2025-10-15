@@ -163,10 +163,11 @@ const handleUpdate = (newValue, name) => {
     const layouts =
         useMemo(() => makeLayouts({
             getIsModifiable: (field) => {
+                if (entityType === 'equipment') return false;
                 const fieldSchema = type?.properties?.[field];
                 // modifiable if field exists and is not readOnly (or readOnly override is allowed)
                 const guard = !!fieldSchema && isFieldEditable(type, field, allowReadOnlyOverride);
-                return guard && entityType !== 'equipment' ;
+                return guard;
             },
             getIsEditable: (field) => {
                 const fieldSchema = type?.properties?.[field];
@@ -197,6 +198,7 @@ const handleUpdate = (newValue, name) => {
         }
     };
 
+
     return (
         <ThemeProvider theme={formTheme}>
             {!type?.properties || !entity ? (
@@ -208,7 +210,7 @@ const handleUpdate = (newValue, name) => {
                             <JsonForms
                                 data={localValue}
                                 schema={processedType}
-                                uischema={uiSchema}
+                                uischema={uiSchema} 
                                 onChange={onJsonFormsChange}
                                 renderers={renderers}
                                 cells={materialCells}

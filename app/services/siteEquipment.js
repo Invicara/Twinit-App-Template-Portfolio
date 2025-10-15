@@ -754,3 +754,32 @@ let finalDataResult = {
  console.log('ecLogsForSiteEquipment - finalDataResult ->', finalDataResult)
   return finalDataResult
 }
+
+function cleanForApi(equipment) {
+  const propsArr = Array.isArray(equipment.properties)
+    ? equipment.properties
+    : Object.entries(equipment.properties || {}).map(([name, p]) => ({ name, ...p }));
+
+  const techArr = Array.isArray(equipment.TechnicalParameters)
+    ? equipment.TechnicalParameters
+    : Object.entries(equipment.TechnicalParameters || {}).map(([name, t]) => ({ name, ...t }));
+
+  const cleanProps = propsArr.map(p => ({
+    val: p.val,
+    name: p.name,
+    type: p.type,
+  }));
+
+  const cleanTechs = techArr.map(tp => ({
+    val: tp.val,
+    unit: tp.unit,
+    name: tp.name,
+    type: tp.type,
+  }));
+
+  return {
+    ...equipment,
+    properties: cleanProps,
+    TechnicalParameters: cleanTechs,
+  };
+}
