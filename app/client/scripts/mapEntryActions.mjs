@@ -61,6 +61,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
 import scriptModule from "../../../setup/scripts/mmv_config.mjs";
+import { DEFAULT_PATHS } from '../../ipaCore/pageComponents/portfolioOverview/PortfolioOverview.jsx';
 
 /**
  * Properly dispose of THREE.js resources to prevent memory leaks
@@ -3409,6 +3410,112 @@ function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, ge
 }
 
 /**
+ * Apply 3D graphics visibility based on current state
+ * @param {Object} params - Parameters
+ * @param {mapboxgl.Map} params.map - Mapbox map instance
+ * @param {Object} params.currentState - XState current state
+ */
+function applyGraphicsVisibility({ map, currentState }) {
+    if (!map || !currentState) {
+        console.log('applyGraphicsVisibility: Missing map or currentState');
+        return;
+    }
+
+    // Get active levels based on current state
+    // const levels = getActiveLevels(currentState);
+    let deepestCurrentLevel = DEFAULT_PATHS[0].reverse().find(el => currentState.context[el.idKey])
+    const levels = DEFAULT_PATHS[0].slice(0, deepestCurrentLevel.scopeLevel+1)
+
+    const valuesPerLevelKey = levels
+        .map(l => [l.idKey, currentState.context[l.idKey]])
+        .filter(([k, v]) => k && v);
+
+    const sPath = levels?.map(el => el.state).join(".");
+    const cElementType = sPath?.split(".")?.slice(-1)?.[0];
+
+    const namedPaths = currentState.context.namedPaths[0];
+    const namedPath = namedPaths.find(p => p.state === cElementType);
+    const lowerNamedPath = namedPaths.find(p => p?.scopeLevel === namedPath?.scopeLevel + 1);
+
+    const meshLevels = [...levels, ...(lowerNamedPath ? [lowerNamedPath] : [])]
+        .filter(l => l && l.feature === 'mesh');
+
+    // Calculate which features should be visible per level
+    const meshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
+        const parentPath   = (currentState.context.namedPaths[0] || []).find(p => p.state === l.parentState);
+        const parentIdKey  = parentPath?.idKey;
+        const parentIdVal  = parentIdKey ? currentState.context[parentIdKey] : undefined;
+        let featureIds = [];
+        if(parentIdKey && parentIdVal != null) {
+            featureIds = (currentState.context.data[l.state] || [])
+                // if this level has a parent, require child[parentIdKey] === context[parentIdKey]
+                .filter(f => f[parentIdKey] === parentIdVal)
+                .map(f => f[l.idKey]);
+        } else {
+            featureIds = (currentState.context.data[l.state] || [])
+                .filter(f => valuesPerLevelKey.every(([k, v]) => f[k] === v))
+                .map(f => f[l.idKey]);
+        }
+        return { [l.state]: featureIds };
+    }));
+
+    const remainingMeshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
+        const allIds = currentState.context.data[l.state].map(f => f[l.idKey]);
+        const showIds = meshFeaturesPerLevel[l.state] || [];
+        const hideIds = allIds.filter(id => !showIds.includes(id));
+        return { [l.state]: hideIds };
+    }));
+
+    // Process each level's mesh features
+    Object.keys(meshFeaturesPerLevel).forEach(levelKey => {
+        const featuresToShow = meshFeaturesPerLevel[levelKey] || [];
+        const featuresToHide = remainingMeshFeaturesPerLevel[levelKey] || [];
+
+        // Get the 3D graphics controller for this level
+        const sourceId = `${levelKey}-features`;
+        const controller = get3DGraphicsController(map, sourceId);
+
+        console.log("applyGraphicsVisibility, LOOPING_VISIBILITY", {levelKey, featuresToShow, featuresToHide})
+        if (!controller) {
+            console.warn(`applyGraphicsVisibility: No 3D graphics controller found for level ${levelKey} (sourceId: ${sourceId})`);
+            return;
+        }
+
+        // Hide removed features
+        if (featuresToHide.length > 0) {
+            console.log(`applyGraphicsVisibility: Hiding features for ${levelKey}:`, featuresToHide);
+            try {
+                controller.hideFeatures(featuresToHide);
+            } catch (error) {
+                console.error(`applyGraphicsVisibility: Error hiding features for ${levelKey}:`, error);
+            }
+        }
+
+        // Show new features
+        if (featuresToShow.length > 0) {
+            console.log(`applyGraphicsVisibility: Showing features for ${levelKey}:`, featuresToShow);
+            try {
+                controller.showFeatures(featuresToShow);
+            } catch (error) {
+                console.error(`applyGraphicsVisibility: Error showing features for ${levelKey}:`, error);
+            }
+        }
+
+        // If no current features, hide the entire layer for performance
+        if (featuresToShow.length === 0 && controller.isVisible()) {
+            console.log(`applyGraphicsVisibility: Hiding entire layer for ${levelKey} (no features)`);
+            controller.hide();
+        }
+
+        // If we have features, make sure the layer is visible
+        if (featuresToShow.length > 0 && !controller.isVisible()) {
+            console.log(`applyGraphicsVisibility: Showing layer for ${levelKey}`);
+            controller.show();
+        }
+    });
+}
+
+/**
  * Refresh all 3D mesh features for a given layer by clearing and re-adding based on data
  * This combines the logic of removeMeshElementFromMap and addBuildingToMap
  * @param {Object} params - Parameters for refreshing 3D features
@@ -3525,6 +3632,15 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
                 features: cubeWrapperFeatures
             });
             console.log(`Added ${cubeWrapperFeatures.length} cube wrappers to ${sourceId}`);
+        }
+
+        // Step 5: Handle 3D graphics visibility (migrated from useGraphicsVisibility hook)
+        if (map) {
+            try {
+                applyGraphicsVisibility({ map, currentState: {context: getContext()} });
+            } catch (error) {
+                console.error('Error applying graphics visibility:', error);
+            }
         }
 
         // Trigger map refresh/repaint

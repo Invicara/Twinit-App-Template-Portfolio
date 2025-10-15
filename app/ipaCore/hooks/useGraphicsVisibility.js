@@ -87,46 +87,44 @@ export function useGraphicsVisibility({mapInstance, portContext}){
             const sourceId = `${levelKey}-features`;
             const controller = get3DGraphicsController(mapInstance, sourceId);
 
-            setTimeout(() => {
-                console.log("LOOPING_VISIBILITY", {levelKey, featuresToShow, featuresToHide})
-                if (!controller) {
-                    console.warn(`UseGraphicsVisibility: No 3D graphics controller found for level ${levelKey} (sourceId: ${sourceId})`);
-                    return;
+            console.log("LOOPING_VISIBILITY", {levelKey, featuresToShow, featuresToHide})
+            if (!controller) {
+                console.warn(`UseGraphicsVisibility: No 3D graphics controller found for level ${levelKey} (sourceId: ${sourceId})`);
+                return;
+            }
+
+            // Hide removed features
+            if (featuresToHide.length > 0) {
+                console.log(`UseGraphicsVisibility: Hiding features for ${levelKey}:`, featuresToHide);
+                try {
+                    controller.hideFeatures(featuresToHide);
+                } catch (error) {
+                    console.error(`UseGraphicsVisibility: Error hiding features for ${levelKey}:`, error);
                 }
+            }
 
-                // Hide removed features
-                if (featuresToHide.length > 0) {
-                    console.log(`UseGraphicsVisibility: Hiding features for ${levelKey}:`, featuresToHide);
-                    try {
-                        controller.hideFeatures(featuresToHide);
-                    } catch (error) {
-                        console.error(`UseGraphicsVisibility: Error hiding features for ${levelKey}:`, error);
-                    }
+
+            // Show new features
+            if (featuresToShow.length > 0) {
+                console.log(`UseGraphicsVisibility: Showing features for ${levelKey}:`, featuresToShow);
+                try {
+                    controller.showFeatures(featuresToShow);
+                } catch (error) {
+                    console.error(`UseGraphicsVisibility: Error showing features for ${levelKey}:`, error);
                 }
+            }
 
+            // If no current features, hide the entire layer for performance
+            if (featuresToShow.length === 0 && controller.isVisible()) {
+                console.log(`UseGraphicsVisibility: Hiding entire layer for ${levelKey} (no features)`);
+                controller.hide();
+            }
 
-                // Show new features
-                if (featuresToShow.length > 0) {
-                    console.log(`UseGraphicsVisibility: Showing features for ${levelKey}:`, featuresToShow);
-                    try {
-                        controller.showFeatures(featuresToShow);
-                    } catch (error) {
-                        console.error(`UseGraphicsVisibility: Error showing features for ${levelKey}:`, error);
-                    }
-                }
-
-                // If no current features, hide the entire layer for performance
-                if (featuresToShow.length === 0 && controller.isVisible()) {
-                    console.log(`UseGraphicsVisibility: Hiding entire layer for ${levelKey} (no features)`);
-                    controller.hide();
-                }
-
-                // If no current features, hide the entire layer for performance
-                if (featuresToShow.length > 0 && !controller.isVisible()) {
-                    console.log(`UseGraphicsVisibility: Showing layer for ${levelKey}`);
-                    controller.show();
-                }                
-            }, 200);
+            // If no current features, hide the entire layer for performance
+            if (featuresToShow.length > 0 && !controller.isVisible()) {
+                console.log(`UseGraphicsVisibility: Showing layer for ${levelKey}`);
+                controller.show();
+            }                
         });
 
     }, [mapInstance, meshFeaturesPerLevel, remainingMeshFeaturesPerLevel]);
