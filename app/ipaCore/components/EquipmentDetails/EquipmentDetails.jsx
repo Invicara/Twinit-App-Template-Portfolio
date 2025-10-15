@@ -6,7 +6,7 @@ import Tab from "@material-ui/core/Tab";
 
 import EngineeringChangesTab from "./EngineeringChangesTab";
 import SiteEquipmentTab from "./SiteEquipmentTab";
-import { engineeringChangesAPIs } from "../../../services/engineeringChanges";
+import { engineeringChangesService } from "../../../services/engineeringChanges";
 import { MapMachineContext } from "../../pageComponents/portfolioOverview/PortfolioOverview";
 import { ModelContext } from "../../contexts/ModelContext";
 import { useTreeData } from '../../contexts/TreeContext';
@@ -64,7 +64,7 @@ const buildingId = match ? match[2] : null;
       setECs(null); 
 
       try {
-        const result = await engineeringChangesAPIs({ buildingId, facilityId });
+        const result = await engineeringChangesService({ buildingId, facilityId });
         setECs(result || []);
       } catch (err) {
         console.error("Failed to fetch ECS:", err);
@@ -125,7 +125,7 @@ const buildingId = match ? match[2] : null;
             className={classes.tab}
           />
         )}
-        {tab === 1 && <SiteEquipmentTab className={classes.tab} levelData={levelData} loadingLevelData={loadingLevelData} hasFetched={hasFetched} data={ECs} />}
+        {tab === 1 && <SiteEquipmentTab className={classes.tab} levelData={levelData} loadingLevelData={loadingLevelData} hasFetched={hasFetched} data={ECs} facilityId={facilityId} buildingId={buildingId} />}
       </div>
     </Box>
   );

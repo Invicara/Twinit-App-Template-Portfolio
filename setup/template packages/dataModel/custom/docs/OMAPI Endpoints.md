@@ -481,8 +481,7 @@ Get list of equipment by facility, unit and system
   }
 }
 ```
-
-### `GET /siteequip/facilities/:facility/units/:unit/equipments/:siteEquipmentId/ecs`
+### `GET /siteequip/facilities/:facility/units/:unit/equipments/ecs`
 #### Description:
 Gets related engineering changes and their log entries 
 
@@ -495,11 +494,11 @@ Gets related engineering changes and their log entries
   - Type: string
   - Example: `01`
 
-- `siteEquipmentId`: The identifier for the site equipment
-  - Type: string
-  - Example: `RCP-A-011`
-
 #### Query string parameters:
+- `ids`: Comma separated list of site equipment IDs
+  - Type: string
+  - Example: `RCP-A-011,RCP-A-012,RCP-A-013,RCP-A-014`
+
 - `openEcs`: Returns only engineering changes that are open
   - Type: string
   - Example: `true`
@@ -507,61 +506,101 @@ Gets related engineering changes and their log entries
 #### Response example:
 ```
 {
-  "ecsWithLogs": [
+  "siteEquipsWithEcs": [
+    ...
     {
-      "id": "001",
-      "type": "TechnicalParameters",
-      "title": "Adjusted flow rate by +100 gpm",
-      "logs": {
-        "_pageSize": 3,
-        "_list": [
-          {
-            "Base Revision": "000",
-            "Equipment Revision": "000A",
-            "dateImplemented": "",
-            "site": "A",
-            "unit": "01",
-            "Equipment Id": "RCP-900-011",
-            "Site Equipment Id": "RCP-A-011",
-            "dateProposed": "2010-07-18T00:00:00Z",
-            "ecid": "001",
-            "dateReviewed": "",
-            "status": "REGISTERED",
-            "username": "Bob"
-          },
-          {
-            "Base Revision": "000",
-            "Equipment Revision": "000A",
-            "dateImplemented": "",
-            "site": "A",
-            "unit": "01",
-            "Equipment Id": "RCP-900-011",
-            "Site Equipment Id": "RCP-A-011",
-            "dateProposed": "2010-07-18T00:00:00Z",
-            "ecid": "001",
-            "dateReviewed": "2010-08-25T00:00:00Z",
-            "status": "APPROVED",
-            "username": "Alice"
-          },
-          {
-            "Base Revision": "000",
-            "Equipment Revision": "001",
-            "dateImplemented": "2010-09-01T00:00:00Z",
-            "site": "A",
-            "unit": "01",
-            "Equipment Id": "RCP-900-011",
-            "Site Equipment Id": "RCP-A-011",
-            "dateProposed": "2010-07-18T00:00:00Z",
-            "ecid": "001",
-            "dateReviewed": "2010-08-25T00:00:00Z",
-            "status": "CLOSED",
-            "username": "Charlie"
+      "unitType": "900 MW",
+      "systemId": "RCS",
+      "Equipment Id": "RCP-900-011",
+      "Equipment Name": "Reactor Coolant Pump 900MW",
+      "Site Equipment Id": "RCP-B-011",
+      "tipRevision": "001",
+      "equipmentType": "Pump",
+      "ecsWithLogs": [
+        {
+          "id": "001",
+          "type": "TechnicalParameters",
+          "title": "Adjusted flow rate by +100 gpm",
+          "logs": {
+            "_pageSize": 3,
+            "_list": [
+              {
+                "Base Revision": "000",
+                "Equipment Revision": "000A",
+                "dateImplemented": "",
+                "site": "B",
+                "unit": "01",
+                "Equipment Id": "RCP-900-011",
+                "Site Equipment Id": "RCP-B-011",
+                "dateProposed": "2010-07-18T00:00:00Z",
+                "ecid": "001",
+                "dateReviewed": "",
+                "status": "REGISTERED",
+                "username": "Bob"
+              },
+              {
+                "Base Revision": "000",
+                "Equipment Revision": "000A",
+                "dateImplemented": "",
+                "site": "B",
+                "unit": "01",
+                "Equipment Id": "RCP-900-011",
+                "Site Equipment Id": "RCP-B-011",
+                "dateProposed": "2010-07-18T00:00:00Z",
+                "ecid": "001",
+                "dateReviewed": "2011-02-13T00:00:00Z",
+                "status": "APPROVED",
+                "username": "v"
+              },
+              {
+                "Base Revision": "000",
+                "Equipment Revision": "001",
+                "dateImplemented": "2011-03-15T00:00:00Z",
+                "site": "B",
+                "unit": "01",
+                "Equipment Id": "RCP-900-011",
+                "Site Equipment Id": "RCP-B-011",
+                "dateProposed": "2010-07-18T00:00:00Z",
+                "ecid": "001",
+                "dateReviewed": "2011-02-13T00:00:00Z",
+                "status": "CLOSED",
+                "username": "Rob"
+              }
+            ],
+            "_offset": 0,
+            "_total": 3
           }
-        ],
-        "_offset": 0,
-        "_total": 3
-      }
-    }
+        },
+        {
+          "dateProposed": "2025-01-26T00:00:00Z",
+          "id": "004",
+          "type": "Equipment Change/Redesign",
+          "title": "Replace RCP with KSB RSR Model",
+          "logs": {
+            "_pageSize": 1,
+            "_list": [
+              {
+                "Base Revision": "001",
+                "Equipment Revision": "001A",
+                "dateImplemented": "",
+                "site": "B",
+                "unit": "01",
+                "Equipment Id": "RCP-900-011",
+                "Site Equipment Id": "RCP-B-011",
+                "dateProposed": "2025-01-26T00:00:00Z",
+                "ecid": "004",
+                "dateReviewed": "",
+                "status": "REGISTERED",
+                "username": "Bob"
+              }
+            ],
+            "_offset": 0,
+            "_total": 1
+          }
+        }
+      ]
+    },
+    ...
   ]
 }
 ```

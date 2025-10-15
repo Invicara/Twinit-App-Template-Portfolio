@@ -37,7 +37,6 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
     const draftType = useSelector(selectDraftType);
     const selectedGraphicReference = useSelector(getSelectedGraphicReference);
     const selectedStructure = useSelector(getSelectedStructure);
-    window.selectedStructure = selectedStructure;
     const types = useSelector(getMapTypes);
 
     const { send, actor } = portContext || {};
