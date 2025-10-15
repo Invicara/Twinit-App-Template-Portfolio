@@ -23,8 +23,9 @@ import {
   approvePendingRevision,
 } from "../../../../services/siteEquipment";
 import AssignmentLateIcon from "@material-ui/icons/AssignmentLate";
-import { engineeringChangePendingRevision } from "../../../../services/engineeringChangesAPI";
+import { engineeringChangePendingRevision } from "../../../../services/siteEquipment";
 import MuiAlert from "@material-ui/lab/Alert";
+import { flattenEquipment, buildSchema } from "../EquipmentHelpers";
 
 function Alert(props) {
   return <MuiAlert elevation={6} variant="filled" {...props} />;
@@ -133,160 +134,6 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const equipment = {
-  _id: "68d64f9771aa127e59875140",
-  equipmentId: "RCP-900-014",
-  properties: {
-    Manufacturer: { val: "Westinghouse", type: "string" },
-    Model: { val: "RCP-900", type: "string" },
-    "Safety Class": { val: "Class 1", type: "string" },
-  },
-  TechnicalParameters: {
-    FlowRate: { val: 2100, type: "number", unit: "gpm" },
-    Power: { val: 10, type: "number", unit: "MW" },
-  },
-};
-
-function normalizeProperties(arrOrObj) {
-  if (!arrOrObj) return {};
-  if (Array.isArray(arrOrObj)) {
-    return arrOrObj.reduce((acc, { name, val, refVal, ...rest }) => {
-      acc[name] = { val, refVal, ...rest };
-      return acc;
-    }, {});
-  }
-  return arrOrObj;
-}
-
-function normalizeTechParams(arrOrObj) {
-  if (!arrOrObj) return {};
-  if (Array.isArray(arrOrObj)) {
-    return arrOrObj.reduce((acc, { name, val, ...rest }) => {
-      acc[name] = { val, ...rest };
-      return acc;
-    }, {});
-  }
-  return arrOrObj;
-}
-
-function flattenEquipment(siteEq) {
-  const rev = Array.isArray(siteEq.revisions)
-    ? siteEq.revisions[0]
-    : siteEq.revisions?._list?.[0];
-
-  if (!rev) return {};
-
-  const mergedRev = rev;
-
-  const props = normalizeProperties(mergedRev.properties);
-  const tech = normalizeTechParams(mergedRev.TechnicalParameters);
-
-  return {
-    equipmentId: siteEq["Site Equipment Id"] || siteEq.equipmentId || "",
-    Model: props?.Model?.val || "",
-    Manufacturer: props?.Manufacturer?.val || "",
-    "Safety Class": props?.["Safety Class"]?.val || "",
-    equipmentType: siteEq.equipmentType || "",
-    FlowRate: tech?.FlowRate?.val ?? "",
-    Power: tech?.Power?.val ?? "",
-    properties: props,
-    revision: mergedRev.revision || "",
-    edited: mergedRev.edited || {},
-    "revision status": mergedRev["revision status"] || "",
-     CoolingCapacity: tech?.CoolingCapacity?.val ?? "",
-    "Surface Area": tech?.["Surface Area"]?.val ?? "",
-    TechnicalParameters: tech,
-  };
-}
-
-function prettifyLabel(str) {
-  if (!str) return str;
-  return str
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/\b([a-z])/g, (m) => m.toUpperCase())
-    .trim();
-}
-
-function buildSchema(flat, editableFields = []) {
-  if (!flat) return { type: 'object', properties: {}, required: [] };
-
-  const mergedFlat = {
-    ...flat,
-    ...(flat.TechnicalParameters
-      ? Object.entries(flat.TechnicalParameters).reduce((acc, [k, v]) => {
-          acc[k] = v?.val ?? ''; // store actual value
-          return acc;
-        }, {})
-      : {}),
-  };
-
-  const hasCooling = !!flat?.TechnicalParameters?.CoolingCapacity;
-  const hasSurface = !!flat?.TechnicalParameters?.['Surface Area'];
-
-  const fieldConfig = [
-    { key: 'equipmentId', title: 'Name Id' },
-    { key: 'Model', title: 'Model' },
-    { key: 'equipmentType', title: 'Equipment Type' },
-    { key: 'Manufacturer', title: 'Manufacturer' },
-    { key: 'Safety Class', title: 'Safety Class' },
-    ...(hasSurface
-    ? [
-        { key: 'Surface Area', title: prettifyLabel('Surface Area') },
-      ]
-    : [
-        { key: 'FlowRate', title: prettifyLabel('FlowRate') },
-        { key: 'Power', title: prettifyLabel('Power') },
-      ]),
-  ];
-
-  const properties = fieldConfig.reduce((acc, { key, title }) => {
-    if (!(key in mergedFlat)) return acc;
-
-    const rawVal = mergedFlat[key];
-    const isEditable = editableFields.includes(key);
-
-    const schema = {
-      type: typeof rawVal === 'number' ? 'number' : 'string',
-      title,
-      readOnly: !isEditable,
-    };
-
-    // Get metadata if exists
-    const techMeta = flat?.TechnicalParameters?.[key];
-    const propMeta = flat?.properties?.[key];
-
-    if (techMeta) {
-      const { refVal, unit, isEdited, originalVal } = techMeta;
-      schema.options = { refVal, unit: unit || '-', originalVal };
-      if (refVal !== undefined && refVal !== '' && rawVal != refVal) {
-        schema.isMismatched = true;
-        schema.displayValue = unit
-          ? `${rawVal} ${unit} (Expected: ${refVal} ${unit})`
-          : `${rawVal} (Expected: ${refVal})`;
-      }
-      if (isEdited) schema.isEdited = true;
-    }
-
-    if (propMeta) {
-      const { refVal, isEdited, originalVal } = propMeta;
-      schema.options = { ...(schema.options || {}), refVal, originalVal };
-      if (isEdited) schema.isEdited = true;
-      else if (refVal !== undefined && refVal !== '' && rawVal !== refVal) {
-        schema.isMismatched = true;
-        schema.displayValue = `${rawVal} (Expected: ${refVal})`;
-      }
-    }
-
-    acc[key] = schema;
-    return acc;
-  }, {});
-
-  return {
-    type: 'object',
-    properties,
-    required: Object.keys(properties),
-  };
-}
 
 const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
   const [toast, setToast] = useState({
@@ -318,6 +165,7 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
 
   useEffect(() => {
     if (siteEquipment && siteEquipment?.data?.length > 0) {
+      setIsOpen(true)
       const facilityId = siteEquipment?.data[0]?.site;
       const EC = siteEquipment.EC;
       const buildingId = siteEquipment?.data[0]?.unit;
@@ -359,6 +207,11 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
               siteEqItems.map((el) => ({
                 ...flattenEquipment(el),
                 isEditing: false,
+                status: siteEquipment.data.map((d) => {
+                  if(d['Site Equipment Id'] === el['Site Equipment Id']) {
+                    return d.status
+                  }
+                }).filter((s) => s !== undefined),
               })),
             );
             setData(siteEqItems);
@@ -369,6 +222,10 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
       };
 
       run();
+    } else if (siteEquipment && _.isEmpty(siteEquipment?.data) && _.isEmpty(siteEquipment?.EC)) {
+      // On Treesearch node unselect, clear selectedproperties and close the bottom panel.
+      setProperties([])
+      setIsOpen(false)
     }
   }, [siteEquipment]);
 
@@ -448,7 +305,6 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
 
     setRefreshECTrigger(prev => prev + 1);
 
-      // only reload after a successful save
       if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
         const refreshed = await siteEquipmentService(
           siteEquipment.EC,
@@ -652,16 +508,36 @@ const handleChange = (index, name, value) => {
 
   if (!isBottomECPanelOpen) return null;
 
-  const canEditSE = (property, engineeringChange) => {
-    let isEditable = true    
-    engineeringChange?.logs?.map((log) => {
-      if(property.equipmentId === log['Site Equipment Id'] && log.status === 'CLOSED') {
-        isEditable = false
-      }
-    })
-    return isEditable
+const canEditSE = (property, engineeringChange) => {
+
+  let isEditable = true;
+
+  const propStatus =
+    Array.isArray(property?.status) ? property.status[0] : property?.status;
+
+  if (propStatus) {
+    if (String(propStatus).toUpperCase() === 'CLOSED') return false;
+    return true;
   }
 
+  const logs = engineeringChange?.logs;
+  if (!logs) return true;
+
+  const eqId = property?.siteEquipmentId || property?.equipmentId;
+
+  const toArray = (l) =>
+    Array.isArray(l) ? l : (l && typeof l === 'object') ? Object.values(l) : [];
+
+  const closedInLogs = toArray(logs).some(
+    (log) =>
+      (log['Site Equipment Id'] === eqId) &&
+      String(log?.status).toUpperCase() === 'CLOSED'
+  );
+
+  if (closedInLogs) isEditable = false;
+
+  return isEditable;
+};
 
   return (
   <div
@@ -692,7 +568,7 @@ const handleChange = (index, name, value) => {
           zIndex: 2,
         }}
         onClick={(e) => {
-          e.stopPropagation(); // prevent drag trigger
+          e.stopPropagation(); 
           setIsOpen(!isOpen);
         }}
       >
@@ -714,43 +590,6 @@ const handleChange = (index, name, value) => {
               const showEditRequests =
                 prop.revision?.endsWith("A") &&
                 prop["revision status"] === "PENDING";
-
-              const editableFields = prop.isEditing
-                ? ["Manufacturer", "Model", "FlowRate", "Power", "Surface Area"]
-                : [];
-
-              //ADD to test mismatches
-
-              //      const testProp = {
-              //   ...prop,
-              //   Manufacturer: prop.Manufacturer,
-              //   Model: prop.Model,
-              //   TechnicalParameters: {
-              //     ...prop.TechnicalParameters,
-              //     FlowRate: {
-              //       ...prop.TechnicalParameters?.FlowRate,
-              //       refVal: 104   // force mismatch for testing
-              //     },
-              //     Power: {
-              //       ...prop.TechnicalParameters?.Power,
-              //       refVal: prop.TechnicalParameters?.Power?.val
-              //     }
-              //   },
-              //   // Add refVals for Manufacturer and Model
-              //   properties: {
-              //     ...prop.properties,
-              //     Manufacturer: {
-              //       ...prop.properties?.Manufacturer,
-              //       refVal: 'SomeOtherManufacturer' // force mismatch
-              //     },
-              //     Model: {
-              //       ...prop.properties?.Model,
-              //       refVal: 'DifferentModel' // force mismatch
-              //     }
-              //   }
-              // };
-
-              const dynamicSchema = buildSchema(prop, editableFields);
 
 
               return (
@@ -816,7 +655,6 @@ function UnitInput({ value, unit, onChange, disabled }) {
     onChange(num ? `${num} ${unit}` : "");
   };
 
-  // split number from unit for display
   const [numVal] = value ? value.split(" ") : [""];
 
   return (
@@ -857,7 +695,8 @@ function EquipmentCard({
   onToggleEdit,
   onApprove,
   onReject,
-  canEdit
+  canEdit, 
+
 }) {
   const [draft, setDraft] = React.useState(item);
   const wasEditingRef = React.useRef(item.isEditing);
@@ -869,14 +708,23 @@ function EquipmentCard({
     wasEditingRef.current = item.isEditing;
   }, [item.isEditing, item]);
 
+  const techKeys = Object.keys(item?.TechnicalParameters || {});
   const editableFields = item.isEditing
-    ? ["Manufacturer", "Model", "FlowRate", "Power", "Safety Class", "Surface Area"]
+    ? ["Manufacturer", "Model", "Safety Class", ...techKeys]
     : [];
 
-  const dynamicSchema = React.useMemo(
-    () => buildSchema(item, editableFields),
-    [item, item.isEditing],
-  );
+const dynamicSchema = React.useMemo(() => buildSchema(item, editableFields), [item, item.isEditing]);
+
+console.log('dynamicSchema', dynamicSchema);
+const uiSchema = React.useMemo(() => {
+  const baseOrder = ['equipmentId', 'Model', 'equipmentType', 'Manufacturer', 'Safety Class'];
+  const techParams = Object.keys(item?.TechnicalParameters || {}).sort();
+  return {
+    'ui:order': [...baseOrder, ...techParams],
+  };
+}, [item]);
+
+console.log('cardItem', item);
 
   const handleLocalChange = (val, name) => {
     setDraft((prev) => {
@@ -1031,6 +879,7 @@ function EquipmentCard({
         hidePropertyActions={true}
         disabled={!item.isEditing}
         handleChange={handleLocalChange}
+        uiSchema={uiSchema}
       />
     </Paper>
   );

@@ -835,6 +835,52 @@ export function deepCloneScene(scene) {
     return createOptimizedInstance(scene, true); // Clone materials for backward compatibility
 }
 
+// --- helpers (put them near other small helpers) ---
+
+function computeCentroidFromProps(props) {
+    const lon = props?.longitude, lat = props?.latitude;
+    if (lon == null || lat == null) return null;
+    return [parseFloat(lon), parseFloat(lat)];
+}
+
+// builds the same transform shape your render() expects
+function buildModelTransform(centroid, props) {
+    // defaults
+    const rotationDeg = props?.rotation ?? 0;
+    const sizeProp    = props?.size ?? 1;
+    const elevation   = props?.elevation ?? 0; // meters above sea level (or terrain), if you use it
+    const height      = props?.height ?? 0;    // extra vertical offset in meters (building Z lift)
+
+    const mc = mapboxgl.MercatorCoordinate.fromLngLat(centroid, elevation);
+
+    const meter = mc.meterInMercatorCoordinateUnits();
+    const extraZ = height * meter; // lift in mercator units
+
+    return {
+        translateX: mc.x,
+        translateY: mc.y,
+        translateZ: mc.z + extraZ,
+        // keep your fixed upright X rotation
+        rotateX: Math.PI / 2,
+        rotateY: (rotationDeg || 0) * -(Math.PI / 180),
+        rotateZ: 0,
+        scale: meter * (sizeProp || 1),
+    };
+}
+
+// quick signature to detect "pose" changes without heavy compares
+function placementSignature(centroid, props) {
+    const c = Array.isArray(centroid) ? centroid : [null, null];
+    return [
+        c[0], c[1],
+        props?.elevation ?? 0,
+        props?.height ?? 0,
+        props?.rotation ?? 0,
+        props?.size ?? 1
+    ].join('|');
+}
+
+
 /**
  * Create 3D cube wrapper features for graphics (following npa-mmv pattern)
  * @param {Array} features - Array of point features
@@ -993,7 +1039,7 @@ async function setupGraphicLayers({ map, sourceId, level, features, loadedGraphi
         // Update existing layer with new features
         const existingLayer = map.getLayer(customLayerId);
         if (existingLayer && existingLayer.updateFeatures) {
-            existingLayer.updateFeatures(features, loadedGraphics, getContext);
+            existingLayer.updateFeatures(features, loadedGraphics, getContext, level);
             console.log(`Updated 3D graphics layer: ${customLayerId} with ${features.length} features`);
         }
     }
@@ -2249,83 +2295,153 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
         updateFeatures: function(newFeatures, graphics, contextGetter) {
             if (!this.scene) return;
 
-            // Clear existing features and dispose resources properly
-            this.features.forEach(feature => {
-                if (feature.model) {
-                    // Properly dispose of THREE.js resources before removing from scene
-                    disposeObject3D(feature.model);
-                    this.scene.remove(feature.model);
-                }
-            });
-            this.features = [];
+            const keyProperty = this.metadata.featureInfo.idProperty || 'id';
 
-            // Get Redux state for structure lookup
+            // Redux context (for structure → graphicId lookup)
             const contextData = contextGetter ? contextGetter() : {};
             const { reduxState } = contextData;
-
             const structures = reduxState?.pageComponentState?.structures || {};
-            console.log(`Processing ${newFeatures.length} features with ${Object.keys(structures).length} structures`);
 
-            // Process each feature using the new approach
-            newFeatures.forEach(feature => {
-                // Extract centroid from longitude/latitude fields
-                const longitude = feature.properties?.longitude;
-                const latitude = feature.properties?.latitude;
+            // Build a quick index of incoming features by id, with resolved model keys & pose signatures
+            const incomingById = new Map();
+            for (const raw of newFeatures || []) {
+                const id = raw?.properties?.[keyProperty];
+                if (id == null) continue;
 
-                if (!longitude || !latitude) {
-                    console.warn(`Feature ${feature.properties?.id} missing longitude/latitude:`, feature.properties);
-                    return;
+                // centroid & props
+                const centroid = computeCentroidFromProps(raw.properties);
+                if (!centroid) {
+                    console.warn(`Feature ${id} missing longitude/latitude`, raw.properties);
+                    continue;
                 }
 
-                const centroid = [parseFloat(longitude), parseFloat(latitude)];
-
-                // Get structureName from feature and lookup graphic using new chain
-                const structureName = feature.properties?.structureName;
-                if (!structureName) {
-                    console.warn(`Feature ${feature.properties?.id} missing structureName:`, feature.properties);
-                    return;
+                // resolve graphicId either directly or via structureName
+                let graphicId = raw.properties?.graphicId;
+                const structureName = raw.properties?.structureName;
+                if (!graphicId && structureName) {
+                    graphicId = getGraphicIdFromStructureName(structureName, reduxState);
                 }
-
-                // Lookup graphic using new chain: structureName -> structures -> mapGraphicRefId -> graphicReferencesMap
-                const graphicId = getGraphicIdFromStructureName(structureName, reduxState);
                 if (!graphicId) {
-                    console.warn(`No graphic found for structureName ${structureName}`);
-                    return;
+                    console.warn(`No graphic for feature ${id} (structureName=${structureName})`);
+                    continue;
                 }
 
-                // Get cached geometry
                 const geometryInfo = graphics.get(graphicId);
                 if (!geometryInfo) {
-                    console.warn(`No cached geometry found for graphic ${graphicId}`);
-                    return;
+                    console.warn(`No cached geometry for graphic ${graphicId} (feature ${id})`);
+                    continue;
                 }
 
-                // Use addModelInstance to add the feature
-                // const instanceId = feature.properties?.id || `feature-${Date.now()}-${Math.random()}`;
-                const instanceId = feature.properties.buildingId;
-                const success = this.addModelInstance(graphicId, centroid, instanceId, geometryInfo, feature.properties);
+                const key = placementSignature(centroid, raw.properties);
 
-                if (success) {
-                    // Update the added feature with original properties
-                    const addedFeature = this.features[this.features.length - 1];
-                    if (addedFeature) {
-                        addedFeature.properties = {
-                            ...addedFeature.properties,
-                            ...feature.properties,
-                            centroid: centroid,
-                            structureName: structureName,
-                            graphicId: graphicId
-                        };
+                incomingById.set(id, {
+                    raw, id, centroid, graphicId, structureName, geometryInfo, placementKey: key
+                });
+            }
+
+            // Build a quick index of current features by id
+            const currentById = new Map(
+                (this.features || []).map(f => [f.properties?.[keyProperty], f])
+            );
+
+            // 1) Remove features that disappeared
+            for (const [currId, currFeat] of currentById) {
+                if (!incomingById.has(currId)) {
+                    // remove & dispose old model
+                    if (currFeat.model) {
+                        disposeObject3D(currFeat.model);
+                        this.scene.remove(currFeat.model);
                     }
+                    currentById.delete(currId);
                 }
-            });
+            }
 
-            console.log(`Updated 3D graphics layer with ${this.features.length} features using addModelInstance`);
-            //repainiting after feature update - this line was moved here from "render" to prevent infinite loop
-            this.map.triggerRepaint();
+            // 2) Upsert incoming features
+            for (const [id, incoming] of incomingById) {
+                const existing = currentById.get(id);
+
+                if (!existing) {
+                    // brand new → add model instance via your existing factory
+                    const ok = this.addModelInstance(incoming.graphicId, incoming.centroid, id, incoming.geometryInfo, incoming.raw.properties);
+                    if (ok) {
+                        const added = this.features[this.features.length - 1];
+                        if (added) {
+                            added.properties = {
+                                ...added.properties,
+                                ...incoming.raw.properties,
+                                centroid: incoming.centroid,
+                                structureName: incoming.structureName,
+                                graphicId: incoming.graphicId
+                            };
+                            // cache pose signature for quick diff later
+                            added._placementKey = incoming.placementKey;
+                        }
+                    }
+                    continue;
+                }
+
+                // Exists: decide whether to rebuild model or just transform
+                const modelChanged =
+                    (existing.properties?.graphicId !== incoming.graphicId) ||
+                    (existing.properties?.structureName !== incoming.structureName);
+
+                if (modelChanged) {
+                    // remove old model & rebuild
+                    if (existing.model) {
+                        disposeObject3D(existing.model);
+                        this.scene.remove(existing.model);
+                    }
+                    const ok = this.addModelInstance(incoming.graphicId, incoming.centroid, id, incoming.geometryInfo, incoming.raw.properties);
+                    if (ok) {
+                        const updated = this.features[this.features.length - 1];
+                        if (updated) {
+                            // preserve per-feature visibility flag from the previous instance
+                            const wasVisible = existing._featureVisible !== undefined ? existing._featureVisible : true;
+                            updated._featureVisible = wasVisible;
+                            updated.model.visible = wasVisible;
+                            updated.properties = {
+                                ...updated.properties,
+                                ...incoming.raw.properties,
+                                centroid: incoming.centroid,
+                                structureName: incoming.structureName,
+                                graphicId: incoming.graphicId
+                            };
+                            updated._placementKey= incoming.placementKey;
+                        }
+                    }
+                    continue;
+                }
+
+                // Same model: check transform-only changes
+                const prevSig = existing._placementKey || placementSignature(existing.centroid, existing.properties);
+                if (prevSig !== incoming.placementKey) {
+                    // recompute transform and assign
+                    const transform = buildModelTransform(incoming.centroid, incoming.raw.properties);
+                    existing.transform = transform;
+                    existing.centroid = incoming.centroid; // keep centroid in sync
+                    existing.properties = { ...existing.properties, ...incoming.raw.properties, centroid: incoming.centroid };
+                    existing._placementKey = incoming.placementKey;
+                    // NOTE: render() reads feature.transform, so no need to rebuild or touch materials
+                } else {
+                    // unchanged: keep as-is, but you may still merge non-visual props
+                    existing.properties = { ...existing.properties, ...incoming.raw.properties };
+                }
+            }
+
+            // Rebuild this.features array from the map (preserve order by incoming if you want)
+            const nextFeatures = [];
+            for (const [id, inc] of incomingById) {
+                const f = this.features.find(x => x.properties?.[keyProperty] === id);
+                if (f) nextFeatures.push(f);
+            }
+            this.features = nextFeatures;
+
+            // repaint (single call)
+            this.map && this.map.triggerRepaint();
         },
 
-        addModelInstance: function(graphicId, centroid, instanceId, geometryInfo, featureProperties = null) {
+
+        addModelInstance: function(graphicId, centroid, instanceId, geometryInfo, featureProperties) {
             console.log(`Adding new model instance: ${instanceId} at [${centroid}]`);
 
             if (!geometryInfo) {
@@ -2341,35 +2457,18 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
 
             // Apply feature-based theming if properties contain color information
             if (featureProperties) {
+                //this only themes the model, as the feature has been removed
                 this.applyFeatureTheming(featureScene, featureProperties);
             }
-
             console.log(`Created optimized instance for ${instanceId}: sharing geometry (${totalVertices} vertices) with individual materials`);
 
             // Extract rotation and size from feature properties with fallback values
-            const rotation = featureProperties?.rotation ?? 0; // Default rotation: 0 degrees
-            const sizeProportion = featureProperties?.size ?? 1; // Default size proportion: 1
-
-            // Calculate model transform for this instance
-            const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
-                centroid,
-                0 // defaultModelAltitude
-            );
-
-            const modelTransform = {
-                translateX: modelAsMercatorCoordinate.x,
-                translateY: modelAsMercatorCoordinate.y,
-                translateZ: modelAsMercatorCoordinate.z,
-                rotateX: Math.PI / 2, // Fixed: 90° to make building stand upright (never changes)
-                rotateY: rotation * -(Math.PI / 180), // Variable: user-controlled rotation around vertical axis
-                rotateZ: 0, // Fixed: 0° to prevent tilting (never changes)
-                scale: modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() * sizeProportion
-            };
+            const modelTransform = buildModelTransform(centroid, featureProperties);
 
             const keyProperty = this.metadata.featureInfo.idProperty
 
             // Create feature information for the custom layer
-            const feature = {
+            const updatedFeature = {
                 model: featureScene,
                 centroid: centroid,
                 layer: this,
@@ -2394,7 +2493,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             };
 
             // Add to features array and scene
-            this.features.push(feature);
+            this.features.push(updatedFeature);
             this.scene.add(featureScene);
 
             console.log('New model instance added successfully:', instanceId);
@@ -2537,16 +2636,13 @@ async function upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, 
 
         if(level.feature === "mesh" && reduxState?.pageComponentState?.mapGraphicReferences){
             try{
-                window.features = features;
-
-                const foundStructures = features.map(f => f.properties.structureName).filter((el, i, s) => s.indexOf(el) === i).map(el => reduxState.pageComponentState.structures[el]).filter(el => el)
+                const foundStructures = Object.values(reduxState.pageComponentState.structures);
 
                 let graphicDict = Object.assign({}, ...reduxState.pageComponentState.mapGraphicReferences
                     .map(r => ({[r._id]: r.graphic})));
 
                 const graphicIds = foundStructures.map(el => graphicDict[el.mapGraphicRefId])
                     .filter((el, i, s) => el && s.indexOf(el) === i);
-                window.graphicIds = graphicIds;
 
                 loadedGraphics = await loadGraphics(graphicIds);
 
@@ -3373,11 +3469,11 @@ export function addBuildingToMap({ map, buildingId, centroid, graphicId, geometr
         return false;
     }
 
-    // Use the layer's addModelInstance method
-    const success = buildingLayer.addModelInstance(graphicId, centroid, buildingId, geometryInfo);
+    // Use the layer's addModelInstance method (we are clearing and mutating features on the layer)
+    const ok = buildingLayer.addModelInstance(graphicId, centroid, buildingId, geometryInfo);
 
 
-    if (success) {
+    if (ok) {
         console.log(`Successfully added building ${buildingId} to 3D layer`);
 
         // // Add cube wrapper feature for the new building

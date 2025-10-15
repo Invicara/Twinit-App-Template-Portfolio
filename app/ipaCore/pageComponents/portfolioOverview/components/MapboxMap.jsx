@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import {getTemporaryMapBoxToken} from "../../utils/mapboxUtils.js";
 import AutoSizer from 'react-virtualized-auto-sizer';
+import useAutoRefreshToken from "../../../hooks/useAutoRefreshMapboxToken.jsx";
 
 export default function MapboxMap({ onMapReady }) {
     const mapRef = useRef(null);
@@ -18,8 +19,10 @@ export default function MapboxMap({ onMapReady }) {
         }
     }
 
+    useAutoRefreshToken();
+
     useEffect(() => {
-        // enable mapbox and refresh token every hour
+        // mapbox and refresh token every hour
         getMapboxToken();
         const interval = setInterval(() => {
             getMapboxToken();

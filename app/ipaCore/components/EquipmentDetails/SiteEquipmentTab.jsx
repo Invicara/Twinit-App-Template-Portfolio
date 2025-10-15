@@ -21,6 +21,7 @@ import {
   calculateTreeSelectionState
 } from './utils/treeHelpers'
 import { ModelContext } from '../../contexts/ModelContext'
+import {ecLogsForSiteEquipment} from '../../../services/siteEquipment'
 
 import './SiteEquipmentTab.scss'
 
@@ -28,61 +29,36 @@ const focusLogsInViewer = async (
   setSliceElementsByQuery, 
   setSiteEquipment,
   selectedSiteEquipObj,
-  data
+  facilityId, 
+  buildingId
 ) => {
-  const elementIds = ["RCP-900-011", "RCP-900-012", "RCP-900-013", "RCP-900-014"]
-  let selectedIds = []
-  let rejectedIDs = []
+  let rejectedIDs 
 
-// selectedSiteEquipObj  = {
-//     "siteEquipId": [
-//         "PRZ-900-001",
-//         "TG-900-001"
-//     ],
-//     "siteEquipName": [
-//         "PRZ-A-011",
-//         "TG-A-011"
-//     ]
-// }
-
-selectedSiteEquipObj.siteEquipId.map((SEId, idx) => {
-   if (elementIds.includes(SEId)) {
-    selectedIds.push(SEId)
-   } else {
-    rejectedIDs.push(selectedSiteEquipObj.siteEquipName[idx])
-   }
-})
-
-
-  // update the 3D viewer
   await setSliceElementsByQuery?.([
     {
       propRef: { property: { propertyType: "instance" } },
-      queryPartial: { 'properties.Mark.val': { $in: selectedIds } }
+      queryPartial: { 'properties.Mark.val': { $in: selectedSiteEquipObj.siteEquipId } }
     }
   ])
+  
+// If no node is selected, ignore this call
+if(!_.isEmpty(selectedSiteEquipObj.siteEquipName)) {
+  const ecWithLogs = await ecLogsForSiteEquipment(facilityId, buildingId, selectedSiteEquipObj.siteEquipName)
 
-  function findLogsByEquipIds(data, equipIds) {
-    return data
-      .map(obj => {
-        const matchingLogs = (obj.logs || []).filter(log =>
-          equipIds.includes(log["Equipment Id"])
-        )
-        return matchingLogs.length > 0
-          // ? { ecId: obj.id, logs: matchingLogs }
-          ? { logs: matchingLogs }
-          : null
-      })
-      .filter(Boolean)
-  }
-
-  const EcLogs = findLogsByEquipIds(data, selectedSiteEquipObj.siteEquipId)
+  if(ecWithLogs.rejectedSEIds) rejectedIDs = ecWithLogs.rejectedSEIds
 
   // push into ModelContext like EngineeringChangesTab does
   setSiteEquipment({
-     data: EcLogs[0]?.logs,
-    EC: {} // nothing here yet
+    data: ecWithLogs.successLogs,
+    EC: {}
   })
+} else {
+  // Clearing selected Site Equipment if no node is selected
+  setSiteEquipment({
+    data: [],
+    EC: {}
+  })
+}
 
   return rejectedIDs
 }
@@ -106,8 +82,7 @@ const useStyles = makeStyles(theme => ({
     cursor: 'pointer'
   }
 }))
-
-export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetched, data}) {
+export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetched, facilityId, buildingId}) {
   const classes = useStyles()
   const { setSliceElementsByQuery, setSiteEquipment, setIsBottomECPanelOpen } = useContext(ModelContext)
 
@@ -143,7 +118,7 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
 
       // Update viewer focus
       const selectedSiteEquipObj = getSelectedThirdLevelIds(tree, cleanedChecked)
-      focusLogsInViewer(setSliceElementsByQuery, setSiteEquipment, selectedSiteEquipObj, data).then((value) => {
+      focusLogsInViewer(setSliceElementsByQuery, setSiteEquipment, selectedSiteEquipObj, facilityId, buildingId).then((value) => {
         setRejectedIds(value)
         if (selectedSiteEquipObj.siteEquipId.length > 0) {
           setIsBottomECPanelOpen(true)
