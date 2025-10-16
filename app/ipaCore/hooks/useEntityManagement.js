@@ -11,7 +11,7 @@ import {
 } from "../redux/siteSetup";
 import { v4 as uuid } from "uuid";
 import { getClickEvent, getMapTypes, getSelectedGraphicReference, getSelectedStructure, setSelectedGraphicReference } from "../redux/pageComponentState";
-import { addFeatureToMapLayer, removeFeatureFromMapLayer, getGeometryInfo } from "../../client/scripts/mapEntryActions.mjs";
+import { generateSquareCoordinates, getGeometryInfo } from "../../client/scripts/mapEntryActions.mjs";
 import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from "lodash";
 import { getActiveLevels } from "../../services/utils";
