@@ -4,7 +4,7 @@ import CustomButton from '../../../../../components/atoms/CustomButton.jsx';
 import { useDispatch, useSelector } from 'react-redux';
 import { getMapTypes, setMapTypes, getMapGraphicReferences, getStructures } from '../../../../../redux/pageComponentState.js';
 import { MapMachineContext, MapContext } from '../../../PortfolioOverview.jsx';
-import { addBuildingToMap, addFeatureToMapLayer, get3DGraphicsController, getGeometryInfo, removeFeatureFromMapLayer, removeMeshElementFromMap } from '../../../../../../client/scripts/mapEntryActions.mjs';
+import { get3DGraphicsController } from '../../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache } from "@invicara/ipa-core/modules/IpaUtils";
 import { InfoComponent } from '../../../../../components/InfoComponent/InfoComponent.jsx';
 import { IafItemSvc } from '@dtplatform/platform-api';
@@ -140,26 +140,6 @@ export default function BuildingDetails({ context }) {
                 });
             }
 
-            const removeSuccess = removeMeshElementFromMap({
-                map: mapInstance,
-                featureId: oldEntityId,
-                entityType: currentElementType,
-                namedPath: namedPath
-            });
-
-            const structureName = propertyName === "structureName" ? newValue : updatedEntity.structureName;
-            const graphicId = mapGraphicReferences.find(g => g._id === structures[structureName].mapGraphicRefId)?.graphic
-            const geometryInfo = getGeometryInfo(graphicId);
-
-            const addSuccess = addBuildingToMap({
-                entityType: currentElementType,
-                map: mapInstance,
-                buildingId: updatedEntity[idKey],
-                centroid: [updatedEntity.longitude, updatedEntity.latitude],
-                graphicId: graphicId,
-                geometryInfo: geometryInfo,
-                namedPath: namedPath
-            })
         }
 
         console.log('Entity property updated:', { propertyName, newValue, updatedEntity });
@@ -190,16 +170,6 @@ export default function BuildingDetails({ context }) {
         if (currentEntity?.isDraft) {
 
             console.log('Canceling draft entity, removing from map:', {mapInstance, entityId, namedPath});
-
-            // Remove the draft entity from the map using removeMeshElementFromMap
-            if (mapInstance && namedPath) {
-                removeMeshElementFromMap({
-                    entityType: currentElementType,
-                    map: mapInstance,
-                    featureId: entityId,
-                    namedPath
-                });
-            }
 
             // Remove the draft entity from the data entirely
             const currentData = currentState.context?.data || {};
@@ -423,14 +393,6 @@ export default function BuildingDetails({ context }) {
             send({
                 type: 'UPDATE_DATA',
                 data: updatedData
-            });
-
-            // 2. Apply 'removeMeshElementFromMap' to remove the actual map feature
-            removeMeshElementFromMap({
-                entityType: currentElementType,
-                map: mapInstance,
-                featureId: entityId,
-                namedPath
             });
 
             // 3. Get the collection and delete from backend

@@ -1,17 +1,17 @@
 import React, { useContext, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
-import { 
-    selectDraftType, 
-    selectIsSelectingPosition, 
-    selectSelectedCoordinate, 
-    setDraftType, 
-    setIsSelectingPosition, 
-    setSelectedCoordinate 
+import {
+    selectDraftType,
+    selectIsSelectingPosition,
+    selectSelectedCoordinate,
+    setDraftType,
+    setIsSelectingPosition,
+    setSelectedCoordinate
 } from "../redux/siteSetup";
 import { v4 as uuid } from "uuid";
 import { getClickEvent, getMapTypes, getSelectedGraphicReference, getSelectedStructure, setSelectedGraphicReference } from "../redux/pageComponentState";
-import { addFeatureToMapLayer, removeFeatureFromMapLayer, addBuildingToMap, getGeometryInfo, removeMeshElementFromMap } from "../../client/scripts/mapEntryActions.mjs";
+import { addFeatureToMapLayer, removeFeatureFromMapLayer, getGeometryInfo } from "../../client/scripts/mapEntryActions.mjs";
 import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from "lodash";
 import { getActiveLevels } from "../../services/utils";
@@ -23,7 +23,7 @@ export const defaultNewBuildingId = "<newBuilding>";
 export const useNewEntityManagement = ({portContext, mapInstance}) => {
 
     const dispatch = useDispatch();
-    
+
     const clickEvent = useSelector(getClickEvent);
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
     const selectedCoordinate = useSelector(selectSelectedCoordinate);
@@ -54,28 +54,8 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
 
     const previousClick = usePrevious(clickEvent);
     const previousIsSelectingPosition = usePrevious(isSelectingPosition);
-    
+
     const draftTypeSchema = types[draftType];
-
-    // Function to generate square coordinates around a centroid
-    // widthInMeters: width of the square in meters (default 500m)
-    // Returns array of [lng, lat] coordinates forming a closed polygon
-    function generateSquareCoordinates(centerLng, centerLat, widthInMeters = 500) {
-        // Convert meters to degrees (rough approximation)
-        // 1 degree of longitude ≈ 111,320 meters * cos(latitude)
-        // 1 degree of latitude ≈ 110,540 meters
-        const halfWidthLng = (widthInMeters / 2) / (111320 * Math.cos(centerLat * Math.PI / 180));
-        const halfWidthLat = (widthInMeters / 2) / 110540;
-
-        // Create square coordinates (clockwise from top-left)
-        return [
-            [centerLng - halfWidthLng, centerLat + halfWidthLat], // Top-left
-            [centerLng + halfWidthLng, centerLat + halfWidthLat], // Top-right
-            [centerLng + halfWidthLng, centerLat - halfWidthLat], // Bottom-right
-            [centerLng - halfWidthLng, centerLat - halfWidthLat], // Bottom-left
-            [centerLng - halfWidthLng, centerLat + halfWidthLat]  // Close polygon
-        ];
-    }
 
     // Handle element cancellation (remove draft element)
     const handleCancelElement = (elementToRemove, draftingType, namedPath) => {
@@ -90,50 +70,13 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             const filteredSites = currentEntities.filter(s => s[idKey] !== elementToRemove[idKey]);
             const updatedData = { ...currentData, [draftingType]: filteredSites };
 
-            let removeSuccess;
-
-            if(namedPath.feature === "mesh"){
-                removeSuccess = removeMeshElementFromMap({
-                    entityType: draftingType,
-                    map: mapInstance,
-                    featureId: elementToRemove[idKey],
-                    namedPath
-                })
-            } else {
-                removeSuccess = removeFeatureFromMapLayer({
-                    map: mapInstance,
-                    levelState: draftingType,
-                    featureId: elementToRemove[idKey],
-                    idKey, 
-                    namedPath
-                });
-            }
-
-            if (!removeSuccess) {
-                console.warn(`Failed to remove draft ${draftingType} feature from map layer`);
-            }
-
             // Send event to update XState context (removing the site)
             send({
                 type: 'UPDATE_DATA',
                 data: updatedData
             });
-        } 
+        }
     };
-    
-    // Function to generate square coordinates around a centroid
-    function generateSquareCoordinates(centerLng, centerLat, widthInMeters = 500) {
-        const halfWidthLng = (widthInMeters / 2) / (111320 * Math.cos(centerLat * Math.PI / 180));
-        const halfWidthLat = (widthInMeters / 2) / 110540;
-
-        return [
-            [centerLng - halfWidthLng, centerLat + halfWidthLat], // Top-left
-            [centerLng + halfWidthLng, centerLat + halfWidthLat], // Top-right
-            [centerLng + halfWidthLng, centerLat - halfWidthLat], // Bottom-right
-            [centerLng - halfWidthLng, centerLat - halfWidthLat], // Bottom-left
-            [centerLng - halfWidthLng, centerLat + halfWidthLat]  // Close polygon
-        ];
-    }
 
     const prevElementType = usePrevious(currentElementType)
 
@@ -187,7 +130,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             }
 
             const newBuildingId = `${defaultNewBuildingId}-${+new Date()}`
-            
+
             // Create new building data with mandatory fields
             const newBuilding = {
                 buildingId: newBuildingId,
@@ -221,33 +164,13 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             // Get geometry info from selectedGraphicReference for 3D model placement
             let geometryInfo = null;
             let graphicId = null;
-            
+
             if (selectedGraphicReference && selectedGraphicReference._id) {
                 graphicId = selectedGraphicReference.graphic;
                 geometryInfo = getGeometryInfo(graphicId);
                 console.log('Retrieved geometry info for graphic:', graphicId, geometryInfo);
             }
 
-            // Add 3D model to map if geometry info is available
-            if (mapInstance && graphicId && geometryInfo) {
-                const success3D = addBuildingToMap({
-                    entityType: draftType,
-                    map: mapInstance,
-                    buildingId: newBuildingId,
-                    centroid: [centerLng, centerLat],
-                    graphicId: graphicId,
-                    geometryInfo: geometryInfo,
-                    namedPath: draftNamedPath
-                });
-                 
-                if (success3D) {
-                    console.log('Successfully added new building to 3D map layer');
-                } else {
-                    console.warn('Failed to add new building to 3D map layer');
-                }
-            } else {
-                console.warn('No geometry info available for 3D building placement. GraphicId:', graphicId, 'GeometryInfo:', geometryInfo);
-            }
 
             // Navigate to the newly created building using GO_TO with buildingId
             setTimeout(() => {
@@ -263,7 +186,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             dispatch(setIsSelectingPosition(false));
             dispatch(setDraftType());
             dispatch(setSelectedCoordinate([]));
-      
+
         }
         if(selectedCoordinate?.length && !isSelectingPosition && draftNamedPath?.feature === "polygon"){
             const [centerLng, centerLat] = selectedCoordinate;
@@ -293,24 +216,6 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 type: 'UPDATE_DATA',
                 data: updatedData
             });
-
-            // Add the new site to the map layer
-            if (mapInstance && currentState.context?.namedPaths) {
-                const success = addFeatureToMapLayer({
-                    map: mapInstance,
-                    levelState: 'site',
-                    feature: newSite,
-                    namedPath: draftNamedPath
-                });
-
-                if (success) {
-                    console.log('Successfully added new site to map layer');
-                    // Trigger map refresh/repaint
-                    mapInstance.triggerRepaint();
-                } else {
-                    console.warn('Failed to add new site to map layer');
-                }
-            }
 
             // Navigate to the newly created site
             setTimeout(() => {
