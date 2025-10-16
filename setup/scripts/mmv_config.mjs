@@ -157,7 +157,7 @@ let scriptModule = {
                 const theme = {
                     ////we will keep building invisible by default and only show marker instead
                     /*
-                    "building-features-layer": THEMES.BY_CAPACITY,
+                    "building-features-centroids": THEMES.BY_CAPACITY,
                     */
                     //we will keep site invisible by default and only show marker instead
                     /*"site-features-layer": {
@@ -217,7 +217,7 @@ let scriptModule = {
 
                 const theme = {
                     //theme building features by Capacity property
-                    "building-features-layer": THEMES.BY_EC_STATUS,
+                    "building-features-centroids": THEMES.BY_EC_STATUS,
                     //we will keep site features invisible by default
                     /*"site-features-layer": {
                         property: "buildings_count",//TODO: addept property to be a function
@@ -235,14 +235,30 @@ let scriptModule = {
                         idKey: "buildingId"
                     },
                     sourceId: "building-features" ,
-                    config: theme["building-features-layer"],
+                    config: theme["building-features-centroids"],
                     showLabel: false,
                     pieAlpha: 0.3,
                     "popupConfig": {
                         statusPopup: {
+                            entityType: "building",
                             titleProp: "properties.name",
-                            descriptionProp: "properties.region",
-                            statusProp: "properties.StatusId",
+                            descriptionProp: "properties.siteId",
+                            statusProp: (feature, ctx) => {
+                                // feature.properties.ecsByStatus is an object of ecs counts grouped by status
+                                const ecsByStatus = get(feature, "properties.ecsByStatus", {}) || {};
+
+                                const order = ctx.aggregation?.priorityOrder ?? ["ACCEPTED","REGISTERED","CLOSED"];
+
+                                let counts = {}
+                                Object.entries(ecsByStatus).forEach(([key, status]) => {
+                                    counts[key] = status._total;
+                                })
+                                return { mode: "multi", counts}
+                            },
+                            statusAggregation: {
+                                //mode: "priority",
+                                priorityOrder: ["ACCEPTED","REGISTERED","CLOSED"]
+                            },
                             statusConfig: statusConfig,
                             maxWidth: 280,
                         }
