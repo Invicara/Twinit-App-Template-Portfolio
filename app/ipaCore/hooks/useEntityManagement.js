@@ -11,7 +11,7 @@ import {
 } from "../redux/siteSetup";
 import { v4 as uuid } from "uuid";
 import { getClickEvent, getMapTypes, getSelectedGraphicReference, getSelectedStructure, setSelectedGraphicReference } from "../redux/pageComponentState";
-import { addFeatureToMapLayer, removeFeatureFromMapLayer, addBuildingToMap, getGeometryInfo, removeMeshElementFromMap } from "../../client/scripts/mapEntryActions.mjs";
+import { addFeatureToMapLayer, removeFeatureFromMapLayer, getGeometryInfo } from "../../client/scripts/mapEntryActions.mjs";
 import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from "lodash";
 import { getActiveLevels } from "../../services/utils";
@@ -89,29 +89,6 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
         if(elementToRemove.isDraft){
             const filteredSites = currentEntities.filter(s => s[idKey] !== elementToRemove[idKey]);
             const updatedData = { ...currentData, [draftingType]: filteredSites };
-
-            let removeSuccess;
-
-            if(namedPath.feature === "mesh"){
-                removeSuccess = removeMeshElementFromMap({
-                    entityType: draftingType,
-                    map: mapInstance,
-                    featureId: elementToRemove[idKey],
-                    namedPath
-                })
-            } else {
-                removeSuccess = removeFeatureFromMapLayer({
-                    map: mapInstance,
-                    levelState: draftingType,
-                    featureId: elementToRemove[idKey],
-                    idKey, 
-                    namedPath
-                });
-            }
-
-            if (!removeSuccess) {
-                console.warn(`Failed to remove draft ${draftingType} feature from map layer`);
-            }
 
             // Send event to update XState context (removing the site)
             send({
@@ -228,26 +205,6 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 console.log('Retrieved geometry info for graphic:', graphicId, geometryInfo);
             }
 
-            // Add 3D model to map if geometry info is available
-            if (mapInstance && graphicId && geometryInfo) {
-                const success3D = addBuildingToMap({
-                    entityType: draftType,
-                    map: mapInstance,
-                    buildingId: newBuildingId,
-                    centroid: [centerLng, centerLat],
-                    graphicId: graphicId,
-                    geometryInfo: geometryInfo,
-                    namedPath: draftNamedPath
-                });
-                 
-                if (success3D) {
-                    console.log('Successfully added new building to 3D map layer');
-                } else {
-                    console.warn('Failed to add new building to 3D map layer');
-                }
-            } else {
-                console.warn('No geometry info available for 3D building placement. GraphicId:', graphicId, 'GeometryInfo:', geometryInfo);
-            }
 
             // Navigate to the newly created building using GO_TO with buildingId
             setTimeout(() => {
@@ -293,24 +250,6 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 type: 'UPDATE_DATA',
                 data: updatedData
             });
-
-            // Add the new site to the map layer
-            if (mapInstance && currentState.context?.namedPaths) {
-                const success = addFeatureToMapLayer({
-                    map: mapInstance,
-                    levelState: 'site',
-                    feature: newSite,
-                    namedPath: draftNamedPath
-                });
-
-                if (success) {
-                    console.log('Successfully added new site to map layer');
-                    // Trigger map refresh/repaint
-                    mapInstance.triggerRepaint();
-                } else {
-                    console.warn('Failed to add new site to map layer');
-                }
-            }
 
             // Navigate to the newly created site
             setTimeout(() => {

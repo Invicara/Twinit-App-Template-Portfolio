@@ -88,7 +88,7 @@ const useStyles = makeStyles((theme) => ({
 // Create context for the actor
 export const MapMachineContext = createContext();
 export const MapContext = createContext();
-const DEFAULT_PATHS = [
+export const DEFAULT_PATHS = [
     [
         { displayName: "Fleet", state: 'portfolio', idKey: null, scopeLevel: 0 },
         { displayName: "Facility", state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all", scopeLevel: 1, collShortName: "geo_sites_coll", parentState: "portfolio" },

@@ -4,7 +4,6 @@ import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
 import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference, getStructures, setSelectedStructure, getSelectedStructure } from '../../../../redux/pageComponentState';
 import { MapMachineContext, MapContext } from '../../PortfolioOverview';
-import { addFeatureToMapLayer, removeFeatureFromMapLayer } from '../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache, usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
 import { InfoComponent } from '../../../../components/InfoComponent/InfoComponent';
 import { setDraftType, setIsSelectingPosition, setSelectedCoordinate } from '../../../../redux/siteSetup';
@@ -208,20 +207,8 @@ export default function SiteDetails({ context }) {
             [currentElementType]: filteredEntities
         };
 
-        const removeSuccess = removeFeatureFromMapLayer({
-            map: mapInstance,
-            levelState: currentElementType,
-            featureId: currentEntity[idKey],
-            idKey, // explicitly specify the key for entity identification
-            namedPath: namedPath
-        });
-
         dispatch(setSelectedCoordinate());
         dispatch(setIsSelectingPosition(false));
-
-        if (!removeSuccess) {
-            console.warn('Failed to remove draft entity feature from map layer');
-        }
 
         // Send event to update XState context (removing the entity)
         send({
@@ -272,33 +259,6 @@ export default function SiteDetails({ context }) {
             type: 'UPDATE_DATA',
             data: restoredData
         });
-
-        // Update map layer if needed
-        if (mapInstance && namedPath) {
-
-            // Remove current feature and add restored one
-            removeFeatureFromMapLayer({
-                map: mapInstance,
-                levelState: currentElementType,
-                featureId: currentEntity[idKey],
-                idKey,
-                namedPath: namedPath
-            });
-
-            addFeatureToMapLayer({
-                map: mapInstance,
-                levelState: currentElementType,
-                feature: {
-                    properties: cachedOriginalEntity,
-                    geometry: cachedOriginalEntity.coordinates ? {
-                        type: 'Polygon',
-                        coordinates: cachedOriginalEntity.coordinates
-                    } : null,
-                    coordinates: cachedOriginalEntity.coordinates
-                },
-                namedPath: namedPath
-            });
-        }
 
         console.log('Edit cancelled, entity restored:', { original: cachedOriginalEntity, entityId });
     };

@@ -82,13 +82,12 @@ export function useGraphicsVisibility({mapInstance, portContext}){
         Object.keys(meshFeaturesPerLevel).forEach(levelKey => {
             const featuresToShow = meshFeaturesPerLevel[levelKey] || [];
             const featuresToHide = remainingMeshFeaturesPerLevel[levelKey] || [];
-            console.log("LOOPING_VISIBILITY", {featuresToShow, featuresToHide})
 
             // Get the 3D graphics controller for this level
             const sourceId = `${levelKey}-features`;
             const controller = get3DGraphicsController(mapInstance, sourceId);
-            window.controller = controller;
 
+            console.log("LOOPING_VISIBILITY", {levelKey, featuresToShow, featuresToHide})
             if (!controller) {
                 console.warn(`UseGraphicsVisibility: No 3D graphics controller found for level ${levelKey} (sourceId: ${sourceId})`);
                 return;
@@ -125,7 +124,7 @@ export function useGraphicsVisibility({mapInstance, portContext}){
             if (featuresToShow.length > 0 && !controller.isVisible()) {
                 console.log(`UseGraphicsVisibility: Showing layer for ${levelKey}`);
                 controller.show();
-            }
+            }                
         });
 
     }, [mapInstance, meshFeaturesPerLevel, remainingMeshFeaturesPerLevel]);
