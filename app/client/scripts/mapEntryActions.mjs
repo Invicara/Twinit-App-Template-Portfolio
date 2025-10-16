@@ -61,6 +61,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
 import scriptModule from "../../../setup/scripts/mmv_config.mjs";
+import { DEFAULT_PATHS } from '../../ipaCore/pageComponents/portfolioOverview/PortfolioOverview.jsx';
 
 
 // Function to generate square coordinates around a centroid
@@ -2792,11 +2793,14 @@ export async function updateAllFeatureLayers({ map, namedPath, getContext, self 
     // Access Redux state through getContext if available
     const contextData = getContext ? getContext() : {};
     window.contextData = contextData;
-    const { data } = contextData;
+    const { data, reduxState } = contextData;
+
+    const allFeatureLayers = {};
 
     let parentLevelWithFeatures = {};
     const fetchedFeatures = [];
 
+    // Step 1: Fetch features for all levels
     for (const level of namedPath) {
         const scopedData = data[level.state];
         if(!scopedData){
@@ -2808,12 +2812,116 @@ export async function updateAllFeatureLayers({ map, namedPath, getContext, self 
 
         fetchedFeatures.push({...level, features})
     }
-    const allFeatureLayers = upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, self })
+
+    // Step 2: Refresh each level's features using the new precise refresh functions
+    for (const level of fetchedFeatures) {
+        if (!level.feature) continue;
+
+        const features = level.features;
+        allFeatureLayers[level.state] = features.map(f => f.properties);
+
+        // Handle 3D mesh features
+        if (level.feature === 'mesh' && reduxState?.pageComponentState?.mapGraphicReferences) {
+            try {
+                // Load graphics for mesh features
+                const foundStructures = features
+                    .map(f => f.properties.structureName)
+                    .filter((el, i, s) => s.indexOf(el) === i)
+                    .map(el => reduxState.pageComponentState.structures[el])
+                    .filter(el => el);
+
+                let graphicDict = Object.assign({}, ...reduxState.pageComponentState.mapGraphicReferences
+                    .map(r => ({[r._id]: r.graphic})));
+
+                const graphicIds = foundStructures
+                    .map(el => graphicDict[el.mapGraphicRefId])
+                    .filter((el, i, s) => el && s.indexOf(el) === i);
+
+                const loadedGraphics = await loadGraphics(graphicIds);
+                console.log(`Loaded ${loadedGraphics.size} graphics for use in features`);
+
+                // Use refresh3DFeatures to update the 3D layer
+                refresh3DFeatures({
+                    map,
+                    entityType: level.state,
+                    features,
+                    namedPath: level,
+                    getContext,
+                    loadedGraphics
+                });
+
+            } catch (e) {
+                console.error("Failed to refresh 3D features:", e);
+            }
+        } else {
+            window.features = features;
+            // Handle plain features (point, polygon, multiPolygon, etc.)
+            refreshPlainFeatures({
+                map,
+                levelState: level.state,
+                features,
+                namedPath: level
+            });
+
+            // Update centroids for polygon features
+            setTimeout(() => {
+                if (level.feature === "polygon" || level.feature === "multiPolygon") {
+                    const sourceId = `${level.state}-features`;
+                    const centroidsSourceId = `${sourceId}-centroids`;
+                    const centroidsSource = map.getSource(centroidsSourceId);
+
+                    if (centroidsSource) {
+                        const idKey = level.idKey;
+                        
+                        // Convert features to turf features to calculate centroids
+                        const turfFeatures = features.map(f => {
+                            const coords = Array.isArray(f.geometry)
+                                ? f.geometry
+                                : f.geometry?.coordinates ?? f.properties?.coordinates;
+                            const turfFeature = featureFromKnownType(level.feature, coords, f.properties);
+                            
+                            // Set feature ID for proper tracking
+                            if (idKey && turfFeature.properties && turfFeature.properties[idKey]) {
+                                turfFeature.id = turfFeature.properties[idKey];
+                            }
+                            
+                            return turfFeature;
+                        });
+
+                        const centroidFeatures = turfFeatures.map(f => {
+                            const c = centroid(f);
+                            // Copy over properties so pies can use them
+                            c.properties = { ...f.properties };
+                            // Copy over the feature ID as well
+                            if (f.id !== undefined) {
+                                c.id = f.id;
+                            }
+                            return c;
+                        });
+
+                        const centroidFc = featureCollection(centroidFeatures);
+                        centroidsSource.setData(centroidFc);
+                        console.log(`Updated ${centroidFeatures.length} centroids for ${level.state}`);
+                    }
+                }                
+            }, 1000);
+        }
+    }
+
     return allFeatureLayers;
 }
 
-// Function to add a single feature to an existing map layer
-export function addFeatureToMapLayer({ map, levelState, feature, namedPath: levelDef }) {
+/**
+ * Refresh all plain features for a given layer by clearing and re-adding based on data
+ * This combines the logic of removeFeatureFromMapLayer and addFeatureToMapLayer
+ * @param {Object} params - Parameters for refreshing features
+ * @param {mapboxgl.Map} params.map - Mapbox map instance
+ * @param {string} params.levelState - Level state identifier
+ * @param {Array} params.features - Array of features to render
+ * @param {Object} params.namedPath - Named path level definition
+ * @returns {boolean} - Success status
+ */
+export function refreshPlainFeatures({ map, levelState, features, namedPath: levelDef }) {
     const sourceId = `${levelState}-features`;
 
     if (!levelDef || !levelDef.feature) {
@@ -2829,74 +2937,36 @@ export function addFeatureToMapLayer({ map, levelState, feature, namedPath: leve
             return false;
         }
 
-        // Get current data
-        const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
+        // Get the idKey for this level
+        const idKey = levelDef.idKey;
 
-        // Convert the new feature to GeoJSON format
-        const coords = Array.isArray(feature.geometry)
-            ? feature.geometry
-            : feature.geometry?.coordinates ?? feature.properties?.coordinates ?? feature.coordinates;
-
-        const turfFeature = featureFromKnownType(levelDef.feature, coords, feature.properties || feature);
-
-        // Add new feature to existing collection
-        const updatedFeatures = [...(currentData.features || []), turfFeature];
-        const updatedFeatureCollection = featureCollection(updatedFeatures);
-
-        // Update the map source with new data
-        existingSource.setData(updatedFeatureCollection);
-
-        console.log(`Added feature to ${sourceId}:`, turfFeature);
-        return true;
-
-    } catch (error) {
-        console.error(`Error adding feature to map layer ${sourceId}:`, error);
-        return false;
-    }
-}
-
-// Function to remove a feature from an existing map layer
-export function removeFeatureFromMapLayer({ map, levelState, featureId, idKey, namedPath: levelDef }) {
-    const sourceId = `${levelState}-features`;
-
-    if (!levelDef || !levelDef.feature) {
-        console.warn(`Level definition not found for state: ${levelState}`);
-        return false;
-    }
-
-    // Use the provided idKey or fall back to the level's idKey
-    const keyToUse = idKey || levelDef.idKey;
-    if (!keyToUse) {
-        console.warn(`No idKey found for level state: ${levelState}`);
-        return false;
-    }
-
-    try {
-        // Get existing source
-        const existingSource = map.getSource(sourceId);
-        if (!existingSource) {
-            console.warn(`Map source not found: ${sourceId}`);
-            return false;
-        }
-
-        // Get current data
-        const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
-
-        // Filter out the feature to be removed
-        const filteredFeatures = (currentData.features || []).filter(feature => {
-            const featureIdValue = feature.properties?.[keyToUse];
-            return featureIdValue !== featureId;
+        // Convert all features to GeoJSON format
+        const turfFeatures = features.map(f => {
+            const coords = Array.isArray(f.geometry)
+                ? f.geometry
+                : f.geometry?.coordinates ?? f.properties?.coordinates ?? f.coordinates;
+            const turfFeature = featureFromKnownType(levelDef.feature, coords, f.properties || f);
+            
+            // CRITICAL: Set the feature ID at the GeoJSON feature level for proper Mapbox tracking
+            // This is especially important when IDs change, as Mapbox uses this for feature reconciliation
+            if (idKey && turfFeature.properties && turfFeature.properties[idKey]) {
+                turfFeature.id = turfFeature.properties[idKey];
+            }
+            
+            return turfFeature;
         });
 
-        // Update the map source with filtered data
-        const updatedFeatureCollection = featureCollection(filteredFeatures);
-        existingSource.setData(updatedFeatureCollection);
+        // Update the map source with new data (this replaces all features)
+        existingSource.setData(featureCollection(turfFeatures));
+        map.triggerRepaint();
 
-        console.log(`Removed feature from ${sourceId}:`, { featureId, idKey: keyToUse });
+        console.log(`Refreshed ${turfFeatures.length} plain features in ${sourceId}`);
+
+        
         return true;
 
     } catch (error) {
-        console.error(`Error removing feature from map layer ${sourceId}:`, error);
+        console.error(`Error refreshing plain features for ${sourceId}:`, error);
         return false;
     }
 }
@@ -3367,124 +3437,329 @@ function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, ge
 }
 
 /**
- * Remove both 3D graphic and cube wrapper for a building
- * @param {Object} params - Parameters for removal
+ * Apply 3D graphics visibility based on current state
+ * @param {Object} params - Parameters
  * @param {mapboxgl.Map} params.map - Mapbox map instance
- * @param {string} params.featureId - Feature ID to remove
- * @param {string} params.entityType - Map Entity ID
+ * @param {Object} params.currentState - XState current state
+ */
+function applyGraphicsVisibility({ map, currentState }) {
+    if (!map || !currentState) {
+        console.log('applyGraphicsVisibility: Missing map or currentState');
+        return;
+    }
+
+    // Get active levels based on current state
+    // const levels = getActiveLevels(currentState);
+    let deepestCurrentLevel = DEFAULT_PATHS[0].reverse().find(el => currentState.context[el.idKey])
+    const levels = DEFAULT_PATHS[0].slice(0, deepestCurrentLevel.scopeLevel+1)
+
+    const valuesPerLevelKey = levels
+        .map(l => [l.idKey, currentState.context[l.idKey]])
+        .filter(([k, v]) => k && v);
+
+    const sPath = levels?.map(el => el.state).join(".");
+    const cElementType = sPath?.split(".")?.slice(-1)?.[0];
+
+    const namedPaths = currentState.context.namedPaths[0];
+    const namedPath = namedPaths.find(p => p.state === cElementType);
+    const lowerNamedPath = namedPaths.find(p => p?.scopeLevel === namedPath?.scopeLevel + 1);
+
+    const meshLevels = [...levels, ...(lowerNamedPath ? [lowerNamedPath] : [])]
+        .filter(l => l && l.feature === 'mesh');
+
+    // Calculate which features should be visible per level
+    const meshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
+        const parentPath   = (currentState.context.namedPaths[0] || []).find(p => p.state === l.parentState);
+        const parentIdKey  = parentPath?.idKey;
+        const parentIdVal  = parentIdKey ? currentState.context[parentIdKey] : undefined;
+        let featureIds = [];
+        if(parentIdKey && parentIdVal != null) {
+            featureIds = (currentState.context.data[l.state] || [])
+                // if this level has a parent, require child[parentIdKey] === context[parentIdKey]
+                .filter(f => f[parentIdKey] === parentIdVal)
+                .map(f => f[l.idKey]);
+        } else {
+            featureIds = (currentState.context.data[l.state] || [])
+                .filter(f => valuesPerLevelKey.every(([k, v]) => f[k] === v))
+                .map(f => f[l.idKey]);
+        }
+        return { [l.state]: featureIds };
+    }));
+
+    const remainingMeshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
+        const allIds = currentState.context.data[l.state].map(f => f[l.idKey]);
+        const showIds = meshFeaturesPerLevel[l.state] || [];
+        const hideIds = allIds.filter(id => !showIds.includes(id));
+        return { [l.state]: hideIds };
+    }));
+
+    // Process each level's mesh features
+    Object.keys(meshFeaturesPerLevel).forEach(levelKey => {
+        const featuresToShow = meshFeaturesPerLevel[levelKey] || [];
+        const featuresToHide = remainingMeshFeaturesPerLevel[levelKey] || [];
+
+        // Get the 3D graphics controller for this level
+        const sourceId = `${levelKey}-features`;
+        const controller = get3DGraphicsController(map, sourceId);
+
+        console.log("applyGraphicsVisibility, LOOPING_VISIBILITY", {levelKey, featuresToShow, featuresToHide})
+        if (!controller) {
+            console.warn(`applyGraphicsVisibility: No 3D graphics controller found for level ${levelKey} (sourceId: ${sourceId})`);
+            return;
+        }
+
+        // Hide removed features
+        if (featuresToHide.length > 0) {
+            console.log(`applyGraphicsVisibility: Hiding features for ${levelKey}:`, featuresToHide);
+            try {
+                controller.hideFeatures(featuresToHide);
+            } catch (error) {
+                console.error(`applyGraphicsVisibility: Error hiding features for ${levelKey}:`, error);
+            }
+        }
+
+        // Show new features
+        if (featuresToShow.length > 0) {
+            console.log(`applyGraphicsVisibility: Showing features for ${levelKey}:`, featuresToShow);
+            try {
+                controller.showFeatures(featuresToShow);
+            } catch (error) {
+                console.error(`applyGraphicsVisibility: Error showing features for ${levelKey}:`, error);
+            }
+        }
+
+        // If no current features, hide the entire layer for performance
+        if (featuresToShow.length === 0 && controller.isVisible()) {
+            console.log(`applyGraphicsVisibility: Hiding entire layer for ${levelKey} (no features)`);
+            controller.hide();
+        }
+
+        // If we have features, make sure the layer is visible
+        if (featuresToShow.length > 0 && !controller.isVisible()) {
+            console.log(`applyGraphicsVisibility: Showing layer for ${levelKey}`);
+            controller.show();
+        }
+    });
+}
+
+/**
+ * Refresh all 3D mesh features for a given layer by clearing and re-adding based on data
+ * This combines the logic of removeMeshElementFromMap and addBuildingToMap
+ * @param {Object} params - Parameters for refreshing 3D features
+ * @param {mapboxgl.Map} params.map - Mapbox map instance
+ * @param {string} params.entityType - Entity type identifier (e.g., 'building')
+ * @param {Array} params.features - Array of features with centroid, graphicId, buildingId, geometryInfo
  * @param {Object} params.namedPath - Named path configuration
+ * @param {Function} params.getContext - Function to get Redux context
+ * @param {Map} params.loadedGraphics - Map of loaded graphics/geometries
  * @returns {boolean} - Success status
  */
-export function removeMeshElementFromMap({ map, featureId, entityType, namedPath }) {
-    console.log(`Removing mesh element ${featureId} from map`);
+export function refresh3DFeatures({ map, entityType, features, namedPath, getContext, loadedGraphics }) {
+    console.log(`Refreshing ${features.length} 3D mesh features for ${entityType}`);
+
+    const layerId = `${entityType}-features-3d-graphics`;
+    const sourceId = `${entityType}-features`;
+    const meshLayer = map.getLayer(layerId);
+
+    if (!meshLayer) {
+        console.warn(`3D layer not found: ${layerId}`);
+        return false;
+    }
 
     let success = true;
 
-    // Remove from 3D graphics layer
-    const LayerId = `${entityType}-features-3d-graphics`;
-    const meshLayer = map.getLayer(LayerId);
+    try {
+        // Step 1: Clear existing 3D models from the layer
+        if (meshLayer.features && meshLayer.features.length > 0) {
+            console.log(`Clearing ${meshLayer.features.length} existing 3D models from layer`);
+            
+            // Dispose of all existing models
+            for (const feature of meshLayer.features) {
+                if (feature.model && meshLayer.scene) {
+                    disposeObject3D(feature.model);
+                    meshLayer.scene.remove(feature.model);
+                }
+            }
+            
+            // Clear the features array
+            meshLayer.features = [];
+        }
 
-    if (meshLayer && meshLayer.features) {
-        // Find and remove the feature from the 3D layer
-        const featureIndex = meshLayer.features.findIndex(
-            feature => feature.properties?.[namedPath.idKey] === featureId
-        );
+        // Step 2: Clear existing cube wrappers from the source
+        const existingSource = map.getSource(sourceId);
+        if (existingSource) {
+            existingSource.setData({ type: 'FeatureCollection', features: [] });
+        }
 
-        if (featureIndex !== -1) {
-            const feature = meshLayer.features[featureIndex];
+        // Step 3: Add all new 3D models and cube wrappers
+        const cubeWrapperFeatures = [];
+        
+        for (const feature of features) {
+            const { properties } = feature;
+            const buildingId = properties?.[namedPath.idKey];
+            const centroid = Array.isArray(feature.geometry)
+                ? feature.geometry
+                : feature.geometry?.coordinates ?? properties?.coordinates ?? feature.coordinates;
 
-            // Properly dispose of resources and remove the model from the scene
-            if (feature.model && meshLayer.scene) {
-                // Dispose of THREE.js resources before removing from scene
-                disposeObject3D(feature.model);
-                meshLayer.scene.remove(feature.model);
+            if (!buildingId || !centroid) {
+                console.warn('Missing buildingId or centroid for feature:', feature);
+                continue;
             }
 
-            // Remove from features array
-            meshLayer.features.splice(featureIndex, 1);
-            console.log(`Removed mesh element ${featureId} from 3D graphics layer`);
-        } else {
-            console.warn(`mesh element ${featureId} not found in 3D graphics layer`);
-            success = false;
+            // Get graphic ID and geometry info
+            const contextData = getContext ? getContext() : {};
+            const { reduxState } = contextData;
+            
+            let graphicId = null;
+            let geometryInfo = null;
+
+            if (reduxState?.pageComponentState?.structures && properties.structureName) {
+                const structure = reduxState.pageComponentState.structures[properties.structureName];
+                if (structure && structure.mapGraphicRefId) {
+                    const graphicRef = reduxState.pageComponentState.mapGraphicReferences?.find(
+                        ref => ref._id === structure.mapGraphicRefId
+                    );
+                    if (graphicRef) {
+                        graphicId = graphicRef.graphic;
+                        geometryInfo = loadedGraphics?.get(graphicId);
+                    }
+                }
+            }
+
+            if (!graphicId || !geometryInfo) {
+                console.warn(`No graphic/geometry info for building ${buildingId}`);
+                continue;
+            }
+
+            // Add the 3D model to the layer with size and rotation from feature properties
+            const ok = meshLayer.addModelInstance(graphicId, centroid, buildingId, geometryInfo, properties);
+            
+            if (ok) {
+                // Create cube wrapper feature
+                const cubeFeature = createCubeWrapperFeature({
+                    buildingId,
+                    centroid,
+                    geometryInfo,
+                    featureProperties: properties
+                });
+                
+                if (cubeFeature) {
+                    cubeWrapperFeatures.push(cubeFeature);
+                }
+            } else {
+                console.warn(`Failed to add building ${buildingId} to 3D layer`);
+                success = false;
+            }
         }
-    } else {
-        console.warn(`Mesh element 3D layer not found: ${LayerId}`);
-        success = false;
+
+        // Step 4: Update the source with all cube wrappers at once
+        if (existingSource && cubeWrapperFeatures.length > 0) {
+            existingSource.setData({
+                type: 'FeatureCollection',
+                features: cubeWrapperFeatures
+            });
+            console.log(`Added ${cubeWrapperFeatures.length} cube wrappers to ${sourceId}`);
+        }
+
+        // Step 5: Handle 3D graphics visibility (migrated from useGraphicsVisibility hook)
+        if (map) {
+            try {
+                applyGraphicsVisibility({ map, currentState: {context: getContext()} });
+            } catch (error) {
+                console.error('Error applying graphics visibility:', error);
+            }
+        }
+
+        // Trigger map refresh/repaint
+        map.triggerRepaint();
+
+        console.log(`Successfully refreshed ${features.length} 3D features for ${entityType}`);
+        return success;
+
+    } catch (error) {
+        console.error(`Error refreshing 3D features for ${entityType}:`, error);
+        return false;
     }
-
-    // Remove cube wrapper from features source
-    const sourceId = `${entityType}-features`;
-    const existingSource = map.getSource(sourceId);
-
-    if (existingSource) {
-        const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
-
-        // Filter out the cube wrapper feature
-        const filteredFeatures = (currentData.features || []).filter(feature => {
-            const foundFeatureId = feature.properties?.[namedPath.idKey] || feature.id;
-            return foundFeatureId !== featureId;
-        });
-
-        // Update the source with filtered data
-        const updatedFeatureCollection = {
-            type: 'FeatureCollection',
-            features: filteredFeatures
-        };
-        existingSource.setData(updatedFeatureCollection);
-
-        console.log(`Removed cube wrapper for building ${featureId}`);
-    } else {
-        console.warn(`Source not found: ${sourceId}`);
-        success = false;
-    }
-
-    // Trigger map refresh/repaint
-    map.triggerRepaint();
-
-    if (success) {
-        console.log(`Successfully removed building ${featureId} from map`);
-    } else {
-        console.error(`Failed to completely remove building ${featureId} from map`);
-    }
-
-    return success;
 }
 
-// External function to add a building model instance to the map
-export function addBuildingToMap({ map, buildingId, centroid, graphicId, geometryInfo, entityType, getContext }) {
-    console.log(`Adding building ${buildingId} to map at [${centroid}]`);
+/**
+ * Helper function to create a cube wrapper feature
+ * @param {Object} params - Parameters for creating cube wrapper
+ * @param {string} params.buildingId - Building ID
+ * @param {Array} params.centroid - [longitude, latitude] coordinates
+ * @param {Object} params.geometryInfo - Geometry information from loaded graphics
+ * @param {Object} params.featureProperties - Feature properties (for rotation and size)
+ * @returns {Object|null} - GeoJSON feature or null if creation fails
+ */
+function createCubeWrapperFeature({ buildingId, centroid, geometryInfo, featureProperties = {} }) {
+    try {
+        // Default cube size and height
+        const defaultCubeSizeMeters = 20;
+        const defaultHeightMeters = 50;
 
-    if (!geometryInfo) {
-        console.error('No geometry info available for graphic:', graphicId);
-        return false;
-    }
+        // Extract rotation and size from feature properties with defaults
+        const rotation = featureProperties?.rotation ?? 0;
+        const sizeProportion = featureProperties?.size ?? 1;
 
-    // Find the 3D graphics layer for buildings
-    const buildingLayerId = `${entityType}-features-3d-graphics`;
-    const buildingLayer = map.getLayer(buildingLayerId);
+        // Helper function to convert meters to degrees
+        const metersToDegrees = (meters, lat) => ({
+            dLat: meters / 111320,
+            dLon: meters / (111320 * Math.cos((lat * Math.PI) / 180))
+        });
 
+        const lng = parseFloat(centroid[0]);
+        const lat = parseFloat(centroid[1]);
 
-    if (!buildingLayer) {
-        console.warn(`Building 3D layer not found: ${buildingLayerId}`);
-        return false;
-    }
+        // Get sizing information from geometry
+        let height = defaultHeightMeters;
+        let cubeSize = defaultCubeSizeMeters;
 
-    // Use the layer's addModelInstance method (we are clearing and mutating features on the layer)
-    const ok = buildingLayer.addModelInstance(graphicId, centroid, buildingId, geometryInfo);
+        if (geometryInfo && geometryInfo.sizeInMeters) {
+            height = geometryInfo.sizeInMeters.height || defaultHeightMeters;
+            cubeSize = Math.max(
+                geometryInfo.sizeInMeters.width || defaultCubeSizeMeters,
+                geometryInfo.sizeInMeters.depth || defaultCubeSizeMeters
+            );
+        }
 
+        // Apply size proportion
+        height *= sizeProportion;
+        cubeSize *= sizeProportion;
 
-    if (ok) {
-        console.log(`Successfully added building ${buildingId} to 3D layer`);
+        // Create cube footprint coordinates
+        const { dLat, dLon } = metersToDegrees(cubeSize / 3, lat);
+        const ring = [
+            [lng - dLon, lat - dLat],
+            [lng + dLon, lat - dLat],
+            [lng + dLon, lat + dLat],
+            [lng - dLon, lat + dLat],
+            [lng - dLon, lat - dLat]
+        ];
 
-        // // Add cube wrapper feature for the new building
-        addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, getContext });
-
-        // // Trigger map refresh/repaint
-        map.triggerRepaint();
-        return true;
-    } else {
-        console.error(`Failed to add building ${buildingId} to 3D layer`);
-        return false;
+        // Create and return cube wrapper feature
+        return {
+            type: 'Feature',
+            id: buildingId,
+            properties: {
+                buildingId: buildingId,
+                longitude: lng,
+                latitude: lat,
+                type: '3d_model',
+                height: height,
+                elevation: 0,
+                rotation: rotation,
+                size: sizeProportion,
+                cube_wrapper: true,
+                ...featureProperties
+            },
+            geometry: {
+                type: 'Polygon',
+                coordinates: [ring]
+            }
+        };
+    } catch (error) {
+        console.error(`Error creating cube wrapper for building ${buildingId}:`, error);
+        return null;
     }
 }
 
