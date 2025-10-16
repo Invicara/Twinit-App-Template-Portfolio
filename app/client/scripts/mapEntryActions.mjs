@@ -2957,19 +2957,19 @@ export async function updateAllFeatureLayers({ map, namedPath, getContext, self 
 
                     if (centroidsSource) {
                         const idKey = level.idKey;
-                        
+
                         // Convert features to turf features to calculate centroids
                         const turfFeatures = features.map(f => {
                             const coords = Array.isArray(f.geometry)
                                 ? f.geometry
                                 : f.geometry?.coordinates ?? f.properties?.coordinates;
                             const turfFeature = featureFromKnownType(level.feature, coords, f.properties);
-                            
+
                             // Set feature ID for proper tracking
                             if (idKey && turfFeature.properties && turfFeature.properties[idKey]) {
                                 turfFeature.id = turfFeature.properties[idKey];
                             }
-                            
+
                             return turfFeature;
                         });
 
@@ -2988,7 +2988,7 @@ export async function updateAllFeatureLayers({ map, namedPath, getContext, self 
                         centroidsSource.setData(centroidFc);
                         console.log(`Updated ${centroidFeatures.length} centroids for ${level.state}`);
                     }
-                }                
+                }
             }, 1000);
         }
     }
@@ -3031,13 +3031,13 @@ export function refreshPlainFeatures({ map, levelState, features, namedPath: lev
                 ? f.geometry
                 : f.geometry?.coordinates ?? f.properties?.coordinates ?? f.coordinates;
             const turfFeature = featureFromKnownType(levelDef.feature, coords, f.properties || f);
-            
+
             // CRITICAL: Set the feature ID at the GeoJSON feature level for proper Mapbox tracking
             // This is especially important when IDs change, as Mapbox uses this for feature reconciliation
             if (idKey && turfFeature.properties && turfFeature.properties[idKey]) {
                 turfFeature.id = turfFeature.properties[idKey];
             }
-            
+
             return turfFeature;
         });
 
@@ -3047,7 +3047,7 @@ export function refreshPlainFeatures({ map, levelState, features, namedPath: lev
 
         console.log(`Refreshed ${turfFeatures.length} plain features in ${sourceId}`);
 
-        
+
         return true;
 
     } catch (error) {
@@ -3177,13 +3177,13 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
     if(markersConfig){
 
         manageMarkers = async (e) => {
-
             const managedPaths = markersConfig
                 .map(mi => mi?.featureDef?.path)
                 .filter(Boolean);
 
-            const currentIdsByPath = {};   // { path: string[] }
-            const graphicsByPath = {};     // { path: Graphic[] }
+            const currentIdsByPath = {};
+            const graphicsByPath = {};
+            const processedPaths = new Set();
 
             for (const markersInfo of markersConfig) {
                 const {featureDef, config, ...restMarkerInfo} = markersInfo;
@@ -3207,10 +3207,13 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
 
                 currentIdsByPath[path] = currentMarkerIds || [];
                 graphicsByPath[path] = graphics || [];
+                processedPaths.add(path);
             }
 
+            //  (prevents nukes)
+            if (processedPaths.size === 0) return;
 
-
+            // Reconcile
             // If nothing to manage, purge everything and exit
             if (managedPaths.length === 0) {
                 //const release = await markersMutex.lock();
@@ -3236,15 +3239,18 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
                 const existingIds = [...getMarkers().keys()];
 
                 // (A) Remove everything from NON-managed paths (leftovers from other states)
-                const nonManagedToRemove = existingIds.filter(id => !startsWithAny(id, managedPaths));
+                const managedIds = existingIds.filter(id =>
+                    managedPaths.some(path => id.startsWith(`${path}`))
+                );
+                //Everything else is non-managed — remove those (leftovers from old states)
+                const nonManagedToRemove = existingIds.filter(id => !managedIds.includes(id));
 
-                // (B) For managed paths we processed this tick, remove only IDs not present in currentMarkerIds
+                // (B) For managed paths we processed in this tick, remove only IDs not present in currentMarkerIds
                 const unionCurrentIds = new Set(
                     Object.values(currentIdsByPath).flat() // the “truth” of what should remain
                 );
 
-                const managedExisting = existingIds.filter(id => startsWithAny(id, Object.keys(currentIdsByPath)));
-                const staleToRemove = managedExisting.filter(id => !unionCurrentIds.has(id));
+                const staleToRemove = managedIds.filter(id => !unionCurrentIds.has(id));
 
                 const idsToRemove = [...new Set([...nonManagedToRemove, ...staleToRemove])];
                 if (idsToRemove.length) {
@@ -3272,7 +3278,7 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
             } finally {
                 //release();
             }
-
+            
         }
 
 
@@ -3804,7 +3810,7 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
         // Step 1: Clear existing 3D models from the layer
         if (meshLayer.features && meshLayer.features.length > 0) {
             console.log(`Clearing ${meshLayer.features.length} existing 3D models from layer`);
-            
+
             // Dispose of all existing models
             for (const feature of meshLayer.features) {
                 if (feature.model && meshLayer.scene) {
@@ -3812,7 +3818,7 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
                     meshLayer.scene.remove(feature.model);
                 }
             }
-            
+
             // Clear the features array
             meshLayer.features = [];
         }
@@ -3825,7 +3831,7 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
 
         // Step 3: Add all new 3D models and cube wrappers
         const cubeWrapperFeatures = [];
-        
+
         for (const feature of features) {
             const { properties } = feature;
             const buildingId = properties?.[namedPath.idKey];
@@ -3841,7 +3847,7 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
             // Get graphic ID and geometry info
             const contextData = getContext ? getContext() : {};
             const { reduxState } = contextData;
-            
+
             let graphicId = null;
             let geometryInfo = null;
 
@@ -3865,7 +3871,7 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
 
             // Add the 3D model to the layer with size and rotation from feature properties
             const ok = meshLayer.addModelInstance(graphicId, centroid, buildingId, geometryInfo, properties);
-            
+
             if (ok) {
                 // Create cube wrapper feature
                 const cubeFeature = createCubeWrapperFeature({
@@ -3874,7 +3880,7 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
                     geometryInfo,
                     featureProperties: properties
                 });
-                
+
                 if (cubeFeature) {
                     cubeWrapperFeatures.push(cubeFeature);
                 }
@@ -4009,18 +4015,6 @@ export async function getExitAction({mapMachineInput }) {
                 context.map.off('idle', context.manageMarkers[stateValue]);
                 context.map.off('sourcedata', context.manageMarkers[stateValue]);
             }
-            const markerIds = getMarkers().keys().toArray()//clearStaleMarkersByPath("site")
-            if(markerIds && markerIds.length) {
-                const commands = [{
-                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
-                    commandRef: uuid(),
-                    params: {
-                        ids: [...markerIds],
-                    }
-                }]
-                context.mmvSend(commands);
-            }
-            clearAllMarkers()
 
             return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
         }
@@ -4031,18 +4025,6 @@ export async function getExitAction({mapMachineInput }) {
                 context.map.off('idle', context.manageMarkers[stateValue]);
                 context.map.off('sourcedata', context.manageMarkers[stateValue]);
             }
-            const markerIds = getMarkers().keys().toArray()//clearStaleMarkersByPath("site")
-            if(markerIds && markerIds.length) {
-                const commands = [{
-                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
-                    commandRef: uuid(),
-                    params: {
-                        ids: [...markerIds],
-                    }
-                }]
-                context.mmvSend(commands);
-            }
-            clearAllMarkers()
 
             return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
         } case 'portfolio.site.building': {
@@ -4052,18 +4034,6 @@ export async function getExitAction({mapMachineInput }) {
                 context.map.off('idle', context.manageMarkers[stateValue]);
                 context.map.off('sourcedata', context.manageMarkers[stateValue]);
             }
-            const markerIds = getMarkers().keys().toArray()//clearStaleMarkersByPath("site")
-            if(markerIds && markerIds.length) {
-                const commands = [{
-                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
-                    commandRef: uuid(),
-                    params: {
-                        ids: [...markerIds],
-                    }
-                }]
-                context.mmvSend(commands);
-            }
-            clearAllMarkers()
 
             return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
         }
