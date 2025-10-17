@@ -1958,7 +1958,9 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                 if (feature && !feature._featureVisible) {
                     feature._featureVisible = true;
                     updated = true;
-                    console.log(`Showing feature: ${id}`);
+                    //console.log(`Showing feature: ${id}`);
+                } else {
+                    //console.log(`Feature already marked as shown: ${id}`);
                 }
             });
 
@@ -1976,12 +1978,15 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             let updated = false;
             const keyProperty = this.metadata.featureInfo.idProperty;
 
+
             featureIds.forEach(id => {
                 const feature = this.features.find(f => f.properties[keyProperty] === id);
                 if (feature && feature._featureVisible) {
                     feature._featureVisible = false;
                     updated = true;
-                    console.log(`Hiding feature: ${id}`);
+                    //console.log(`Hiding feature: ${id}`);
+                } else {
+                    //console.log(`Feature already marked as hidden: ${id}`);
                 }
             });
 
@@ -2006,7 +2011,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                     if (feature._featureVisible !== newVisibility) {
                         feature._featureVisible = newVisibility;
                         updated = true;
-                        console.log(`${newVisibility ? 'Showing' : 'Hiding'} feature: ${id}`);
+                        //console.log(`${newVisibility ? 'Showing' : 'Hiding'} feature: ${id}`);
                     }
                 }
             });
@@ -2375,6 +2380,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
         updateFeatures: function(newFeatures, graphics, contextGetter) {
             if (!this.scene) return;
 
+            console.log("Calling updateFeatures", {newFeatures, graphics});
             const keyProperty = this.metadata.featureInfo.idProperty || 'id';
 
             // Redux context (for structure → graphicId lookup)
@@ -2944,11 +2950,12 @@ export async function updateAllFeatureLayers({ map, namedPath, getContext, self 
             });
 
             // Update centroids for polygon features
-            setTimeout(() => {
-                if (level.feature === "polygon" || level.feature === "multiPolygon") {
+            setTimeout(async () => {
+                if (level.feature === "polygon" || level.feature === "multiPolygon" || level.feature === "mesh") {
                     const sourceId = `${level.state}-features`;
                     const centroidsSourceId = `${sourceId}-centroids`;
                     const centroidsSource = map.getSource(centroidsSourceId);
+                    const idKey = level.idKey;
 
                     if (centroidsSource) {
                         const idKey = level.idKey;
@@ -2968,16 +2975,10 @@ export async function updateAllFeatureLayers({ map, namedPath, getContext, self 
                             return turfFeature;
                         });
 
-                        const centroidFeatures = turfFeatures.map(f => {
-                            const c = centroid(f);
-                            // Copy over properties so pies can use them
-                            c.properties = { ...f.properties };
-                            // Copy over the feature ID as well
-                            if (f.id !== undefined) {
-                                c.id = f.id;
-                            }
-                            return c;
-                        });
+                        // Set feature ID for proper tracking
+                        if (idKey && turfFeature.properties && turfFeature.properties[idKey]) {
+                            turfFeature.id = turfFeature.properties[idKey];
+                        }
 
                         const centroidFc = featureCollection(centroidFeatures);
                         centroidsSource.setData(centroidFc);
@@ -3860,11 +3861,9 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
         for (const feature of features) {
             const { properties } = feature;
             const buildingId = properties?.[namedPath.idKey];
-            const centroid = Array.isArray(feature.geometry)
-                ? feature.geometry
-                : feature.geometry?.coordinates ?? properties?.coordinates ?? feature.coordinates;
+            const fCentroid = centroid(feature.geometry);
 
-            if (!buildingId || !centroid) {
+            if (!buildingId || !fCentroid) {
                 console.warn('Missing buildingId or centroid for feature:', feature);
                 continue;
             }
@@ -3894,14 +3893,19 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
                 continue;
             }
 
+
+            const coords =
+                fCentroid.geometry?.coordinates ??
+                (Array.isArray(fCentroid.geometry) ? fCentroid.geometry : null) ??
+                fCentroid.properties?.coordinates;
             // Add the 3D model to the layer with size and rotation from feature properties
-            const ok = meshLayer.addModelInstance(graphicId, centroid, buildingId, geometryInfo, properties);
+            const ok = meshLayer.addModelInstance(graphicId, coords, buildingId, geometryInfo, properties);
 
             if (ok) {
                 // Create cube wrapper feature
                 const cubeFeature = createCubeWrapperFeature({
                     buildingId,
-                    centroid,
+                    centroid: coords,
                     geometryInfo,
                     featureProperties: properties
                 });
