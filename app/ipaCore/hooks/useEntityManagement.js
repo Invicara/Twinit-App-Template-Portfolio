@@ -171,13 +171,18 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 console.log('Retrieved geometry info for graphic:', graphicId, geometryInfo);
             }
 
-
+            send({
+                type: 'START_DRAFT',
+            });
             // Navigate to the newly created building using GO_TO with buildingId
             setTimeout(() => {
                 send({
                     type: 'GO_TO',
                     siteId: currentState.context.siteId,
                     buildingId: newBuildingId
+                });
+                send({
+                    type: 'END_DRAFT',
                 });
             }, 100);
 
@@ -217,11 +222,21 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 data: updatedData
             });
 
+
+
+
+            //prevent any GO_TO events until timeout is called
+            send({
+                type: 'START_DRAFT',
+            });
             // Navigate to the newly created site
             setTimeout(() => {
                 send({
                     type: 'GO_TO',
                     siteId: newSiteId
+                });
+                send({
+                    type: 'END_DRAFT',
                 });
             }, 100);
 
