@@ -242,7 +242,7 @@ export async function renderAllMarkers(e, markersInfo, {self, getFeatures}) {
     const {featureDef, config, ...restMarkerInfo} = markersInfo;
     const {path} = featureDef;
 
-    const {allFeatures, features, filters} = getFeatures(featureDef, context, markersInfo.sourceId);
+    const {allFeatures, features, filters} = getFeatures(featureDef, context, markersInfo.sourceId, {useContextHierarchy: true});
     const visibleFeatures  = features;
 
     let markerGraphics = await Promise.all(features.map(async f => {
