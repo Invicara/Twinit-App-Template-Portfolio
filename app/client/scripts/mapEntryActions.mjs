@@ -1943,9 +1943,9 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                 if (feature && !feature._featureVisible) {
                     feature._featureVisible = true;
                     updated = true;
-                    console.log(`Showing feature: ${id}`);
+                    //console.log(`Showing feature: ${id}`);
                 } else {
-                    console.log(`Feature already marked as shown: ${id}`);
+                    //console.log(`Feature already marked as shown: ${id}`);
                 }
             });
 
@@ -1969,9 +1969,9 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                 if (feature && feature._featureVisible) {
                     feature._featureVisible = false;
                     updated = true;
-                    console.log(`Hiding feature: ${id}`);
+                    //console.log(`Hiding feature: ${id}`);
                 } else {
-                    console.log(`Feature already marked as hidden: ${id}`);
+                    //console.log(`Feature already marked as hidden: ${id}`);
                 }
             });
 
@@ -1996,7 +1996,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                     if (feature._featureVisible !== newVisibility) {
                         feature._featureVisible = newVisibility;
                         updated = true;
-                        console.log(`${newVisibility ? 'Showing' : 'Hiding'} feature: ${id}`);
+                        //console.log(`${newVisibility ? 'Showing' : 'Hiding'} feature: ${id}`);
                     }
                 }
             });
@@ -2939,41 +2939,38 @@ export async function updateAllFeatureLayers({ map, namedPath, getContext, self 
                     const sourceId = `${level.state}-features`;
                     const centroidsSourceId = `${sourceId}-centroids`;
                     const centroidsSource = map.getSource(centroidsSourceId);
-                    const ready = await waitForSourceLoaded(map, sourceId, {timeout: 300 });
-                    if (ready) {
-                        const idKey = level.idKey;
-                        
-                        // Convert features to turf features to calculate centroids
-                        const turfFeatures = features.map(f => {
-                            const coords = Array.isArray(f.geometry)
-                                ? f.geometry
-                                : f.geometry?.coordinates ?? f.properties?.coordinates;
-                            const turfFeature = featureFromKnownType(level.feature, coords, f.properties);
-                            
-                            // Set feature ID for proper tracking
-                            if (idKey && turfFeature.properties && turfFeature.properties[idKey]) {
-                                turfFeature.id = turfFeature.properties[idKey];
-                            }
-                            
-                            return turfFeature;
-                        });
+                    const idKey = level.idKey;
 
-                        const centroidFeatures = turfFeatures.map(f => {
-                            const c = centroid(f);
-                            // Copy over properties so pies can use them
-                            c.properties = { ...f.properties };
-                            // Copy over the feature ID as well
-                            if (f.id !== undefined) {
-                                c.id = f.id;
-                            }
-                            return c;
-                        });
+                    // Convert features to turf features to calculate centroids
+                    const turfFeatures = features.map(f => {
+                        const coords = Array.isArray(f.geometry)
+                            ? f.geometry
+                            : f.geometry?.coordinates ?? f.properties?.coordinates;
+                        const turfFeature = featureFromKnownType(level.feature, coords, f.properties);
 
-                        const centroidFc = featureCollection(centroidFeatures);
-                        centroidsSource.setData(centroidFc);
-                        console.log(`Updated ${centroidFeatures.length} centroids for ${level.state}`);
-                    }
-                }                
+                        // Set feature ID for proper tracking
+                        if (idKey && turfFeature.properties && turfFeature.properties[idKey]) {
+                            turfFeature.id = turfFeature.properties[idKey];
+                        }
+
+                        return turfFeature;
+                    });
+
+                    const centroidFeatures = turfFeatures.map(f => {
+                        const c = centroid(f);
+                        // Copy over properties so pies can use them
+                        c.properties = { ...f.properties };
+                        // Copy over the feature ID as well
+                        if (f.id !== undefined) {
+                            c.id = f.id;
+                        }
+                        return c;
+                    });
+
+                    const centroidFc = featureCollection(centroidFeatures);
+                    centroidsSource.setData(centroidFc);
+                    console.log(`Updated ${centroidFeatures.length} centroids for ${level.state}`);
+                }
             }, 1000);
         }
     }
@@ -3016,13 +3013,13 @@ export function refreshPlainFeatures({ map, levelState, features, namedPath: lev
                 ? f.geometry
                 : f.geometry?.coordinates ?? f.properties?.coordinates ?? f.coordinates;
             const turfFeature = featureFromKnownType(levelDef.feature, coords, f.properties || f);
-            
+
             // CRITICAL: Set the feature ID at the GeoJSON feature level for proper Mapbox tracking
             // This is especially important when IDs change, as Mapbox uses this for feature reconciliation
             if (idKey && turfFeature.properties && turfFeature.properties[idKey]) {
                 turfFeature.id = turfFeature.properties[idKey];
             }
-            
+
             return turfFeature;
         });
 
@@ -3032,7 +3029,7 @@ export function refreshPlainFeatures({ map, levelState, features, namedPath: lev
 
         console.log(`Refreshed ${turfFeatures.length} plain features in ${sourceId}`);
 
-        
+
         return true;
 
     } catch (error) {
@@ -3642,7 +3639,7 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
         // Step 1: Clear existing 3D models from the layer
         if (meshLayer.features && meshLayer.features.length > 0) {
             console.log(`Clearing ${meshLayer.features.length} existing 3D models from layer`);
-            
+
             // Dispose of all existing models
             for (const feature of meshLayer.features) {
                 if (feature.model && meshLayer.scene) {
@@ -3650,7 +3647,7 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
                     meshLayer.scene.remove(feature.model);
                 }
             }
-            
+
             // Clear the features array
             meshLayer.features = [];
         }
@@ -3663,7 +3660,7 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
 
         // Step 3: Add all new 3D models and cube wrappers
         const cubeWrapperFeatures = [];
-        
+
         for (const feature of features) {
             const { properties } = feature;
             const buildingId = properties?.[namedPath.idKey];
@@ -3677,7 +3674,7 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
             // Get graphic ID and geometry info
             const contextData = getContext ? getContext() : {};
             const { reduxState } = contextData;
-            
+
             let graphicId = null;
             let geometryInfo = null;
 
@@ -3715,7 +3712,7 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
                     geometryInfo,
                     featureProperties: properties
                 });
-                
+
                 if (cubeFeature) {
                     cubeWrapperFeatures.push(cubeFeature);
                 }
