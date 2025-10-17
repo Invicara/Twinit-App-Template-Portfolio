@@ -1,5 +1,5 @@
 import mapboxgl from "mapbox-gl";
-import {markHandled} from "./mapEntryActions.mjs";
+import {getFeatures, markHandled} from "./mapEntryActions.mjs";
 import {get} from "lodash";
 import {FilterCompiler} from "../../ipaCore/pageComponents/utils/filters.global.js";
 import {getGlobalFilterFunctions} from "../../ipaCore/pageComponents/utils/filters.global.js";
@@ -209,6 +209,7 @@ export function clearStaleMarkers(staleMarkerIds){
             markers.delete(id);
         }
     }
+    console.log("clearStaleMarkers",staleMarkerIds)
 }
 
 
@@ -221,16 +222,18 @@ export function clearStaleMarkersByPath(path){
             markers.delete(id);
         }
     }
+    console.log("clearStaleMarkersByPath",path)
     return [...markerIds];
 }
 
 export function clearAllMarkers(){
     markers.clear();
+    console.log("clearAllMarkers")
 }
 
 const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
 
-export async function renderAllMarkers(e, {self}, markersInfo) {
+export async function renderAllMarkers(e, markersInfo, {self, getFeatures}) {
     const context = self.getSnapshot().context;
     const {map} = context;
 
@@ -239,27 +242,7 @@ export async function renderAllMarkers(e, {self}, markersInfo) {
     const {featureDef, config, ...restMarkerInfo} = markersInfo;
     const {path} = featureDef;
 
-    const fns = getGlobalFilterFunctions("site", true);
-    let features;
-    let allFeatures = [];
-    const filters = context?.filters?.[path];
-    try {
-        const src = context?.map?.getSource(markersInfo.sourceId);
-        const data = src ? (src._data || src.serialize().data) : [];
-
-        features = data?.features;
-        allFeatures = features;
-
-        if(filters) {
-            const compiler = new FilterCompiler(fns)
-            const filterFn = compiler.compileFilter(filters);
-            features = features.filter(filterFn);
-        }
-    } catch(e){
-        console.error(e);
-        features = [];
-    }
-
+    const {allFeatures, features, filters} = getFeatures(featureDef, context, markersInfo.sourceId, {useContextHierarchy: true});
     const visibleFeatures  = features;
 
     let markerGraphics = await Promise.all(features.map(async f => {
