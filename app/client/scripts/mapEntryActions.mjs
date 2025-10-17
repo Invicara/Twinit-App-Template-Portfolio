@@ -3121,41 +3121,78 @@ export async function updateLayersFromData({ context, self }) {
     return {}//{data: allFeatureLayers};
 }
 
+function buildAncestryPredicate(featureDef, context, namedPath) {
+    const path = featureDef.path;
+    if (!Array.isArray(namedPath)) return null;
+
+    const levelIdx = namedPath.findIndex(l => l.state === path);
+    if (levelIdx < 0) return null;
+
+    // Collect (idKey, value) for all levels up to and including current,
+    // but only where context has a value; optionally only consider ancestors that are features
+    const keyVals = [];
+    for (let i = 0; i <= levelIdx; i++) {
+        const lvl = namedPath[i];
+        const idKey = lvl?.idKey;
+        if (!idKey) continue;
+        const val = context?.[idKey];
+        if (val == null) continue;
+
+        // If you only want to constrain by ancestors that are actually rendered parent features,
+        // uncomment the next line:
+        // if (!lvl.feature && i < levelIdx) continue;
+
+        keyVals.push([idKey, val]);
+    }
+
+    if (keyVals.length === 0) return null;
+    return (feat) => {
+        const props = feat?.properties || {};
+        for (const [k, v] of keyVals) {
+            if (props[k] != v) return false;
+        }
+        return true;
+    };
+}
+
 export function getFeatures(featureDef, context, sourceId, opts = {}) {
-    const {path} = featureDef;
+    const { path } = featureDef;
     const fns = getGlobalFilterFunctions(path, true);
 
-    // prefer explicit keys on featureDef; fall back to `${path}Id`
     const idKey = featureDef.idKey || `${path}Id`;
     const propKey = idKey;
 
-    const useContextId = opts.useContextId ?? true;
-    const contextId = context?.[idKey];
+    const useContextHierarchy = opts.useContextHierarchy ?? true;
 
-    let features, allFeatures = [];
-    const filters = context?.filters?.["site"];
+    let features = [];
+    let allFeatures = [];
+    const namedPath = context?.namedPaths?.[0] || [];
+    const expr = context?.filters?.[path]; // <-- use the correct scope
+
     try {
         const src = context?.map?.getSource(sourceId);
         const data = src ? (src._data || src.serialize().data) : [];
-        features = data?.features;
+        features = data?.features || [];
         allFeatures = features;
 
-        // 1) Apply compiled filter from context.filters[path] (if any)
-        if(filters) {
-            const compiler = new FilterCompiler(fns)
-            const filterFn = compiler.compileFilter(filters);
+        // 1) global compiled filter for this path (if any)
+        if (expr) {
+            const compiler = new FilterCompiler(fns);
+            const filterFn = compiler.compileFilter(expr);
             features = features.filter(filterFn);
         }
-        // 2) Optionally narrow by context.<idKey> (if present)
-        if (useContextId && contextId != null) {
-            features = features.filter(f => f?.properties?.[propKey] == contextId);
+
+        // 2) hierarchy constraints from context (ancestors + current level if provided)
+        if (useContextHierarchy) {
+            const pred = buildAncestryPredicate(featureDef, context, namedPath);
+            if (pred) features = features.filter(pred);
         }
-    } catch(e){
+    } catch (e) {
         console.error(e);
         features = [];
     }
 
-    return {allFeatures, features, filters};
+    return { allFeatures, features, filters: expr };
 }
 
 async function handleMarkers(stateValue, markersConfig, {context, self}) {
@@ -3190,15 +3227,12 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
                     continue;
                 }
 
-                console.log("renderAllMarkers before", {stateValue, path, sourceId, e});
                 const {
                     graphics,
                     visibleFeatures,
                     currentMarkerIds,
                     filters
                 } = await renderAllMarkers(e, markersInfo, {self, getFeatures});
-                console.log("renderAllMarkers", {graphics, visibleFeatures, currentMarkerIds, filters: filters});
-
 
                 currentIdsByPath[path] = currentMarkerIds || [];
                 graphicsByPath[path] = graphics || [];
@@ -3371,9 +3405,6 @@ async function handleFeatureFilters(stateValue, levels, {context, self}) {
                         invert: false,
                         filter: context.filters?.["site"] // ok since path === "site" here
                     });
-
-                    console.log("filtering", { ids, siteId, path, stateValue, snapshot: self.getSnapshot() });
-
                     // Apply to main layer
                     if (globalFilterKeys.get('site-features-layer') !== key) {
                         try {
@@ -3430,14 +3461,13 @@ async function handleFeatureFilters(stateValue, levels, {context, self}) {
                 }
             } // end if (path === "site")
         }
-
-
-        if(context.map) {
-            context.map.on('idle', manageFeatureFilters);
-            context.map.on('sourcedata', manageFeatureFilters);
-        }
-        manageFeatureFilters();
     }
+
+    if(context.map) {
+        context.map.on('idle', manageFeatureFilters);
+        context.map.on('sourcedata', manageFeatureFilters);
+    }
+    manageFeatureFilters();
 
     return {manageFeatureFilters}
 }
@@ -4010,7 +4040,18 @@ export async function getExitAction({mapMachineInput }) {
                 context.map.off('idle', context.manageMarkers[stateValue]);
                 context.map.off('sourcedata', context.manageMarkers[stateValue]);
             }
-
+            const markerIds = getMarkers().keys().toArray()//clearStaleMarkersByPath("site")
+            if(markerIds && markerIds.length) {
+                const commands = [{
+                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                    commandRef: uuid(),
+                    params: {
+                        ids: [...markerIds],
+                    }
+                }]
+                context.mmvSend(commands);
+            }
+            clearAllMarkers()
             return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
         }
         case 'portfolio.site': {
@@ -4020,6 +4061,18 @@ export async function getExitAction({mapMachineInput }) {
                 context.map.off('idle', context.manageMarkers[stateValue]);
                 context.map.off('sourcedata', context.manageMarkers[stateValue]);
             }
+            const markerIds = getMarkers().keys().toArray()//clearStaleMarkersByPath("site")
+            if(markerIds && markerIds.length) {
+                const commands = [{
+                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                    commandRef: uuid(),
+                    params: {
+                        ids: [...markerIds],
+                    }
+                }]
+                context.mmvSend(commands);
+            }
+            clearAllMarkers()
 
             return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
         } case 'portfolio.site.building': {
@@ -4029,6 +4082,18 @@ export async function getExitAction({mapMachineInput }) {
                 context.map.off('idle', context.manageMarkers[stateValue]);
                 context.map.off('sourcedata', context.manageMarkers[stateValue]);
             }
+            const markerIds = getMarkers().keys().toArray()//clearStaleMarkersByPath("site")
+            if(markerIds && markerIds.length) {
+                const commands = [{
+                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                    commandRef: uuid(),
+                    params: {
+                        ids: [...markerIds],
+                    }
+                }]
+                context.mmvSend(commands);
+            }
+            clearAllMarkers()
 
             return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
         }
