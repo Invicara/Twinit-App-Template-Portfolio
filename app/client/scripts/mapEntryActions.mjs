@@ -337,6 +337,70 @@ function zoomToAllFeatures(map, sources) {
     }
 }
 /**
+ * Resolve true once the given sourceId exists and is loaded.
+ * Listens once; cleans itself up; optional timeout.
+ */
+export function waitForSourceLoaded(map, sourceId, { timeout = 10000 } = {}) {
+    return new Promise((resolve) => {
+        if (!map || !sourceId) return resolve(false);
+
+        const isReady = () => {
+            // Mapbox GL JS v2 has map.isSourceLoaded; fall back to presence if unavailable.
+            const src = map.getSource(sourceId);
+            return !!src && (typeof map.isSourceLoaded === 'function' ? map.isSourceLoaded(sourceId) : true);
+        };
+
+        if (isReady()) return resolve(true);
+
+        let timer = null;
+
+        const cleanup = () => {
+            map.off('sourcedata', onSourceData);
+            map.off('styledata', onStyleData);
+            map.off('idle', onIdle);
+            if (timer) clearTimeout(timer);
+        };
+
+        const tryResolve = () => {
+            if (isReady()) {
+                cleanup();
+                resolve(true);
+            }
+        };
+
+        const onSourceData = (e) => {
+            if (!e || e.sourceId !== sourceId) return;
+            // When Mapbox sets isSourceLoaded, wait until it's true
+            if (Object.prototype.hasOwnProperty.call(e, 'isSourceLoaded') && !e.isSourceLoaded) return;
+            tryResolve();
+        };
+
+        const onStyleData = tryResolve;
+        const onIdle = tryResolve;
+
+        map.on('sourcedata', onSourceData);
+        map.on('styledata', onStyleData);
+        map.on('idle', onIdle);
+
+        if (timeout > 0) {
+            timer = setTimeout(() => {
+                cleanup();
+                // Timed out; let caller decide what to do (we return false)
+                resolve(false);
+            }, timeout);
+        }
+    });
+}
+
+/** Wait for all given sourceIds. Resolves true if all became ready (false if any timed out). */
+async function waitForSourcesLoaded(map, sourceIds, opts) {
+    const results = await Promise.all(sourceIds.map(id => waitForSourceLoaded(map, id, opts)));
+    return results.every(Boolean);
+}
+
+// ---- main API --------------------------------------------------------------
+
+/**
  * @param {object} params
  * @param {object} params.map - Mapbox GL JS instance
  * @param {object} params.context - XState context, must include namedPaths
@@ -1880,6 +1944,8 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                     feature._featureVisible = true;
                     updated = true;
                     console.log(`Showing feature: ${id}`);
+                } else {
+                    console.log(`Feature already marked as shown: ${id}`);
                 }
             });
 
@@ -1897,12 +1963,15 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             let updated = false;
             const keyProperty = this.metadata.featureInfo.idProperty;
 
+
             featureIds.forEach(id => {
                 const feature = this.features.find(f => f.properties[keyProperty] === id);
                 if (feature && feature._featureVisible) {
                     feature._featureVisible = false;
                     updated = true;
                     console.log(`Hiding feature: ${id}`);
+                } else {
+                    console.log(`Feature already marked as hidden: ${id}`);
                 }
             });
 
@@ -2296,6 +2365,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
         updateFeatures: function(newFeatures, graphics, contextGetter) {
             if (!this.scene) return;
 
+            console.log("Calling updateFeatures", {newFeatures, graphics});
             const keyProperty = this.metadata.featureInfo.idProperty || 'id';
 
             // Redux context (for structure → graphicId lookup)
@@ -2864,13 +2934,13 @@ export async function updateAllFeatureLayers({ map, namedPath, getContext, self 
             });
 
             // Update centroids for polygon features
-            setTimeout(() => {
-                if (level.feature === "polygon" || level.feature === "multiPolygon") {
+            setTimeout(async () => {
+                if (level.feature === "polygon" || level.feature === "multiPolygon" || level.feature === "mesh") {
                     const sourceId = `${level.state}-features`;
                     const centroidsSourceId = `${sourceId}-centroids`;
                     const centroidsSource = map.getSource(centroidsSourceId);
-
-                    if (centroidsSource) {
+                    const ready = await waitForSourceLoaded(map, sourceId, {timeout: 300 });
+                    if (ready) {
                         const idKey = level.idKey;
                         
                         // Convert features to turf features to calculate centroids
@@ -3597,11 +3667,9 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
         for (const feature of features) {
             const { properties } = feature;
             const buildingId = properties?.[namedPath.idKey];
-            const centroid = Array.isArray(feature.geometry)
-                ? feature.geometry
-                : feature.geometry?.coordinates ?? properties?.coordinates ?? feature.coordinates;
+            const fCentroid = centroid(feature.geometry);
 
-            if (!buildingId || !centroid) {
+            if (!buildingId || !fCentroid) {
                 console.warn('Missing buildingId or centroid for feature:', feature);
                 continue;
             }
@@ -3631,14 +3699,19 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
                 continue;
             }
 
+
+            const coords =
+                fCentroid.geometry?.coordinates ??
+                (Array.isArray(fCentroid.geometry) ? fCentroid.geometry : null) ??
+                fCentroid.properties?.coordinates;
             // Add the 3D model to the layer with size and rotation from feature properties
-            const ok = meshLayer.addModelInstance(graphicId, centroid, buildingId, geometryInfo, properties);
-            
+            const ok = meshLayer.addModelInstance(graphicId, coords, buildingId, geometryInfo, properties);
+
             if (ok) {
                 // Create cube wrapper feature
                 const cubeFeature = createCubeWrapperFeature({
                     buildingId,
-                    centroid,
+                    centroid: coords,
                     geometryInfo,
                     featureProperties: properties
                 });
