@@ -337,6 +337,70 @@ function zoomToAllFeatures(map, sources) {
     }
 }
 /**
+ * Resolve true once the given sourceId exists and is loaded.
+ * Listens once; cleans itself up; optional timeout.
+ */
+export function waitForSourceLoaded(map, sourceId, { timeout = 10000 } = {}) {
+    return new Promise((resolve) => {
+        if (!map || !sourceId) return resolve(false);
+
+        const isReady = () => {
+            // Mapbox GL JS v2 has map.isSourceLoaded; fall back to presence if unavailable.
+            const src = map.getSource(sourceId);
+            return !!src && (typeof map.isSourceLoaded === 'function' ? map.isSourceLoaded(sourceId) : true);
+        };
+
+        if (isReady()) return resolve(true);
+
+        let timer = null;
+
+        const cleanup = () => {
+            map.off('sourcedata', onSourceData);
+            map.off('styledata', onStyleData);
+            map.off('idle', onIdle);
+            if (timer) clearTimeout(timer);
+        };
+
+        const tryResolve = () => {
+            if (isReady()) {
+                cleanup();
+                resolve(true);
+            }
+        };
+
+        const onSourceData = (e) => {
+            if (!e || e.sourceId !== sourceId) return;
+            // When Mapbox sets isSourceLoaded, wait until it's true
+            if (Object.prototype.hasOwnProperty.call(e, 'isSourceLoaded') && !e.isSourceLoaded) return;
+            tryResolve();
+        };
+
+        const onStyleData = tryResolve;
+        const onIdle = tryResolve;
+
+        map.on('sourcedata', onSourceData);
+        map.on('styledata', onStyleData);
+        map.on('idle', onIdle);
+
+        if (timeout > 0) {
+            timer = setTimeout(() => {
+                cleanup();
+                // Timed out; let caller decide what to do (we return false)
+                resolve(false);
+            }, timeout);
+        }
+    });
+}
+
+/** Wait for all given sourceIds. Resolves true if all became ready (false if any timed out). */
+async function waitForSourcesLoaded(map, sourceIds, opts) {
+    const results = await Promise.all(sourceIds.map(id => waitForSourceLoaded(map, id, opts)));
+    return results.every(Boolean);
+}
+
+// ---- main API --------------------------------------------------------------
+
+/**
  * @param {object} params
  * @param {object} params.map - Mapbox GL JS instance
  * @param {object} params.context - XState context, must include namedPaths
@@ -1879,7 +1943,9 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                 if (feature && !feature._featureVisible) {
                     feature._featureVisible = true;
                     updated = true;
-                    console.log(`Showing feature: ${id}`);
+                    //console.log(`Showing feature: ${id}`);
+                } else {
+                    //console.log(`Feature already marked as shown: ${id}`);
                 }
             });
 
@@ -1897,12 +1963,15 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             let updated = false;
             const keyProperty = this.metadata.featureInfo.idProperty;
 
+
             featureIds.forEach(id => {
                 const feature = this.features.find(f => f.properties[keyProperty] === id);
                 if (feature && feature._featureVisible) {
                     feature._featureVisible = false;
                     updated = true;
-                    console.log(`Hiding feature: ${id}`);
+                    //console.log(`Hiding feature: ${id}`);
+                } else {
+                    //console.log(`Feature already marked as hidden: ${id}`);
                 }
             });
 
@@ -1927,7 +1996,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                     if (feature._featureVisible !== newVisibility) {
                         feature._featureVisible = newVisibility;
                         updated = true;
-                        console.log(`${newVisibility ? 'Showing' : 'Hiding'} feature: ${id}`);
+                        //console.log(`${newVisibility ? 'Showing' : 'Hiding'} feature: ${id}`);
                     }
                 }
             });
@@ -2296,6 +2365,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
         updateFeatures: function(newFeatures, graphics, contextGetter) {
             if (!this.scene) return;
 
+            console.log("Calling updateFeatures", {newFeatures, graphics});
             const keyProperty = this.metadata.featureInfo.idProperty || 'id';
 
             // Redux context (for structure → graphicId lookup)
@@ -2864,46 +2934,43 @@ export async function updateAllFeatureLayers({ map, namedPath, getContext, self 
             });
 
             // Update centroids for polygon features
-            setTimeout(() => {
-                if (level.feature === "polygon" || level.feature === "multiPolygon") {
+            setTimeout(async () => {
+                if (level.feature === "polygon" || level.feature === "multiPolygon" || level.feature === "mesh") {
                     const sourceId = `${level.state}-features`;
                     const centroidsSourceId = `${sourceId}-centroids`;
                     const centroidsSource = map.getSource(centroidsSourceId);
+                    const idKey = level.idKey;
 
-                    if (centroidsSource) {
-                        const idKey = level.idKey;
-                        
-                        // Convert features to turf features to calculate centroids
-                        const turfFeatures = features.map(f => {
-                            const coords = Array.isArray(f.geometry)
-                                ? f.geometry
-                                : f.geometry?.coordinates ?? f.properties?.coordinates;
-                            const turfFeature = featureFromKnownType(level.feature, coords, f.properties);
-                            
-                            // Set feature ID for proper tracking
-                            if (idKey && turfFeature.properties && turfFeature.properties[idKey]) {
-                                turfFeature.id = turfFeature.properties[idKey];
-                            }
-                            
-                            return turfFeature;
-                        });
+                    // Convert features to turf features to calculate centroids
+                    const turfFeatures = features.map(f => {
+                        const coords = Array.isArray(f.geometry)
+                            ? f.geometry
+                            : f.geometry?.coordinates ?? f.properties?.coordinates;
+                        const turfFeature = featureFromKnownType(level.feature, coords, f.properties);
 
-                        const centroidFeatures = turfFeatures.map(f => {
-                            const c = centroid(f);
-                            // Copy over properties so pies can use them
-                            c.properties = { ...f.properties };
-                            // Copy over the feature ID as well
-                            if (f.id !== undefined) {
-                                c.id = f.id;
-                            }
-                            return c;
-                        });
+                        // Set feature ID for proper tracking
+                        if (idKey && turfFeature.properties && turfFeature.properties[idKey]) {
+                            turfFeature.id = turfFeature.properties[idKey];
+                        }
 
-                        const centroidFc = featureCollection(centroidFeatures);
-                        centroidsSource.setData(centroidFc);
-                        console.log(`Updated ${centroidFeatures.length} centroids for ${level.state}`);
-                    }
-                }                
+                        return turfFeature;
+                    });
+
+                    const centroidFeatures = turfFeatures.map(f => {
+                        const c = centroid(f);
+                        // Copy over properties so pies can use them
+                        c.properties = { ...f.properties };
+                        // Copy over the feature ID as well
+                        if (f.id !== undefined) {
+                            c.id = f.id;
+                        }
+                        return c;
+                    });
+
+                    const centroidFc = featureCollection(centroidFeatures);
+                    centroidsSource.setData(centroidFc);
+                    console.log(`Updated ${centroidFeatures.length} centroids for ${level.state}`);
+                }
             }, 1000);
         }
     }
@@ -2946,13 +3013,13 @@ export function refreshPlainFeatures({ map, levelState, features, namedPath: lev
                 ? f.geometry
                 : f.geometry?.coordinates ?? f.properties?.coordinates ?? f.coordinates;
             const turfFeature = featureFromKnownType(levelDef.feature, coords, f.properties || f);
-            
+
             // CRITICAL: Set the feature ID at the GeoJSON feature level for proper Mapbox tracking
             // This is especially important when IDs change, as Mapbox uses this for feature reconciliation
             if (idKey && turfFeature.properties && turfFeature.properties[idKey]) {
                 turfFeature.id = turfFeature.properties[idKey];
             }
-            
+
             return turfFeature;
         });
 
@@ -2962,7 +3029,7 @@ export function refreshPlainFeatures({ map, levelState, features, namedPath: lev
 
         console.log(`Refreshed ${turfFeatures.length} plain features in ${sourceId}`);
 
-        
+
         return true;
 
     } catch (error) {
@@ -3572,7 +3639,7 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
         // Step 1: Clear existing 3D models from the layer
         if (meshLayer.features && meshLayer.features.length > 0) {
             console.log(`Clearing ${meshLayer.features.length} existing 3D models from layer`);
-            
+
             // Dispose of all existing models
             for (const feature of meshLayer.features) {
                 if (feature.model && meshLayer.scene) {
@@ -3580,7 +3647,7 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
                     meshLayer.scene.remove(feature.model);
                 }
             }
-            
+
             // Clear the features array
             meshLayer.features = [];
         }
@@ -3593,15 +3660,13 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
 
         // Step 3: Add all new 3D models and cube wrappers
         const cubeWrapperFeatures = [];
-        
+
         for (const feature of features) {
             const { properties } = feature;
             const buildingId = properties?.[namedPath.idKey];
-            const centroid = Array.isArray(feature.geometry)
-                ? feature.geometry
-                : feature.geometry?.coordinates ?? properties?.coordinates ?? feature.coordinates;
+            const fCentroid = centroid(feature.geometry);
 
-            if (!buildingId || !centroid) {
+            if (!buildingId || !fCentroid) {
                 console.warn('Missing buildingId or centroid for feature:', feature);
                 continue;
             }
@@ -3609,7 +3674,7 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
             // Get graphic ID and geometry info
             const contextData = getContext ? getContext() : {};
             const { reduxState } = contextData;
-            
+
             let graphicId = null;
             let geometryInfo = null;
 
@@ -3631,18 +3696,23 @@ export function refresh3DFeatures({ map, entityType, features, namedPath, getCon
                 continue;
             }
 
+
+            const coords =
+                fCentroid.geometry?.coordinates ??
+                (Array.isArray(fCentroid.geometry) ? fCentroid.geometry : null) ??
+                fCentroid.properties?.coordinates;
             // Add the 3D model to the layer with size and rotation from feature properties
-            const ok = meshLayer.addModelInstance(graphicId, centroid, buildingId, geometryInfo, properties);
-            
+            const ok = meshLayer.addModelInstance(graphicId, coords, buildingId, geometryInfo, properties);
+
             if (ok) {
                 // Create cube wrapper feature
                 const cubeFeature = createCubeWrapperFeature({
                     buildingId,
-                    centroid,
+                    centroid: coords,
                     geometryInfo,
                     featureProperties: properties
                 });
-                
+
                 if (cubeFeature) {
                     cubeWrapperFeatures.push(cubeFeature);
                 }
