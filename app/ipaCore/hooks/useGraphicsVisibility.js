@@ -1,75 +1,112 @@
 import React, { useContext, useEffect, useMemo } from "react";
-import { MapContext, MapMachineContext } from "../pageComponents/portfolioOverview/PortfolioOverview";
 import { useSelector as useXstateSelector } from "@xstate/react";
 import { getActiveLevels } from "../../services/utils";
-import { usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
-import { get3DGraphicsController } from "../../client/scripts/mapEntryActions.mjs";
-import { defaultNewBuildingId } from "./useEntityManagement";
+import {get3DGraphicsController, waitForSourceLoaded} from "../../client/scripts/mapEntryActions.mjs";
 
+/**
+ * Generic strict predicate:
+ * For target level `state`, require all ancestor idKeys (with values present in context)
+ * up to and including the target level to match on the row.
+ * If any of those idKeys are *missing* from context, returns a predicate that shows nothing.
+ */
+function buildFilterPredicateFromNamedPath(namedPath, state, context) {
+    if (!Array.isArray(namedPath)) return () => false;
 
-export function useGraphicsVisibility({mapInstance, portContext}){
+    const idx = namedPath.findIndex(l => l.state === state);
+    if (idx < 0) return () => false;
+
+    const lvl = namedPath[idx];
+    const isMesh = lvl?.feature === "mesh";
+
+    // When feature == "mesh", use ONLY parent constraints (siblings under same parent)
+    const endIdx = isMesh ? idx - 1 : idx;
+
+    // If there is no parent to constrain by (endIdx < 0), we render nothing (avoid heavy draw)
+    if (endIdx < 0) return () => false;
+
+    // Collect (idKey, contextValue) for all levels up to target that actually have an idKey
+    const constraints = [];
+    for (let i = 0; i <= endIdx; i++) {
+        const idKey = namedPath[i]?.idKey;
+        if (!idKey) continue;                  // e.g., portfolio has null idKey
+        const val = context?.[idKey];
+        if (val == null) {
+            continue;
+        }
+        constraints.push([idKey, val]);
+    }
+
+    if (constraints.length === 0) {
+        // No constraints (i.e. portfolio) -> allow none
+        return () => false;
+    }
+
+    return (row) => {
+        const props = row || {};
+        for (const [k, v] of constraints) {
+            if (props[k] != v) return false;
+        }
+        return true;
+    };
+}
+
+/**
+ * Filters `context.data` for the levels you care about (e.g., feature === "mesh"),
+ * using the strict predicate above. Returns per-level id lists.
+ *
+ * @param {object} context - must include `namedPaths` and `data`
+ * @param {function} levelSelector - (lvl) => boolean, e.g., lvl.feature === "mesh"
+ * @returns {{visibleByLevel: Record<string,string[]>, hiddenByLevel: Record<string,string[]>, allByLevel: Record<string,string[]>}}
+ */
+export function filterLevelsGraphicsByNamedPath(context, levelSelector = () => true) {
+    const namedPath = context?.namedPaths?.[0] ?? [];
+    const result = { visibleByLevel: {}, hiddenByLevel: {}, allByLevel: {} };
+
+    for (const lvl of namedPath) {
+        if (!levelSelector(lvl)) continue;
+
+        const state = lvl.state;
+        const idKey = lvl.idKey || `${state}Id`;
+        const rows = context?.data?.[state] ?? [];
+
+        const pred = buildFilterPredicateFromNamedPath(namedPath, state, context);
+
+        // Pass once over rows: gather all ids and visible ids
+        const allIds = [];
+        const visIds = [];
+        for (let i = 0; i < rows.length; i++) {
+            const r = rows[i];
+            const id = r?.[idKey];
+            if (id == null) continue;
+            allIds.push(id);
+            if (pred(r)) visIds.push(id);
+        }
+
+        const visSet = new Set(visIds);
+        const hiddenIds = allIds.filter(id => !visSet.has(id));
+
+        result.allByLevel[state] = allIds;
+        result.visibleByLevel[state] = visIds;
+        result.hiddenByLevel[state] = hiddenIds;
+    }
+
+    return result;
+}
+
+export function useGraphicsVisibility({mapInstance, portContext, meshLevels}){
 
     const { send, actor } = portContext || {};
     const currentState = useXstateSelector(actor, state => state);
+    const context = currentState.context;
+    const visibilityState = useMemo(() => {
+        return filterLevelsGraphicsByNamedPath(
+            context,
+            (lvl) => lvl.feature === "mesh"
+        );;
+    }, [context, meshLevels]);
 
-    const [meshFeaturesPerLevel, remainingMeshFeaturesPerLevel] = useMemo(() => {
-        const levels = getActiveLevels(currentState);
-
-        const valuesPerLevelKey = levels
-            .map(l => [l.idKey, currentState.context[l.idKey]])
-            .filter(([k, v]) => k && v);
-
-        const sPath = levels?.map(el => el.state).join(".");
-        const cElementType = sPath?.split(".")?.slice(-1)?.[0];
-
-        const namedPaths = currentState.context.namedPaths[0];
-        const namedPath = namedPaths.find(p => p.state === cElementType);
-        const lowerNamedPath = namedPaths.find(p => p?.scopeLevel === namedPath?.scopeLevel + 1);
-
-
-        const meshLevels = [...levels, ...(lowerNamedPath ? [lowerNamedPath] : [])]
-            .filter(l => l && l.feature === 'mesh');
-
-        /* prev - only features matching each level
-        const meshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
-            const featureIds = currentState.context.data[l.state]
-                .filter(el => valuesPerLevelKey.every(([k, v]) => el[k] === v))
-                .map(f => f[l.idKey]);
-
-            return {[l.state]: featureIds}
-        }));
-        */
-
-        //new requirement - show buildings that belong to the same parent as well
-        //so you can position them relative to the other buildings
-        const meshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
-            const parentPath   = (currentState.context.namedPaths[0] || []).find(p => p.state === l.parentState);
-            const parentIdKey  = parentPath?.idKey;
-            const parentIdVal  = parentIdKey ? currentState.context[parentIdKey] : undefined;
-            let featureIds = [];
-            if(parentIdKey && parentIdVal != null) {
-                featureIds = (currentState.context.data[l.state] || [])
-                    // if this level has a parent, require child[parentIdKey] === context[parentIdKey]
-                    .filter(f => f[parentIdKey] === parentIdVal)
-                    .map(f => f[l.idKey]);
-            } else {
-                featureIds = (currentState.context.data[l.state] || [])
-                    .filter(f => valuesPerLevelKey.every(([k, v]) => f[k] === v))
-                    .map(f => f[l.idKey]);
-            }
-            return { [l.state]: featureIds };
-        }));
-
-        const remainingMeshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
-            const allIds = currentState.context.data[l.state].map(f => f[l.idKey]);
-            const showIds = meshFeaturesPerLevel[l.state] || [];
-            const hideIds = allIds.filter(id => !showIds.includes(id));
-            return { [l.state]: hideIds };
-        }));
-
-        return [meshFeaturesPerLevel, remainingMeshFeaturesPerLevel];
-
-    }, [currentState]);
+    const meshFeaturesPerLevel = visibilityState.visibleByLevel;
+    const remainingMeshFeaturesPerLevel = visibilityState.hiddenByLevel;
 
     // Main effect to handle 3D graphics visibility changes
     useEffect(() => {
@@ -80,13 +117,13 @@ export function useGraphicsVisibility({mapInstance, portContext}){
 
         // Process each level's mesh features
         Object.keys(meshFeaturesPerLevel).forEach(levelKey => {
-            const featuresToShow = meshFeaturesPerLevel[levelKey] || [];
-            const featuresToHide = remainingMeshFeaturesPerLevel[levelKey] || [];
 
             // Get the 3D graphics controller for this level
             const sourceId = `${levelKey}-features`;
             const controller = get3DGraphicsController(mapInstance, sourceId);
 
+            const featuresToShow = meshFeaturesPerLevel[levelKey] || [];
+            const featuresToHide = remainingMeshFeaturesPerLevel[levelKey] || [];
             console.log("LOOPING_VISIBILITY", {levelKey, featuresToShow, featuresToHide})
             if (!controller) {
                 console.warn(`UseGraphicsVisibility: No 3D graphics controller found for level ${levelKey} (sourceId: ${sourceId})`);
@@ -124,7 +161,7 @@ export function useGraphicsVisibility({mapInstance, portContext}){
             if (featuresToShow.length > 0 && !controller.isVisible()) {
                 console.log(`UseGraphicsVisibility: Showing layer for ${levelKey}`);
                 controller.show();
-            }                
+            }
         });
 
     }, [mapInstance, meshFeaturesPerLevel, remainingMeshFeaturesPerLevel]);
