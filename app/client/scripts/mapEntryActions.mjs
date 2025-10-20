@@ -2302,9 +2302,10 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             );
             const boxMaterial = new THREE.MeshBasicMaterial({
                 color: 0x00ffff,
-                wireframe: true,
+                // wireframe: true,
+                refractionRatio: 0.5,
                 transparent: true,
-                opacity: 0.6
+                opacity: 0.4
             });
             const boundingBoxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
             boundingBoxMesh.position.y = (bbox.max.y + bbox.min.y) / 2;

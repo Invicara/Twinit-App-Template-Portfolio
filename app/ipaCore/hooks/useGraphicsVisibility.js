@@ -124,7 +124,6 @@ export function useGraphicsVisibility({mapInstance, portContext, meshLevels}){
 
             const featuresToShow = meshFeaturesPerLevel[levelKey] || [];
             const featuresToHide = remainingMeshFeaturesPerLevel[levelKey] || [];
-            console.log("LOOPING_VISIBILITY", {levelKey, featuresToShow, featuresToHide})
             if (!controller) {
                 console.warn(`UseGraphicsVisibility: No 3D graphics controller found for level ${levelKey} (sourceId: ${sourceId})`);
                 return;
@@ -143,7 +142,6 @@ export function useGraphicsVisibility({mapInstance, portContext, meshLevels}){
 
             // Show new features
             if (featuresToShow.length > 0) {
-                console.log(`UseGraphicsVisibility: Showing features for ${levelKey}:`, featuresToShow);
                 try {
                     controller.showFeatures(featuresToShow);
                 } catch (error) {
