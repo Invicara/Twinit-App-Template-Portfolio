@@ -1371,14 +1371,16 @@ export function get3DGraphicsController(map, sourceId) {
 
     // State for tracking interaction mode and handlers
     let interactionState = {
-        mode: null, // 'move', 'rotate', 'scale', or null
+        mode: null, // 'transform' or null
         activeFeatureId: null,
         activeFeature: null,
         isDragging: false,
         startPosition: null,
         startRotation: 0,
         startScale: 1,
-        activeHandle: null,
+        activeHandle: null, // 'move', 'rotate', or 'scale'
+        onTransformCallback: null, // Callback function for transformation updates
+        dataSource: null,
 
         // Event handlers (stored for cleanup)
         mouseMoveHandler: null,
@@ -1387,102 +1389,69 @@ export function get3DGraphicsController(map, sourceId) {
     };
 
     /**
+     * Enable transformation controls (move, rotate, and scale) for a specific feature
+     * All three operations are available simultaneously based on which handle is interacted with
+     * @param {string} featureId - The feature ID to enable transformation for
+     * @param {Function} callback - Optional callback function called during transformations
+     *                               Receives object with: { position, rotation, scale }
+     */
+    const enableTransform = (featureId, callback = null) => {
+        if (interactionState.mode) {
+            console.warn('Another interaction mode is active. Disable it first.');
+            return false;
+        }
+
+        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
+        if (!feature) {
+            console.error(`Feature not found: ${featureId}`);
+            return false;
+        }
+
+        interactionState.mode = 'transform'; // Single unified mode
+        interactionState.activeFeatureId = featureId;
+        interactionState.activeFeature = feature;
+        interactionState.onTransformCallback = callback;
+        interactionState.dataSource = map.getSource(sourceId);
+        window.dataSource = interactionState.dataSource;
+
+        // Add visual handles
+        if (layer.startEditingFeature) {
+            layer.startEditingFeature(featureId);
+        }
+
+        // Attach unified handlers that support all three operations
+        attachUnifiedTransformHandlers();
+
+        console.log(`Transform mode enabled for feature: ${featureId} (move, rotate, scale available)`);
+        map.triggerRepaint();
+        return true;
+    };
+
+    /**
+     * @deprecated Use enableTransform instead - kept for backward compatibility
      * Enable move mode for a specific feature
-     * @param {string} featureId - The feature ID to enable move mode for
      */
-    const enableMove = (featureId) => {
-        if (interactionState.mode) {
-            console.warn('Another interaction mode is active. Disable it first.');
-            return false;
-        }
-
-        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
-        if (!feature) {
-            console.error(`Feature not found: ${featureId}`);
-            return false;
-        }
-
-        interactionState.mode = 'move';
-        interactionState.activeFeatureId = featureId;
-        interactionState.activeFeature = feature;
-
-        // Add visual handles
-        if (layer.startEditingFeature) {
-            layer.startEditingFeature(featureId);
-        }
-
-        // Attach move-specific event handlers
-        attachMoveHandlers();
-
-        console.log(`Move mode enabled for feature: ${featureId}`);
-        map.triggerRepaint();
-        return true;
+    const enableMove = (featureId, callback = null) => {
+        console.warn('enableMove is deprecated. Use enableTransform instead for unified move/rotate/scale.');
+        return enableTransform(featureId, callback);
     };
 
     /**
+     * @deprecated Use enableTransform instead - kept for backward compatibility
      * Enable rotate mode for a specific feature
-     * @param {string} featureId - The feature ID to enable rotate mode for
      */
-    const enableRotate = (featureId) => {
-        if (interactionState.mode) {
-            console.warn('Another interaction mode is active. Disable it first.');
-            return false;
-        }
-
-        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
-        if (!feature) {
-            console.error(`Feature not found: ${featureId}`);
-            return false;
-        }
-
-        interactionState.mode = 'rotate';
-        interactionState.activeFeatureId = featureId;
-        interactionState.activeFeature = feature;
-
-        // Add visual handles
-        if (layer.startEditingFeature) {
-            layer.startEditingFeature(featureId);
-        }
-
-        // Attach rotate-specific event handlers
-        attachRotateHandlers();
-
-        console.log(`Rotate mode enabled for feature: ${featureId}`);
-        map.triggerRepaint();
-        return true;
+    const enableRotate = (featureId, callback = null) => {
+        console.warn('enableRotate is deprecated. Use enableTransform instead for unified move/rotate/scale.');
+        return enableTransform(featureId, callback);
     };
 
     /**
+     * @deprecated Use enableTransform instead - kept for backward compatibility
      * Enable scale mode for a specific feature
-     * @param {string} featureId - The feature ID to enable scale mode for
      */
-    const enableScale = (featureId) => {
-        if (interactionState.mode) {
-            console.warn('Another interaction mode is active. Disable it first.');
-            return false;
-        }
-
-        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
-        if (!feature) {
-            console.error(`Feature not found: ${featureId}`);
-            return false;
-        }
-
-        interactionState.mode = 'scale';
-        interactionState.activeFeatureId = featureId;
-        interactionState.activeFeature = feature;
-
-        // Add visual handles
-        if (layer.startEditingFeature) {
-            layer.startEditingFeature(featureId);
-        }
-
-        // Attach scale-specific event handlers
-        attachScaleHandlers();
-
-        console.log(`Scale mode enabled for feature: ${featureId}`);
-        map.triggerRepaint();
-        return true;
+    const enableScale = (featureId, callback = null) => {
+        console.warn('enableScale is deprecated. Use enableTransform instead for unified move/rotate/scale.');
+        return enableTransform(featureId, callback);
     };
 
     /**
@@ -1547,6 +1516,7 @@ export function get3DGraphicsController(map, sourceId) {
             startRotation: 0,
             startScale: 1,
             activeHandle: null,
+            onTransformCallback: null,
             mouseMoveHandler: null,
             mouseDownHandler: null,
             mouseUpHandler: null
@@ -1555,6 +1525,185 @@ export function get3DGraphicsController(map, sourceId) {
         console.log(`${previousMode} mode disabled`);
         map.triggerRepaint();
         return true;
+    };
+
+    /**
+     * Attach unified event handlers that support move, rotate, and scale simultaneously
+     * The operation performed depends on which handle the user interacts with
+     */
+    const attachUnifiedTransformHandlers = () => {
+        interactionState.mouseMoveHandler = (e) => {
+            const featureFromSource = dataSource._data.features.find(el => el.id === interactionState.activeFeatureId);
+            window.featureFromSource = featureFromSource;
+
+            const callbackValue = {
+                centroid: [featureFromSource.properties.longitude, featureFromSource.properties.latitude],
+                rotation: featureFromSource.properties.rotation,
+                scale: featureFromSource.properties.scale
+            }
+            console.log("attachUnifiedTransformHandlers", {callbackValue})
+
+
+
+            const point = { x: e.point.x, y: e.point.y };
+
+            if (!interactionState.isDragging && layer.detectHandle) {
+                // Handle hover detection for cursor changes
+                const handleInfo = layer.detectHandle(point);
+                if (layer.updateCursor) {
+                    layer.updateCursor(handleInfo);
+                }
+                return;
+            }
+
+            // Handle active drag operation based on which handle is being used
+            if (interactionState.isDragging) {
+                const feature = interactionState.activeFeature;
+                window.feature = feature;
+                
+                // MOVE operation
+                if (interactionState.activeHandle === 'move') {
+                    const position = [e.lngLat.lng, e.lngLat.lat];
+                    callbackValue.centroid = position;
+                    feature.centroid = position;
+
+                    const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(position, 0);
+                    feature.transform.translateX = modelAsMercatorCoordinate.x;
+                    feature.transform.translateY = modelAsMercatorCoordinate.y;
+                    feature.transform.translateZ = modelAsMercatorCoordinate.z;
+                }
+                
+                // ROTATE operation
+                else if (interactionState.activeHandle === 'rotate') {
+                    const center = feature.centroid;
+                    const centerPixel = map.project(center);
+
+                    const angle = Math.atan2(e.point.y - centerPixel.y, e.point.x - centerPixel.x);
+                    const startAngle = Math.atan2(
+                        interactionState.startPosition.y - centerPixel.y,
+                        interactionState.startPosition.x - centerPixel.x
+                    );
+                    const deltaAngle = (angle - startAngle) * (180 / Math.PI);
+                    const newRotation = (interactionState.startRotation + deltaAngle) % 360;
+                    callbackValue.rotation = newRotation;
+
+                    feature.transform.rotateY = newRotation * -(Math.PI / 180);
+                    feature.properties.rotation = newRotation;
+                }
+                
+                // SCALE operation
+                else if (interactionState.activeHandle === 'scale') {
+                    const center = feature.centroid;
+                    const centerPixel = map.project(center);
+
+                    const currentDistance = Math.sqrt(
+                        Math.pow(e.point.x - centerPixel.x, 2) +
+                        Math.pow(e.point.y - centerPixel.y, 2)
+                    );
+                    const startDistance = Math.sqrt(
+                        Math.pow(interactionState.startPosition.x - centerPixel.x, 2) +
+                        Math.pow(interactionState.startPosition.y - centerPixel.y, 2)
+                    );
+
+                    const scaleFactor = startDistance > 0 ? currentDistance / startDistance : 1;
+                    const newScale = Math.max(0.1, Math.min(3.0, interactionState.startScale * scaleFactor));
+                    callbackValue.scale = newScale;
+
+                    const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(center, 0);
+                    feature.transform.scale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() * newScale;
+                    feature.properties.size = newScale;
+                }
+
+                // Invoke callback with updated transformation data
+                if (interactionState.onTransformCallback) {
+
+                    try {
+                        console.log("attachUnifiedTransformHandlers, prevcallback", {callbackValue, feature})
+                        const outcomeGeneralPosition = {
+                            position: feature.centroid,
+                            rotation: feature.properties.rotation,
+                            size: callbackValue.scale
+                        }
+
+                        interactionState.onTransformCallback(outcomeGeneralPosition);
+                    } catch (error) {
+                        console.error('Error executing transform callback:', error);
+                    }
+                }
+
+                map.triggerRepaint();
+            }
+        };
+
+        interactionState.mouseDownHandler = (e) => {
+            const point = { x: e.point.x, y: e.point.y };
+
+            if (layer.detectHandle) {
+                const handleInfo = layer.detectHandle(point);
+
+                if (handleInfo) {
+                    // Determine which operation based on handle type
+                    if (handleInfo.type === 'moveHandle') {
+                        interactionState.activeHandle = 'move';
+                        interactionState.isDragging = true;
+                        interactionState.startPosition = point;
+                        map.getCanvas().style.cursor = 'grabbing';
+                        map.dragPan.disable();
+                        e.preventDefault();
+                    } 
+                    else if (handleInfo.type === 'boundingBox') {
+                        interactionState.activeHandle = 'rotate';
+                        interactionState.isDragging = true;
+                        interactionState.startPosition = point;
+
+                        // Extract current rotation from transform
+                        const currentRotateY = interactionState.activeFeature.transform.rotateY || 0;
+                        interactionState.startRotation = currentRotateY * -(180 / Math.PI);
+
+                        map.getCanvas().style.cursor = 'grabbing';
+                        map.dragPan.disable();
+                        e.preventDefault();
+                    }
+                    else if (handleInfo.type === 'scaleHandle') {
+                        interactionState.activeHandle = 'scale';
+                        interactionState.isDragging = true;
+                        interactionState.startPosition = point;
+
+                        // Extract current scale from transform
+                        const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
+                            interactionState.activeFeature.centroid,
+                            0
+                        );
+                        const baseScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
+                        interactionState.startScale = interactionState.activeFeature.transform.scale / baseScale;
+
+                        map.getCanvas().style.cursor = 'nw-resize';
+                        map.dragPan.disable();
+                        e.preventDefault();
+                    }
+                }
+            }
+        };
+
+        interactionState.mouseUpHandler = (e) => {
+            if (interactionState.isDragging) {
+                interactionState.isDragging = false;
+                interactionState.activeHandle = null;
+                map.dragPan.enable();
+
+                const point = { x: e.point.x, y: e.point.y };
+                if (layer.detectHandle) {
+                    const handleInfo = layer.detectHandle(point);
+                    if (layer.updateCursor) {
+                        layer.updateCursor(handleInfo);
+                    }
+                }
+            }
+        };
+
+        map.on('mousemove', interactionState.mouseMoveHandler);
+        map.on('mousedown', interactionState.mouseDownHandler);
+        map.on('mouseup', interactionState.mouseUpHandler);
     };
 
     /**
@@ -1817,9 +1966,7 @@ export function get3DGraphicsController(map, sourceId) {
         getAllFeatureVisibility: () => layer.getAllFeatureVisibility && layer.getAllFeatureVisibility(),
 
         // Transformation controls with visual overlays and callbacks
-        enableMove,
-        enableRotate,
-        enableScale,
+        enableTransform,    // NEW: Unified function - enables move, rotate, and scale simultaneously
         disableInteraction,
 
         // Programmatic transform update

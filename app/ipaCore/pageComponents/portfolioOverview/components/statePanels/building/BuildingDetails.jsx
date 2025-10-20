@@ -13,6 +13,7 @@ import _ from 'lodash';
 import { Add, Delete, Edit } from '@material-ui/icons';
 import { getActiveLevels } from '../../../../../../services/utils.js';
 import BuildingThumbnails from '../BuildingThumbnails';
+import { useDebounce } from '../../../../../hooks/useDebounce.js';
 
 export default function BuildingDetails({ context }) {
 
@@ -76,17 +77,6 @@ export default function BuildingDetails({ context }) {
 
     // Entity is in edit mode if it's either draft or being edited
     const isInEditMode = isDraftEntity || isEditingEntity;
-
-    useEffect(() => {
-        if(isPositioningMode){
-            const sourceId = `${namedPath.state}-features`;
-            const newController = get3DGraphicsController(mapInstance, sourceId);
-            setController(newController);
-        } else {
-            controller?.disableInteraction();
-            setController();
-        }
-    }, [isPositioningMode, namedPath, entityId])
 
     useEffect(() => {
         if(!currentEntity?.isDraft && !currentEntity?.isEditing){
@@ -418,30 +408,23 @@ export default function BuildingDetails({ context }) {
     };
 
     // Handle positioning value changes
-    const handlePositioningChange = (field, value) => {
+    const handlePositioningChange = (modification) => {
+        const newPosition = _.cloneDeep(modification)
         if (!currentEntity) return;
 
-        // Parse numeric values
-        let parsedValue = value;
-        if (field === 'longitude' || field === 'latitude') {
-            parsedValue = parseFloat(value) || 0;
-        } else if (field === 'size') {
-            parsedValue = parseFloat(value) || 1;
-        } else if (field === 'rotation') {
-            parsedValue = parseFloat(value) || 0;
+        for(let k of Object.keys(newPosition)){
+            if(!newPosition[k] || Number.isNaN(newPosition[k])){
+                delete newPosition[k];
+            } else {
+                newPosition[k] = parseFloat(newPosition[k]);
+            }
         }
 
         // Update the entity with new positioning value
         const updatedEntity = {
             ...currentEntity,
-            [field]: parsedValue
+            ...newPosition
         };
-
-        controller.updateTransform(entityId, {
-            centroid: [updatedEntity.longitude, updatedEntity.latitude],
-            rotation: updatedEntity.rotation,
-            size: updatedEntity.size
-        });
 
         // Update XState context
         const currentData = currentState.context?.data || {};
@@ -460,8 +443,43 @@ export default function BuildingDetails({ context }) {
             data: updatedData
         });
 
-        console.log('Positioning value updated:', { field, value: parsedValue, updatedEntity });
+        setTimeout(() => {
+            controller?.disableInteraction();
+            controller.enableTransform(entityId, (transformData) => {
+                debounceHandlePositionChange({
+                    longitude: transformData.position[0],
+                    latitude: transformData.position[1],
+                    rotation: transformData.rotation,
+                    size: transformData.size
+                })
+            });            
+        }, 400);
+
     };
+
+    const debounceHandlePositionChange = useDebounce(handlePositioningChange, 300);
+
+    useEffect(() => {
+        if(isPositioningMode){
+            send({ type: "START_DRAFT" });
+            const sourceId = `${namedPath.state}-features`;
+            const newController = get3DGraphicsController(mapInstance, sourceId);
+            newController.enableTransform(entityId, (transformData) => {
+                debounceHandlePositionChange({
+                    longitude: transformData.position[0],
+                    latitude: transformData.position[1],
+                    rotation: transformData.rotation,
+                    size: transformData.size
+                })
+            });
+            setController(newController);
+        } else {
+            send({ type: "END_DRAFT" });
+            controller?.disableInteraction();
+            setController();
+        }
+    }, [isPositioningMode, namedPath, entityId])
+
 
     // Start positioning mode
     const startPositioningMode = () => {
@@ -625,7 +643,7 @@ export default function BuildingDetails({ context }) {
                                         label="Longitude"
                                         type="number"
                                         value={currentEntity?.longitude ?? 0}
-                                        onChange={(e) => handlePositioningChange('longitude', e.target.value)}
+                                        onChange={(e) => handlePositioningChange({'longitude': e.target.value})}
                                         fullWidth
                                         variant="outlined"
                                         size="small"
@@ -637,7 +655,7 @@ export default function BuildingDetails({ context }) {
                                         label="Latitude"
                                         type="number"
                                         value={currentEntity?.latitude ?? 0}
-                                        onChange={(e) => handlePositioningChange('latitude', e.target.value)}
+                                        onChange={(e) => handlePositioningChange({'latitude': e.target.value})}
                                         fullWidth
                                         variant="outlined"
                                         size="small"
@@ -649,7 +667,7 @@ export default function BuildingDetails({ context }) {
                                         label="Size"
                                         type="number"
                                         value={currentEntity?.size ?? 1}
-                                        onChange={(e) => handlePositioningChange('size', e.target.value)}
+                                        onChange={(e) => handlePositioningChange({'size': e.target.value})}
                                         fullWidth
                                         variant="outlined"
                                         size="small"
@@ -661,7 +679,7 @@ export default function BuildingDetails({ context }) {
                                         label="Rotation (degrees)"
                                         type="number"
                                         value={currentEntity?.rotation ?? 0}
-                                        onChange={(e) => handlePositioningChange('rotation', e.target.value)}
+                                        onChange={(e) => handlePositioningChange({'rotation': e.target.value})}
                                         fullWidth
                                         variant="outlined"
                                         size="small"
