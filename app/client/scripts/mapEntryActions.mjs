@@ -2293,24 +2293,86 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             handleGroup.name = 'editingHandles';
 
             const bbox = geometryInfo.boundingBox;
+            
+            // Add buffer space to the bounding box (2.5 meters on each side)
+            const buffer = 10;
+            
+            // Calculate expanded bounding box dimensions
+            const width = bbox.max.x - bbox.min.x + (buffer * 2);
+            const height = bbox.max.y - bbox.min.y + (buffer * 2);
+            const depth = bbox.max.z - bbox.min.z + (buffer * 2);
+            
+            // Calculate corner positions for the expanded box
+            const halfWidth = width / 2;
+            const halfHeight = height / 2;
+            const halfDepth = depth / 2;
+            const centerY = (bbox.max.y + bbox.min.y) / 2;
 
-            // Building outline box - covers entire building shape
-            const boxGeometry = new THREE.BoxGeometry(
-                bbox.max.x - bbox.min.x,
-                bbox.max.y - bbox.min.y,
-                bbox.max.z - bbox.min.z
-            );
-            const boxMaterial = new THREE.MeshBasicMaterial({
-                color: 0x00ffff,
-                // wireframe: true,
-                refractionRatio: 0.5,
+            // Create thick edges using cylinders for better visibility
+            const edgeThickness = 1.0; // Thickness of the edge lines in meters (increased for better visibility)
+            const edgeColor = 0x00ffff;
+            const edgeMaterial = new THREE.MeshBasicMaterial({
+                color: edgeColor,
                 transparent: true,
-                opacity: 0.4
+                opacity: 0.8
             });
-            const boundingBoxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
-            boundingBoxMesh.position.y = (bbox.max.y + bbox.min.y) / 2;
-            boundingBoxMesh.userData = { type: 'boundingBox', isEditingHandle: true };
-            handleGroup.add(boundingBoxMesh);
+
+            // Helper function to create an edge between two points
+            const createEdge = (start, end) => {
+                const direction = new THREE.Vector3().subVectors(end, start);
+                const length = direction.length();
+                const edgeGeometry = new THREE.CylinderGeometry(edgeThickness, edgeThickness, length, 8);
+                const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
+                
+                // Position at midpoint
+                edge.position.copy(start).add(direction.multiplyScalar(0.5));
+                
+                // Rotate to align with direction
+                edge.quaternion.setFromUnitVectors(
+                    new THREE.Vector3(0, 1, 0),
+                    direction.normalize()
+                );
+                
+                return edge;
+            };
+
+            // Define the 8 corners of the box
+            const corners = [
+                new THREE.Vector3(-halfWidth, centerY - halfHeight, -halfDepth), // 0: bottom-back-left
+                new THREE.Vector3(halfWidth, centerY - halfHeight, -halfDepth),  // 1: bottom-back-right
+                new THREE.Vector3(-halfWidth, centerY - halfHeight, halfDepth),  // 2: bottom-front-left
+                new THREE.Vector3(halfWidth, centerY - halfHeight, halfDepth),   // 3: bottom-front-right
+                new THREE.Vector3(-halfWidth, centerY + halfHeight, -halfDepth), // 4: top-back-left
+                new THREE.Vector3(halfWidth, centerY + halfHeight, -halfDepth),  // 5: top-back-right
+                new THREE.Vector3(-halfWidth, centerY + halfHeight, halfDepth),  // 6: top-front-left
+                new THREE.Vector3(halfWidth, centerY + halfHeight, halfDepth)    // 7: top-front-right
+            ];
+
+            // Create 12 edges of the box
+            const edges = [
+                // Bottom face edges
+                [corners[0], corners[1]], // back
+                [corners[1], corners[3]], // right
+                [corners[3], corners[2]], // front
+                [corners[2], corners[0]], // left
+                // Top face edges
+                [corners[4], corners[5]], // back
+                [corners[5], corners[7]], // right
+                [corners[7], corners[6]], // front
+                [corners[6], corners[4]], // left
+                // Vertical edges
+                [corners[0], corners[4]], // back-left
+                [corners[1], corners[5]], // back-right
+                [corners[2], corners[6]], // front-left
+                [corners[3], corners[7]]  // front-right
+            ];
+
+            // Add all edges to the handle group
+            edges.forEach(([start, end]) => {
+                const edge = createEdge(start, end);
+                edge.userData = { type: 'boundingBox', isEditingHandle: true };
+                handleGroup.add(edge);
+            });
 
             // Scale handles (corner cubes)
             const handleSize = 0.05;
