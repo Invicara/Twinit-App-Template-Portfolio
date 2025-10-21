@@ -184,8 +184,6 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             setTimeout(() => {
                 send({
                     type: 'END_DRAFT',
-                    siteId: currentState.context.siteId,
-                    buildingId: newBuildingId
                 });
                 send({
                     type: 'GO_TO',
@@ -236,14 +234,15 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             send({
                 type: 'START_DRAFT',
             });
+            
             // Navigate to the newly created site
             setTimeout(() => {
                 send({
-                    type: 'GO_TO',
-                    siteId: newSiteId
+                    type: 'END_DRAFT'
                 });
                 send({
-                    type: 'END_DRAFT',
+                    type: 'GO_TO',
+                    siteId: newSiteId
                 });
             }, 100);
 
