@@ -225,6 +225,9 @@ export default function BuildingDetails({ context }) {
             type: 'UPDATE_DATA',
             data: restoredData
         });
+        send({
+            type: 'END_DRAFT'
+        });
 
         console.log('Edit cancelled, entity restored:', { original: cachedOriginalEntity, entityId });
     };
@@ -319,6 +322,9 @@ export default function BuildingDetails({ context }) {
         send({
             type: 'UPDATE_DATA',
             data: updatedData
+        });
+        send({
+            type: 'END_DRAFT'
         });
 
         setCachedPositioning(null);
@@ -475,6 +481,10 @@ export default function BuildingDetails({ context }) {
             data: updatedData
         });
 
+        send({
+            type: 'END_DRAFT'
+        });
+
         console.log('Positioning value updated:', { field, value: parsedValue, updatedEntity });
     };
 
@@ -517,6 +527,10 @@ export default function BuildingDetails({ context }) {
             send({
                 type: 'UPDATE_DATA',
                 data: restoredData
+            });
+
+            send({
+                type: 'END_DRAFT'
             });
 
         }
