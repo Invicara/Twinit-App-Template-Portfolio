@@ -3714,8 +3714,9 @@ function applyGraphicsVisibility({ map, currentState }) {
 
     // Get active levels based on current state
     // const levels = getActiveLevels(currentState);
-    let deepestCurrentLevel = DEFAULT_PATHS[0].reverse().find(el => currentState.context[el.idKey])
-    const levels = DEFAULT_PATHS[0].slice(0, deepestCurrentLevel.scopeLevel+1)
+    const namedPaths = currentState.context.namedPaths[0];
+    let deepestCurrentLevel = [...namedPaths].reverse().find(el => currentState.context[el.idKey]);//do not mutate original array (reverse a copy)
+    const levels = namedPaths.slice(0, deepestCurrentLevel.scopeLevel+1)
 
     const valuesPerLevelKey = levels
         .map(l => [l.idKey, currentState.context[l.idKey]])
@@ -3724,7 +3725,6 @@ function applyGraphicsVisibility({ map, currentState }) {
     const sPath = levels?.map(el => el.state).join(".");
     const cElementType = sPath?.split(".")?.slice(-1)?.[0];
 
-    const namedPaths = currentState.context.namedPaths[0];
     const namedPath = namedPaths.find(p => p.state === cElementType);
     const lowerNamedPath = namedPaths.find(p => p?.scopeLevel === namedPath?.scopeLevel + 1);
 
