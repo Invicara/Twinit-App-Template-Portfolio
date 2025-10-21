@@ -174,15 +174,22 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             send({
                 type: 'START_DRAFT',
             });
+
+            //build GO_TO event params outside timeout closure to prevent memory leaks
+            const goTo = {
+                siteId: currentState.context.siteId,
+                buildingId: newBuildingId
+            }
             // Navigate to the newly created building using GO_TO with buildingId
             setTimeout(() => {
                 send({
-                    type: 'GO_TO',
+                    type: 'END_DRAFT',
                     siteId: currentState.context.siteId,
                     buildingId: newBuildingId
                 });
                 send({
-                    type: 'END_DRAFT',
+                    type: 'GO_TO',
+                    ...goTo
                 });
             }, 100);
 
