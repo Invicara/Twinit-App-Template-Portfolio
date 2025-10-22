@@ -10,7 +10,7 @@ import { CircularProgress } from "@material-ui/core"
 
 import _ from 'lodash'
 
-import SiteEquipTreeSearch from './SiteEquipTreeSearch'
+import EntityTreeSearch from './EntityTreeSearch'
 import { 
   getAllDescendantIds, 
   findNodeById, 
@@ -181,7 +181,7 @@ const handleSearchKeyDown = (e) => {
 };
   const renderTree = nodes =>
     nodes?.map(node => (
-      <SiteEquipTreeSearch
+      <EntityTreeSearch
         key={node.id}
         nodeId={node.id}
         labelText={node.name}
@@ -190,7 +190,7 @@ const handleSearchKeyDown = (e) => {
         onCheck={(id, checked) => handleCheck(id, checked, node, levelData)}
       >
         {node.children ? renderTree(node.children) : null}
-      </SiteEquipTreeSearch>
+      </EntityTreeSearch>
     ))
 
   return (

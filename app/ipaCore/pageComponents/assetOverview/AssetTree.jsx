@@ -8,7 +8,7 @@ import ArrowRightIcon from '@material-ui/icons/ArrowRight'
 import { getInitialTreeLevels, getSystemLevel, getEquipTypeLevel, getEquipLevel } from '../../../services/assetTree'
 import { getAllDescendantIds, findNodeById,calculateAssetTreeSelectionState, getAncestorIds } from '../../components/EquipmentDetails/utils/treeHelpers'
 
-import SiteEquipTreeSearch from '../../components/EquipmentDetails/SiteEquipTreeSearch'
+import EntityTreeSearch from '../../components/EquipmentDetails/EntityTreeSearch'
 
 const useStyles = makeStyles(theme => ({
   root: {
@@ -244,11 +244,9 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
         })
     }
 
- 
-      // Maybe change the compoennt name to something more generic
     const renderTree = (nodes) => {
         return nodes?.map(node => (
-            <SiteEquipTreeSearch
+            <EntityTreeSearch
                 key={node.id}
                 nodeId={node.id}
                 labelText={
@@ -260,7 +258,7 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
                 loadingNodes={loadingNodes[node.id]}
             >
                 {node.children ? renderTree(node.children) : null}
-            </SiteEquipTreeSearch>
+            </EntityTreeSearch>
         ))
     }
 
