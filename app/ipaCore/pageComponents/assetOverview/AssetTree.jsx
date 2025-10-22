@@ -1,0 +1,282 @@
+import React, { useEffect, useState, useRef } from "react";
+
+import { makeStyles } from '@material-ui/core/styles'
+import TreeView from '@material-ui/lab/TreeView'
+import ArrowDropDownIcon from '@material-ui/icons/ArrowDropDown'
+import ArrowRightIcon from '@material-ui/icons/ArrowRight'
+
+import { getInitialTreeLevels, getSystemLevel, getEquipTypeLevel, getEquipLevel } from '../../../services/assetTree'
+import { getAllDescendantIds, findNodeById,calculateAssetTreeSelectionState, getAncestorIds } from '../../components/EquipmentDetails/utils/treeHelpers'
+
+import SiteEquipTreeSearch from '../../components/EquipmentDetails/SiteEquipTreeSearch'
+
+const useStyles = makeStyles(theme => ({
+  root: {
+    height: "100%",
+    flexGrow: 1,
+    maxWidth: 400,
+    overflowY: "auto",
+    marginTop: '16px',
+    position: 'relative'
+  }
+}))
+
+// TreeSearch will have the following structure:
+// Level 1 -> Facility
+// Level 2 -> Unit
+// Level 3 -> System
+// Level 4 -> Equipment Type
+// Level 5 -> Site Equipment
+
+// FIXES:
+// Can not select SE's from different facility to display on the table at the same time - would a context file help this? -> DONE
+// Need to add somethng to display if a selected SE does not have certain property. -> DONE
+// Any selected nodes must default to an indermediate state unless all the level 5 children have been selected, then it's parent's can be full checked state. -> DONE
+// When we select a node and complete the children data fetch, auto expand the node to display the children. -> DONE
+
+const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, setTableData}) => {
+    const [initialTreeLevels, setInitialTreeLevels] = useState()
+    const [expanded, setExpanded] = useState([])
+    const [checkedItems, setCheckedItems] = useState({})
+    const [indeterminateItems, setIndeterminateItems] = useState({})
+    const [selected, setSelected] = useState(null)
+
+    const classes = useStyles()
+
+    useEffect(() => {
+        const fetchData = async() => {
+            const result = await getInitialTreeLevels()
+            setInitialTreeLevels(result)
+            setLoadingNodes({}, false)
+        }
+      fetchData()
+    }, [])
+
+    const setNodeLoading = (nodeId, isLoading) => {
+        setLoadingNodes(prev => ({
+            ...prev,
+            [nodeId]: isLoading,
+        }))
+    }
+
+    const transformToTreeNodes = (nodeId, items, level) => {
+        if (!items) return []
+
+        return items.map((item, index) => {
+            if (typeof item === "string") {
+            return {
+                id: `${nodeId}/${item}`,
+                name: item,
+                level,
+                children: []
+            }
+            }
+        })
+    }
+
+    const addChildrenToNode = (tree, nodeId, children) => {
+        return tree.map(node => {
+            if (node.id === nodeId) {
+                return { ...node, children }
+            } else if (node.children) {
+                return { ...node, children: addChildrenToNode(node.children, nodeId, children) }
+            }
+            return node
+        })
+    }
+
+    const loadChildrenForNode = async (nodeId, deep = false) => {
+        const node = findNodeById(initialTreeLevels, nodeId)
+        if (!node) {
+            console.warn("Node not found:", nodeId)
+            return []
+        }
+
+        if (node.children?.length && !deep) {
+            return node.children
+        }
+        setNodeLoading(nodeId, true)
+
+        try {
+            let children = []
+
+            if (node.level === 1) {
+                const unitPromises = (node.children || []).map(unit => loadChildrenForNode(unit.id, deep))
+                children = await Promise.all(unitPromises)
+                children = children.flat()
+            } else if (node.level === 2) {
+                const systems = await getSystemLevel(node.id)
+                children = transformToTreeNodes(node.id, systems, 3)
+            } else if (node.level === 3) {
+                const equipTypes = await getEquipTypeLevel(node.id)
+                children = transformToTreeNodes(node.id, equipTypes, 4)
+            } else if (node.level === 4) {
+                const equipmentData = await getEquipLevel(node.id)
+                const siteEquipIds = equipmentData.map((data, idx) => data.nameId)
+                children = transformToTreeNodes(node.id, siteEquipIds, 5)
+                
+                setTableData(prev => {
+                    const dataMap = new Map()
+                    if (Array.isArray(prev)) {
+                        prev.forEach(item => dataMap.set(item.nameId, item))
+                    }
+                    
+                    equipmentData.forEach(item => dataMap.set(item.nameId, item))
+                    
+                    return Array.from(dataMap.values())
+                })
+            }
+
+            setInitialTreeLevels(prev => addChildrenToNode(prev, nodeId, children))
+
+            // Recursively load deeper levels if deep = true
+            if (deep && children.length > 0) {
+                await Promise.all(children.map(child => loadChildrenForNode(child.id, true)))
+            }
+
+            return children
+        } catch (err) {
+            console.error("Error loading node children:", err)
+            return []
+        } finally {
+            setLoadingNodes({}, false)
+        }
+    }
+
+    const handleNodeToggle = async (event, nodeIds) => {
+        const newlyExpanded = nodeIds.find(id => !expanded.includes(id))
+        setExpanded(nodeIds)
+        if (newlyExpanded) {
+            await loadChildrenForNode(newlyExpanded)
+        }
+    }
+    
+    const handleNodeSelect = async (event, nodeId) => {
+        setSelected(nodeId)
+        const isAlreadyExpanded = expanded.includes(nodeId)
+        
+        if (!isAlreadyExpanded) {
+            setNodeLoading(nodeId, true)
+            setExpanded(prev => [...prev, nodeId])
+            await loadChildrenForNode(nodeId)
+            setNodeLoading(nodeId, false)
+        }
+    }
+
+    const handleCheck = (id, isChecked, node = null, tree = initialTreeLevels) => {
+        if (!node) node = findNodeById(tree, id)
+        if (!node) return
+
+        // If checking a non-leaf (levels 1-4), immediately mark it and its ancestors as indeterminate.
+        if (isChecked && node.level < 5) {
+            const ancestorIds = getAncestorIds(tree, id)
+            // Immediately give UI feedback: mark node + ancestors as indeterminate
+            setIndeterminateItems(prev => {
+                const next = { ...prev }
+                ;[id, ...ancestorIds].forEach(a => { next[a] = true })
+                return next
+            })
+
+            // Ensure the non-leaf itself is not set as checked prematurely
+            setCheckedItems(prev => {
+                const next = { ...prev }
+                delete next[id]
+                return next
+            })
+
+            const treeRef = useRef(initialTreeLevels)
+
+            useEffect(() => {
+                treeRef.current = initialTreeLevels
+            }, [initialTreeLevels])
+
+            loadChildrenForNode(id, true).then(() => {
+                setCheckedItems(prevChecked => {
+                    const { checkedItems: newChecked, indeterminateItems: newIndeterminate } = calculateAssetTreeSelectionState(treeRef.current, prevChecked)
+                    setIndeterminateItems(newIndeterminate)
+                    return newChecked;
+                })
+            }).catch(err => {
+                console.error("loadChildrenForNode failed:", err)
+            })
+            return
+        }
+
+        const descendantIds = getAllDescendantIds(node?.children || [])
+
+        if (node.level === 5) {
+            // Update selected site equipment list
+            setSelectedSiteEquipment(prev => {
+                const currentSelectedSE = Array.isArray(prev) ? [...prev] : []
+                if (isChecked) {
+                    if (!currentSelectedSE.includes(node.name)) currentSelectedSE.push(node.name)
+                } else {
+                    return currentSelectedSE.filter(n => n !== node.name)
+                }
+                return currentSelectedSE
+            })
+        }
+
+    // Update checkedItems map (only mark level 5 nodes as checked directly)
+        setCheckedItems(prev => {
+            const updated = { ...prev }
+
+            if (isChecked) {
+            if (node.level === 5) {
+                updated[id] = true
+            }
+            // If the node has descendants already in the tree, mark them as well
+            descendantIds.forEach(childId => {
+                // Only mark descendants if they are leaves (optional) — but safe to mark anyway
+                updated[childId] = true
+            })
+            } else {
+            delete updated[id]
+            descendantIds.forEach(childId => delete updated[childId])
+            }
+
+            // Compute immediate indeterminate states for current tree shape (gives instant feedback)
+            const { checkedItems: cleanedChecked, indeterminateItems: newIndeterminate } = calculateAssetTreeSelectionState(tree, updated)
+
+            // Apply indeterminate map and return cleaned checked map
+            setIndeterminateItems(newIndeterminate)
+            return cleanedChecked
+        })
+    }
+
+ 
+      // Maybe change the compoennt name to something more generic
+    const renderTree = (nodes) => {
+        return nodes?.map(node => (
+            <SiteEquipTreeSearch
+                key={node.id}
+                nodeId={node.id}
+                labelText={
+                    loadingNodes === node.id ? `${node.name} (loading...)` : node.name
+                }
+                checked={!!checkedItems[node.id]}
+                indeterminate={!!indeterminateItems[node.id]}
+                onCheck={(id, checked) => handleCheck(id, checked, node, initialTreeLevels)}
+                loadingNodes={loadingNodes[node.id]}
+            >
+                {node.children ? renderTree(node.children) : null}
+            </SiteEquipTreeSearch>
+        ))
+    }
+
+  return (
+    <TreeView
+        className={classes.root}
+        defaultCollapseIcon={<ArrowDropDownIcon style={{ color: '#dbdbdb', fontSize:'25px' }} />}
+        defaultExpandIcon={<ArrowRightIcon style={{ color: '#dbdbdb', fontSize:'25px' }} />}
+        expanded={expanded}
+        onNodeToggle={handleNodeToggle}
+        selected={selected}
+        onNodeSelect={(e, nodeId) => handleNodeSelect(e, nodeId)}
+    >
+        {renderTree(initialTreeLevels)}
+    </TreeView>
+  )
+};
+
+export default AssetTree;
