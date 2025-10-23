@@ -85,8 +85,6 @@ export default function BuildingDetails({ context }) {
         }
     }, [currentEntity])
 
-    if (!currentEntity) return <Typography>No data found.</Typography>;
-
     // Handle entity property changes
     const handleEntityChange = (newValue, propertyName, metadata) => {
         if (!currentEntity || (propertyName === idKey && newValue === undefined)) return;
@@ -537,6 +535,10 @@ export default function BuildingDetails({ context }) {
             startPositioningMode();
         }
     };
+
+    if (!currentEntity) {
+        return <Typography>No data found.</Typography>;
+    }
 
     return (
         <div>

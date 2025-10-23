@@ -47,38 +47,40 @@ export default function ValuePresenter({ controlUiSchema, schema, path, labelPla
   const refVal = propSchema?.options?.refVal;
 
   let display = formatValue({ value: rawValue, propSchema });
-  let isMismatch = false;
+let isMismatch = false;
 
-  if (propSchema?.isEdited) {
-    const unit = propSchema?.options?.unit;
-    const formattedVal = renderNumberPreview
-      ? renderNumberPreview(rawValue)
-      : rawValue;
+console.log('keys for mismatch check:', key);
 
-    display = unit ? `${formattedVal} ${unit}` : String(formattedVal);
-    isMismatch = false;
-  }
+if (propSchema?.isEdited) {
+  const unit = propSchema?.options?.unit;
+  const formattedVal = renderNumberPreview
+    ? renderNumberPreview(rawValue)
+    : rawValue;
 
-  else if (unit) {
-    const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue);
-    if (!Number.isNaN(numeric)) {
-      if (refVal !== undefined && numeric != refVal) {
-        display = `${numeric} ${unit} (Expected: ${refVal} ${unit})`;
-        isMismatch = true;
-      } else {
-        display = `${numeric} ${unit}`;
-      }
-    }
-  }
+  display = unit ? `${formattedVal} ${unit}` : String(formattedVal);
+  isMismatch = false;
+}
 
-  else if ((key === 'Manufacturer' || key === 'Model') && refVal !== undefined) {
-    if (rawValue !== refVal) {
-      display = `${rawValue} (Expected: ${refVal})`;
+else if (unit) {
+  const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+  if (!Number.isNaN(numeric)) {
+    if (refVal !== undefined && numeric != refVal) {
+      display = `${numeric} ${unit} (Expected: ${refVal} ${unit})`;
       isMismatch = true;
     } else {
-      display = rawValue;
+      display = `${numeric} ${unit}`;
     }
   }
+}
+
+else if ((key === 'Manufacturer' || key === 'Model') && refVal !== undefined) {
+  if (rawValue !== refVal) {
+    display = `${rawValue} (Expected: ${refVal})`;
+    isMismatch = true;
+  } else {
+    display = rawValue;
+  }
+}
   React.useEffect(() => {
     if (onEvaluate) {
       onEvaluate({ isMismatch, rawValue });
