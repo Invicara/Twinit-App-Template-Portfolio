@@ -178,6 +178,8 @@ const PortfolioBreadCrumbs = ({namedPath, getLabel}) => {
                     const idKey = lvl.idKey;
                     const idVal = idKey ? context[idKey] : undefined;
                     const label = getLabel ? getLabel(lvl, context) : _.startCase(lvl.state);
+                    const nameKey = idKey ? idKey.replace(/Id$/, 'Name') : null;
+                    const nameVal = nameKey ? context[nameKey] : undefined;
 
                     // For the current level (last), render as text; others are clickable links that bubble up
                     if (isLast) {
@@ -188,7 +190,7 @@ const PortfolioBreadCrumbs = ({namedPath, getLabel}) => {
                                 placement="bottom"
                             >
                                 <Typography key={lvl.state} variant="body2" className={currentState.matches(lvl.state) ? classes.activeCrumb : classes.crumb}>
-                                    {label}{idKey ? `: ${idVal ?? ''}` : ''}
+                                    {label}{nameKey ? `: ${nameVal ?? ''}` : ''}
                                 </Typography>
                             </Tooltip>
                         );
@@ -206,7 +208,7 @@ const PortfolioBreadCrumbs = ({namedPath, getLabel}) => {
                                     style={{ cursor: 'pointer' }}
                                 >
                                     <Typography variant="body2" className={currentState.matches(lvl.state) ? classes.activeCrumb : classes.crumb}>
-                                        {label}{idKey ? `: ${idVal ?? ''}` : ''}
+                                        {label}{nameKey ? `: ${nameVal ?? ''}` : ''}
                                     </Typography>
                                 </Link>
                             </Tooltip>
