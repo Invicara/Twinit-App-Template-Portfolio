@@ -96,7 +96,7 @@ export default function SiteDetails({ context }) {
 
     // Handle entity property changes
     const handleEntityChange = (newValue, propertyName, metadata) => {
-        if (!currentEntity) return;
+        if (!currentEntity || (propertyName === idKey && newValue === undefined)) return;
 
         // Store the old entityId for comparison
         const oldEntityId = currentEntity[idKey];
