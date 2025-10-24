@@ -21,25 +21,20 @@ const useStyles = makeStyles(theme => ({
   }
 }))
 
-// TreeSearch will have the following structure:
-// Level 1 -> Facility
-// Level 2 -> Unit
-// Level 3 -> System
-// Level 4 -> Equipment Type
-// Level 5 -> Site Equipment
-
-// FIXES:
-// Can not select SE's from different facility to display on the table at the same time - would a context file help this? -> DONE
-// Need to add somethng to display if a selected SE does not have certain property. -> DONE
-// Any selected nodes must default to an indermediate state unless all the level 5 children have been selected, then it's parent's can be full checked state. -> DONE
-// When we select a node and complete the children data fetch, auto expand the node to display the children. -> DONE
-
 const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, setTableData}) => {
     const [initialTreeLevels, setInitialTreeLevels] = useState()
     const [expanded, setExpanded] = useState([])
     const [checkedItems, setCheckedItems] = useState({})
     const [indeterminateItems, setIndeterminateItems] = useState({})
     const [selected, setSelected] = useState(null)
+
+    function useSyncedRef(value) {
+        const ref = useRef(value)
+        useEffect(() => { ref.current = value }, [value])
+        return ref
+    }
+
+    const treeRef = useSyncedRef(initialTreeLevels)
 
     const classes = useStyles()
 
@@ -184,21 +179,24 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
                 return next
             })
 
-            const treeRef = useRef(initialTreeLevels)
+            loadChildrenForNode(id, true)
+                .then(async () => {
+                    // Wait one tick for tree state to settle
+                    await Promise.resolve()
 
-            useEffect(() => {
-                treeRef.current = initialTreeLevels
-            }, [initialTreeLevels])
+                    setCheckedItems(prevChecked => {
+                        const {checkedItems: newChecked, indeterminateItems: newIndeterminate} = calculateAssetTreeSelectionState(treeRef.current, prevChecked)
 
-            loadChildrenForNode(id, true).then(() => {
-                setCheckedItems(prevChecked => {
-                    const { checkedItems: newChecked, indeterminateItems: newIndeterminate } = calculateAssetTreeSelectionState(treeRef.current, prevChecked)
-                    setIndeterminateItems(newIndeterminate)
-                    return newChecked;
+                        setIndeterminateItems(prevIndeterminate => ({
+                            ...prevIndeterminate,
+                            ...newIndeterminate
+                        }))
+
+                        return newChecked
+                    })
                 })
-            }).catch(err => {
-                console.error("loadChildrenForNode failed:", err)
-            })
+                .catch(err => console.error("loadChildrenForNode failed:", err))
+
             return
         }
 
