@@ -81,7 +81,6 @@ const AssetOverviewView = () => {
                     marginRight: '24px'
                 }}
             >
-              {equipData?.length >= 1 ?
                 <>
                     <p className="table-panel-header">Equipments</p>
                     <AssetTable 
@@ -90,7 +89,6 @@ const AssetOverviewView = () => {
                         setLoadingTableData={setLoadingTableData} 
                     /> 
                 </>
-              : null}
               {loadingTableData ? <LinearProgress classes={{ colorPrimary: classes.colorPrimary, barColorPrimary: classes.barColorPrimary }} /> : null}
             </Box>
         </Box>
