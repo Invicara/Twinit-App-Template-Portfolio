@@ -458,12 +458,6 @@ export default function BuildingDetails({ context }) {
             [field]: parsedValue
         };
 
-        controller.updateTransform(entityId, {
-            centroid: [updatedEntity.longitude, updatedEntity.latitude],
-            rotation: updatedEntity.rotation,
-            size: updatedEntity.size
-        });
-
         // Update XState context
         const currentData = currentState.context?.data || {};
         const currentEntities = currentData[currentElementType] || [];
@@ -516,12 +510,6 @@ export default function BuildingDetails({ context }) {
                 ...currentData,
                 [currentElementType]: restoredEntities
             };
-
-            controller.updateTransform(entityId, {
-                centroid: [cachedPositioning.longitude, cachedPositioning.latitude],
-                rotation: cachedPositioning.rotation,
-                size: cachedPositioning.size
-            });
 
             // Update XState context with restored data
             send({
