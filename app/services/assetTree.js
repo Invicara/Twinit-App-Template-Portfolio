@@ -199,6 +199,7 @@ export async function getEquipLevel(nodeId) {
 
         finalEquipList.push({
             nameId: item["Site Equipment Id"],
+            EquipmentName: item['Equipment Name'],
             Properties: combinedProperties
         })
     });
