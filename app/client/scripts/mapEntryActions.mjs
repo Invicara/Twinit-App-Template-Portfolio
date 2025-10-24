@@ -58,28 +58,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
 import scriptModule from "../../../setup/scripts/mmv_config.mjs";
 import { DEFAULT_PATHS } from '../../ipaCore/pageComponents/portfolioOverview/PortfolioOverview.jsx';
-import {FilterCompiler, getGlobalFilterFunctions} from "../../ipaCore/pageComponents/utils/filters.global.js";
 
-
-// Function to generate square coordinates around a centroid
-// widthInMeters: width of the square in meters (default 500m)
-// Returns array of [lng, lat] coordinates forming a closed polygon
-export function generateSquareCoordinates(centerLng, centerLat, widthInMeters = 500) {
-    // Convert meters to degrees (rough approximation)
-    // 1 degree of longitude ≈ 111,320 meters * cos(latitude)
-    // 1 degree of latitude ≈ 110,540 meters
-    const halfWidthLng = (widthInMeters / 2) / (111320 * Math.cos(centerLat * Math.PI / 180));
-    const halfWidthLat = (widthInMeters / 2) / 110540;
-
-    // Create square coordinates (clockwise from top-left)
-    return [
-        [centerLng - halfWidthLng, centerLat + halfWidthLat], // Top-left
-        [centerLng + halfWidthLng, centerLat + halfWidthLat], // Top-right
-        [centerLng + halfWidthLng, centerLat - halfWidthLat], // Bottom-right
-        [centerLng - halfWidthLng, centerLat - halfWidthLat], // Bottom-left
-        [centerLng - halfWidthLng, centerLat + halfWidthLat]  // Close polygon
-    ];
-}
 /**
  * Properly dispose of THREE.js resources to prevent memory leaks
  * @param {THREE.Object3D} obj - The 3D object to dispose
@@ -223,11 +202,11 @@ function makeBinColorExpression(config) {
  */
 function buildGroupsFromBins(map, layerId, idKey, binConfig) {
     const layer = map.getLayer(layerId);
-    if (!layer) return {};// throw new Error(`Layer "${layerId}" not found`);
+    if (!layer) throw new Error(`Layer "${layerId}" not found`);
 
     const sourceId = layer.source;
     const src = map.getSource(sourceId);
-    if (!src) return {};// throw new Error(`Source "${sourceId}" not found for layer "${layerId}"`);
+    if (!src) throw new Error(`Source "${sourceId}" not found for layer "${layerId}"`);
 
     // Collect features we can access
     let features = [];
@@ -239,7 +218,7 @@ function buildGroupsFromBins(map, layerId, idKey, binConfig) {
         if (!sourceLayer) throw new Error(`Layer "${layerId}" is vector-backed but missing "source-layer"`);
         features = map.querySourceFeatures(sourceId, { sourceLayer });
     } else {
-        return {};//throw new Error(`Unsupported source type for binning: ${src.type}`);
+        throw new Error(`Unsupported source type for binning: ${src.type}`);
     }
 
     const propName = binConfig.property;
@@ -328,98 +307,23 @@ function zoomToAllFeatures(map, sources) {
         map.fitBounds(bounds, { padding: 40 });
     }
 }
-// ---- helpers ---------------------------------------------------------------
-
-/**
- * Resolve true once the given sourceId exists and is loaded.
- * Listens once; cleans itself up; optional timeout.
- */
-function waitForSourceLoaded(map, sourceId, { timeout = 10000 } = {}) {
-    return new Promise((resolve) => {
-        if (!map || !sourceId) return resolve(false);
-
-        const isReady = () => {
-            // Mapbox GL JS v2 has map.isSourceLoaded; fall back to presence if unavailable.
-            const src = map.getSource(sourceId);
-            return !!src && (typeof map.isSourceLoaded === 'function' ? map.isSourceLoaded(sourceId) : true);
-        };
-
-        if (isReady()) return resolve(true);
-
-        let timer = null;
-
-        const cleanup = () => {
-            map.off('sourcedata', onSourceData);
-            map.off('styledata', onStyleData);
-            map.off('idle', onIdle);
-            if (timer) clearTimeout(timer);
-        };
-
-        const tryResolve = () => {
-            if (isReady()) {
-                cleanup();
-                resolve(true);
-            }
-        };
-
-        const onSourceData = (e) => {
-            if (!e || e.sourceId !== sourceId) return;
-            // When Mapbox sets isSourceLoaded, wait until it's true
-            if (Object.prototype.hasOwnProperty.call(e, 'isSourceLoaded') && !e.isSourceLoaded) return;
-            tryResolve();
-        };
-
-        const onStyleData = tryResolve;
-        const onIdle = tryResolve;
-
-        map.on('sourcedata', onSourceData);
-        map.on('styledata', onStyleData);
-        map.on('idle', onIdle);
-
-        if (timeout > 0) {
-            timer = setTimeout(() => {
-                cleanup();
-                // Timed out; let caller decide what to do (we return false)
-                resolve(false);
-            }, timeout);
-        }
-    });
-}
-
-/** Wait for all given sourceIds. Resolves true if all became ready (false if any timed out). */
-async function waitForSourcesLoaded(map, sourceIds, opts) {
-    const results = await Promise.all(sourceIds.map(id => waitForSourceLoaded(map, id, opts)));
-    return results.every(Boolean);
-}
-
-// ---- main API --------------------------------------------------------------
-
 /**
  * @param {object} params
  * @param {object} params.map - Mapbox GL JS instance
  * @param {object} params.context - XState context, must include namedPaths
  * @param {string} [params.state] - e.g. "building" or "site"
  * @param {string|number} [params.featureId] - id to find within that state
- * @param {number} [params.timeout] - ms to wait for source to load (default 10s)
  */
-export async function zoomToFeature({ map, context, state = null, featureId = null, timeout = 10000 }) {
+export function zoomToFeature({ map, context, state = null, featureId = null }) {
     if (!map || !context || !context.namedPaths) return;
-    const namedPath = context.namedPaths[0]; // TODO: pick correct index if multiple paths
+    const namedPath = context.namedPaths[0];//TODO, select correct namedPath index
 
-    // If specific feature requested, wait for that level's source then fire
-    if (state && featureId != null) {
+    let commands;
+    if (state && featureId) {
         const level = getLevel(state, namedPath);
         if (!level || !level.idKey) return;
 
-        const sourceId = `${level.state}-features`;
-        const ready = await waitForSourceLoaded(map, sourceId, { timeout });
-
-        // If we timed out, you can choose to still send (best effort) or bail:
-        if (!ready) {
-            console.warn(`[zoomToFeature] source "${sourceId}" not ready (timeout ${timeout}ms). Sending anyway.`);
-        }
-
-        const commands = [{
+        commands = [{
             commandName: MMV_COMMANDS.ZOOM_TO,
             commandRef: uuid(),
             params: {
@@ -434,47 +338,48 @@ export async function zoomToFeature({ map, context, state = null, featureId = nu
                     }
                 }
             }
-        }];
+        }]
 
         context.mmvSend(commands);
-        return { /* placeholder for future queuing */ };
+
+        return {/*commands - soon we will be sending commands to queue them and schedule react and mapbox requests for main thread execution*/};
     }
 
-    // Otherwise, zoom to all features across current namedPath levels
-    // Wait for all corresponding sources, then delegate.
-    const sourceIds = namedPath.filter(lvl => lvl.feature).map(lvl => `${lvl.state}-features`)
-    const allReady = await waitForSourcesLoaded(map, sourceIds, { timeout });
-
-    if (!allReady) {
-        console.warn(`[zoomToFeature] some sources not ready (timeout ${timeout}ms):`, sourceIds);
-    }
-
-    zoomToAllFeatures(map, sourceIds);
+    zoomToAllFeatures(map, namedPath.map(lvl => `${lvl.state}-features`));
 }
 
 function dataToFeatures(levelDef, data) {
-    if(!data){
-        return null;
+    if (levelDef.feature === 'point') {
+        return data.filter(d => d.longitude && d.latitude).map(d => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: [parseFloat(d.longitude), parseFloat(d.latitude)]
+            },
+            properties: { ...d }
+        }));
     }
-    const features = data.map(d => {
-            let coordinates = d.coordinates;
-            if (levelDef.feature === 'point' && !coordinates) {
-                coordinates = [parseFloat(d.longitude), parseFloat(d.latitude)]
-            }
-            if (levelDef.feature === 'mesh' && !coordinates) {
-                const squareCoords = generateSquareCoordinates(d.longitude, d.latitude, 1);
-                coordinates = [squareCoords];
-            }
-            let f;
-            try {
-                f = featureFromKnownType(levelDef.feature, coordinates, {...d});
-            } catch (e) {
-                console.error("featureFromKnownType",e)
-            }
-            return f;
-        }
-    ).filter(f=>!!f);
-    return features;
+    if (levelDef.feature === 'polygon') {
+        return data.map(d => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: d.coordinates
+            },
+            properties: { ...d}
+        }));
+    }
+    if (levelDef.feature === 'mesh') {
+        return data.filter(d => d.longitude && d.latitude).map(d => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: [parseFloat(d.longitude), parseFloat(d.latitude)]
+            },
+            properties: { ...d }
+        }));
+    }
+    return null;
 }
 
 export function fixParentFeaturesUsingChildData(levelDef, data, parent={}) {
@@ -493,6 +398,8 @@ export function fixParentFeaturesUsingChildData(levelDef, data, parent={}) {
 
         })
     }
+
+    return dataToFeatures(levelDef, data) || [];
 }
 // Fetch features and convert to GeoJSON for a level
 export async function fetchFeaturesForLevel(levelDef, parent={}) {
@@ -520,26 +427,14 @@ export async function fetchFeaturesForLevel(levelDef, parent={}) {
 }
 
 function getFeatureLayers(namedPath) {
-    const layers = namedPath
-        ?.map((lvl, i) => ({
+    return namedPath
+        .map((lvl, i) => ({
             state: lvl.state,
             idKey: lvl.idKey || null,
             feature: lvl.feature || null,
             layerId: `${lvl.state}-features-layer`
         }))
         .filter(l => !!l.feature); // only states with feature layers
-    // Add 3D wrapper layer for mesh levels so clicks hit the mesh footprint
-    namedPath?.forEach(lvl => {
-        if (lvl.feature === 'mesh' && !layers.find(l => l.state === lvl.state) ) {
-            layers.push({
-                state: lvl.state,
-                idKey: lvl.idKey,
-                feature: 'polygon',
-                layerId: `${lvl.state}-features-3d-graphics`
-            });
-        }
-    });
-    return layers || [];
 }
 const CLICK_HANDLED = Symbol('map.click.handled');
 
@@ -664,9 +559,12 @@ export function featureFromKnownType(type, coords, properties = {}) {
     const t = String(type).toLowerCase();
 
     switch (t) {
-        //case 'mesh':
         case 'point': {
             if (!isPos(coords)) throw new Error('Point coords must be [lng, lat]');
+            return point(coords, properties);
+        }
+        case 'mesh': {
+            if (!isPos(coords)) throw new Error('Mesh coords must be [lng, lat]');
             return point(coords, properties);
         }
         case 'multipoint': {
@@ -1088,14 +986,16 @@ export function get3DGraphicsController(map, sourceId) {
 
     // State for tracking interaction mode and handlers
     let interactionState = {
-        mode: null, // 'move', 'rotate', 'scale', or null
+        mode: null, // 'transform' or null
         activeFeatureId: null,
         activeFeature: null,
         isDragging: false,
         startPosition: null,
         startRotation: 0,
         startScale: 1,
-        activeHandle: null,
+        activeHandle: null, // 'move', 'rotate', or 'scale'
+        onTransformCallback: null, // Callback function for transformation updates
+        dataSource: null,
 
         // Event handlers (stored for cleanup)
         mouseMoveHandler: null,
@@ -1104,102 +1004,69 @@ export function get3DGraphicsController(map, sourceId) {
     };
 
     /**
+     * Enable transformation controls (move, rotate, and scale) for a specific feature
+     * All three operations are available simultaneously based on which handle is interacted with
+     * @param {string} featureId - The feature ID to enable transformation for
+     * @param {Function} callback - Optional callback function called during transformations
+     *                               Receives object with: { position, rotation, scale }
+     */
+    const enableTransform = (featureId, callback = null) => {
+        if (interactionState.mode) {
+            console.warn('Another interaction mode is active. Disable it first.');
+            return false;
+        }
+
+        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
+        if (!feature) {
+            console.error(`Feature not found: ${featureId}`);
+            return false;
+        }
+
+        interactionState.mode = 'transform'; // Single unified mode
+        interactionState.activeFeatureId = featureId;
+        interactionState.activeFeature = feature;
+        interactionState.onTransformCallback = callback;
+        interactionState.dataSource = map.getSource(sourceId);
+        window.dataSource = interactionState.dataSource;
+
+        // Add visual handles
+        if (layer.startEditingFeature) {
+            layer.startEditingFeature(featureId);
+        }
+
+        // Attach unified handlers that support all three operations
+        attachUnifiedTransformHandlers();
+
+        console.log(`Transform mode enabled for feature: ${featureId} (move, rotate, scale available)`);
+        map.triggerRepaint();
+        return true;
+    };
+
+    /**
+     * @deprecated Use enableTransform instead - kept for backward compatibility
      * Enable move mode for a specific feature
-     * @param {string} featureId - The feature ID to enable move mode for
      */
-    const enableMove = (featureId) => {
-        if (interactionState.mode) {
-            console.warn('Another interaction mode is active. Disable it first.');
-            return false;
-        }
-
-        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
-        if (!feature) {
-            console.error(`Feature not found: ${featureId}`);
-            return false;
-        }
-
-        interactionState.mode = 'move';
-        interactionState.activeFeatureId = featureId;
-        interactionState.activeFeature = feature;
-
-        // Add visual handles
-        if (layer.startEditingFeature) {
-            layer.startEditingFeature(featureId);
-        }
-
-        // Attach move-specific event handlers
-        attachMoveHandlers();
-
-        console.log(`Move mode enabled for feature: ${featureId}`);
-        map.triggerRepaint();
-        return true;
+    const enableMove = (featureId, callback = null) => {
+        console.warn('enableMove is deprecated. Use enableTransform instead for unified move/rotate/scale.');
+        return enableTransform(featureId, callback);
     };
 
     /**
+     * @deprecated Use enableTransform instead - kept for backward compatibility
      * Enable rotate mode for a specific feature
-     * @param {string} featureId - The feature ID to enable rotate mode for
      */
-    const enableRotate = (featureId) => {
-        if (interactionState.mode) {
-            console.warn('Another interaction mode is active. Disable it first.');
-            return false;
-        }
-
-        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
-        if (!feature) {
-            console.error(`Feature not found: ${featureId}`);
-            return false;
-        }
-
-        interactionState.mode = 'rotate';
-        interactionState.activeFeatureId = featureId;
-        interactionState.activeFeature = feature;
-
-        // Add visual handles
-        if (layer.startEditingFeature) {
-            layer.startEditingFeature(featureId);
-        }
-
-        // Attach rotate-specific event handlers
-        attachRotateHandlers();
-
-        console.log(`Rotate mode enabled for feature: ${featureId}`);
-        map.triggerRepaint();
-        return true;
+    const enableRotate = (featureId, callback = null) => {
+        console.warn('enableRotate is deprecated. Use enableTransform instead for unified move/rotate/scale.');
+        return enableTransform(featureId, callback);
     };
 
     /**
+     * @deprecated Use enableTransform instead - kept for backward compatibility
      * Enable scale mode for a specific feature
-     * @param {string} featureId - The feature ID to enable scale mode for
      */
-    const enableScale = (featureId) => {
-        if (interactionState.mode) {
-            console.warn('Another interaction mode is active. Disable it first.');
-            return false;
-        }
-
-        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
-        if (!feature) {
-            console.error(`Feature not found: ${featureId}`);
-            return false;
-        }
-
-        interactionState.mode = 'scale';
-        interactionState.activeFeatureId = featureId;
-        interactionState.activeFeature = feature;
-
-        // Add visual handles
-        if (layer.startEditingFeature) {
-            layer.startEditingFeature(featureId);
-        }
-
-        // Attach scale-specific event handlers
-        attachScaleHandlers();
-
-        console.log(`Scale mode enabled for feature: ${featureId}`);
-        map.triggerRepaint();
-        return true;
+    const enableScale = (featureId, callback = null) => {
+        console.warn('enableScale is deprecated. Use enableTransform instead for unified move/rotate/scale.');
+        return enableTransform(featureId, callback);
     };
 
     /**
@@ -1264,6 +1131,7 @@ export function get3DGraphicsController(map, sourceId) {
             startRotation: 0,
             startScale: 1,
             activeHandle: null,
+            onTransformCallback: null,
             mouseMoveHandler: null,
             mouseDownHandler: null,
             mouseUpHandler: null
@@ -1272,6 +1140,185 @@ export function get3DGraphicsController(map, sourceId) {
         console.log(`${previousMode} mode disabled`);
         map.triggerRepaint();
         return true;
+    };
+
+    /**
+     * Attach unified event handlers that support move, rotate, and scale simultaneously
+     * The operation performed depends on which handle the user interacts with
+     */
+    const attachUnifiedTransformHandlers = () => {
+        interactionState.mouseMoveHandler = (e) => {
+            const featureFromSource = dataSource._data.features.find(el => el.id === interactionState.activeFeatureId);
+            window.featureFromSource = featureFromSource;
+
+            const callbackValue = {
+                centroid: [featureFromSource.properties.longitude, featureFromSource.properties.latitude],
+                rotation: featureFromSource.properties.rotation,
+                scale: featureFromSource.properties.scale
+            }
+            console.log("attachUnifiedTransformHandlers", {callbackValue})
+
+
+
+            const point = { x: e.point.x, y: e.point.y };
+
+            if (!interactionState.isDragging && layer.detectHandle) {
+                // Handle hover detection for cursor changes
+                const handleInfo = layer.detectHandle(point);
+                if (layer.updateCursor) {
+                    layer.updateCursor(handleInfo);
+                }
+                return;
+            }
+
+            // Handle active drag operation based on which handle is being used
+            if (interactionState.isDragging) {
+                const feature = interactionState.activeFeature;
+                window.feature = feature;
+
+                // MOVE operation
+                if (interactionState.activeHandle === 'move') {
+                    const position = [e.lngLat.lng, e.lngLat.lat];
+                    callbackValue.centroid = position;
+                    feature.centroid = position;
+
+                    const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(position, 0);
+                    feature.transform.translateX = modelAsMercatorCoordinate.x;
+                    feature.transform.translateY = modelAsMercatorCoordinate.y;
+                    feature.transform.translateZ = modelAsMercatorCoordinate.z;
+                }
+
+                // ROTATE operation
+                else if (interactionState.activeHandle === 'rotate') {
+                    const center = feature.centroid;
+                    const centerPixel = map.project(center);
+
+                    const angle = Math.atan2(e.point.y - centerPixel.y, e.point.x - centerPixel.x);
+                    const startAngle = Math.atan2(
+                        interactionState.startPosition.y - centerPixel.y,
+                        interactionState.startPosition.x - centerPixel.x
+                    );
+                    const deltaAngle = (angle - startAngle) * (180 / Math.PI);
+                    const newRotation = (interactionState.startRotation + deltaAngle) % 360;
+                    callbackValue.rotation = newRotation;
+
+                    feature.transform.rotateY = newRotation * -(Math.PI / 180);
+                    feature.properties.rotation = newRotation;
+                }
+
+                // SCALE operation
+                else if (interactionState.activeHandle === 'scale') {
+                    const center = feature.centroid;
+                    const centerPixel = map.project(center);
+
+                    const currentDistance = Math.sqrt(
+                        Math.pow(e.point.x - centerPixel.x, 2) +
+                        Math.pow(e.point.y - centerPixel.y, 2)
+                    );
+                    const startDistance = Math.sqrt(
+                        Math.pow(interactionState.startPosition.x - centerPixel.x, 2) +
+                        Math.pow(interactionState.startPosition.y - centerPixel.y, 2)
+                    );
+
+                    const scaleFactor = startDistance > 0 ? currentDistance / startDistance : 1;
+                    const newScale = Math.max(0.1, Math.min(3.0, interactionState.startScale * scaleFactor));
+                    callbackValue.scale = newScale;
+
+                    const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(center, 0);
+                    feature.transform.scale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() * newScale;
+                    feature.properties.size = newScale;
+                }
+
+                // Invoke callback with updated transformation data
+                if (interactionState.onTransformCallback) {
+
+                    try {
+                        console.log("attachUnifiedTransformHandlers, prevcallback", {callbackValue, feature})
+                        const outcomeGeneralPosition = {
+                            position: feature.centroid,
+                            rotation: feature.properties.rotation,
+                            size: callbackValue.scale
+                        }
+
+                        interactionState.onTransformCallback(outcomeGeneralPosition);
+                    } catch (error) {
+                        console.error('Error executing transform callback:', error);
+                    }
+                }
+
+                map.triggerRepaint();
+            }
+        };
+
+        interactionState.mouseDownHandler = (e) => {
+            const point = { x: e.point.x, y: e.point.y };
+
+            if (layer.detectHandle) {
+                const handleInfo = layer.detectHandle(point);
+
+                if (handleInfo) {
+                    // Determine which operation based on handle type
+                    if (handleInfo.type === 'moveHandle') {
+                        interactionState.activeHandle = 'move';
+                        interactionState.isDragging = true;
+                        interactionState.startPosition = point;
+                        map.getCanvas().style.cursor = 'grabbing';
+                        map.dragPan.disable();
+                        e.preventDefault();
+                    }
+                    else if (handleInfo.type === 'boundingBox') {
+                        interactionState.activeHandle = 'rotate';
+                        interactionState.isDragging = true;
+                        interactionState.startPosition = point;
+
+                        // Extract current rotation from transform
+                        const currentRotateY = interactionState.activeFeature.transform.rotateY || 0;
+                        interactionState.startRotation = currentRotateY * -(180 / Math.PI);
+
+                        map.getCanvas().style.cursor = 'grabbing';
+                        map.dragPan.disable();
+                        e.preventDefault();
+                    }
+                    else if (handleInfo.type === 'scaleHandle') {
+                        interactionState.activeHandle = 'scale';
+                        interactionState.isDragging = true;
+                        interactionState.startPosition = point;
+
+                        // Extract current scale from transform
+                        const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
+                            interactionState.activeFeature.centroid,
+                            0
+                        );
+                        const baseScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
+                        interactionState.startScale = interactionState.activeFeature.transform.scale / baseScale;
+
+                        map.getCanvas().style.cursor = 'nw-resize';
+                        map.dragPan.disable();
+                        e.preventDefault();
+                    }
+                }
+            }
+        };
+
+        interactionState.mouseUpHandler = (e) => {
+            if (interactionState.isDragging) {
+                interactionState.isDragging = false;
+                interactionState.activeHandle = null;
+                map.dragPan.enable();
+
+                const point = { x: e.point.x, y: e.point.y };
+                if (layer.detectHandle) {
+                    const handleInfo = layer.detectHandle(point);
+                    if (layer.updateCursor) {
+                        layer.updateCursor(handleInfo);
+                    }
+                }
+            }
+        };
+
+        map.on('mousemove', interactionState.mouseMoveHandler);
+        map.on('mousedown', interactionState.mouseDownHandler);
+        map.on('mouseup', interactionState.mouseUpHandler);
     };
 
     /**
@@ -1519,7 +1566,6 @@ export function get3DGraphicsController(map, sourceId) {
         map.on('mouseup', interactionState.mouseUpHandler);
     };
 
-
     return {
         // Layer-wide visibility control
         show: () => layer.show3DGraphics && layer.show3DGraphics(),
@@ -1535,9 +1581,7 @@ export function get3DGraphicsController(map, sourceId) {
         getAllFeatureVisibility: () => layer.getAllFeatureVisibility && layer.getAllFeatureVisibility(),
 
         // Transformation controls with visual overlays and callbacks
-        enableMove,
-        enableRotate,
-        enableScale,
+        enableTransform,    // NEW: Unified function - enables move, rotate, and scale simultaneously
         disableInteraction,
 
         // Programmatic transform update
@@ -1676,9 +1720,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                 if (feature && !feature._featureVisible) {
                     feature._featureVisible = true;
                     updated = true;
-                    //console.log(`Showing feature: ${id}`);
-                } else {
-                    //console.log(`Feature already marked as shown: ${id}`);
+                    console.log(`Showing feature: ${id}`);
                 }
             });
 
@@ -1696,15 +1738,12 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             let updated = false;
             const keyProperty = this.metadata.featureInfo.idProperty;
 
-
             featureIds.forEach(id => {
                 const feature = this.features.find(f => f.properties[keyProperty] === id);
                 if (feature && feature._featureVisible) {
                     feature._featureVisible = false;
                     updated = true;
-                    //console.log(`Hiding feature: ${id}`);
-                } else {
-                    //console.log(`Feature already marked as hidden: ${id}`);
+                    console.log(`Hiding feature: ${id}`);
                 }
             });
 
@@ -1729,7 +1768,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                     if (feature._featureVisible !== newVisibility) {
                         feature._featureVisible = newVisibility;
                         updated = true;
-                        //console.log(`${newVisibility ? 'Showing' : 'Hiding'} feature: ${id}`);
+                        console.log(`${newVisibility ? 'Showing' : 'Hiding'} feature: ${id}`);
                     }
                 }
             });
@@ -1865,22 +1904,85 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
 
             const bbox = geometryInfo.boundingBox;
 
-            // Building outline box - covers entire building shape
-            const boxGeometry = new THREE.BoxGeometry(
-                bbox.max.x - bbox.min.x,
-                bbox.max.y - bbox.min.y,
-                bbox.max.z - bbox.min.z
-            );
-            const boxMaterial = new THREE.MeshBasicMaterial({
-                color: 0x00ffff,
-                wireframe: true,
+            // Add buffer space to the bounding box (2.5 meters on each side)
+            const buffer = 10;
+
+            // Calculate expanded bounding box dimensions
+            const width = bbox.max.x - bbox.min.x + (buffer * 2);
+            const height = bbox.max.y - bbox.min.y + (buffer * 2);
+            const depth = bbox.max.z - bbox.min.z + (buffer * 2);
+
+            // Calculate corner positions for the expanded box
+            const halfWidth = width / 2;
+            const halfHeight = height / 2;
+            const halfDepth = depth / 2;
+            const centerY = (bbox.max.y + bbox.min.y) / 2;
+
+            // Create thick edges using cylinders for better visibility
+            const edgeThickness = 1.0; // Thickness of the edge lines in meters (increased for better visibility)
+            const edgeColor = 0x00ffff;
+            const edgeMaterial = new THREE.MeshBasicMaterial({
+                color: edgeColor,
                 transparent: true,
-                opacity: 0.6
+                opacity: 0.8
             });
-            const boundingBoxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
-            boundingBoxMesh.position.y = (bbox.max.y + bbox.min.y) / 2;
-            boundingBoxMesh.userData = { type: 'boundingBox', isEditingHandle: true };
-            handleGroup.add(boundingBoxMesh);
+
+            // Helper function to create an edge between two points
+            const createEdge = (start, end) => {
+                const direction = new THREE.Vector3().subVectors(end, start);
+                const length = direction.length();
+                const edgeGeometry = new THREE.CylinderGeometry(edgeThickness, edgeThickness, length, 8);
+                const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
+
+                // Position at midpoint
+                edge.position.copy(start).add(direction.multiplyScalar(0.5));
+
+                // Rotate to align with direction
+                edge.quaternion.setFromUnitVectors(
+                    new THREE.Vector3(0, 1, 0),
+                    direction.normalize()
+                );
+
+                return edge;
+            };
+
+            // Define the 8 corners of the box
+            const corners = [
+                new THREE.Vector3(-halfWidth, centerY - halfHeight, -halfDepth), // 0: bottom-back-left
+                new THREE.Vector3(halfWidth, centerY - halfHeight, -halfDepth),  // 1: bottom-back-right
+                new THREE.Vector3(-halfWidth, centerY - halfHeight, halfDepth),  // 2: bottom-front-left
+                new THREE.Vector3(halfWidth, centerY - halfHeight, halfDepth),   // 3: bottom-front-right
+                new THREE.Vector3(-halfWidth, centerY + halfHeight, -halfDepth), // 4: top-back-left
+                new THREE.Vector3(halfWidth, centerY + halfHeight, -halfDepth),  // 5: top-back-right
+                new THREE.Vector3(-halfWidth, centerY + halfHeight, halfDepth),  // 6: top-front-left
+                new THREE.Vector3(halfWidth, centerY + halfHeight, halfDepth)    // 7: top-front-right
+            ];
+
+            // Create 12 edges of the box
+            const edges = [
+                // Bottom face edges
+                [corners[0], corners[1]], // back
+                [corners[1], corners[3]], // right
+                [corners[3], corners[2]], // front
+                [corners[2], corners[0]], // left
+                // Top face edges
+                [corners[4], corners[5]], // back
+                [corners[5], corners[7]], // right
+                [corners[7], corners[6]], // front
+                [corners[6], corners[4]], // left
+                // Vertical edges
+                [corners[0], corners[4]], // back-left
+                [corners[1], corners[5]], // back-right
+                [corners[2], corners[6]], // front-left
+                [corners[3], corners[7]]  // front-right
+            ];
+
+            // Add all edges to the handle group
+            edges.forEach(([start, end]) => {
+                const edge = createEdge(start, end);
+                edge.userData = { type: 'boundingBox', isEditingHandle: true };
+                handleGroup.add(edge);
+            });
 
             // Scale handles (corner cubes)
             const handleSize = 0.05;
@@ -2098,7 +2200,6 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
         updateFeatures: function(newFeatures, graphics, contextGetter) {
             if (!this.scene) return;
 
-            console.log("Calling updateFeatures", {newFeatures, graphics});
             const keyProperty = this.metadata.featureInfo.idProperty || 'id';
 
             // Redux context (for structure → graphicId lookup)
@@ -2796,7 +2897,7 @@ export async function upsertOrUpdateAllFeatures({ map, namedPath, getContext, se
                 if (!map.getLayer(customId)) {
                     const custom = createGraphicsCustomLayer(customId, level.features, loadedGraphics, level, getContext); // :contentReference[oaicite:10]{index=10}
                     map.addLayer(custom);
-                    setCubeWrapperDebug(map, sourceId, true);
+                    //setCubeWrapperDebug(map, sourceId, true);
                 } else {
                     const layer = map.getLayer(customId);
                     if (layer?.updateFeatures) {
@@ -2916,80 +3017,6 @@ export async function updateLayersFromData({ context, self }) {
     return {};
 }
 
-function buildAncestryPredicate(featureDef, context, namedPath) {
-    const path = featureDef.path;
-    if (!Array.isArray(namedPath)) return null;
-
-    const levelIdx = namedPath.findIndex(l => l.state === path);
-    if (levelIdx < 0) return null;
-
-    // Collect (idKey, value) for all levels up to and including current,
-    // but only where context has a value; optionally only consider ancestors that are features
-    const keyVals = [];
-    for (let i = 0; i <= levelIdx; i++) {
-        const lvl = namedPath[i];
-        const idKey = lvl?.idKey;
-        if (!idKey) continue;
-        const val = context?.[idKey];
-        if (val == null) continue;
-
-        // If you only want to constrain by ancestors that are actually rendered parent features,
-        // uncomment the next line:
-        // if (!lvl.feature && i < levelIdx) continue;
-
-        keyVals.push([idKey, val]);
-    }
-
-    if (keyVals.length === 0) return null;
-    return (feat) => {
-        const props = feat?.properties || {};
-        for (const [k, v] of keyVals) {
-            if (props[k] != v) return false;
-        }
-        return true;
-    };
-}
-
-export function getFeatures(featureDef, context, sourceId, opts = {}) {
-    const { path } = featureDef;
-    const fns = getGlobalFilterFunctions(path, true);
-
-    const idKey = featureDef.idKey || `${path}Id`;
-    const propKey = idKey;
-
-    const useContextHierarchy = opts.useContextHierarchy ?? true;
-
-    let features = [];
-    let allFeatures = [];
-    const namedPath = context?.namedPaths?.[0] || [];
-    const expr = context?.filters?.[path]; // <-- use the correct scope
-
-    try {
-        const src = context?.map?.getSource(sourceId);
-        const data = src ? (src._data || src.serialize().data) : [];
-        features = data?.features || [];
-        allFeatures = features;
-
-        // 1) global compiled filter for this path (if any)
-        if (expr) {
-            const compiler = new FilterCompiler(fns);
-            const filterFn = compiler.compileFilter(expr);
-            features = features.filter(filterFn);
-        }
-
-        // 2) hierarchy constraints from context (ancestors + current level if provided)
-        if (useContextHierarchy) {
-            const pred = buildAncestryPredicate(featureDef, context, namedPath);
-            if (pred) features = features.filter(pred);
-        }
-    } catch (e) {
-        console.error(e);
-        features = [];
-    }
-
-    return { allFeatures, features, filters: expr };
-}
-
 async function handleMarkers(stateValue, markersConfig, {context, self}) {
 
     let manageMarkers;
@@ -3004,13 +3031,6 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
     if(markersConfig){
 
         manageMarkers = async (e) => {
-            const managedPaths = markersConfig
-                .map(mi => mi?.featureDef?.path)
-                .filter(Boolean);
-
-            const currentIdsByPath = {};
-            const graphicsByPath = {};
-            const processedPaths = new Set();
 
             for (const markersInfo of markersConfig) {
                 const {featureDef, config, ...restMarkerInfo} = markersInfo;
@@ -3022,87 +3042,108 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
                     continue;
                 }
 
-                const {
-                    graphics,
-                    visibleFeatures,
-                    currentMarkerIds,
-                    filters
-                } = await renderAllMarkers(e, markersInfo, {self, getFeatures});
+                const {graphics, visibleFeatures, currentMarkerIds, filters} = await renderAllMarkers(e, {self}, markersInfo);
+                //console.log("UPDATE_FILTERS renderAllMarkers", {graphics, visibleFeatures, currentMarkerIds, filters: filters});
 
-                currentIdsByPath[path] = currentMarkerIds || [];
-                graphicsByPath[path] = graphics || [];
-                processedPaths.add(path);
-            }
-
-            //  (prevents nukes)
-            if (processedPaths.size === 0) return;
-
-            // Reconcile
-            // If nothing to manage, purge everything and exit
-            if (managedPaths.length === 0) {
-                //const release = await markersMutex.lock();
+                const release = await markersMutex.lock();
                 try {
-                    const allIds = [...getMarkers().keys()];
-                    if (allIds.length) {
-                        context.mmvSend([{
-                            commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                    const previousMarkerIds = [...getMarkers().keys()];
+                    if (previousMarkerIds && previousMarkerIds.length > 0) {
+                        const toRemove = previousMarkerIds.filter(id=>!currentMarkerIds.includes(id));
+                        if(toRemove.length>0){
+                            const commands = [{
+                                commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
+                                commandRef: uuid(),
+                                params: {
+                                    ids: toRemove,//remove stale
+                                }
+                            }]
+                            context.mmvSend(commands);
+                            clearStaleMarkers(toRemove);
+                        }
+                    }
+                    if (graphics && graphics.length > 0) {
+                        const commands = [{
+                            commandName: MMV_COMMANDS.ADD_GRAPHICS,
                             commandRef: uuid(),
-                            params: { ids: allIds }
-                        }]);
-                        clearStaleMarkers(allIds);
+                            params: {
+                                graphics: graphics
+                            }
+                        }]
+                        context.mmvSend(commands);
+                        graphics.forEach(graphic => {
+                            addMarkers(graphic);//track markers internally
+                        })
                     }
                 } finally {
-                    //release();
+                    release();
                 }
-                return;
+
+                if (path == "site" && visibleFeatures && visibleFeatures.length > 0) {
+
+                    const ids = visibleFeatures.map(f => f.properties["siteId"]);
+                    const key = makeGlobalFilterKey({
+                        layer: 'site-features-layer',
+                        field: 'siteId',
+                        ids,
+                        invert: false,
+                        filter: context.filters?.["site"]
+                    });
+                    if (ids.length && globalFilterKeys.get('site-features-layer') !== key) {
+                        try {
+                            context.mmvSend([
+                                {
+                                    commandName: MMV_COMMANDS.CUSTOM,
+                                    commandRef: uuid(),
+                                    params: {
+                                        commandName: 'filtermodel',
+                                        commandRef: uuid(),
+                                        params: {
+                                            clear: false,
+                                            ids: ids,
+                                            invert: false,
+                                            extra: {
+                                                //layerNames: ['site-features-layer','site-features-centroids-layer-circle'],
+                                                layerNames: 'site-features-layer',
+                                                field: 'siteId',
+                                                fieldType: 'string'
+                                            }
+                                        }
+                                    }
+
+                                },
+                                {
+                                    commandName: MMV_COMMANDS.CUSTOM,
+                                    commandRef: uuid(),
+                                    params: {
+                                        commandName: 'filtermodel',
+                                        commandRef: uuid(),
+                                        params: {
+                                            clear: false,
+                                            ids: ids,
+                                            invert: false,
+                                            extra: {
+                                                //layerNames: ['site-features-layer','site-features-centroids-layer-circle'],
+                                                layerNames: 'site-features-centroids-layer-circle',
+                                                field: 'siteId',
+                                                fieldType: 'string'
+                                            }
+                                        }
+                                    }
+
+                                }
+                            ]);
+                        } catch (e) {
+                            console.error(e)
+                        }
+                    }
+
+                    globalFilterKeys.set('site-features-layer', key);
+                    globalFilterKeys.set('site-features-centroids-layer-circle', key);
+
+                }
+
             }
-
-            // Reconcile under mutex
-            //const release = await markersMutex.lock();
-            try {
-                const existingIds = [...getMarkers().keys()];
-
-                // (A) Remove everything from NON-managed paths (leftovers from other states)
-                const managedIds = existingIds.filter(id =>
-                    managedPaths.some(path => id.startsWith(`${path}`))
-                );
-                //Everything else is non-managed — remove those (leftovers from old states)
-                const nonManagedToRemove = existingIds.filter(id => !managedIds.includes(id));
-
-                // (B) For managed paths we processed in this tick, remove only IDs not present in currentMarkerIds
-                const unionCurrentIds = new Set(
-                    Object.values(currentIdsByPath).flat() // the “truth” of what should remain
-                );
-
-                const staleToRemove = managedIds.filter(id => !unionCurrentIds.has(id));
-
-                const idsToRemove = [...new Set([...nonManagedToRemove, ...staleToRemove])];
-                if (idsToRemove.length) {
-                    context.mmvSend([{
-                        commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
-                        commandRef: uuid(),
-                        params: { ids: idsToRemove }
-                    }]);
-                    clearStaleMarkers(idsToRemove);
-                }
-
-                // (C) Add only the new graphics returned by renderAllMarkers (existing ones are kept alive by currentMarkerIds)
-                const graphicsToAdd = Object.values(graphicsByPath).flat();
-                if (graphicsToAdd.length) {
-                    context.mmvSend([{
-                        commandName: MMV_COMMANDS.ADD_GRAPHICS,
-                        commandRef: uuid(),
-                        params: { graphics: graphicsToAdd }
-                    }]);
-                    graphicsToAdd.forEach(addMarkers); // track internally
-                }
-
-                // IMPORTANT: do NOT remove a managed path just because it returned zero graphics.
-                // If its IDs are in currentMarkerIds, the previously-added graphics remain on the map.
-            } finally {
-                //release();
-            }
-
         }
 
 
@@ -3117,156 +3158,6 @@ async function handleMarkers(stateValue, markersConfig, {context, self}) {
 
     return {manageMarkers}
 }
-
-async function handleFeatureFilters(stateValue, levels, {context, self}) {
-
-    let manageFeatureFilters;
-
-    if(context.manageFeatureFilters){
-        context.map.off('sourcedata', context.manageFeatureFilters);
-        context.map.off('idle', context.manageFeatureFilters);
-    }
-
-    manageFeatureFilters = async (e) => {
-
-        for(const level of levels){
-
-            const path = level.state;
-            const featureDef = {...level, path};
-
-            const sourceId = path + "-features";
-            if (e && e.sourceId === sourceId && e.hasOwnProperty("isSourceLoaded") && !e.isSourceLoaded) {
-                continue;
-            } else if (e && e.sourceId !== sourceId && e.type == "sourcedata") {
-                continue;
-            }
-            const {features: visibleFeatures, allFeatures, filters} = getFeatures(featureDef, context, sourceId);
-
-            if (path === "site") {
-                if (stateValue === "portfolio") {
-                    // --- CLEAR FILTERS
-                    if (globalFilterKeys.get('site-features-centroids-layer-circle')) {
-                        context.mmvSend([{
-                            commandName: MMV_COMMANDS.CUSTOM,
-                            commandRef: uuid(),
-                            params: {
-                                commandName: 'filtermodel',
-                                commandRef: uuid(),
-                                params: {
-                                    clear: true,
-                                    extra: { layerNames: 'site-features-centroids-layer-circle' }
-                                }
-                            }
-                        }]);
-                        globalFilterKeys.delete('site-features-centroids-layer-circle');
-                    }
-
-                    if (globalFilterKeys.get('site-features-layer')) {
-                        context.mmvSend([{
-                            commandName: MMV_COMMANDS.CUSTOM,
-                            commandRef: uuid(),
-                            params: {
-                                commandName: 'filtermodel',
-                                commandRef: uuid(),
-                                params: {
-                                    clear: true,
-                                    extra: {
-                                        layerNames: 'site-features-layer',
-                                        field: 'siteId',
-                                        fieldType: 'string'
-                                    }
-                                }
-                            }
-                        }]);
-                        globalFilterKeys.delete('site-features-layer');
-                    }
-                } else {
-                    // --- APPLY FILTERS (site state active, or building state showing sites below)
-                    const { siteId } = self.getSnapshot().context;
-
-                    // Build the ids list correctly and dedupe it
-                    const allIds = visibleFeatures
-                        .map(f => f?.properties?.siteId)
-                        .filter(id => id != null);
-
-                    const ids = (siteId != null)
-                        ? (allIds.includes(siteId) ? [siteId] : []) // keep only the selected site if present
-                        : Array.from(new Set(allIds)); // dedupe when no site selected
-
-                    const key = makeGlobalFilterKey({
-                        layer: 'site-features-layer',
-                        field: 'siteId',
-                        ids,
-                        invert: false,
-                        filter: context.filters?.["site"] // ok since path === "site" here
-                    });
-                    // Apply to main layer
-                    if (globalFilterKeys.get('site-features-layer') !== key) {
-                        try {
-                            context.mmvSend([{
-                                commandName: MMV_COMMANDS.CUSTOM,
-                                commandRef: uuid(),
-                                params: {
-                                    commandName: 'filtermodel',
-                                    commandRef: uuid(),
-                                    params: {
-                                        clear: false,
-                                        ids,
-                                        invert: false,
-                                        extra: {
-                                            layerNames: 'site-features-layer',
-                                            field: 'siteId',
-                                            fieldType: 'string'
-                                        }
-                                    }
-                                }
-                            }]);
-                            globalFilterKeys.set('site-features-layer', key);
-                        } catch (err) {
-                            console.error(err);
-                        }
-                    }
-
-                    // Apply to centroids layer
-                    if (globalFilterKeys.get('site-features-centroids-layer-circle') !== key) {
-                        try {
-                            context.mmvSend([{
-                                commandName: MMV_COMMANDS.CUSTOM,
-                                commandRef: uuid(),
-                                params: {
-                                    commandName: 'filtermodel',
-                                    commandRef: uuid(),
-                                    params: {
-                                        clear: false,
-                                        ids,
-                                        invert: false,
-                                        extra: {
-                                            layerNames: 'site-features-centroids-layer-circle',
-                                            field: 'siteId',
-                                            fieldType: 'string'
-                                        }
-                                    }
-                                }
-                            }]);
-                            globalFilterKeys.set('site-features-centroids-layer-circle', key);
-                        } catch (err) {
-                            console.error(err);
-                        }
-                    }
-                }
-            } // end if (path === "site")
-        }
-    }
-
-    if(context.map) {
-        context.map.on('idle', manageFeatureFilters);
-        context.map.on('sourcedata', manageFeatureFilters);
-    }
-    manageFeatureFilters();
-
-    return {manageFeatureFilters}
-}
-
 export async function onDataUpdatedAction({mapMachineInput }) {
     return updateLayersFromData(mapMachineInput)
 }
@@ -3274,10 +3165,8 @@ export async function getInitAction({mapMachineInput }) {
     return addLayers(mapMachineInput)
 }
 export async function getEntryAction({mapMachineInput }) {
-    const {stateValue, event, self} = mapMachineInput;
+    const {stateValue, context, event, self} = mapMachineInput;
 
-    const snapshot = self.getSnapshot();
-    const context = snapshot.context;
     const {suppressEntryActions} = context;
 
     if (suppressEntryActions) {
@@ -3325,21 +3214,53 @@ export async function getEntryAction({mapMachineInput }) {
             const markersConfig = singleMarkers;
             const {manageMarkers} = await handleMarkers(stateValue, markersConfig, {context, self});
 
-            const {manageFeatureFilters} = await handleFeatureFilters(stateValue, namedPath, {context, self});
+            if(globalFilterKeys.get('site-features-layer')){
+                context.mmvSend([{
+                    commandName: MMV_COMMANDS.CUSTOM,
+                    commandRef: uuid(),
+                    params: {
+                        commandName: 'filtermodel',
+                        commandRef: uuid(),
+                        params: {
+                            clear: true,
+                            extra: {
+                                //layerNames: ['site-features-layer','site-features-centroids-layer-circle'],
+                                layerNames: 'site-features-centroids-layer-circle',
+                            }
+                        }
+                    }
+                }])
+            }
+            if(globalFilterKeys.get('site-features-centroids-layer-circle')){
+                context.mmvSend([{
+                    commandName: MMV_COMMANDS.CUSTOM,
+                    commandRef: uuid(),
+                    params: {
+                        commandName: 'filtermodel',
+                        commandRef: uuid(),
+                        params: {
+                            clear: true,
+                            extra: {
+                                //layerNames: ['site-features-layer','site-features-centroids-layer-circle'],
+                                layerNames: 'site-features-layer',
+                                field: 'siteId',
+                                fieldType: 'string'
+                            }
+                        }
+                    }
+                }])
+            }
 
-            return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme, legend, manageFeatureFilters };
+            return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme, legend };
         }
 
         case 'portfolio.site': {
             const siteId = event.siteId ?? context.siteId;
-            console.log("zooming to site", {siteId});
             zoomToFeature({map: context.map, context, state: 'site', featureId: siteId});
             const namedPath = context.namedPaths[0];//TODO, select correct namedPath index
             let { commands, theme = {}, singleMarkers, legend } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
             const markersConfig = singleMarkers;
-
             const {manageMarkers} = await handleMarkers(stateValue, markersConfig, {context, self});
-            const {manageFeatureFilters} = await handleFeatureFilters(stateValue, namedPath, {context, self});
 
             for(const layerId of Object.keys(theme)) {
                 const themeConfig = theme[layerId];
@@ -3367,7 +3288,7 @@ export async function getEntryAction({mapMachineInput }) {
                 }
             }
 
-            return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme, legend, manageFeatureFilters };
+            return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme, legend };
         }
 
         case 'portfolio.site.building': {
@@ -3375,9 +3296,6 @@ export async function getEntryAction({mapMachineInput }) {
             const buildingId = event.buildingId ?? context.buildingId;
             let { commands, theme = {}, singleMarkers, legend } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
             zoomToFeature({map: context.map, context, state: 'building', featureId: buildingId});
-
-            //NOTE: filtering handled by a hook
-
             return { commands: null, legend };
         }
 
@@ -3386,6 +3304,7 @@ export async function getEntryAction({mapMachineInput }) {
     }
 }
 
+        return null;
 export async function getExitAction({mapMachineInput }) {
     const {stateValue, context, event, self} = mapMachineInput;
     console.log("getExitAction", {mapMachineInput});
@@ -3400,7 +3319,7 @@ export async function getExitAction({mapMachineInput }) {
                 context.map.off('idle', context.manageMarkers[stateValue]);
                 context.map.off('sourcedata', context.manageMarkers[stateValue]);
             }
-            const markerIds = getMarkers().keys().toArray()//clearStaleMarkersByPath("site")
+            const markerIds = clearStaleMarkersByPath("site")
             if(markerIds && markerIds.length) {
                 const commands = [{
                     commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
@@ -3411,7 +3330,7 @@ export async function getExitAction({mapMachineInput }) {
                 }]
                 context.mmvSend(commands);
             }
-            clearAllMarkers()
+
             return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
         }
         case 'portfolio.site': {
@@ -3421,7 +3340,7 @@ export async function getExitAction({mapMachineInput }) {
                 context.map.off('idle', context.manageMarkers[stateValue]);
                 context.map.off('sourcedata', context.manageMarkers[stateValue]);
             }
-            const markerIds = getMarkers().keys().toArray()//clearStaleMarkersByPath("site")
+            const markerIds = clearStaleMarkersByPath("building");
             if(markerIds && markerIds.length) {
                 const commands = [{
                     commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
@@ -3432,28 +3351,6 @@ export async function getExitAction({mapMachineInput }) {
                 }]
                 context.mmvSend(commands);
             }
-            clearAllMarkers()
-
-            return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
-        } case 'portfolio.site.building': {
-
-            if(context.manageMarkers[stateValue]){
-                context.map.off('moveend', context.manageMarkers[stateValue]);
-                context.map.off('idle', context.manageMarkers[stateValue]);
-                context.map.off('sourcedata', context.manageMarkers[stateValue]);
-            }
-            const markerIds = getMarkers().keys().toArray()//clearStaleMarkersByPath("site")
-            if(markerIds && markerIds.length) {
-                const commands = [{
-                    commandName: MMV_COMMANDS.REMOVE_GRAPHICS,
-                    commandRef: uuid(),
-                    params: {
-                        ids: [...markerIds],
-                    }
-                }]
-                context.mmvSend(commands);
-            }
-            clearAllMarkers()
 
             return { manageMarkers: {...context.manageMarkers, [stateValue]: null } };
         }
