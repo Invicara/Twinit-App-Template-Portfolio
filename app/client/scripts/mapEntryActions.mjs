@@ -10,12 +10,8 @@ import bbox from "@turf/bbox";
 import centroid from "@turf/centroid";
 import {
     addMarkers, clearAllMarkers,
-    clearStaleMarkers,
-    clearStaleMarkersByPath, getMarkers,
-    makeMarkerShell,
-    makePieCanvas, markersMutex,
-    renderAllMarkers,
-    zoomIntoClusterByExpansion
+    clearStaleMarkers, getMarkers,
+    renderAllMarkers
 } from "./mapMarkers.mjs";
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils/index.js";
 import {isColorProp, normalizeColorRGB} from "./colorNormalization.mjs";
@@ -534,7 +530,7 @@ function getFeatureLayers(namedPath) {
         .filter(l => !!l.feature); // only states with feature layers
     // Add 3D wrapper layer for mesh levels so clicks hit the mesh footprint
     namedPath?.forEach(lvl => {
-        if (lvl.feature === 'mesh') {
+        if (lvl.feature === 'mesh' && !layers.find(l => l.state === lvl.state) ) {
             layers.push({
                 state: lvl.state,
                 idKey: lvl.idKey,
@@ -923,12 +919,12 @@ function computeCentroidFromProps(props) {
     return [parseFloat(lon), parseFloat(lat)];
 }
 
-// builds the same transform shape your render() expects
+// builds the transform shape render() expects
 function buildModelTransform(centroid, props) {
     // defaults
     const rotationDeg = props?.rotation ?? 0;
     const sizeProp    = props?.size ?? 1;
-    const elevation   = props?.elevation ?? 0; // meters above sea level (or terrain), if you use it
+    const elevation   = props?.elevation ?? 0; // meters above sea level (or terrain)
     const height      = props?.height ?? 0;    // extra vertical offset in meters (building Z lift)
 
     const mc = mapboxgl.MercatorCoordinate.fromLngLat(centroid, elevation);
@@ -960,398 +956,119 @@ function placementSignature(centroid, props) {
     ].join('|');
 }
 
+// returns a rotated ground-footprint polygon for a model, derived from props + geometryInfo
+function buildCubeWrapperFeature({ level, id, centroid, geometryInfo, featureProperties,
+                                     transform = {},
+                                     yawSign = -1,// THREE yaw usually needs a sign flip for ENU CCW math
+                                     axes = { widthAxis: 'x', depthAxis: 'z' }
+                                 }) {
+    if (!centroid || centroid.length !== 2) return null;
+    const [lng, lat] = centroid;
 
-/**
- * Create 3D cube wrapper features for graphics (following npa-mmv pattern)
- * @param {Array} features - Array of point features
- * @param {Map} loadedGraphics - Map of loaded graphic geometries
- * @param {Function} getContext - Function to get Redux context
- * @returns {Array} Array of polygon features representing 3D cubes
- */
-async function createCubeWrapperFeatures(features, loadedGraphics, getContext) {
-    const cubeWrapperFeatures = [];
+    // meters per degree (local)
+    const mPerDegLat = 110540;
+    const mPerDegLon = 111320 * Math.cos(lat * Math.PI / 180);
+    const toLngLat = (dx, dy) => [lng + dx / mPerDegLon, lat + dy / mPerDegLat];
 
-    // Get Redux state for structure lookup
-    const contextData = getContext ? getContext() : {};
-    const { reduxState } = contextData;
+    // --- pull raw dimensions ---
+    // prefer explicit meters if provided, else compute from model units
+    const sizeM = geometryInfo.sizeInMeters;
+    let widthM, depthM, heightM;
 
-    // Default cube size and height
-    const defaultCubeSizeMeters = 20; // square footprint side length
-    const defaultHeightMeters = 50;
-
-    // Helper function to convert meters to degrees
-    const metersToDegrees = (meters, lat) => ({
-        dLat: meters / 111320,
-        dLon: meters / (111320 * Math.cos((lat * Math.PI) / 180))
-    });
-
-    for (const feature of features) {
-        // Extract centroid from longitude/latitude fields
-        const longitude = feature.properties?.longitude;
-        const latitude = feature.properties?.latitude;
-
-        if (!longitude || !latitude) {
-            console.warn(`Feature ${feature.properties?.id} missing longitude/latitude for cube wrapper`);
-            continue;
-        }
-
-        const lng = parseFloat(longitude);
-        const lat = parseFloat(latitude);
-
-        // Extract rotation and size from feature properties with defaults
-        const rotation = feature.properties?.rotation ?? 0;
-        const sizeProportion = feature.properties?.size ?? 1;
-
-        // Get graphic information for sizing using new lookup chain (optional - use defaults if not available)
-        const structureName = feature.properties?.structureName;
-        let height = defaultHeightMeters;
-        let cubeSize = defaultCubeSizeMeters;
-
-        if (structureName) {
-            const graphicId = getGraphicIdFromStructureName(structureName, reduxState);
-            if (graphicId) {
-                const geometryInfo = loadedGraphics.get(graphicId);
-                if (geometryInfo && geometryInfo.sizeInMeters) {
-                    // Use actual model dimensions if available
-                    height = geometryInfo.sizeInMeters.height || defaultHeightMeters;
-                    cubeSize = Math.max(
-                        geometryInfo.sizeInMeters.width || defaultCubeSizeMeters,
-                        geometryInfo.sizeInMeters.depth || defaultCubeSizeMeters
-                    );
-                }
-            }
-        }
-
-        // Apply size proportion
-        height *= sizeProportion;
-        cubeSize *= sizeProportion;
-
-        // Create cube footprint coordinates
-        const { dLat, dLon } = metersToDegrees(cubeSize / 3, lat);
-        const ring = [
-            [lng - dLon, lat - dLat],
-            [lng + dLon, lat - dLat],
-            [lng + dLon, lat + dLat],
-            [lng - dLon, lat + dLat],
-            [lng - dLon, lat - dLat]
-        ];
-
-        // Create cube wrapper feature
-        const cubeFeature = {
-            type: 'Feature',
-            id: feature.properties?.buildingId || feature.properties?.id,
-            properties: {
-                ...feature.properties,
-                type: '3d_model',
-                height: height,
-                elevation: 0,
-                rotation: rotation,
-                size: sizeProportion,
-                cube_wrapper: true // Mark as wrapper feature
-            },
-            geometry: {
-                type: 'Polygon',
-                coordinates: [ring]
-            }
-        };
-
-        cubeWrapperFeatures.push(cubeFeature);
-    }
-
-    return cubeWrapperFeatures;
-}
-
-/**
- * Setup graphic layers - creates 3D custom layer and transparent wrapper layer
- * @param {Object} params - Parameters for setting up graphic layers
- */
-async function setupGraphicLayers({ map, sourceId, level, features, loadedGraphics, namedPath, getContext, self }) {
-    const customLayerId = `${sourceId}-3d-graphics`;
-    const wrapperLayerId = `${sourceId}-layer`;
-
-    // Create 3D cube wrapper features
-    const cubeWrapperFeatures = await createCubeWrapperFeatures(features, loadedGraphics, getContext);
-    console.log(`Created ${cubeWrapperFeatures.length} cube wrapper features for 3D graphics`);
-
-    // Update the source with cube wrapper features
-    const existingSource = map.getSource(sourceId);
-    if (existingSource) {
-        existingSource.setData({
-            type: 'FeatureCollection',
-            features: cubeWrapperFeatures
-        });
+    if (sizeM && (sizeM.width != null || sizeM.depth != null)) {
+        widthM  = sizeM.width  ?? 20;
+        depthM  = sizeM.depth  ?? 20;
+        heightM = sizeM.height ?? 50;
     } else {
-        map.addSource(sourceId, {
-            type: 'geojson',
-            data: {
-                type: 'FeatureCollection',
-                features: cubeWrapperFeatures
-            }
-        });
+        const sizeU = geometryInfo.size || {}; // model units
+        const metersPerUnit =
+            transform.metersPerUnit ??
+            geometryInfo.metersPerUnit ??
+            (geometryInfo.unitsPerMeter ? 1 / geometryInfo.unitsPerMeter : 1); // fallback
+
+        const wAxis = axes.widthAxis  || 'x';
+        const dAxis = axes.depthAxis  || 'z';
+
+        widthM  = (sizeU[wAxis] ?? 20) * metersPerUnit;
+        depthM  = (sizeU[dAxis] ?? 20) * metersPerUnit;
+        heightM = (sizeU.y     ?? 50) * metersPerUnit; // vertical, only for extrusion height prop
     }
 
-    // Create transparent wrapper layer for click handling
-    if (!map.getLayer(wrapperLayerId)) {
-        map.addLayer({
-            id: wrapperLayerId,
-            type: 'fill-extrusion',
-            source: sourceId,
-            metadata: {
-                custom3DLayerRef: customLayerId,
-                layerType: "feature-wrapper",
-                description: "Feature wrapper for 3D graphics layer"
-            },
-            paint: {
-                'fill-extrusion-color': '#000000',
-                'fill-extrusion-height': ['coalesce', ['get', 'height'], 10],
-                'fill-extrusion-base': ['coalesce', ['get', 'elevation'], 0],
-                'fill-extrusion-opacity': 0.0 // Transparent
-            }
-        });
-    }
+    // --- apply all scales (instance + any layer normalization + feature props) ---
+    const sxFeat = featureProperties.scaleX ?? featureProperties.size ?? featureProperties.scale ?? 1;
+    const szFeat = featureProperties.scaleZ ?? featureProperties.size ?? featureProperties.scale ?? 1;
+    const sxMesh = transform.scaleX ?? 1;
+    const szMesh = transform.scaleZ ?? 1;
+    const sxNorm = transform.extraScaleX ?? geometryInfo.extraScaleX ?? 1;
+    const szNorm = transform.extraScaleZ ?? geometryInfo.extraScaleZ ?? 1;
 
-    // Create or update 3D custom layer
-    if (!map.getLayer(customLayerId)) {
-        const customLayer = createGraphicsCustomLayer(customLayerId, features, loadedGraphics, level, getContext);
-        map.addLayer(customLayer);
-        console.log(`Created 3D graphics layer: ${customLayerId} with ${features.length} features`);
-    } else {
-        // Update existing layer with new features
-        const existingLayer = map.getLayer(customLayerId);
-        if (existingLayer && existingLayer.updateFeatures) {
-            existingLayer.updateFeatures(features, loadedGraphics, getContext, level);
-            console.log(`Updated 3D graphics layer: ${customLayerId} with ${features.length} features`);
-        }
-    }
-}
+    const scaleX_used = sxFeat * sxMesh * sxNorm;
+    const scaleZ_used = szFeat * szMesh * szNorm;
 
-/**
- * Update 3D graphic transform programmatically
- * @param {Object} map - Mapbox map instance
- * @param {string} sourceId - The source ID for the graphics layer
- * @param {string} featureId - The feature ID to update
- * @param {Object} transform - Transform parameters
- * @param {Array} [transform.centroid] - New [longitude, latitude] position
- * @param {number} [transform.rotation] - New rotation in degrees
- * @param {number} [transform.size] - New size proportion
- * @param {boolean} [updateWrapper=true] - Whether to also update the cube wrapper
- * @returns {boolean} - Success status
- */
-export function update3DGraphicTransform(map, sourceId, featureId, transform = {}, updateWrapper = true) {
-    console.log('Updating 3D graphic transform:', { featureId, transform });
+    widthM  *= scaleX_used;
+    depthM  *= scaleZ_used;
+    heightM *= (featureProperties.scaleY ??  featureProperties.size ?? featureProperties.scale ?? 1);
 
-    const customLayerId = `${sourceId}-3d-graphics`;
-    const layer = map.getLayer(customLayerId);
+    // --- rectangle in local EN (meters), then rotate by yaw ---
+    const halfW = widthM / 2;
+    const halfD = depthM / 2;
 
-    if (!layer || layer.type !== 'custom') {
-        console.warn(`3D graphics layer not found: ${customLayerId}`);
-        return false;
-    }
-
-    // Find the feature
-    const keyProperty = layer.metadata?.featureInfo?.idProperty || 'buildingId';
-    const feature = layer.features.find(f => f.properties[keyProperty] === featureId);
-
-    if (!feature) {
-        console.warn(`Feature not found: ${featureId}`);
-        return false;
-    }
-
-    let updated = false;
-
-    // Update position if provided
-    if (transform.centroid && Array.isArray(transform.centroid) && transform.centroid.length === 2) {
-        const [lng, lat] = transform.centroid;
-        feature.centroid = [lng, lat];
-
-        const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat([lng, lat], 0);
-        feature.transform.translateX = modelAsMercatorCoordinate.x;
-        feature.transform.translateY = modelAsMercatorCoordinate.y;
-        feature.transform.translateZ = modelAsMercatorCoordinate.z;
-
-        // Update properties
-        feature.properties.longitude = lng;
-        feature.properties.latitude = lat;
-
-        updated = true;
-        console.log(`Updated position to [${lng}, ${lat}]`);
-    }
-
-    // Update rotation if provided
-    if (transform.rotation !== undefined && transform.rotation !== null) {
-        const rotation = parseFloat(transform.rotation);
-        if (!isNaN(rotation)) {
-            feature.transform.rotateY = rotation * -(Math.PI / 180);
-            feature.properties.rotation = rotation;
-            updated = true;
-            console.log(`Updated rotation to ${rotation}°`);
-        }
-    }
-
-    // Update size if provided
-    if (transform.size !== undefined && transform.size !== null) {
-        const size = parseFloat(transform.size);
-        if (!isNaN(size) && size > 0) {
-            const centroid = feature.centroid;
-            const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(centroid, 0);
-            const baseScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
-            feature.transform.scale = baseScale * size;
-            feature.properties.size = size;
-            updated = true;
-            console.log(`Updated size to ${size}x`);
-        }
-    }
-
-    if (updated) {
-        // Trigger map repaint to show changes
-        map.triggerRepaint();
-
-        // Update cube wrapper if requested
-        if (updateWrapper) {
-            updateCubeWrapperForFeature(map, feature, sourceId);
-        }
-
-        console.log('3D graphic transform updated successfully:', {
-            featureId,
-            centroid: feature.centroid,
-            rotation: feature.properties.rotation,
-            size: feature.properties.size
-        });
-    }
-
-    return updated;
-}
-
-/**
- * Update cube wrapper for a specific feature after transformation
- * @param {Object} map - Mapbox map instance
- * @param {Object} feature - The 3D feature that was transformed
- * @param {string} sourceId - The source ID for the graphics layer
- */
-function updateCubeWrapperForFeature(map, feature, sourceId) {
-    console.log('Updating cube wrapper for feature:', feature.properties);
-
-    const existingSource = map.getSource(sourceId);
-    if (!existingSource) {
-        console.warn(`Source not found: ${sourceId}`);
-        return false;
-    }
-
-    const keyProperty = feature.layer?.metadata?.featureInfo?.idProperty || 'buildingId';
-    const featureId = feature.properties[keyProperty];
-
-    if (!featureId) {
-        console.warn('Feature ID not found for cube wrapper update');
-        return false;
-    }
-
-    // Get current data
-    const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
-
-    // Find the cube wrapper for this feature
-    const wrapperIndex = currentData.features.findIndex(f =>
-        f.properties?.[keyProperty] === featureId || f.id === featureId
-    );
-
-    if (wrapperIndex === -1) {
-        console.warn(`Cube wrapper not found for feature: ${featureId}`);
-        return false;
-    }
-
-    // Get geometry info from loaded geometries
-    const geometryInfo = globalLoadedGeometries.get(feature.graphicId);
-
-    // Default values
-    const defaultCubeSizeMeters = 20;
-    const defaultHeightMeters = 50;
-
-    // Extract rotation and size from feature transform
-    const rotation = feature.properties?.rotation ?? 0;
-    const sizeProportion = feature.properties?.size ?? 1;
-
-    // Calculate current scale from transform
-    const currentScale = feature.transform.scale;
-    const centroid = feature.centroid;
-    const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(centroid, 0);
-    const baseScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
-    const actualSizeProportion = currentScale / baseScale;
-
-    // Get sizing information
-    let height = defaultHeightMeters;
-    let cubeSize = defaultCubeSizeMeters;
-
-    if (geometryInfo && geometryInfo.sizeInMeters) {
-        height = geometryInfo.sizeInMeters.height || defaultHeightMeters;
-        cubeSize = Math.max(
-            geometryInfo.sizeInMeters.width || defaultCubeSizeMeters,
-            geometryInfo.sizeInMeters.depth || defaultCubeSizeMeters
-        );
-    }
-
-    // Apply size proportion
-    height *= actualSizeProportion;
-    cubeSize *= actualSizeProportion;
-
-    // Helper function to convert meters to degrees
-    const metersToDegrees = (meters, lat) => ({
-        dLat: meters / 111320,
-        dLon: meters / (111320 * Math.cos((lat * Math.PI) / 180))
-    });
-
-    const lng = centroid[0];
-    const lat = centroid[1];
-
-    // Create cube footprint coordinates with rotation consideration
-    const { dLat, dLon } = metersToDegrees(cubeSize / 3, lat);
-
-    // Note: For simplicity, we're not rotating the cube wrapper polygon itself
-    // The rotation is handled by the 3D model's transform
-    // If you need to rotate the wrapper polygon, you'd need to apply rotation matrix to these points
-    const ring = [
-        [lng - dLon, lat - dLat],
-        [lng + dLon, lat - dLat],
-        [lng + dLon, lat + dLat],
-        [lng - dLon, lat + dLat],
-        [lng - dLon, lat - dLat]
+    const rect = [
+        [-halfW, -halfD], [ halfW, -halfD],
+        [ halfW,  halfD], [-halfW,  halfD],
+        [-halfW, -halfD],
     ];
 
-    // Update the cube wrapper feature
-    const updatedWrapper = {
+    // Three.js yaw is usually +Y clockwise when viewed from above; ENU math is CCW.
+    // Multiply by yawSign (default -1) to flip into CCW for our rotation.
+    const yawDeg =
+        transform.yawDeg ??
+        featureProperties.rotation ??
+        featureProperties.yaw ??
+        featureProperties.heading ??
+        0;
+
+    const theta = (yawDeg * yawSign) * Math.PI / 180;
+    const cos = Math.cos(theta), sin = Math.sin(theta);
+
+    const ring = rect.map(([x, y]) => {
+        const rx =  x * cos - y * sin;
+        const ry =  x * sin + y * cos;
+        return toLngLat(rx, ry);
+    });
+
+    return {
         type: 'Feature',
-        id: featureId,
+        id: id,
         properties: {
-            ...currentData.features[wrapperIndex].properties,
-            ...feature.properties,
-            height: height,
-            elevation: 0,
-            rotation: rotation,
-            size: actualSizeProportion,
-            cube_wrapper: true
+            [level.idKey]: id,
+            longitude: lng,
+            latitude: lat,
+            type: '3d_model',
+            height: heightM,
+            elevation: featureProperties?.elevation ?? 0,
+            rotation: yawDeg,
+            scale: featureProperties?.scale ?? 1,
+            size: featureProperties?.size ?? 1,
+            cube_wrapper: true,
+            ...featureProperties,
+            //additional if needed
+            scaleY: featureProperties?.scaleY ?? featureProperties.size ?? featureProperties?.scale ?? 1,
+            scaleX: scaleX_used, width: widthM,
+            scaleZ: scaleZ_used, depth: depthM,
         },
-        geometry: {
-            type: 'Polygon',
-            coordinates: [ring]
-        }
+        geometry: { type: 'Polygon', coordinates: [ring] }
     };
+}
 
-    // Replace the wrapper in the features array
-    const updatedFeatures = [...currentData.features];
-    updatedFeatures[wrapperIndex] = updatedWrapper;
+function setCubeWrapperDebug(map, sourceId, on = true) {
+    const wrapperLayerId = `${sourceId}-layer`; // your wrapper layer id
+    if (!map.getLayer(wrapperLayerId)) return;
 
-    // Update the source
-    existingSource.setData({
-        type: 'FeatureCollection',
-        features: updatedFeatures
-    });
-
-    console.log(`Updated cube wrapper for feature ${featureId}:`, {
-        position: centroid,
-        rotation,
-        size: actualSizeProportion,
-        height
-    });
-
-    return true;
+    map.setPaintProperty(wrapperLayerId, 'fill-extrusion-opacity', on ? 0.6 : 0.0);
+    map.setPaintProperty(wrapperLayerId, 'fill-extrusion-color', on ? '#ff4d4f' : '#000000');
+    // exaggerate height if needed to spot it:
+    map.setPaintProperty(wrapperLayerId, 'fill-extrusion-height', ['*', ['coalesce', ['get','height'], 10], on ? 1 : 1]);
 }
 
 /**
@@ -1522,7 +1239,7 @@ export function get3DGraphicsController(map, sourceId) {
         if (activeFeature) {
             // Default callback: update cube wrapper
             const defaultCallback = (feature) => {
-                updateCubeWrapperForFeature(map, feature, sourceId);
+                layer.updateCubeWrapperForFeature(feature, sourceId);
             };
 
             // Combine default callback with user-provided callbacks
@@ -1802,6 +1519,7 @@ export function get3DGraphicsController(map, sourceId) {
         map.on('mouseup', interactionState.mouseUpHandler);
     };
 
+
     return {
         // Layer-wide visibility control
         show: () => layer.show3DGraphics && layer.show3DGraphics(),
@@ -1824,7 +1542,7 @@ export function get3DGraphicsController(map, sourceId) {
 
         // Programmatic transform update
         updateTransform: (featureId, transform, updateWrapper = true) => {
-            return update3DGraphicTransform(map, sourceId, featureId, transform, updateWrapper);
+            return layer.update3DGraphicTransform(sourceId, featureId, transform, updateWrapper);
         },
 
         // Get feature transform data
@@ -2526,7 +2244,6 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             this.map && this.map.triggerRepaint();
         },
 
-
         addModelInstance: function(graphicId, centroid, instanceId, geometryInfo, featureProperties) {
             console.log(`Adding new model instance: ${instanceId} at [${centroid}]`);
 
@@ -2585,7 +2302,6 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             console.log('New model instance added successfully:', instanceId);
             return true;
         },
-
 
         render: function(gl, matrix) {
             // Skip rendering entirely if 3D graphics are hidden for performance optimization
@@ -2683,169 +2399,425 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             }
 
             console.log('3D graphics layer cleanup complete');
+        },
+
+
+        /**
+         * Mutate 3D graphic feature's transform, properties.longitude, properties.latitude properties.
+         * Mutate Cube Wrapper feature and Cube Wrapper source.
+         * @param {Object} map - Mapbox map instance
+         * @param {string} sourceId - The source ID for the graphics layer
+         * @param {string} featureId - The feature ID to update
+         * @param {Object} transform - Transform parameters
+         * @param {Array} [transform.centroid] - New [longitude, latitude] position
+         * @param {number} [transform.rotation] - New rotation in degrees
+         * @param {number} [transform.size] - New size proportion
+         * @param {boolean} [updateWrapper=true] - Whether to also update the cube wrapper
+         * @returns {boolean} - Success status
+         */
+        update3DGraphicTransform( sourceId, featureId, transform = {}, updateWrapper = true) {
+            console.log('Mutating 3D graphic feature transform (not map source):', { featureId, transform });
+            const map = this.map;
+            const layer = this;
+
+            // Find the feature
+            const keyProperty = layer.metadata?.featureInfo?.idProperty || 'buildingId';
+            const feature = layer.features.find(f => f.properties[keyProperty] === featureId);
+
+            if (!feature) {
+                console.warn(`Feature not found: ${featureId}`);
+                return false;
+            }
+
+            let updated = false;
+
+            // Update position if provided
+            if (transform.centroid && Array.isArray(transform.centroid) && transform.centroid.length === 2) {
+                const [lng, lat] = transform.centroid;
+                feature.centroid = [lng, lat];
+
+                const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat([lng, lat], 0);
+                feature.transform.translateX = modelAsMercatorCoordinate.x;
+                feature.transform.translateY = modelAsMercatorCoordinate.y;
+                feature.transform.translateZ = modelAsMercatorCoordinate.z;
+
+                // Update properties
+                feature.properties.longitude = lng;
+                feature.properties.latitude = lat;
+
+                updated = true;
+                console.log(`Updated position to [${lng}, ${lat}]`);
+            }
+
+            // Update rotation if provided
+            if (transform.rotation !== undefined && transform.rotation !== null) {
+                const rotation = parseFloat(transform.rotation);
+                if (!isNaN(rotation)) {
+                    feature.transform.rotateY = rotation * -(Math.PI / 180);
+                    feature.properties.rotation = rotation;
+                    updated = true;
+                    console.log(`Updated rotation to ${rotation}°`);
+                }
+            }
+
+            // Update size if provided
+            if (transform.size !== undefined && transform.size !== null) {
+                const size = parseFloat(transform.size);
+                if (!isNaN(size) && size > 0) {
+                    const centroid = feature.centroid;
+                    const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(centroid, 0);
+                    const baseScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
+                    feature.transform.scale = baseScale * size;
+                    feature.properties.size = size;
+                    updated = true;
+                    console.log(`Updated size to ${size}x`);
+                }
+            }
+
+            if (updated) {
+                // Trigger map repaint to show changes
+                map.triggerRepaint();
+
+                // Update cube wrapper if requested
+                if (updateWrapper) {
+                    this.updateCubeWrapperForFeature(feature, sourceId);
+                }
+
+                console.log('Feature 3D graphic transform updated successfully', {
+                    featureId,
+                    centroid: feature.centroid,
+                    rotation: feature.properties.rotation,
+                    size: feature.properties.size
+                });
+            }
+
+            return updated;
+        },
+
+        /**
+         * Update cube wrapper for a specific feature after transformation.
+         * @param {Object} map - Mapbox map instance
+         * @param {Object} graphic3dFeature - The 3D feature that was transformed
+         * @param {string} sourceId - The source ID for the graphics layer
+         */
+        updateCubeWrapperForFeature( graphic3dFeature, sourceId) {
+            const map = this;
+            console.log('Updating cube wrapper for feature:', graphic3dFeature.properties);
+
+            const existingSource = map.getSource(sourceId);
+            if (!existingSource) {
+                console.warn(`Source not found: ${sourceId}`);
+                return false;
+            }
+
+            const keyProperty = graphic3dFeature.layer?.metadata?.featureInfo?.idProperty || 'buildingId';
+            const featureId = graphic3dFeature.properties[keyProperty];
+
+            if (!featureId) {
+                console.warn('Feature ID not found for cube wrapper update');
+                return false;
+            }
+
+            // Get current data
+            const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
+
+            // Find the cube wrapper for this feature
+            const wrapperIndex = currentData.features.findIndex(f =>
+                f.properties?.[keyProperty] === featureId || f.id === featureId
+            );
+
+            if (wrapperIndex === -1) {
+                console.warn(`Cube wrapper not found for feature: ${featureId}`);
+                return false;
+            }
+
+            // Get geometry info from loaded geometries
+            const geometryInfo = globalLoadedGeometries.get(graphic3dFeature.graphicId);
+
+            // Default values
+            const defaultCubeSizeMeters = 20;
+            const defaultHeightMeters = 50;
+
+            // Extract rotation and size from feature transform
+            const rotation = graphic3dFeature.properties?.rotation ?? 0;
+            const sizeProportion = graphic3dFeature.properties?.size ?? 1;
+
+            // Calculate current scale from transform
+            const currentScale = graphic3dFeature.transform.scale;
+            const centroid = graphic3dFeature.centroid;
+            const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(centroid, 0);
+            const baseScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
+            const actualSizeProportion = currentScale / baseScale;
+
+            // Get sizing information
+            let height = defaultHeightMeters;
+            let cubeSize = defaultCubeSizeMeters;
+
+            if (geometryInfo && geometryInfo.sizeInMeters) {
+                height = geometryInfo.sizeInMeters.height || defaultHeightMeters;
+                cubeSize = Math.max(
+                    geometryInfo.sizeInMeters.width || defaultCubeSizeMeters,
+                    geometryInfo.sizeInMeters.depth || defaultCubeSizeMeters
+                );
+            }
+
+            // Apply size proportion
+            height *= actualSizeProportion;
+            cubeSize *= actualSizeProportion;
+
+            // Helper function to convert meters to degrees
+            const metersToDegrees = (meters, lat) => ({
+                dLat: meters / 111320,
+                dLon: meters / (111320 * Math.cos((lat * Math.PI) / 180))
+            });
+
+            const lng = centroid[0];
+            const lat = centroid[1];
+
+            // Create cube footprint coordinates with rotation consideration
+            const { dLat, dLon } = metersToDegrees(cubeSize / 3, lat);
+
+            // Note: For simplicity, we're not rotating the cube wrapper polygon itself
+            // The rotation is handled by the 3D model's transform
+            // If you need to rotate the wrapper polygon, you'd need to apply rotation matrix to these points
+            const ring = [
+                [lng - dLon, lat - dLat],
+                [lng + dLon, lat - dLat],
+                [lng + dLon, lat + dLat],
+                [lng - dLon, lat + dLat],
+                [lng - dLon, lat - dLat]
+            ];
+
+            // Update the cube wrapper feature
+            const updatedWrapper = {
+                type: 'Feature',
+                id: featureId,
+                properties: {
+                    ...currentData.features[wrapperIndex].properties,
+                    ...graphic3dFeature.properties,
+                    height: height,
+                    elevation: 0,
+                    rotation: rotation,
+                    size: actualSizeProportion,
+                    cube_wrapper: true
+                },
+                geometry: {
+                    type: 'Polygon',
+                    coordinates: [ring]
+                }
+            };
+
+            // Replace the wrapper in the features array
+            const updatedFeatures = [...currentData.features];
+            updatedFeatures[wrapperIndex] = updatedWrapper;
+
+            // Update the source
+            existingSource.setData({
+                type: 'FeatureCollection',
+                features: updatedFeatures
+            });
+
+            console.log(`Updated cube wrapper for feature ${featureId}:`, {
+                position: centroid,
+                rotation,
+                size: actualSizeProportion,
+                height
+            });
+
+            return true;
         }
     };
 }
 
+function updateCentroidsForLevel(map, level, features) {
+    // Only polygons, multipolygons, or meshes have meaningful centroids
+    if (!["polygon", "multiPolygon", "mesh"].includes(level.feature)) return;
 
-async function upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, self }) {
-    const allFeatureLayers = {}
+    const sourceId = `${level.state}-features`;
+    const centroidsSourceId = `${sourceId}-centroids`;
+    const centroidsLayerId = `${centroidsSourceId}-layer-circle`;
 
-    // Access Redux state through getContext if available
-    const contextData = getContext ? getContext() : {};
-    window.contextData = contextData;
-    const { reduxState, reduxDispatch, data } = contextData;
-
-    let loadedGraphics = new Map();
-    // if (reduxState?.pageComponentState?.mapGraphicReferences) {
-    //     console.log('Loading graphics from Redux state...');
-    //     window.reduxState = reduxState;
-    //     window.namedPath = namedPath;
-    // loadedGraphics = await loadGraphics(reduxState.pageComponentState.mapGraphicReferences);
-    //     console.log(`Loaded ${loadedGraphics.size} graphics for use in features`);
-
-    //     // Keep backward compatibility - create graphicsDict for reference lookup
-    //     const graphicsDict = Object.fromEntries(
-    //         reduxState.pageComponentState.mapGraphicReferences.map(g => [g._id, g.graphic])
-    //     );
-    // }
-
-
-    for (const level of fetchedFeatures) {
-        if (!level.feature) continue;
-
-        const options = level.options || {};
-        const clusterOptions = options.cluster || {};
-        const {sourceOptions} = clusterOptions;
-
-        const features = level.features;
-
-        if(level.feature === "mesh" && reduxState?.pageComponentState?.mapGraphicReferences){
-            try{
-                const foundStructures = Object.values(reduxState.pageComponentState.structures);
-
-                let graphicDict = Object.assign({}, ...reduxState.pageComponentState.mapGraphicReferences
-                    .map(r => ({[r._id]: r.graphic})));
-
-                const graphicIds = foundStructures.map(el => graphicDict[el.mapGraphicRefId])
-                    .filter((el, i, s) => el && s.indexOf(el) === i);
-
-                loadedGraphics = await loadGraphics(graphicIds);
-
-                // if(graphicIds.length){
-                //     console.log('Loading graphics from Redux state...');
-                //     loadedGraphics = await loadGraphics(graphicIds);
-                // }
-
-                console.log(`Loaded ${loadedGraphics.size} graphics for use in features`);
-
-            } catch(e){
-                console.error("FAILED_TO_IMPROVE", e);
+    // Build centroid features (pure)
+    const centroidFeatures = features
+        .map(f => {
+            try {
+                const c = centroid(f.geometry);
+                c.properties = { ...f.properties }; // preserve props for tooltips, etc.
+                if (f.id != null) c.id = f.id;
+                return c;
+            } catch {
+                return null;
             }
+        })
+        .filter(Boolean);
+
+    const fc = featureCollection(centroidFeatures);
+
+    // Ensure source exists
+    const existing = map.getSource(centroidsSourceId);
+    if (!existing) {
+        map.addSource(centroidsSourceId, { type: "geojson", data: fc });
+    } else {
+        existing.setData(fc);
+    }
+
+    // Ensure layer exists (invisible anchor layer)
+    if (!map.getLayer(centroidsLayerId)) {
+        map.addLayer({
+            id: centroidsLayerId,
+            type: "circle",
+            source: centroidsSourceId,
+            paint: {
+                "circle-radius": 0.01,
+                "circle-opacity": 0
+            }
+        });
+    }
+
+    // Optionally log
+    // console.log(`Updated ${centroidFeatures.length} centroids for ${level.state}`);
+}
+
+
+export async function upsertOrUpdateAllFeatures({ map, namedPath, getContext, self, fetchedFeatures }) {
+    const ctx = getContext ? getContext() : {};
+    const { data, reduxState } = ctx;
+    const allFeatureLayers = {};
+    map.__handlerRegistry = map.__handlerRegistry || new Set();
+
+    // ---- Derive features from context or fetchedFeatures ----
+    const levels = [];
+    let parent = {} ;
+    for (const lvl of namedPath) {
+        let features;
+        if(fetchedFeatures) {
+            const fetched = fetchedFeatures.find(ff=>ff.state==lvl.state);
+            features = fetched?.features;
+        } else {
+            const scoped = data?.[lvl.state];
+            if (!scoped) continue;
+            fixParentFeaturesUsingChildData(lvl, scoped, parent);
+            features = dataToFeatures(lvl, scoped) || [];
+        }
+        if (!features) {
+            console.warn(`No features found for level: ${lvl}`);
+            continue;
+        }
+        parent = { features, level: lvl };
+        levels.push({ ...lvl, features });
+        allFeatureLayers[lvl.state] = features.map(f => f.properties);
+    }
+
+    // ---- Per-level: ensure sources/layers and refresh data ----
+    for (const level of levels) {
+        const sourceId = `${level.state}-features`;
+        const baseLayerId = `${sourceId}-layer`;
+        const isMesh = level.feature === 'mesh';
+
+        // 1) ensure/update source
+        let src = map.getSource(sourceId);
+        if (!src) {
+            map.addSource(sourceId, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            src = map.getSource(sourceId);
         }
 
-        allFeatureLayers[level.state] = features.map(f=>f.properties);
+        // 2) ensure base layer (non-mesh is data-driven; mesh uses wrapper for hits)
+        if (!map.getLayer(baseLayerId)) {
+            map.addLayer({
+                id: baseLayerId,
+                type: isMesh ? 'fill-extrusion' : (level.feature === 'point' ? 'circle' : 'fill'),
+                source: sourceId,
+                paint: isMesh
+                    ? {
+                        'fill-extrusion-color': '#000000',
+                        'fill-extrusion-height': ['coalesce', ['get', 'height'], 10],
+                        'fill-extrusion-base'  : ['coalesce', ['get', 'elevation'], 0],
+                        'fill-extrusion-opacity': 0.0
+                    }
+                    : (level.feature === 'point'
+                        ? { 'circle-radius': 0.01, 'circle-color': '#fff' }
+                        : { 'fill-color': '#fff', 'fill-opacity': 0.18 })
+            });
+            // Click affordance
+            map.on('mouseenter', baseLayerId,  () => { map.getCanvas().style.cursor = 'pointer'; });
+            map.on('mouseleave', baseLayerId,  () => { map.getCanvas().style.cursor = ''; });
+        }
 
-        const turfFeatures = features.map(f => {
-            const coords = Array.isArray(f.geometry)
-                ? f.geometry
-                : f.geometry?.coordinates ?? f.properties?.coordinates;
-            return featureFromKnownType(level.feature, coords, f.properties);
-        });
+        // 3) dataset refresh
+        if (!isMesh) {
+            // Plain features: write whole FeatureCollection (features are already valid GeoJSON)
+            src.setData({ type: 'FeatureCollection', features: level.features });
+            updateCentroidsForLevel(map, level, level.features);
+        } else {
+            // ---- Preload graphics once ----
+            const structures = reduxState?.pageComponentState?.structures || {};
+            const mapGraphicRefs = reduxState?.pageComponentState?.mapGraphicReferences || [];
+            const idByRef = Object.fromEntries(mapGraphicRefs.map(r => [r._id, r.graphic]));
 
-        const fc = featureCollection(turfFeatures);
+            const graphicIds = Array.from(new Set(
+                levels
+                    .filter(l => l.feature === 'mesh')
+                    .flatMap(l => l.features.map(f => f.properties?.structureName).filter(Boolean))
+                    .map(name => structures[name])
+                    .filter(Boolean)
+                    .map(s => idByRef[s.mapGraphicRefId])
+                    .filter(Boolean)
+            ));
+            let loadedGraphicsPromise = null;
+            loadedGraphicsPromise = loadGraphics(graphicIds).then(loadedGraphics => {
+                // Mesh: rebuild wrapper polygons from context on every tick
+                const wrappers = [];
+                for (const f of level.features) {
+                    const props = f.properties || {};
+                    const id = f.id ?? props?.[level.idKey];
+                    if (!id) continue;
 
-        const sourceId = `${level.state}-features`;
-        // Add or update source
-        if (!map.getSource(sourceId)) {
-            //console.log("adding features", sourceId, features, turfFeatures);
-            try {
-                let source = {
-                    type: 'geojson',
-                    data: fc,
+                    // centroid from the actual geometry (robust across shape)
+                    const c = centroid(f.geometry)?.geometry?.coordinates;
+                    if (!c) continue;
+
+                    // get geometryInfo from loaded cache
+                    let geometryInfo = null;
+                    if (props.structureName) {
+                        const structure = structures[props.structureName];
+                        const gId = structure ? idByRef[structure.mapGraphicRefId] : null;
+                        geometryInfo = gId ? loadedGraphics?.get(gId) : null;
+                    }
+
+                    const wrapper = buildCubeWrapperFeature({
+                        level, buildingId: id, centroid: c, geometryInfo, featureProperties: props
+                    });
+                    if (wrapper) wrappers.push(wrapper);
                 }
-                if(sourceOptions){
-                    source = {
-                        ...source,
-                        //...sourceOptions,
-                        //clusterProperties: {
-                        //    Capacity: ["+", ["get","Capacity"]]
-                        //}
+                src.setData({ type: 'FeatureCollection', features: wrappers });
+                updateCentroidsForLevel(map, level, level.features);
+                // 4) custom 3D layer for meshes (create once, then update features list)
+                const customId = `${sourceId}-3d-graphics`;
+                if (!map.getLayer(customId)) {
+                    const custom = createGraphicsCustomLayer(customId, level.features, loadedGraphics, level, getContext); // :contentReference[oaicite:10]{index=10}
+                    map.addLayer(custom);
+                    setCubeWrapperDebug(map, sourceId, true);
+                } else {
+                    const layer = map.getLayer(customId);
+                    if (layer?.updateFeatures) {
+                        layer.updateFeatures(level.features, loadedGraphics, getContext, level);
                     }
                 }
-                map.addSource(sourceId, source);
-            } catch (e) {
-                console.error(e);
-            }
-        } else {
-            map.getSource(sourceId).setData({ type: 'FeatureCollection', features });
-        }
-
-        // Handle different feature types
-        if (level.feature === 'mesh') {
-            // For graphic features, create a 3D custom layer and transparent fill layer
-            await setupGraphicLayers({ map, sourceId, level, features: turfFeatures, loadedGraphics, namedPath, self, getContext });
-        } else {
-            // Always add/update UNCLUSTERED layer for non-graphic features
-            if (!map.getLayer(`${sourceId}-layer`)) {
-                map.addLayer({
-                    id: `${sourceId}-layer`,
-                    type: level.feature === 'point' ? 'circle' : 'fill',
-                    source: sourceId,
-                    filter: ['!', ['has', 'point_count']],
-                    paint: level.feature === 'point'
-                        ? { 'circle-radius': 0.01, 'circle-color': '#fff' }//TODO: or also make invisible by default?
-                        : { 'fill-color': '#fff', 'fill-opacity': 0.18 }//TODO: or also make invisible by default?
-                });
-
-            }
-        }
-        const handler = makeMapOnClickHandler({ map, namedPath, send: self.send, getContext });
-        map.on('click', handler);
-        map.on('mouseenter', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = 'pointer'; });
-        map.on('mouseleave', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = ''; });
-        // Optionally add/update CLUSTERED layer
-        if (!map.getLayer(`${sourceId}-layer-clustered`) && level.feature === 'point' && sourceOptions?.cluster) {
-            map.addLayer({
-                id: `${sourceId}-layer-clustered`,
-                type: 'circle',
-                source: sourceId,
-                filter: ['has', 'point_count'],
-                paint: { 'circle-radius': 0.01, 'circle-opacity': 0 } // invisible
             });
         }
-
-        // Always add/update centroids layer for polygon/mesh features
-        if ((level.feature === "polygon" || level.feature === "multiPolygon" || level.feature === "mesh")) {
-            let centroidFeatures = turfFeatures.map(f => {
-                console.log("centroidFeatures", {id: f.id, geom: f.geometry});
-                const c = centroid(f.geometry);
-                // copy over properties so pies can use them
-                c.properties = { ...f.properties };
-                return c;
-            });
-            if(level.feature === "mesh"){
-                debugger;
-            }
-            const centroidFc = featureCollection(centroidFeatures);
-            if (!map.getSource(`${sourceId}-centroids`)) {
-                map.addSource(`${sourceId}-centroids`, {type: "geojson", data: centroidFc});
-            } else {
-                map.getSource(`${sourceId}-centroids`).setData(centroidFc);
-            }
-
-            if(!map.getLayer(`${sourceId}-centroids-layer-circle`)){
-                map.addLayer({
-                    id: `${sourceId}-centroids-layer-circle`,
-                    type: 'circle',
-                    source: `${sourceId}-centroids`,
-                    paint: { 'circle-radius': 0.01, 'circle-opacity': 0 } // invisible
-                });
-            }
+        // 5) single click handler per namedPath (re-using your helper)
+        const handlerKey = `click:${namedPath[0]?.state || 'root'}`;
+        if (!map.__handlerRegistry.has(handlerKey)) {
+            const handler = makeMapOnClickHandler({ map, namedPath, send: self?.send, getContext }); // :contentReference[oaicite:11]{index=11}
+            map.on('click', handler);
+            map.__handlerRegistry.add(handlerKey);
         }
     }
+
+    map.triggerRepaint();
     return allFeatureLayers;
 }
+
 
 // Main function to add all feature layers from a namedPath
 export async function addAllFeatureLayers({ map, namedPath, getContext, self }) {
@@ -2870,186 +2842,8 @@ export async function addAllFeatureLayers({ map, namedPath, getContext, self }) 
         fetchedFeatures.push({...level, features})
     }
 
-    const allFeatureLayers = upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, self })
+    const allFeatureLayers = upsertOrUpdateAllFeatures({ map, namedPath, fetchedFeatures, getContext, self })
     return allFeatureLayers;
-}
-
-export async function updateAllFeatureLayers({ map, namedPath, getContext, self }) {
-
-    // Access Redux state through getContext if available
-    const contextData = getContext ? getContext() : {};
-    window.contextData = contextData;
-    const { data, reduxState } = contextData;
-
-    const allFeatureLayers = {};
-
-    let parentLevelWithFeatures = {};
-    const fetchedFeatures = [];
-
-    // Step 1: Fetch features for all levels
-    for (const level of namedPath) {
-        const scopedData = data[level.state];
-        if(!scopedData){
-            continue;
-        }
-        fixParentFeaturesUsingChildData(level, scopedData, parentLevelWithFeatures);
-        const features = dataToFeatures(level, scopedData) || [];
-        parentLevelWithFeatures = {features, level};
-
-        fetchedFeatures.push({...level, features})
-    }
-
-    // Step 2: Refresh each level's features using the new precise refresh functions
-    for (const level of fetchedFeatures) {
-        if (!level.feature) continue;
-
-        const features = level.features;
-        allFeatureLayers[level.state] = features.map(f => f.properties);
-
-        // Handle 3D mesh features
-        if (level.feature === 'mesh' && reduxState?.pageComponentState?.mapGraphicReferences) {
-            try {
-                // Load graphics for mesh features
-                const foundStructures = features
-                    .map(f => f.properties.structureName)
-                    .filter((el, i, s) => s.indexOf(el) === i)
-                    .map(el => reduxState.pageComponentState.structures[el])
-                    .filter(el => el);
-
-                let graphicDict = Object.assign({}, ...reduxState.pageComponentState.mapGraphicReferences
-                    .map(r => ({[r._id]: r.graphic})));
-
-                const graphicIds = foundStructures
-                    .map(el => graphicDict[el.mapGraphicRefId])
-                    .filter((el, i, s) => el && s.indexOf(el) === i);
-
-                const loadedGraphics = await loadGraphics(graphicIds);
-                console.log(`Loaded ${loadedGraphics.size} graphics for use in features`);
-
-                // Use refresh3DFeatures to update the 3D layer
-                refresh3DFeatures({
-                    map,
-                    entityType: level.state,
-                    features,
-                    namedPath: level,
-                    getContext,
-                    loadedGraphics
-                });
-
-            } catch (e) {
-                console.error("Failed to refresh 3D features:", e);
-            }
-        } else {
-            window.features = features;
-            // Handle plain features (point, polygon, multiPolygon, etc.)
-            refreshPlainFeatures({
-                map,
-                levelState: level.state,
-                features,
-                namedPath: level
-            });
-
-            // Update centroids for polygon features
-            setTimeout(async () => {
-                if (level.feature === "polygon" || level.feature === "multiPolygon" || level.feature === "mesh") {
-                    const sourceId = `${level.state}-features`;
-                    const centroidsSourceId = `${sourceId}-centroids`;
-                    const centroidsSource = map.getSource(centroidsSourceId);
-                    const idKey = level.idKey;
-
-                    if (centroidsSource) {
-                        const idKey = level.idKey;
-
-                        // Convert features to turf features to calculate centroids
-                        const turfFeatures = features.map(f => {
-                            const coords = Array.isArray(f.geometry)
-                                ? f.geometry
-                                : f.geometry?.coordinates ?? f.properties?.coordinates;
-                            const turfFeature = featureFromKnownType(level.feature, coords, f.properties);
-
-                            // Set feature ID for proper tracking
-                            if (idKey && turfFeature.properties && turfFeature.properties[idKey]) {
-                                turfFeature.id = turfFeature.properties[idKey];
-                            }
-
-                            return turfFeature;
-                        });
-
-                        // Set feature ID for proper tracking
-                        if (idKey && turfFeature.properties && turfFeature.properties[idKey]) {
-                            turfFeature.id = turfFeature.properties[idKey];
-                        }
-
-                        const centroidFc = featureCollection(centroidFeatures);
-                        centroidsSource.setData(centroidFc);
-                        console.log(`Updated ${centroidFeatures.length} centroids for ${level.state}`);
-                    }
-                }
-            }, 1000);
-        }
-    }
-
-    return allFeatureLayers;
-}
-
-/**
- * Refresh all plain features for a given layer by clearing and re-adding based on data
- * This combines the logic of removeFeatureFromMapLayer and addFeatureToMapLayer
- * @param {Object} params - Parameters for refreshing features
- * @param {mapboxgl.Map} params.map - Mapbox map instance
- * @param {string} params.levelState - Level state identifier
- * @param {Array} params.features - Array of features to render
- * @param {Object} params.namedPath - Named path level definition
- * @returns {boolean} - Success status
- */
-export function refreshPlainFeatures({ map, levelState, features, namedPath: levelDef }) {
-    const sourceId = `${levelState}-features`;
-
-    if (!levelDef || !levelDef.feature) {
-        console.warn(`Level definition not found for state: ${levelState}`);
-        return false;
-    }
-
-    try {
-        // Get existing source
-        const existingSource = map.getSource(sourceId);
-        if (!existingSource) {
-            console.warn(`Map source not found: ${sourceId}`);
-            return false;
-        }
-
-        // Get the idKey for this level
-        const idKey = levelDef.idKey;
-
-        // Convert all features to GeoJSON format
-        const turfFeatures = features.map(f => {
-            const coords = Array.isArray(f.geometry)
-                ? f.geometry
-                : f.geometry?.coordinates ?? f.properties?.coordinates ?? f.coordinates;
-            const turfFeature = featureFromKnownType(levelDef.feature, coords, f.properties || f);
-
-            // CRITICAL: Set the feature ID at the GeoJSON feature level for proper Mapbox tracking
-            // This is especially important when IDs change, as Mapbox uses this for feature reconciliation
-            if (idKey && turfFeature.properties && turfFeature.properties[idKey]) {
-                turfFeature.id = turfFeature.properties[idKey];
-            }
-
-            return turfFeature;
-        });
-
-        // Update the map source with new data (this replaces all features)
-        existingSource.setData(featureCollection(turfFeatures));
-        map.triggerRepaint();
-
-        console.log(`Refreshed ${turfFeatures.length} plain features in ${sourceId}`);
-
-
-        return true;
-
-    } catch (error) {
-        console.error(`Error refreshing plain features for ${sourceId}:`, error);
-        return false;
-    }
 }
 
 // Example: Use this in your addLayersService for XState
@@ -3104,7 +2898,7 @@ export async function updateLayersFromData({ context, self }) {
         console.log('Redux state accessible in updateLayers:', reduxState);
     }
 
-    const allFeatureLayers = await updateAllFeatureLayers({
+    const allFeatureLayers = await upsertOrUpdateAllFeatures({
         map,
         namedPath: namedPaths[0],
         self,
@@ -3119,7 +2913,7 @@ export async function updateLayersFromData({ context, self }) {
         } : () => context
     });
 
-    return {}//{data: allFeatureLayers};
+    return {};
 }
 
 function buildAncestryPredicate(featureDef, context, namedPath) {
@@ -3589,444 +3383,6 @@ export async function getEntryAction({mapMachineInput }) {
 
         default:
             return {};
-    }
-}
-
-/**
- * Helper function to add cube wrapper for a single building
- * @param {Object} params - Parameters for adding cube wrapper
- * @param {mapboxgl.Map} params.map - Mapbox map instance
- * @param {string} params.buildingId - Building ID
- * @param {Array} params.centroid - [longitude, latitude] coordinates
- * @param {Object} params.geometryInfo - Geometry information from loaded graphics
- * @param {Function} params.getContext - Function to get Redux context
- * @param {Object} params.featureProperties - Optional feature properties (for rotation and size)
- */
-function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, getContext, featureProperties = {} }) {
-    const sourceId = 'building-features';
-    const wrapperLayerId = 'building-features-layer';
-
-    // Get existing source
-    const existingSource = map.getSource(sourceId);
-    if (!existingSource) {
-        console.warn(`Source not found: ${sourceId}`);
-        return false;
-    }
-
-    // Default cube size and height
-    const defaultCubeSizeMeters = 20; // square footprint side length
-    const defaultHeightMeters = 50;
-
-    // Extract rotation and size from feature properties with defaults
-    const rotation = featureProperties?.rotation ?? 0;
-    const sizeProportion = featureProperties?.size ?? 1;
-
-    // Helper function to convert meters to degrees
-    const metersToDegrees = (meters, lat) => ({
-        dLat: meters / 111320,
-        dLon: meters / (111320 * Math.cos((lat * Math.PI) / 180))
-    });
-
-    const lng = parseFloat(centroid[0]);
-    const lat = parseFloat(centroid[1]);
-
-    // Get sizing information from geometry
-    let height = defaultHeightMeters;
-    let cubeSize = defaultCubeSizeMeters;
-
-    if (geometryInfo && geometryInfo.sizeInMeters) {
-        // Use actual model dimensions if available
-        height = geometryInfo.sizeInMeters.height || defaultHeightMeters;
-        cubeSize = Math.max(
-            geometryInfo.sizeInMeters.width || defaultCubeSizeMeters,
-            geometryInfo.sizeInMeters.depth || defaultCubeSizeMeters
-        );
-    }
-
-    // Apply size proportion
-    height *= sizeProportion;
-    cubeSize *= sizeProportion;
-
-    // Create cube footprint coordinates
-    const { dLat, dLon } = metersToDegrees(cubeSize / 3, lat);
-    const ring = [
-        [lng - dLon, lat - dLat],
-        [lng + dLon, lat - dLat],
-        [lng + dLon, lat + dLat],
-        [lng - dLon, lat + dLat],
-        [lng - dLon, lat - dLat]
-    ];
-
-    // Create cube wrapper feature
-    const cubeFeature = {
-        type: 'Feature',
-        id: buildingId,
-        properties: {
-            buildingId: buildingId,
-            longitude: lng,
-            latitude: lat,
-            type: '3d_model',
-            height: height,
-            elevation: 0,
-            rotation: rotation,
-            size: sizeProportion,
-            cube_wrapper: true, // Mark as wrapper feature
-            ...featureProperties // Include any additional properties
-        },
-        geometry: {
-            type: 'Polygon',
-            coordinates: [ring]
-        }
-    };
-
-    // Get current data and add the new cube wrapper
-    const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
-    const updatedFeatures = [...(currentData.features || []), cubeFeature];
-    const updatedFeatureCollection = {
-        type: 'FeatureCollection',
-        features: updatedFeatures
-    };
-
-    // do not modify the buildings, just modify the layer features
-
-    existingSource.setData(updatedFeatureCollection);
-
-    console.log(`Added cube wrapper for building ${buildingId}:`, {
-        position: centroid,
-        rotation,
-        size: sizeProportion,
-        height
-    });
-    return true;
-}
-
-/**
- * Apply 3D graphics visibility based on current state
- * @param {Object} params - Parameters
- * @param {mapboxgl.Map} params.map - Mapbox map instance
- * @param {Object} params.currentState - XState current state
- */
-function applyGraphicsVisibility({ map, currentState }) {
-    if (!map || !currentState) {
-        console.log('applyGraphicsVisibility: Missing map or currentState');
-        return;
-    }
-
-    // Get active levels based on current state
-    // const levels = getActiveLevels(currentState);
-    const namedPaths = currentState.context.namedPaths[0];
-    let deepestCurrentLevel = [...namedPaths].reverse().find(el => currentState.context[el.idKey]);//do not mutate original array (reverse a copy)
-    const levels = namedPaths.slice(0, deepestCurrentLevel.scopeLevel+1)
-
-    const valuesPerLevelKey = levels
-        .map(l => [l.idKey, currentState.context[l.idKey]])
-        .filter(([k, v]) => k && v);
-
-    const sPath = levels?.map(el => el.state).join(".");
-    const cElementType = sPath?.split(".")?.slice(-1)?.[0];
-
-    const namedPath = namedPaths.find(p => p.state === cElementType);
-    const lowerNamedPath = namedPaths.find(p => p?.scopeLevel === namedPath?.scopeLevel + 1);
-
-    const meshLevels = [...levels, ...(lowerNamedPath ? [lowerNamedPath] : [])]
-        .filter(l => l && l.feature === 'mesh');
-
-    // Calculate which features should be visible per level
-    const meshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
-        const parentPath   = (currentState.context.namedPaths[0] || []).find(p => p.state === l.parentState);
-        const parentIdKey  = parentPath?.idKey;
-        const parentIdVal  = parentIdKey ? currentState.context[parentIdKey] : undefined;
-        let featureIds = [];
-        if(parentIdKey && parentIdVal != null) {
-            featureIds = (currentState.context.data[l.state] || [])
-                // if this level has a parent, require child[parentIdKey] === context[parentIdKey]
-                .filter(f => f[parentIdKey] === parentIdVal)
-                .map(f => f[l.idKey]);
-        } else {
-            featureIds = (currentState.context.data[l.state] || [])
-                .filter(f => valuesPerLevelKey.every(([k, v]) => f[k] === v))
-                .map(f => f[l.idKey]);
-        }
-        return { [l.state]: featureIds };
-    }));
-
-    const remainingMeshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
-        const allIds = currentState.context.data[l.state].map(f => f[l.idKey]);
-        const showIds = meshFeaturesPerLevel[l.state] || [];
-        const hideIds = allIds.filter(id => !showIds.includes(id));
-        return { [l.state]: hideIds };
-    }));
-
-    // Process each level's mesh features
-    Object.keys(meshFeaturesPerLevel).forEach(levelKey => {
-        const featuresToShow = meshFeaturesPerLevel[levelKey] || [];
-        const featuresToHide = remainingMeshFeaturesPerLevel[levelKey] || [];
-
-        // Get the 3D graphics controller for this level
-        const sourceId = `${levelKey}-features`;
-        const controller = get3DGraphicsController(map, sourceId);
-
-        console.log("applyGraphicsVisibility, LOOPING_VISIBILITY", {levelKey, featuresToShow, featuresToHide})
-        if (!controller) {
-            console.warn(`applyGraphicsVisibility: No 3D graphics controller found for level ${levelKey} (sourceId: ${sourceId})`);
-            return;
-        }
-
-        // Hide removed features
-        if (featuresToHide.length > 0) {
-            console.log(`applyGraphicsVisibility: Hiding features for ${levelKey}:`, featuresToHide);
-            try {
-                controller.hideFeatures(featuresToHide);
-            } catch (error) {
-                console.error(`applyGraphicsVisibility: Error hiding features for ${levelKey}:`, error);
-            }
-        }
-
-        // Show new features
-        if (featuresToShow.length > 0) {
-            console.log(`applyGraphicsVisibility: Showing features for ${levelKey}:`, featuresToShow);
-            try {
-                controller.showFeatures(featuresToShow);
-            } catch (error) {
-                console.error(`applyGraphicsVisibility: Error showing features for ${levelKey}:`, error);
-            }
-        }
-
-        // If no current features, hide the entire layer for performance
-        if (featuresToShow.length === 0 && controller.isVisible()) {
-            console.log(`applyGraphicsVisibility: Hiding entire layer for ${levelKey} (no features)`);
-            controller.hide();
-        }
-
-        // If we have features, make sure the layer is visible
-        if (featuresToShow.length > 0 && !controller.isVisible()) {
-            console.log(`applyGraphicsVisibility: Showing layer for ${levelKey}`);
-            controller.show();
-        }
-    });
-}
-
-/**
- * Refresh all 3D mesh features for a given layer by clearing and re-adding based on data
- * This combines the logic of removeMeshElementFromMap and addBuildingToMap
- * @param {Object} params - Parameters for refreshing 3D features
- * @param {mapboxgl.Map} params.map - Mapbox map instance
- * @param {string} params.entityType - Entity type identifier (e.g., 'building')
- * @param {Array} params.features - Array of features with centroid, graphicId, buildingId, geometryInfo
- * @param {Object} params.namedPath - Named path configuration
- * @param {Function} params.getContext - Function to get Redux context
- * @param {Map} params.loadedGraphics - Map of loaded graphics/geometries
- * @returns {boolean} - Success status
- */
-export function refresh3DFeatures({ map, entityType, features, namedPath, getContext, loadedGraphics }) {
-    console.log(`Refreshing ${features.length} 3D mesh features for ${entityType}`);
-
-    const layerId = `${entityType}-features-3d-graphics`;
-    const sourceId = `${entityType}-features`;
-    const meshLayer = map.getLayer(layerId);
-
-    if (!meshLayer) {
-        console.warn(`3D layer not found: ${layerId}`);
-        return false;
-    }
-
-    let success = true;
-
-    try {
-        // Step 1: Clear existing 3D models from the layer
-        if (meshLayer.features && meshLayer.features.length > 0) {
-            console.log(`Clearing ${meshLayer.features.length} existing 3D models from layer`);
-
-            // Dispose of all existing models
-            for (const feature of meshLayer.features) {
-                if (feature.model && meshLayer.scene) {
-                    disposeObject3D(feature.model);
-                    meshLayer.scene.remove(feature.model);
-                }
-            }
-
-            // Clear the features array
-            meshLayer.features = [];
-        }
-
-        // Step 2: Clear existing cube wrappers from the source
-        const existingSource = map.getSource(sourceId);
-        if (existingSource) {
-            existingSource.setData({ type: 'FeatureCollection', features: [] });
-        }
-
-        // Step 3: Add all new 3D models and cube wrappers
-        const cubeWrapperFeatures = [];
-
-        for (const feature of features) {
-            const { properties } = feature;
-            const buildingId = properties?.[namedPath.idKey];
-            const fCentroid = centroid(feature.geometry);
-
-            if (!buildingId || !fCentroid) {
-                console.warn('Missing buildingId or centroid for feature:', feature);
-                continue;
-            }
-
-            // Get graphic ID and geometry info
-            const contextData = getContext ? getContext() : {};
-            const { reduxState } = contextData;
-
-            let graphicId = null;
-            let geometryInfo = null;
-
-            if (reduxState?.pageComponentState?.structures && properties.structureName) {
-                const structure = reduxState.pageComponentState.structures[properties.structureName];
-                if (structure && structure.mapGraphicRefId) {
-                    const graphicRef = reduxState.pageComponentState.mapGraphicReferences?.find(
-                        ref => ref._id === structure.mapGraphicRefId
-                    );
-                    if (graphicRef) {
-                        graphicId = graphicRef.graphic;
-                        geometryInfo = loadedGraphics?.get(graphicId);
-                    }
-                }
-            }
-
-            if (!graphicId || !geometryInfo) {
-                console.warn(`No graphic/geometry info for building ${buildingId}`);
-                continue;
-            }
-
-
-            const coords =
-                fCentroid.geometry?.coordinates ??
-                (Array.isArray(fCentroid.geometry) ? fCentroid.geometry : null) ??
-                fCentroid.properties?.coordinates;
-            // Add the 3D model to the layer with size and rotation from feature properties
-            const ok = meshLayer.addModelInstance(graphicId, coords, buildingId, geometryInfo, properties);
-
-            if (ok) {
-                // Create cube wrapper feature
-                const cubeFeature = createCubeWrapperFeature({
-                    buildingId,
-                    centroid: coords,
-                    geometryInfo,
-                    featureProperties: properties
-                });
-
-                if (cubeFeature) {
-                    cubeWrapperFeatures.push(cubeFeature);
-                }
-            } else {
-                console.warn(`Failed to add building ${buildingId} to 3D layer`);
-                success = false;
-            }
-        }
-
-        // Step 4: Update the source with all cube wrappers at once
-        if (existingSource && cubeWrapperFeatures.length > 0) {
-            existingSource.setData({
-                type: 'FeatureCollection',
-                features: cubeWrapperFeatures
-            });
-            console.log(`Added ${cubeWrapperFeatures.length} cube wrappers to ${sourceId}`);
-        }
-
-        // Step 5: Handle 3D graphics visibility (migrated from useGraphicsVisibility hook)
-        if (map) {
-            try {
-                applyGraphicsVisibility({ map, currentState: {context: getContext()} });
-            } catch (error) {
-                console.error('Error applying graphics visibility:', error);
-            }
-        }
-
-        // Trigger map refresh/repaint
-        map.triggerRepaint();
-
-        console.log(`Successfully refreshed ${features.length} 3D features for ${entityType}`);
-        return success;
-
-    } catch (error) {
-        console.error(`Error refreshing 3D features for ${entityType}:`, error);
-        return false;
-    }
-}
-
-/**
- * Helper function to create a cube wrapper feature
- * @param {Object} params - Parameters for creating cube wrapper
- * @param {string} params.buildingId - Building ID
- * @param {Array} params.centroid - [longitude, latitude] coordinates
- * @param {Object} params.geometryInfo - Geometry information from loaded graphics
- * @param {Object} params.featureProperties - Feature properties (for rotation and size)
- * @returns {Object|null} - GeoJSON feature or null if creation fails
- */
-function createCubeWrapperFeature({ buildingId, centroid, geometryInfo, featureProperties = {} }) {
-    try {
-        // Default cube size and height
-        const defaultCubeSizeMeters = 20;
-        const defaultHeightMeters = 50;
-
-        // Extract rotation and size from feature properties with defaults
-        const rotation = featureProperties?.rotation ?? 0;
-        const sizeProportion = featureProperties?.size ?? 1;
-
-        // Helper function to convert meters to degrees
-        const metersToDegrees = (meters, lat) => ({
-            dLat: meters / 111320,
-            dLon: meters / (111320 * Math.cos((lat * Math.PI) / 180))
-        });
-
-        const lng = parseFloat(centroid[0]);
-        const lat = parseFloat(centroid[1]);
-
-        // Get sizing information from geometry
-        let height = defaultHeightMeters;
-        let cubeSize = defaultCubeSizeMeters;
-
-        if (geometryInfo && geometryInfo.sizeInMeters) {
-            height = geometryInfo.sizeInMeters.height || defaultHeightMeters;
-            cubeSize = Math.max(
-                geometryInfo.sizeInMeters.width || defaultCubeSizeMeters,
-                geometryInfo.sizeInMeters.depth || defaultCubeSizeMeters
-            );
-        }
-
-        // Apply size proportion
-        height *= sizeProportion;
-        cubeSize *= sizeProportion;
-
-        // Create cube footprint coordinates
-        const { dLat, dLon } = metersToDegrees(cubeSize / 3, lat);
-        const ring = [
-            [lng - dLon, lat - dLat],
-            [lng + dLon, lat - dLat],
-            [lng + dLon, lat + dLat],
-            [lng - dLon, lat + dLat],
-            [lng - dLon, lat - dLat]
-        ];
-
-        // Create and return cube wrapper feature
-        return {
-            type: 'Feature',
-            id: buildingId,
-            properties: {
-                buildingId: buildingId,
-                longitude: lng,
-                latitude: lat,
-                type: '3d_model',
-                height: height,
-                elevation: 0,
-                rotation: rotation,
-                size: sizeProportion,
-                cube_wrapper: true,
-                ...featureProperties
-            },
-            geometry: {
-                type: 'Polygon',
-                coordinates: [ring]
-            }
-        };
-    } catch (error) {
-        console.error(`Error creating cube wrapper for building ${buildingId}:`, error);
-        return null;
     }
 }
 
