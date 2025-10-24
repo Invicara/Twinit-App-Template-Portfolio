@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from "@mui/material";
-import { Box, FormControl, Select, MenuItem } from "@material-ui/core";
+import { Box, FormControl, Select, MenuItem, Snackbar } from "@material-ui/core";
 import { styled } from '@mui/material/styles';
 import { makeStyles } from "@material-ui/core/styles";
+import MuiAlert from "@material-ui/lab/Alert";
 
 import './AssetTable.scss'
 
@@ -138,7 +139,7 @@ const FilterdDropdown = ({selectedFilter, setSelectedFilter}) => {
     )
 }
 
-const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, setSortedTableData, rows}) => {
+const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, setSortedTableData, rows, setToast}) => {
     const [selectedCondition, setSelectedCondition] = useState()
 
     const classes = useStyles
@@ -151,8 +152,17 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
         setSortedTableData(rows)
     }
   
-    const filteredData = (keyword) => {
+    const filteredData = (keyword, setToast) => {
         if (!keyword || !selectedFilter || !selectedCondition) return sortedTableData;
+
+        if(!sortedTableData) {
+            setToast({
+                open: true,
+                severity: "error",
+                message: `No Asset data selected, please choose from the Asset Tree on the left panel`,
+            })
+            deleteFilter()
+        }
         const lowerKeyword = keyword.toLowerCase()
 
         const getPropertyValue = (item, propertyName) => {
@@ -181,13 +191,22 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
         const result = sortedTableData.filter(item => 
             selectedCondition === 'is' ? matchesFilter(item) : !matchesFilter(item)
         )
-        setSortedTableData(result)
+
+        if(_.isEmpty(result)) {
+            setToast({
+                open: true,
+                severity: "error",
+                message: `No matching property found for ${selectedFilter}`,
+            })
+        } else {
+            setSortedTableData(result)
+        }
     }
     
 
-    const handleKeyDown = (event) => {
+    const handleKeyDown = (event, setToast) => {
         if (event.key === 'Enter') {
-            filteredData(event.target.value)
+            filteredData(event.target.value, setToast)
         }
     }
 
@@ -203,7 +222,7 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
                             {selectedCondition}
                         </div> 
                     </div>
-                    <input type="text" id="property" name="property" placeholder="Enter text..." onKeyDown={handleKeyDown} className="property-input" />
+                    <input type="text" id="property" name="property" placeholder="Enter text..." onKeyDown={(event) => handleKeyDown(event, setToast)} className="property-input" />
                 </>
                 :
                 <div className="selecting-condition">
@@ -269,9 +288,18 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
     )
 }
 
+function Alert(props) {
+  return <MuiAlert elevation={6} variant="filled" {...props} />;
+}
+
 const AssetTable = ({ rows }) => {
     const [selectedFilter, setSelectedFilter] = useState()
     const [sortedTableData, setSortedTableData] = useState(rows)
+    const [toast, setToast] = useState({
+        open: false,
+        severity: "error",
+        message: "",
+    })
 
     useEffect(() => { 
         setSortedTableData(rows)
@@ -281,6 +309,10 @@ const AssetTable = ({ rows }) => {
         const property = row.Properties.find(p => p.name === name)
         return property ? property.val : '-'
     }
+
+    const handleCloseToast = () => {
+        setToast((prev) => ({ ...prev, open: false }));
+    };
  
     return (
         <Paper>
@@ -304,8 +336,18 @@ const AssetTable = ({ rows }) => {
                         {!selectedFilter ? 
                             <FilterdDropdown selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter}/>
                         : 
-                            <FilteredContainer selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter} sortedTableData={sortedTableData} setSortedTableData={setSortedTableData} rows={rows}/>
+                            <FilteredContainer selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter} sortedTableData={sortedTableData} setSortedTableData={setSortedTableData} rows={rows} setToast={setToast}/>
                         }
+                        <Snackbar
+                            open={toast.open}
+                            autoHideDuration={4000}
+                            onClose={handleCloseToast}
+                            anchorOrigin={{ vertical: "top", horizontal: "center" }}
+                        >
+                            <Alert onClose={handleCloseToast} severity={toast.severity}>
+                                {toast.message}
+                            </Alert>
+                        </Snackbar>
                     </TableHead>
                     <TableHead>
                         <StyledTableHeadRow>
