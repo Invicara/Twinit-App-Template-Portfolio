@@ -30,8 +30,6 @@ function countsForSiteBuildings(map, feature, config) {
     return counts;
 }
 
-
-
 const statusConfig = {
     colorMap: {
         "1": "#f50be9ff",// Planned
@@ -50,6 +48,25 @@ const statusConfig = {
         "unknown": "Unknown",
     },
 }
+
+function countsForSiteECs(map, feature, config) {
+    let bins = config.bins;
+    const counts = new Array(bins.length).fill(0);
+    for (let i = 0; i < bins.length; i++) {
+        const bin = bins[i];
+        const val = bin.id && feature.properties?.ecsByStatus?.[bin.id]?._total;
+        if(val) {
+            counts[i] = val;
+        }
+    }
+    return counts;
+}
+
+function countsForSiteOpenECs(map, feature, config) {
+    return [(feature.properties?.ecsByStatus?.REGISTERED?._total || 0) + (feature.properties?.ecsByStatus?.APPROVED?._total || 0)];
+}
+
+
 
 
 const THEMES = {
@@ -231,7 +248,8 @@ let scriptModule = {
                         idKey: "buildingId"
                     },
                     sourceId: "building-features" ,
-                    config: theme["building-features-layer"],
+                  //  config: theme["building-features-layer"],
+                    config: theme["building-features-centroids"],
                     showLabel: false,
                     pieAlpha: 0.3,
                     "popupConfig": {

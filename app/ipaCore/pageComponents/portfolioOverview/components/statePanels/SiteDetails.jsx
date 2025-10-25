@@ -1,151 +1,28 @@
 import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
-import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent } from '@mui/material';
+import { Typography, Divider, Button, Box, Grid, Card, CardMedia, CardContent, Tooltip } from '@mui/material';
 import CustomButton from '../../../../components/atoms/CustomButton';
 import { useDispatch, useSelector } from 'react-redux';
-import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference } from '../../../../redux/pageComponentState';
+import { getClickEvent, getMapTypes, setMapTypes, getMapGraphicReferences, setSelectedGraphicReference, getSelectedGraphicReference, getStructures, setSelectedStructure, getSelectedStructure } from '../../../../redux/pageComponentState';
 import { MapMachineContext, MapContext } from '../../PortfolioOverview';
-import { addFeatureToMapLayer, removeFeatureFromMapLayer } from '../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache, usePrevious } from "@invicara/ipa-core/modules/IpaUtils";
 import { InfoComponent } from '../../../../components/InfoComponent/InfoComponent';
 import { setDraftType, setIsSelectingPosition, setSelectedCoordinate } from '../../../../redux/siteSetup';
 import { IafItemSvc } from '@dtplatform/platform-api';
 import {useSelector as useXstateSelector} from "@xstate/react";
 import _ from 'lodash';
-import { Add, Dashboard, Cancel } from '@material-ui/icons';
+import { Add, Dashboard, Cancel, Edit } from '@material-ui/icons';
 import { getActiveLevels, getCachedFile } from '../../../../../services/utils';
+import BuildingThumbnails from './BuildingThumbnails';
 
-
-
-const BuildingThumbnails = ({mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath}) => {
-    const dispatch = useDispatch();
-
-    const [thumbnailUrls, setThumbnailUrls] = useState({});
-    const selectedGraphicReferece = useSelector(getSelectedGraphicReference);
-
-    useEffect(() => {
-        return () => {
-            dispatch(setDraftType());
-            dispatch(setIsSelectingPosition(false));
-            dispatch(setSelectedGraphicReference());
-        }
-    }, [])
-
-    // Handle thumbnail click for building selection
-    const handleThumbnailClick = (graphicReference) => {
-        if(selectedGraphicReferece !== graphicReference){
-            dispatch(setDraftType(lowerNamedPath.state));
-            dispatch(setIsSelectingPosition(true));
-            dispatch(setSelectedGraphicReference(graphicReference));
-        } else {
-            dispatch(setDraftType());
-            dispatch(setIsSelectingPosition(false));
-            dispatch(setSelectedGraphicReference());
-        }
-    };
-
-
-    useEffect(() => {
-        const loadThumbnails = async () => {
-            const urls = {};
-            for (const ref of mapGraphicReferences) {
-                if (ref.thumbnail) {
-                    try {
-                        const url = await getCachedFile(ref.thumbnail);
-                        if (url) {
-                            urls[ref.thumbnail] = url;
-                        }
-                    } catch (error) {
-                        console.error(`Failed to load thumbnail for ${ref.thumbnail}:`, error);
-                    }
-                }
-            }
-            setThumbnailUrls(urls);
-        };
-
-        if (mapGraphicReferences && mapGraphicReferences.length > 0) {
-            loadThumbnails();
-        }
-    }, [mapGraphicReferences]);
-
-    return (
-        <Box sx={{ mt: 2 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: 16 }}>
-                    Select Building Type
-                </Typography>
-                <CustomButton
-                    variant="outlined"
-                    color="secondary"
-                    onClick={handleCancelNewBuildingMode}
-                    size="small"
-                    startIcon={<Cancel />}
-                >
-                    Cancel
-                </CustomButton>
-            </div>
-
-            {mapGraphicReferences.length === 0 ? (
-                <Typography variant="body2" color="textSecondary">
-                    No building types available
-                </Typography>
-            ) : (
-                <Grid container spacing={2}>
-                    {mapGraphicReferences.map((ref, index) => (
-                        <Grid item xs={6} sm={4} md={3} key={index}>
-                            <Card
-                                style={{
-                                    cursor: 'pointer',
-                                    backgroundColor: ref === selectedGraphicReferece ? 'rgba(223, 21, 140, 0.1)' : 'transparent',
-                                    border: ref === selectedGraphicReferece ? '2px solid #DF158C' : '2px solid transparent',
-                                    '&:hover': {
-                                        transform: ref === selectedGraphicReferece ? 'scale(1.02) translateY(-2px)' : 'translateY(-2px)',
-                                        boxShadow: ref === selectedGraphicReferece ? '0 6px 16px rgba(223, 21, 140, 0.4)' : '0 4px 8px rgba(0,0,0,0.15)'
-                                    }
-                                }}
-                                onClick={() => handleThumbnailClick(ref)}
-                            >
-                                {ref.thumbnail && thumbnailUrls[ref.thumbnail] ? (
-                                    <CardMedia
-                                        component="img"
-                                        height="80"
-                                        image={thumbnailUrls[ref.thumbnail]}
-                                        alt={ref.name || 'Building thumbnail'}
-                                        sx={{ objectFit: 'cover' }}
-                                    />
-                                ) : (
-                                    <Box
-                                        sx={{
-                                            height: 80,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            backgroundColor: '#f5f5f5'
-                                        }}
-                                    >
-                                        <Dashboard sx={{ fontSize: 32, color: '#ccc' }} />
-                                    </Box>
-                                )}
-                                <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
-                                    <Typography variant="caption" display="block" sx={{ textAlign: 'center', fontSize: '0.75rem' }}>
-                                        {ref.name || `Building ${index + 1}`}
-                                    </Typography>
-                                </CardContent>
-                            </Card>
-                        </Grid>
-                    ))}
-                </Grid>
-            )}
-        </Box>
-    );
-};
 
 export default function SiteDetails({ context }) {
 
     // Get contexts and state
-    const { send, actor } = useContext(MapMachineContext);
+    const machineContext = useContext(MapMachineContext);
+    const { send, actor } = machineContext || {};
     const currentState = useXstateSelector(actor, state => state);
 
-    const [levels, currentElementType, namedPath, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath] = useMemo(() => {
+    const [levels, currentElementType, namedPath, namedPaths, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath] = useMemo(() => {
         const levels = getActiveLevels(currentState);
 
         const sPath = levels?.map(el => el.state).join(".");
@@ -159,7 +36,7 @@ export default function SiteDetails({ context }) {
         const lowerLevelState = Object.assign({}, ...levels
             .filter(l => l.idKey && l.scopeLevel < namedPath.scopeLevel)
             .map(l => ({[l.idKey]: currentState.context[l.idKey]})
-        ));
+            ));
 
         const higherNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel - 1);
         const lowerNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel + 1);
@@ -167,7 +44,7 @@ export default function SiteDetails({ context }) {
         const entityId = currentState.context[idKey]
         const currentEntity = currentState.context.data[namedPath.state].find(e => e[idKey] === entityId);
 
-        return [levels, cElementType, namedPath, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath];
+        return [levels, cElementType, namedPath, namedPaths, idKey, entityId, currentEntity, lowerLevelState, lowerNamedPath];
 
     }, [currentState]);
 
@@ -258,28 +135,6 @@ export default function SiteDetails({ context }) {
                 [idKey]: newValue
             });
 
-            const removeSuccess = removeFeatureFromMapLayer({
-                map: mapInstance,
-                levelState: currentElementType,
-                featureId: oldEntityId,
-                idKey, // explicitly specify the key for entity identification
-                namedPath: namedPath
-            });
-
-            const addSuccess = addFeatureToMapLayer({
-                map: mapInstance,
-                levelState: currentElementType,
-                feature: {
-                    properties: updatedEntity,
-                    geometry: updatedEntity.coordinates ? {
-                        type: 'Polygon',
-                        coordinates: updatedEntity.coordinates
-                    } : null,
-                    coordinates: updatedEntity.coordinates // fallback for coordinate extraction
-                },
-                namedPath: namedPath
-            });
-
         }
 
         console.log('Entity property updated:', { propertyName, newValue, updatedEntity });
@@ -317,6 +172,21 @@ export default function SiteDetails({ context }) {
             [idKey]: finalizedEntity[idKey]
         });
 
+        // if(namedPath.parentState){
+        //     const parentPath = namedPaths.find(el => el.state === namedPath.parentState);
+        //     const parentColl = (await IafItemSvc.getNamedUserItems({query: {_shortName: parentPath.collShortName}}))._list[0];
+
+        //     const parentEntity = currentState.context.data[parentPath.state]
+        //         .find(el => [currentState.context[parentPath.idKey], finalizedEntity[parentPath.idKey]].includes(el[parentPath.idKey]))
+
+        //     finalizedEntity._relationships = [{
+        //         "_relatedUserItemId": parentColl._userItemId,
+        //         "_relatedToIds": [
+        //             parentEntity._id
+        //         ]
+        //     }]
+        // }
+
         //item service creation side effect
         const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
         const result = await IafItemSvc.createRelatedItems(coll._userItemId, [finalizedEntity]);
@@ -337,20 +207,8 @@ export default function SiteDetails({ context }) {
             [currentElementType]: filteredEntities
         };
 
-        const removeSuccess = removeFeatureFromMapLayer({
-            map: mapInstance,
-            levelState: currentElementType,
-            featureId: currentEntity[idKey],
-            idKey, // explicitly specify the key for entity identification
-            namedPath: namedPath
-        });
-
         dispatch(setSelectedCoordinate());
         dispatch(setIsSelectingPosition(false));
-
-        if (!removeSuccess) {
-            console.warn('Failed to remove draft entity feature from map layer');
-        }
 
         // Send event to update XState context (removing the entity)
         send({
@@ -401,33 +259,6 @@ export default function SiteDetails({ context }) {
             type: 'UPDATE_DATA',
             data: restoredData
         });
-
-        // Update map layer if needed
-        if (mapInstance && namedPath) {
-            
-            // Remove current feature and add restored one
-            removeFeatureFromMapLayer({
-                map: mapInstance,
-                levelState: currentElementType,
-                featureId: currentEntity[idKey],
-                idKey,
-                namedPath: namedPath
-            });
-
-            addFeatureToMapLayer({
-                map: mapInstance,
-                levelState: currentElementType,
-                feature: {
-                    properties: cachedOriginalEntity,
-                    geometry: cachedOriginalEntity.coordinates ? {
-                        type: 'Polygon',
-                        coordinates: cachedOriginalEntity.coordinates
-                    } : null,
-                    coordinates: cachedOriginalEntity.coordinates
-                },
-                namedPath: namedPath
-            });
-        }
 
         console.log('Edit cancelled, entity restored:', { original: cachedOriginalEntity, entityId });
     };
@@ -598,7 +429,7 @@ export default function SiteDetails({ context }) {
     }, [mapInstance, isDrawingMode]);
 
     useEffect(() => {
-       currentDrawingPinsTracker.current =  currentDrawingPins;
+        currentDrawingPinsTracker.current =  currentDrawingPins;
     }, [currentDrawingPins])
 
     // Handle map clicks for drawing
@@ -696,40 +527,6 @@ export default function SiteDetails({ context }) {
             data: updatedData
         });
         send({ type: "END_DRAFT" });
-
-        // Update the map layer with new coordinates
-        if (mapInstance && currentState.context?.namedPaths) {
-
-            // Remove old feature and add updated one
-            const sourceId = `${currentElementType}-features`;
-            const existingSource = mapInstance.getSource(sourceId);
-            if (existingSource) {
-                const currentData = existingSource._data || { type: 'FeatureCollection', features: [] };
-                const updatedFeatures = currentData.features.map(feature => {
-                    if (feature.properties[idKey] === entityId) {
-                        return {
-                            ...feature,
-                            geometry: {
-                                type: 'Polygon',
-                                coordinates: [closedCoordinates]
-                            },
-                            properties: {
-                                ...feature.properties,
-                                isDraft: false
-                            }
-                        };
-                    }
-                    return feature;
-                });
-
-                existingSource.setData({
-                    type: 'FeatureCollection',
-                    features: updatedFeatures
-                });
-
-                mapInstance.triggerRepaint();
-            }
-        }
 
         // Reset drawing state
         resetDrawingState();
@@ -829,7 +626,12 @@ export default function SiteDetails({ context }) {
             startDrawingMode();
         }
     };
-
+    if (!currentEntity) {
+        return (
+            <Box p={2}>
+                <Typography variant="body2"></Typography>
+            </Box>);
+    }
     return (
         <Box p={2}>
             <Typography variant="h6">{namedPath?.displayName}: {plantName}</Typography>
@@ -851,8 +653,9 @@ export default function SiteDetails({ context }) {
                             onClick={setEntityForEdition}
                             size="small"
                             disabled={isDrawingMode}
+                            startIcon={<Edit />}
                         >
-                            Edit {namedPath?.displayName}
+                            Edit
                         </CustomButton>
                     )}
                 </div>
@@ -864,30 +667,31 @@ export default function SiteDetails({ context }) {
                     originalEntity={cachedOriginalEntity}
                     disabled={!isInEditMode}
                     modifyTypeCallback={handleTypeModification}
+                    allowReadOnlyOverride={currentEntity?.isDraft}
                 />
                 <Divider style={{ margin: '16px 0'}} />
-                    <Box style={{ marginTop: 12, display: 'flex', justifyContent: "right", gap: 14}}>
-                        <CustomButton
-                            variant="outlined"
-                            color="primary"
-                            onClick={handleAddEntityInfo}
-                            style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
-                            startIcon={<Add/>}
-                            disabled={!isInEditMode}
-                        >
-                            Add {namedPath?.displayName} Info
-                        </CustomButton>
-                        <CustomButton
-                            variant="contained"
-                            color="primary"
-                            onClick={handleStartNewBuildingMode}
-                            style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
-                            startIcon={<Dashboard/>}
-                            disabled={!isInEditMode}
-                        >
-                            Add Structure
-                        </CustomButton>
-                    </Box>
+                <Box style={{ marginTop: 12, display: 'flex', justifyContent: "right", gap: 14}}>
+                    <CustomButton
+                        variant="outlined"
+                        color="primary"
+                        onClick={handleAddEntityInfo}
+                        style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
+                        startIcon={<Add/>}
+                        disabled={!isInEditMode}
+                    >
+                        Add {namedPath?.displayName} Info
+                    </CustomButton>
+                    <CustomButton
+                        variant="contained"
+                        color="primary"
+                        onClick={handleStartNewBuildingMode}
+                        style={{ color: !isInEditMode ? "grey" : "#DF158C", fontWeight: 500, border: "none", backgroundColor: "transparent", padding: 3, boxShadow: "none" }}
+                        startIcon={<Dashboard/>}
+                        disabled={!isInEditMode}
+                    >
+                        Add Structure
+                    </CustomButton>
+                </Box>
             </Box>
 
             {isInEditMode && (
@@ -930,10 +734,10 @@ export default function SiteDetails({ context }) {
             <Divider style={{ margin: '16px 0px', marginTop: 25}} />
 
             {isNewBuildingMode ? (
-                <BuildingThumbnails {...{mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath}} />
+                <BuildingThumbnails {...{mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath, send, upperLevelEntity: currentEntity}} />
             ) : (
                 <>
-                    <Typography variant="body2">Buildings: {buildings.length}</Typography>
+                    <Typography variant="body2">Units: {buildings.length}</Typography>
                     {buildings.map((unit, i) => (
                         <Typography key={i} variant="body2">
                             {unit.name}

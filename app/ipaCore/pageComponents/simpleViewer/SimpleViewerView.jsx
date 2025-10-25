@@ -1,13 +1,7 @@
-
 import React, { useRef, useContext, useState, useEffect } from 'react'
-
-// https://github.com/bvaughn/react-resizable-panels
-import { Panel, PanelGroup } from "react-resizable-panels"
+import { Panel, PanelGroup } from 'react-resizable-panels'
 import ResizeHandle from '../../components/panels/ResizeHandle'
-
 import { IafViewerDBM } from '@dtplatform/iaf-viewer'
-
-// collapasable drawer component provided by ipa-core
 import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls'
 
 import ModelSelect from '../../components/ModelSelect/ModelSelect'

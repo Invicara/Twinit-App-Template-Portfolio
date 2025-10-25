@@ -12,38 +12,42 @@ import {ModelContext} from "../../../../../contexts/ModelContext.js";
 import {Box} from "@material-ui/core";
 import CustomButton from "../../../../../components/atoms/CustomButton.jsx";
 import {MapMachineContext} from "../../../PortfolioOverview.jsx";
+import { useSelector } from 'react-redux';
+import { getStructures } from '../../../../../redux/pageComponentState.js';
 
 export default function BuildingInfo({context}) {
     const { data = [], siteId, buildingId } = context;
     const { building: buildings = [] } = data;
     const currentBuilding = buildings.find(b => b.buildingId == buildingId);
+    const structures = useSelector(getStructures);
+    const currentStructure = (structures|| {})[currentBuilding?.structureName];
     const { selectedModelComposite, availableModelComposites, setSelectedModelComposite } = useContext(ModelContext);
     const { send, actor } = useContext(MapMachineContext);
     const [model, setModel] = useState({});
 
     useEffect(() => {
         // Find and set the model composite based on building's ModelName
-        if (availableModelComposites && currentBuilding?.ModelName) {
+        if (availableModelComposites && currentStructure?.modelName) {
             const matchingModel = availableModelComposites.find(
-                model => model._name === currentBuilding.ModelName ||
-                    model._name.includes(currentBuilding.ModelName) ||
-                    currentBuilding.ModelName.includes(model._name)
+                model => model._name === currentStructure.modelName ||
+                    model._name.includes(currentStructure.modelName) ||
+                    currentStructure.modelName.includes(model._name)
             );
 
             if (matchingModel) {
                 console.log('Setting model composite lacally:', matchingModel);
                 setModel(matchingModel);
             } else {
-                console.log('No matching model found for:', currentBuilding.ModelName);
+                console.log('No matching model found for:', currentStructure.modelName);
                 console.log('Available models:', availableModelComposites.map(m => m._name));
                 setModel()
             }
         }
-    }, [currentBuilding]);
+    }, [currentBuilding, currentStructure]);
 
     const handleSelectModel = () => {
         // Example modelElementId - you can modify this based on your needs
-        const modelElementId = currentBuilding.ModelName;
+        const modelElementId = currentBuilding.ModelName || currentStructure.modelName;
 
         // Send event to xState machine to set modelElementId - include siteId as specified
         if (send) {
@@ -61,7 +65,7 @@ export default function BuildingInfo({context}) {
 
         return (
         <Box p={0} mb={2}>
-            <Accordion>
+            <Accordion defaultExpanded={currentBuilding?.isDraft || currentBuilding?.isEditing}>
                 <AccordionSummary
                     expandIcon={<ExpandMoreIcon />}
                     aria-controls="panel1-content"

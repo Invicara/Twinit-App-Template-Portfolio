@@ -1,0 +1,26 @@
+[
+    {
+        "modelName": "General Medical - Architecture2024",
+        "mapGraphicRefId": "68c13e1a71aa127e59765aaf",
+        "structureMetadata": {},
+        "name": "tower",
+        "requiredBackgroundProperties": {
+        }
+    },
+    {
+        "modelName": "General Medical - Architecture2024",
+        "mapGraphicRefId": "68c13e1a71aa127e59765ab0",
+        "structureMetadata": {},
+        "name": "antena",
+        "requiredBackgroundProperties": {
+        }
+    },
+    {
+        "modelName": "VVER-1000-Main_0100",
+        "mapGraphicRefId": "68c1889e56dd1014ccf092c6",
+        "structureMetadata": {},
+        "name": "exchange",
+        "requiredBackgroundProperties": {
+        }
+    }
+]

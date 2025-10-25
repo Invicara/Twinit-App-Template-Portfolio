@@ -1,2 +1,4 @@
 node_modules/
 setup/entities_input.json
+build/
+.idea

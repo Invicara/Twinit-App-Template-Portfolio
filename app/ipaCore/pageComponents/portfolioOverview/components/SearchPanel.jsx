@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, {useState, useEffect, useMemo, useRef} from 'react';
 import {
     Grid, Button, Box, MenuItem, TextField, Select, Typography, InputAdornment, FormControl, makeStyles
 } from '@material-ui/core';
@@ -75,19 +75,29 @@ export default function SearchPanel({
         const out = {};
         for (const [key, cfg] of Object.entries(formConfig?.fields || {})) {
             if (cfg.type === 'select') {
-                const list = typeof cfg.options === 'function' ? cfg.options(context) : (cfg.options || []);
+                const list = typeof cfg.options === 'function' ? cfg.options({context, out, filters}) : (cfg.options || []);
                 out[key] = (list || []).map((opt) =>
                     typeof opt === 'object' ? opt : { value: opt, label: String(opt) }
                 );
             }
         }
         return out;
-    }, [formConfig, context]);
+    }, [formConfig, context, filters]);
 
-    // --- NEW: hydrate filters from an initial global filter JSON
+    const selectedOptionsRef = useRef(selectOptions);
+    useEffect(()=>{
+        selectedOptionsRef.current = selectOptions
+    },[selectOptions])
+
+    // This effect runs only when a brand new `initialFilter` or formConfig/context changes.
+    // It flattens the rule tree into leaf nodes and lets each field's `fromRule` decide
+    // its starting value. This is how we *initialize* filters from external rules.
+    // NOTE: This must stay separate from the reconciliation effect:
+    // This one is about bootstrapping filter values from the initial rule structure.
+    // The reconciliation effect when options change comes later,
+    // mixing selectedOptions dependency here would cause loops
+    // (or make it unclear which one is responsible for initialization vs. ongoing correction)
     useEffect(() => {
-        if (!initialFilter) return;
-
         // Flatten rules from {op:'and'|'or'|...} into a simple array of leaf nodes
         const gatherLeaves = (node, acc = []) => {
             if (!node) return acc;
@@ -97,6 +107,12 @@ export default function SearchPanel({
                 for (const r of node.rules || []) gatherLeaves(r, acc);
             }
             return acc;
+        };
+
+        const defaultForField = (key, cfg) => {
+            if (cfg?.default !== undefined) return cfg.default;
+            if (cfg?.initial !== undefined) return cfg.initial;
+            return ''; // safe empty for text/selects
         };
 
         const leaves = gatherLeaves(initialFilter, []);
@@ -109,16 +125,53 @@ export default function SearchPanel({
                 // let a field decide which leaf is relevant (it can check rule.fn/args)
                 const matchingValue =
                     leaves
-                        .map((leaf) => cfg.fromRule(leaf, context, selectOptions[key]))
+                        .map((leaf) => cfg.fromRule(leaf, context, selectedOptionsRef.current[key]))
                         .find((v) => v !== undefined && v !== null);
-                if (matchingValue !== undefined && matchingValue !== null) {
-                    next[key] = matchingValue;
-                }
+                next[key] = (matchingValue !== undefined && matchingValue !== null)
+                    ? matchingValue
+                    : defaultForField(key, cfg);
             }
             return next;
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [initialFilter, formConfig, context, JSON.stringify(selectOptions)]);
+    }, [initialFilter, formConfig, context]);
+
+    const optionsSig = useMemo(() => JSON.stringify(selectOptions), [selectOptions]);
+    const lastAppliedSigRef = useRef('');
+
+    // This effect makes sure filters stay valid when options change (because they might be linked).
+    // It checks if a filter value is no longer in the new options,
+    // and if so, replaces it with a safe default.
+    // The signature guard stops it from running in a loop
+    useEffect(() => {
+        // Reconcile only when options change
+        //build a clamped "filters" candidate WITHOUT mutating
+        const next = (() => {
+            let changed = false;
+            const copy = { ...filters };
+            for (const [key, opts] of Object.entries(selectOptions)) {
+                const cfg = formConfig?.fields?.[key];
+                if (cfg?.type !== 'select') continue;
+                const val = copy[key] ?? '';
+                const exists = (opts || []).some(o => String(o.value) === String(val));
+                if (!exists && val !== '') {
+                    copy[key] = cfg?.default ?? cfg?.initial ?? '';
+                    changed = true;
+                }
+            }
+            return changed ? copy : filters; // idempotent
+        })();
+
+        // If nothing changed, bail early
+        if (next === filters) return;
+
+        // Prevent ping-pong: only apply if resulting state differs from what we last applied
+        const nextSig = JSON.stringify(next);
+        if (nextSig === lastAppliedSigRef.current) return;
+
+        lastAppliedSigRef.current = nextSig;
+        setFilters(next);
+    }, [optionsSig, formConfig]); // ← note: not depending on `filters`
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -198,30 +251,6 @@ export default function SearchPanel({
                             </FormControl>
                         </Grid>
 
-                        {/* STRUCTURE */}
-                        <Grid item>
-                            <Typography variant="body1" className={classes.label}>{labels.structure}</Typography>
-                            <FormControl variant="outlined" className={classes.formControl}>
-                                <Select
-                                    name="structure"
-                                    value={filters.structure ?? ''}
-                                    onChange={handleChange}
-                                    displayEmpty
-                                    IconComponent={KeyboardArrowDownIcon}
-                                    renderValue={(selected) =>
-                                        selected === '' || selected == null
-                                            ? <span className={classes.placeholder}>Choose</span>
-                                            : (selectOptions.structure?.find(o => String(o.value) === String(selected))?.label ?? selected)
-                                    }
-                                >
-                                    <MenuItem key={'all'} value=''>All</MenuItem>
-                                    {(selectOptions.structure || []).map((opt) => (
-                                        <MenuItem key={String(opt.value)} value={opt.value}>{opt.label}</MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-
                         {/* LOCATION */}
                         <Grid item>
                             <Typography variant="body1" className={classes.label}>{labels.location}</Typography>
@@ -240,6 +269,30 @@ export default function SearchPanel({
                                 >
                                     <MenuItem key={'all'} value=''>All</MenuItem>
                                     {(selectOptions.location || []).map((opt) => (
+                                        <MenuItem key={String(opt.value)} value={opt.value}>{opt.label}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Grid>
+
+                        {/* STRUCTURE */}
+                        <Grid item>
+                            <Typography variant="body1" className={classes.label}>{labels.structure}</Typography>
+                            <FormControl variant="outlined" className={classes.formControl}>
+                                <Select
+                                    name="structure"
+                                    value={filters.structure ?? ''}
+                                    onChange={handleChange}
+                                    displayEmpty
+                                    IconComponent={KeyboardArrowDownIcon}
+                                    renderValue={(selected) =>
+                                        selected === '' || selected == null
+                                            ? <span className={classes.placeholder}>Choose</span>
+                                            : (selectOptions.structure?.find(o => String(o.value) === String(selected))?.label ?? selected)
+                                    }
+                                >
+                                    <MenuItem key={'all'} value=''>All</MenuItem>
+                                    {(selectOptions.structure || []).map((opt) => (
                                         <MenuItem key={String(opt.value)} value={opt.value}>{opt.label}</MenuItem>
                                     ))}
                                 </Select>

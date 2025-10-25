@@ -1,0 +1,166 @@
+{
+  "handlers": {
+    "modelComparison": {
+      "title": "Model Comparison",
+      "icon": "fa fa-clone fa-2x",
+      "shortName": "modelComparison",
+      "description": "Model Comparison",
+      "pageComponent": "modelComparison/ModelComparisonView",
+      "path": "/modelcomparison",
+      "config": {}
+    },
+    "engineeringChange": {
+      "title": "Engineering Change",
+      "icon": "fa fa-file fa-2x",
+      "shortName": "engineeringChange",
+      "description": "Engineering Change",
+      "pageComponent": "engineeringChange/EngineeringChangeView",
+      "path": "/engineeringChange",
+      "config": {}
+    },
+    "modelImport": {
+      "title": "Model Import",
+      "icon": "fas fa-file-import fa-2x",
+      "shortName": "modelimp",
+      "description": "Model Import",
+      "pageComponent": "modelImport/SimpleModelImportView",
+      "path": "/modelimp",
+      "config": {
+        "bimpkUserType": "bimpk_importer",
+        "sgpkUserType": "sgpk_importer"
+      }
+    },
+    "modelView": {
+      "title": "Model View",
+      "icon": "fas fa-building fa-2x",
+      "shortName": "modelview",
+      "description": "Model View",
+      "pageComponent": "simpleViewer/SimpleViewerView",
+      "path": "/modelview",
+      "config": {
+        "manageFiles": true
+      }
+    },
+    "mapboxSettings": {
+      "title": "Mapbox Settings",
+      "icon": "fas fa-map-marked-alt fa-2x",
+      "pageComponent": "mapboxSettings/MapboxSettingsView",
+      "path": "/mapboxsettings",
+      "config": {}
+    },
+    "userGroups": {
+      "title": "User Group",
+      "actionTitle": "User Group Actions",
+      "icon": "fas fa-users fa-2x",
+      "pageComponent": "users/UserGroupView",
+      "path": "/UserGroupView",
+      "config": {
+        "appUrl": "/",
+        "allowUserGroupEdit": true,
+        "allowUserGroupInvite": true,
+        "allowManageInvites": true,
+        "allowManageUsers": true
+      }
+    },
+    "portfolioOverview": {
+      "title": "Fleet Overview",
+      "icon": "fas fa-map-marked-alt fa-2x",
+      "pageComponent": "portfolioOverview/PortfolioOverview",
+      "path": "/portfoliomap",
+      "config": {},
+      "scriptTypes": [
+        "mmv_config",
+        "mapTypeActions"
+      ]
+    }
+  },
+  "homepage": {
+    "handler": "portfolioOverview"
+  },
+  "groupedPages": {
+    "home": {
+      "icon": "fas fa-home fa-2x",
+      "position": 1,
+      "pages": [
+        {
+          "page": "Fleet Overview",
+          "handler": "portfolioOverview"
+        }
+      ]
+    },
+    "engineeringChange": {
+      "icon": "fas fa-file fa-2x",
+      "position": 2,
+      "pages": [
+        {
+          "page": "Engineering Change",
+          "handler": "engineeringChange"
+        }
+      ]
+    },
+    "model": {
+      "icon": "fas fa-building fa-2x",
+      "position": 3,
+      "pages": [
+        {
+          "page": "Model View",
+          "handler": "modelView"
+        },
+        {
+          "page": "Model Comparison",
+          "handler": "modelComparison"
+        },
+        {
+          "page": "Model Import",
+          "handler": "modelImport"
+        }
+      ]
+    },
+    "settings": {
+      "icon": "fas fa-tools fa-2x",
+      "position": 4,
+      "pages": [
+        {
+          "page": "Mapbox Settings",
+          "handler": "mapboxSettings"
+        }
+      ]
+    }
+  },
+  "settings": {
+    "appTitle": "Fleet Management",
+    "appImage": {
+      "url": "https://lib.invicara.io/hitachi/Hitachi%20Logo%20white.png"
+    },
+    "modelSelection": [
+      "Facility-A_Unit-01",
+      "Facility-A_Unit-02",
+      "Facility-B_Unit-01",
+      "Facility-B_Unit-02",
+      "ReferenceDesign"
+    ],
+    "headerComponent": "components/HeaderBar/HeaderBar",
+    "styles": {
+      "--app-accent-color": "#C71784",
+      "--head-bkg-color": "black",
+      "--head-appname-color": "whitesmoke",
+      "--head-menu-bkg-color": "#FFFFFF",
+      "--head-menu-hover-color": "#F3F3F3",
+      "--nav-bkg-color": "#1D1D1D",
+      "--nav-icon-color": "#F3F3F3",
+      "--nav-hover-color": "#3E3E3E",
+      "--nav-activegrp-bkg-color": "#3E3E3E",
+      "--fancytree-one-color": "#C71784",
+      "--fancytree-one-channel-color": "#f3d5e4",
+      "--fancytree-two-color": "#f26827",
+      "--fancytree-two-channel-color": "#fde0d7",
+      "--fancytree-three-color": "#00a693",
+      "--fancytree-three-channel-color": "#cdebe8",
+      "--element-table-font-primary": "#141414",
+      "--element-table-font-secondary": "#757575",
+      "--element-table-font-disabled": "#9e9e9e",
+      "--element-table-border": "#9e9e9e",
+      "--element-table-selected-row-color": "lightcyan"
+    }
+  }
+}

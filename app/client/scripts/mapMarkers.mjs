@@ -3,10 +3,13 @@ import {markHandled} from "./mapEntryActions.mjs";
 import {get} from "lodash";
 import {FilterCompiler} from "../../ipaCore/pageComponents/utils/filters.global.js";
 import {getGlobalFilterFunctions} from "../../ipaCore/pageComponents/utils/filters.global.js";
+import {Mutex} from "./mutex.js";
+import centroid from "@turf/centroid";
 
 const PIE_SIZE  = 48;
 const PIE_ALPHA = 0.7; // (lower -> more transparent)
 
+export const markersMutex = new Mutex();//we have to lock on the markers map access
 const markers = new Map();
 
 function binIndexFor(val, bins) {
@@ -109,17 +112,20 @@ function wrapToView(lng, centerLng) {
     return lng;
 }
 
-function createSingleMarker(context, feature, {bins, property, showLabel = true, pieAlpha=true, getCounts = getBinCounts, popupConfig, send, featureDef, setPopupState, markerId}){
+function createSingleMarker(context, feature, {bins, property, showLabel = true, pieAlpha=true, getCounts = getBinCounts, getTotalCounts, popupConfig, send, featureDef, setPopupState, markerId}){
     const {map, namedPaths} = context;
-    const namedPath = namedPaths[0]
+    const namedPath = namedPaths[0];
+    const {path} = featureDef;
     let entry = markers.get(markerId);
     if(entry){
         return null;
     }
-    const coordinates = feature.geometry.coordinates;
+    const pointFeature = centroid(feature);
+    const coordinates = pointFeature.geometry.coordinates;
 
     const counts = getCounts(map, feature, { bins, property});
-    const total = Object.values(counts).reduce((acc, cur) => acc+cur, 0);
+    const totalCounts = getTotalCounts ? getTotalCounts(map, feature, { bins, property}) : counts;
+    const total = Object.values(totalCounts).reduce((acc, cur) => acc+cur, 0);
     const color = total == 1 ? getBinColorFromCounts(counts, bins) : undefined;
     const { labelWrap, badge } = makeMarkerShell(PIE_SIZE, showLabel ? total : "", !showLabel ? color : undefined);
     const wrap = document.createElement('div');
@@ -188,6 +194,14 @@ function createSingleMarker(context, feature, {bins, property, showLabel = true,
     }
 }
 
+export function getMarkers() {
+    return markers;
+}
+
+export function addMarkers(graphic) {
+    markers.set(graphic.id, graphic);
+}
+
 export function clearStaleMarkers(staleMarkerIds){
     for (const id of Array.from(markers.keys())){
         if (staleMarkerIds && staleMarkerIds.includes(id)){
@@ -210,6 +224,10 @@ export function clearStaleMarkersByPath(path){
     return [...markerIds];
 }
 
+export function clearAllMarkers(){
+    markers.clear();
+}
+
 const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
 
 export async function renderAllMarkers(e, {self}, markersInfo) {
@@ -227,7 +245,7 @@ export async function renderAllMarkers(e, {self}, markersInfo) {
     const filters = context?.filters?.[path];
     try {
         const src = context?.map?.getSource(markersInfo.sourceId);
-        const data = src._data || src.serialize().data;
+        const data = src ? (src._data || src.serialize().data) : [];
 
         features = data?.features;
         allFeatures = features;
@@ -259,12 +277,8 @@ export async function renderAllMarkers(e, {self}, markersInfo) {
         const markerId = `${path}-${keyVal}`;
         return markerId;
     })
-
-    const previousMarkerIds = [...markers.keys()];
-    graphics.forEach(graphic => {
-        markers.set(graphic.id,graphic);//track markers internally
-    })
-    return {allFeatures, graphics, visibleFeatures, allFeaturesMarkerIds, previousMarkerIds, currentMarkerIds: markerGraphics.map(mg=>mg.markerId), filters};
+    const currentMarkerIds = markerGraphics.map(mg => mg.markerId);
+    return {allFeatures, graphics, visibleFeatures, allFeaturesMarkerIds, currentMarkerIds, filters};
 }
 
 
