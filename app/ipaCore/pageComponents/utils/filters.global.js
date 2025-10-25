@@ -2,7 +2,7 @@ import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
 
 export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
     const fnsFactory = IafScriptEngine.getVar("loadedScripts")["filterRuleFns"];
-    const originalFns = fnsFactory();
+    const originalFns = fnsFactory({entityType, isMapFeatures});
     const fns = {
         ...originalFns,
         capacityBetween:
@@ -28,6 +28,22 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
                 return originalPredicate(entity);
             }
         },
+        EC_statusIn: ({values}) => (e) => {
+            const entity = isMapFeatures ? e.properties : e;
+            let ecsByStatus = {};
+            if (entityType == "es") {
+                ecsByStatus[entity.status] = 1;
+            } else {
+                ecsByStatus = entity.ecsByStatus;
+            }
+            const set = new Set(values.map(v => String(v).toUpperCase()));
+            const statuses = new Set(Object.entries(ecsByStatus).filter(([k,v])=>v._total > 0).map(([k,v]) => String(k).toUpperCase()));
+            try {
+                return set.intersection(statuses).size>0;
+            } catch (e){
+                return false;
+            }
+        },
         reactorPalierIn:
             ({ values = [] }) =>
                 (e) => {
@@ -43,6 +59,10 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
                         : [String((props?.ReactorModel ?? '')).toUpperCase()].filter(Boolean);
 
                     if (models.length === 0) {
+                        // Treat missing model as OTHER only if specifically requested
+                        return wanted.has('OTHER');
+                    }
+                    if (buildings && models.length < buildings.length) {
                         // Treat missing model as OTHER only if specifically requested
                         return wanted.has('OTHER');
                     }
@@ -77,12 +97,48 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
                 const entity = isMapFeatures ? e.properties : e;
                 let models;
                 if (entityType == "site") {
-                    models = entity.buildings.map(b=>String(b.ReactorModel).toUpperCase());
+                    models = new Set(entity.buildings.map(b=>String(b.ReactorModel).toUpperCase()));
                 } else {
-                    models = [String(e.ReactorModel).toUpperCase()];
+                    models = new Set([String(entity.ReactorModel).toUpperCase()]);
                 }
                 const set = new Set(values.map(v => String(v).toUpperCase()));
                 return set.intersection(models).size>0;
+            },
+        facilityIn:
+            ({values = []}) => (e) => {
+                const entity = isMapFeatures ? e.properties : e;
+                let facilityIds;
+                if (entityType == "ec") {
+                    facilityIds = entity.facility ? new Set([entity.facility.toUpperCase()]) : undefined;
+                } else {
+                    facilityIds = entity.siteId ? new Set([String(entity.siteId).toUpperCase()]) : undefined;
+                }
+                const set = new Set(values.map(v => String(v).toUpperCase()));
+                try {
+                    const inter = facilityIds ? set.intersection(facilityIds) : 0;
+                    return inter.size;
+                } catch (e) {
+                    return false;
+                }
+            },
+            unitIn:
+            ({values = []}) => (e) => {
+                const entity = isMapFeatures ? e.properties : e;
+                let unitIds;
+                if (entityType == "ec") {
+                    unitIds = entity.unit ? new Set([entity.unit.toUpperCase()]) : undefined;
+                } else if(entityType == "site") {
+                    unitIds = entity.buildings ? new Set((entity.buildings.map(b=>String(b.buildingId?.toUpperCase())))) : undefined;
+                } else {
+                    unitIds = entity.buildingId ? new Set([entity.buildingId.toUpperCase()]) : undefined;
+                }
+                const set = new Set(values.map(v => String(v).toUpperCase()));
+                try {
+                    const inter = unitIds ? set.intersection(unitIds) : 0;
+                    return inter.size;
+                } catch (e) {
+                    return false;
+                }
             },
     }
     return fns;
@@ -194,6 +250,142 @@ function mergeNodes(
 
     return out;
 }
+const asArray = (v) => (Array.isArray(v) ? v : v == null ? [] : [v]);
+const deepClone = (x) => JSON.parse(JSON.stringify(x ?? {}));
+const sameSet = (a, b) => {
+    if (a.length !== b.length) return false;
+    const s = new Set(a);
+    for (const v of b) if (!s.has(v)) return false;
+    return true;
+};
+/**
+ * Group Toggle (only toggle off when the whole clicked filter matches) + merge for one scope
+ * - If replace applies to a rule and clicked values equal existing values → TOGGLE OFF (remove rule)
+ * - Else if replace applies → overwrite rule
+ * - Else (no replace) → toggle union/remove per values
+ */
+export function toggleScopedFilter(
+    currentFilter,
+    incomingFilter,
+    scope = "site",
+    {
+        replace,                 // boolean | string[] | (fnName)=>boolean
+        dropMissing,             // boolean | string[] | (fnName)=>boolean
+        deleteMarker = "__delete",
+        preserveEmptyScope = true,
+    } = {}
+) {
+    // normalize incoming to scoped form
+    const incomingScoped =
+        incomingFilter && !("op" in incomingFilter)
+            ? incomingFilter
+            : { [scope]: incomingFilter };
+
+    const incomingNode = toAndNode(incomingScoped?.[scope]);
+    if (!incomingNode.rules.length) {
+        const curr = deepClone(currentFilter);
+        return preserveEmptyScope && !curr[scope] ? { [scope]: {} } : curr;
+    }
+
+    // clone current; get scope node
+    const next = deepClone(currentFilter);
+    const scopeNode = toAndNode(next?.[scope]);
+    scopeNode.op = scopeNode.op || incomingNode.op || "and";
+
+    // index current rules by fn
+    const byFn = new Map();
+    for (const r of scopeNode.rules) if (isRule(r)) byFn.set(r.fn, r);
+
+    // collect incoming rule info
+    const incomingRules = incomingNode.rules.filter(isRule);
+    const incomingFns = new Set(incomingRules.map(r => r.fn));
+
+    // ----- GROUP-LEVEL TOGGLE CHECK (for replace-target rules) -----
+    const replaceTargets = incomingRules.filter(r => shouldReplace(r.fn, replace));
+
+    let allReplaceTargetsMatch = replaceTargets.length > 0
+        && replaceTargets.every(r => {
+            const ex = byFn.get(r.fn);
+            if (!ex) return false;
+            const exVals = asArray(ex.args?.values);
+            const inVals = asArray(r.args?.values);
+            return sameSet(exVals, inVals);
+        });
+
+    if (allReplaceTargetsMatch) {
+        // toggle OFF all replace-target rules as a group
+        scopeNode.rules = scopeNode.rules.filter(r => !(isRule(r) && incomingFns.has(r.fn)));
+        // (optionally: also handle non-replace rules in incoming; here we remove only the replace targets)
+    } else {
+        // ----- APPLY RULES -----
+        for (const inc of incomingNode.rules) {
+            if (!isRule(inc)) { scopeNode.rules.push(inc); continue; }
+
+            // explicit delete?
+            if (inc.args && inc.args[deleteMarker]) {
+                scopeNode.rules = scopeNode.rules.filter(r => !(isRule(r) && r.fn === inc.fn));
+                byFn.delete(inc.fn);
+                continue;
+            }
+
+            const existing = byFn.get(inc.fn);
+            const clickedValues = asArray(inc.args?.values).map(String);
+            const doReplace = shouldReplace(inc.fn, replace);
+
+            if (doReplace) {
+                if (existing) {
+                    const i = scopeNode.rules.findIndex(r => isRule(r) && r.fn === inc.fn);
+                    scopeNode.rules[i] = inc;
+                    byFn.set(inc.fn, inc);
+                } else {
+                    scopeNode.rules.push(inc);
+                    byFn.set(inc.fn, inc);
+                }
+            } else {
+                // standard toggle (union/remove)
+                if (!existing) {
+                    scopeNode.rules.push(inc);
+                    byFn.set(inc.fn, inc);
+                } else {
+                    const currentValues = asArray(existing.args?.values).map(String);
+                    const allAlready = clickedValues.every(v => currentValues.includes(v));
+                    if (allAlready) {
+                        // remove clicked values
+                        const remaining = currentValues.filter(v => !clickedValues.includes(v));
+                        if (remaining.length) {
+                            existing.args = { ...(existing.args || {}), values: remaining };
+                        } else {
+                            scopeNode.rules = scopeNode.rules.filter(r => !(isRule(r) && r.fn === inc.fn));
+                            byFn.delete(inc.fn);
+                        }
+                    } else {
+                        // add missing values (union)
+                        const merged = Array.from(new Set([...currentValues, ...clickedValues]));
+                        existing.args = { ...(existing.args || {}), values: merged };
+                    }
+                }
+            }
+        }
+    }
+
+    // dropMissing (optional): remove rules not present in incoming (by fn)
+    if (dropMissing) {
+        scopeNode.rules = scopeNode.rules.filter(r => {
+            if (!isRule(r)) return true;
+            return !(shouldDropMissing(r.fn, dropMissing) && !incomingFns.has(r.fn));
+        });
+    }
+
+    // return with/without empty scope
+    if (!scopeNode.rules.length) {
+        return preserveEmptyScope
+            ? { ...next, [scope]: {} }
+            : (() => { const c = { ...next }; delete c[scope]; return Object.keys(c).length ? c : {}; })();
+    }
+    return { ...next, [scope]: scopeNode };
+}
+
+
 
 /** Merge two filters that may be scoped or bare nodes. */
 export function mergeFiltersGeneric(
@@ -226,8 +418,8 @@ export class FilterCompiler {
         this.fns = fns
     }
     compileFilter(node) {
-        if (!this.fns) {
-            return true;
+        if (!this.fns || !node) {
+            return Boolean;
         }
         if ("fn" in node) {
             const factory = (this.fns)[node.fn];
@@ -247,6 +439,7 @@ export class FilterCompiler {
             return x => parts.some(p => p(x));
         }
         // Exhaustiveness
-        throw new Error("Invalid filter node");
+        console.warn("Invalid filter node", node);
+        return Boolean;
     }
 }

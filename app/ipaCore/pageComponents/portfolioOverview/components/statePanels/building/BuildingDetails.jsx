@@ -1,17 +1,18 @@
 import React, { useContext, useEffect, useState, useMemo } from 'react';
-import { Typography, Divider, Box } from '@material-ui/core';
+import { Typography, Divider, Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Grid } from '@material-ui/core';
 import CustomButton from '../../../../../components/atoms/CustomButton.jsx';
 import { useDispatch, useSelector } from 'react-redux';
-import { getMapTypes, setMapTypes } from '../../../../../redux/pageComponentState.js';
+import { getMapTypes, setMapTypes, getMapGraphicReferences, getStructures } from '../../../../../redux/pageComponentState.js';
 import { MapMachineContext, MapContext } from '../../../PortfolioOverview.jsx';
-import { addFeatureToMapLayer, removeFeatureFromMapLayer, removeBuildingFromMap } from '../../../../../../client/scripts/mapEntryActions.mjs';
+import { get3DGraphicsController } from '../../../../../../client/scripts/mapEntryActions.mjs';
 import { ScriptCache } from "@invicara/ipa-core/modules/IpaUtils";
 import { InfoComponent } from '../../../../../components/InfoComponent/InfoComponent.jsx';
 import { IafItemSvc } from '@dtplatform/platform-api';
 import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from 'lodash';
-import { Add } from '@material-ui/icons';
+import { Add, Delete, Edit } from '@material-ui/icons';
 import { getActiveLevels } from '../../../../../../services/utils.js';
+import BuildingThumbnails from '../BuildingThumbnails';
 
 export default function BuildingDetails({ context }) {
 
@@ -19,7 +20,7 @@ export default function BuildingDetails({ context }) {
     const { send, actor } = useContext(MapMachineContext);
     const currentState = useXstateSelector(actor, state => state);
 
-    const [levels, currentElementType, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath] = useMemo(() => {
+    const [levels, currentElementType, namedPaths, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath, lowerNamedPath] = useMemo(() => {
         const levels = getActiveLevels(currentState);
 
         const sPath = levels?.map(el => el.state).join(".");
@@ -36,11 +37,12 @@ export default function BuildingDetails({ context }) {
         ));
 
         const higherNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel - 1);
+        const lowerNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel + 1);
 
         const entityId = currentState.context[idKey]
         const currentEntity = currentState.context.data[namedPath.state].find(e => e[idKey] === entityId);
 
-        return [levels, cElementType, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath];
+        return [levels, cElementType, namedPaths, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath, lowerNamedPath];
 
     }, [currentState]);
 
@@ -49,9 +51,22 @@ export default function BuildingDetails({ context }) {
 
     const types = useSelector(getMapTypes);
     const type = (types || {})[currentElementType];
+    const mapGraphicReferences = useSelector(getMapGraphicReferences);
+    const structures = useSelector(getStructures);
 
     // Cache for original entity when entering editing mode
     const [cachedOriginalEntity, setCachedOriginalEntity] = useState(null);
+
+    // Delete modal state
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+
+    // Positioning mode state
+    const [isPositioningMode, setIsPositioningMode] = useState(false);
+    
+    const [controller, setController] = useState();
+
+    // Cache for original positioning values when entering positioning mode
+    const [cachedPositioning, setCachedPositioning] = useState(null);
 
     // Check if this entity is a draft that needs perimeter drawing
     const isDraftEntity = currentEntity?.isDraft === true;
@@ -62,6 +77,16 @@ export default function BuildingDetails({ context }) {
     // Entity is in edit mode if it's either draft or being edited
     const isInEditMode = isDraftEntity || isEditingEntity;
 
+    useEffect(() => {
+        if(isPositioningMode){
+            const sourceId = `${namedPath.state}-features`;
+            const newController = get3DGraphicsController(mapInstance, sourceId);
+            setController(newController);
+        } else {
+            controller?.disableInteraction();
+            setController();
+        }
+    }, [isPositioningMode, namedPath, entityId])
 
     useEffect(() => {
         if(!currentEntity?.isDraft && !currentEntity?.isEditing){
@@ -103,41 +128,26 @@ export default function BuildingDetails({ context }) {
         });
 
         // If entityId was changed, navigate to the new entityId to maintain selection
-        if (propertyName === idKey && newValue !== oldEntityId && newValue.length) {
+        if (["structureName", idKey].includes(propertyName) && newValue !== oldEntityId && newValue.length) {
             console.log('EntityId changed, navigating to new entity:', { oldEntityId, newEntityId: newValue });
 
             // Send GO_TO action to navigate to the updated entityId
-            send({
-                type: 'GO_TO',
-                ...lowerLevelState,
-                [idKey]: newValue
-            });
+            if(propertyName === idKey){
+                send({
+                    type: 'GO_TO',
+                    ...lowerLevelState,
+                    [idKey]: newValue
+                });
+            }
 
-            const removeSuccess = removeFeatureFromMapLayer({
-                map: mapInstance,
-                levelState: currentElementType,
-                featureId: oldEntityId,
-                idKey, // explicitly specify the key for entity identification
-                namedPath: namedPath
-            });
-
-            const addSuccess = addFeatureToMapLayer({
-                map: mapInstance,
-                levelState: currentElementType,
-                feature: {
-                    properties: updatedEntity,
-                    geometry: updatedEntity.coordinates ? {
-                        type: 'Point',
-                        coordinates: [updatedEntity.longitude, updatedEntity.latitude]
-                    } : null,
-                    coordinates: [updatedEntity.longitude, updatedEntity.latitude] // fallback for coordinate extraction
-                },
-                namedPath: namedPath
-            });
         }
 
         console.log('Entity property updated:', { propertyName, newValue, updatedEntity });
     };
+
+    const handleStructureChange = structure => {
+        handleEntityChange(structure.name, "structureName");
+    }
 
     const setEntityForEdition = () => {
 
@@ -160,16 +170,6 @@ export default function BuildingDetails({ context }) {
         if (currentEntity?.isDraft) {
 
             console.log('Canceling draft entity, removing from map:', {mapInstance, entityId, namedPath});
-
-            // Remove the draft entity from the map using removeBuildingFromMap
-            if (mapInstance && namedPath) {
-                removeBuildingFromMap({
-                    entityType: currentElementType,
-                    map: mapInstance,
-                    [idKey]: entityId,
-                    namedPath: namedPath
-                });
-            }
 
             // Remove the draft entity from the data entirely
             const currentData = currentState.context?.data || {};
@@ -197,7 +197,10 @@ export default function BuildingDetails({ context }) {
             return;
         }
 
+        handleEntityChange(cachedOriginalEntity.structureName, "structureName");
         if (!cachedOriginalEntity) return;
+        setCachedPositioning(null);
+        setIsPositioningMode(false);
 
         // For non-draft entities, restore the original entity data
         const currentData = currentState.context?.data || {};
@@ -238,18 +241,35 @@ export default function BuildingDetails({ context }) {
             [currentElementType]: updatedEntities
         };
 
+        setCachedPositioning(null);
+        setIsPositioningMode(false);
+
         // Send event to update XState context with finalized entity
         send({
             type: 'UPDATE_DATA',
             data: updatedData
         });
-        
         // Step 4: Pre-select the new entity with a GO_TO operation
         send({
             type: 'GO_TO',
             ...lowerLevelState,
             [idKey]: finalizedEntity[idKey]
         });
+
+        if(namedPath.parentState){
+            const parentPath = namedPaths.find(el => el.state === namedPath.parentState);
+            const parentColl = (await IafItemSvc.getNamedUserItems({query: {_shortName: parentPath.collShortName}}))._list[0];
+
+            const parentEntity = currentState.context.data[parentPath.state]
+                .find(el => [currentState.context[parentPath.idKey], finalizedEntity[parentPath.idKey]].includes(el[parentPath.idKey]))
+
+            finalizedEntity._relationships = [{
+                "_relatedUserItemId": parentColl._userItemId,
+                "_relatedToIds": [
+                    parentEntity._id
+                ]
+            }]
+        }
 
         //item service creation side effect
         const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
@@ -289,6 +309,9 @@ export default function BuildingDetails({ context }) {
             data: updatedData
         });
 
+        setCachedPositioning(null);
+        setIsPositioningMode(false);
+
         // If there were changes, update the backend
         if (hasChanges) {
             try {
@@ -317,17 +340,21 @@ export default function BuildingDetails({ context }) {
         const newFieldName = `newField${Date.now()}`;
 
         // Create updated type schema with the new property
+        const props = type.properties || {};
+        const maxOrder = Object.values(props).reduce((m, p) =>
+            Math.max(m, typeof p?.propertyOrder === 'number' ? p.propertyOrder : -1), -1);
+
         const updatedType = {
             ...type,
             properties: {
-                ...type.properties,
+                ...props,
                 [newFieldName]: {
-                    type: 'string',
-                    title: 'New Field',
-                    description: `Custom ${currentElementType} field`,
-                    propertyOrder: Object.keys(type.properties).length + 1
-                }
-            }
+                type: 'string',
+                title: 'New Field',
+                description: `Custom ${currentElementType} field`,
+                propertyOrder: maxOrder + 1,
+                },
+            },
         };
 
         dispatch(setMapTypes({...types, [currentElementType]: updatedType}));
@@ -336,9 +363,164 @@ export default function BuildingDetails({ context }) {
         console.log(`New field added to ${currentElementType}:`, { fieldName: newFieldName, updatedType });
     };
 
+    // Handle delete modal
+    const handleOpenDeleteModal = () => {
+        setDeleteModalOpen(true);
+    };
+
+    const handleCloseDeleteModal = () => {
+        setDeleteModalOpen(false);
+    };
+
+    // Handle entity deletion
+    const handleDeleteEntity = async () => {
+        if (!currentEntity || !mapInstance || !namedPath) return;
+
+        try {
+            console.log('Deleting entity:', { entityId, currentEntity });
+
+            // 1. Apply UPDATE_DATA action removing the entity
+            const currentData = currentState.context?.data || {};
+            const currentEntities = currentData[currentElementType] || [];
+            const filteredEntities = currentEntities.filter(e => e[idKey] !== entityId);
+            const updatedData = {
+                ...currentData,
+                [currentElementType]: filteredEntities
+            };
+
+            // Update XState context with filtered data
+            send({
+                type: 'UPDATE_DATA',
+                data: updatedData
+            });
+
+            // 3. Get the collection and delete from backend
+            const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
+            const result = await IafItemSvc.deleteRelatedItem(coll._userItemId, currentEntity._id);
+
+            console.log('Entity deleted successfully:', { entityId, result });
+
+            // Navigate back to higher level since the entity no longer exists
+            send({
+                type: 'GO_TO',
+                ...lowerLevelState,
+                [idKey]: null
+            });
+
+            // Close the modal
+            setDeleteModalOpen(false);
+
+        } catch (error) {
+            console.error('Error deleting entity:', error);
+            // You might want to show an error message to the user here
+        }
+    };
+
+    // Handle positioning value changes
+    const handlePositioningChange = (field, value) => {
+        if (!currentEntity) return;
+
+        // Parse numeric values
+        let parsedValue = value;
+        if (field === 'longitude' || field === 'latitude') {
+            parsedValue = parseFloat(value) || 0;
+        } else if (field === 'size') {
+            parsedValue = parseFloat(value) || 1;
+        } else if (field === 'rotation') {
+            parsedValue = parseFloat(value) || 0;
+        }
+
+        // Update the entity with new positioning value
+        const updatedEntity = {
+            ...currentEntity,
+            [field]: parsedValue
+        };
+
+        controller.updateTransform(entityId, {
+            centroid: [updatedEntity.longitude, updatedEntity.latitude],
+            rotation: updatedEntity.rotation,
+            size: updatedEntity.size
+        });
+
+        // Update XState context
+        const currentData = currentState.context?.data || {};
+        const currentEntities = currentData[currentElementType] || [];
+        const updatedEntities = currentEntities.map(b =>
+            b[idKey] === entityId ? updatedEntity : b
+        );
+        const updatedData = {
+            ...currentData,
+            [currentElementType]: updatedEntities
+        };
+
+        // Send event to update XState context with new data
+        send({
+            type: 'UPDATE_DATA',
+            data: updatedData
+        });
+
+        console.log('Positioning value updated:', { field, value: parsedValue, updatedEntity });
+    };
+
+    // Start positioning mode
+    const startPositioningMode = () => {
+        // Cache the current positioning values before starting
+        if (currentEntity) {
+            setCachedPositioning({
+                longitude: currentEntity.longitude ?? 0,
+                latitude: currentEntity.latitude ?? 0,
+                size: currentEntity.size ?? 1,
+                rotation: currentEntity.rotation ?? 0
+            });
+        }
+        setIsPositioningMode(true);
+        console.log('Started positioning mode');
+    };
+
+    // Cancel positioning mode
+    const cancelPositioningMode = () => {
+        // Restore cached positioning values if positioning is cancelled
+        if (cachedPositioning && currentEntity) {
+            const currentData = currentState.context?.data || {};
+            const currentEntities = currentData[currentElementType] || [];
+            const restoredEntities = currentEntities.map(b =>
+                b[idKey] === entityId ? { ...b, ...cachedPositioning } : b
+            );
+            const restoredData = {
+                ...currentData,
+                [currentElementType]: restoredEntities
+            };
+
+            controller.updateTransform(entityId, {
+                centroid: [cachedPositioning.longitude, cachedPositioning.latitude],
+                rotation: cachedPositioning.rotation,
+                size: cachedPositioning.size
+            });
+
+            // Update XState context with restored data
+            send({
+                type: 'UPDATE_DATA',
+                data: restoredData
+            });
+        }
+
+        // Clear cached positioning
+        setCachedPositioning(null);
+        setIsPositioningMode(false);
+        console.log('Cancelled positioning mode');
+    };
+
+    // Toggle positioning mode
+    const togglePositioningMode = () => {
+        if (isPositioningMode) {
+            cancelPositioningMode();
+        } else {
+            startPositioningMode();
+        }
+    };
+
     return (
         <div>
-
             {/* Entity Info - Always displayed */}
             <Box p={0} m={0}>
                 <Box p={2}>
@@ -350,14 +532,27 @@ export default function BuildingDetails({ context }) {
                             </Typography>
                         </div>
                         {!isInEditMode && (
-                            <CustomButton
-                                variant="contained"
-                                color="primary"
-                                onClick={setEntityForEdition}
-                                size="small"
-                            >
-                                Edit {namedPath.displayName}
-                            </CustomButton>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <CustomButton
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={setEntityForEdition}
+                                    size="small"
+                                    startIcon={<Edit />}
+                                >
+                                    Edit
+                                </CustomButton>
+                                {!currentEntity?.isDraft && <CustomButton
+                                    variant="contained"
+                                    color="secondary"
+                                    onClick={handleOpenDeleteModal}
+                                    size="small"
+                                    startIcon={<Delete />}
+                                    style={{ backgroundColor: '#d32f2f', color: 'white' }}
+                                >
+                                    Delete
+                                </CustomButton>}
+                            </div>
                         )}
                     </div>
                     {currentState.context?.[higherNamedPath?.idKey] && <Typography variant="body2">{higherNamedPath.displayName}: {currentState.context[higherNamedPath.idKey]}</Typography>}
@@ -372,6 +567,7 @@ export default function BuildingDetails({ context }) {
                         originalEntity={cachedOriginalEntity}
                         disabled={!isInEditMode}
                         modifyTypeCallback={handleTypeModification}
+                        allowReadOnlyOverride={currentEntity?.isDraft}
                     />
                 </Box>
                 <Box p={2} style={{ marginTop: 12, display: 'flex', justifyContent: "space-between", gap: 14}}>
@@ -391,8 +587,106 @@ export default function BuildingDetails({ context }) {
             </Box>
 
             {isInEditMode && (
-                <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between", marginTop: 25, gap: 25}}>
-                    <Box style={{ marginTop: 24, display: 'flex', gap: 16 }}>
+                <Box p={2}>
+                    <Divider style={{ margin: '16px 0px' }} />
+                    
+                    <BuildingThumbnails 
+                        mapGraphicReferences={mapGraphicReferences}
+                        handleCancelNewBuildingMode={() => {}}
+                        lowerNamedPath={lowerNamedPath}
+                        send={send}
+                        upperLevelEntity={currentEntity}
+                        onStructureChangeCb={handleStructureChange}
+                        currentEntity={currentEntity}
+                    />
+
+                    <Divider style={{ margin: '16px 0px' }} />
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: 16 }}>
+                            3D Model Positioning
+                        </Typography>
+                    </div>
+
+                    {!isPositioningMode ? (
+                        <CustomButton
+                            variant="contained"
+                            color="primary"
+                            onClick={togglePositioningMode}
+                            fullWidth
+                        >
+                            Adjust Positioning
+                        </CustomButton>
+                    ) : (
+                        <Box>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        label="Longitude"
+                                        type="number"
+                                        value={currentEntity?.longitude ?? 0}
+                                        onChange={(e) => handlePositioningChange('longitude', e.target.value)}
+                                        fullWidth
+                                        variant="outlined"
+                                        size="small"
+                                        inputProps={{ step: 0.000001 }}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        label="Latitude"
+                                        type="number"
+                                        value={currentEntity?.latitude ?? 0}
+                                        onChange={(e) => handlePositioningChange('latitude', e.target.value)}
+                                        fullWidth
+                                        variant="outlined"
+                                        size="small"
+                                        inputProps={{ step: 0.000001 }}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        label="Size"
+                                        type="number"
+                                        value={currentEntity?.size ?? 1}
+                                        onChange={(e) => handlePositioningChange('size', e.target.value)}
+                                        fullWidth
+                                        variant="outlined"
+                                        size="small"
+                                        inputProps={{ step: 0.1, min: 0.1 }}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        label="Rotation (degrees)"
+                                        type="number"
+                                        value={currentEntity?.rotation ?? 0}
+                                        onChange={(e) => handlePositioningChange('rotation', e.target.value)}
+                                        fullWidth
+                                        variant="outlined"
+                                        size="small"
+                                        inputProps={{ step: 1 }}
+                                    />
+                                </Grid>
+                            </Grid>
+                            
+                            <Box style={{ marginTop: 16, display: 'flex', gap: 16 }}>
+                                <CustomButton
+                                    variant="outlined"
+                                    color="secondary"
+                                    onClick={cancelPositioningMode}
+                                    style={{ flex: 1 }}
+                                >
+                                    Cancel Re-Positioning
+                                </CustomButton>
+                            </Box>
+                        </Box>
+                    )}
+                </Box>
+            )}
+
+            {isInEditMode && (
+                <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between"}}>
+                    <Box style={{display: 'flex', gap: 16, padding: "0px 16px 16px 16px"  }}>
                         <CustomButton
                             variant="outlined"
                             color="secondary"
@@ -412,6 +706,30 @@ export default function BuildingDetails({ context }) {
                     </Box>
                 </div>
             )}
+
+            {/* Delete Confirmation Modal */}
+            <Dialog open={deleteModalOpen} onClose={handleCloseDeleteModal} maxWidth="sm" fullWidth>
+                <DialogTitle>Delete {namedPath?.displayName || 'Entity'}</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Are you sure you want to delete <strong>"{currentEntity?.name}"</strong>?
+                        This action cannot be undone and will permanently remove the entity from the system.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseDeleteModal} color="primary">
+                        Cancel
+                    </Button>
+                    <Button 
+                        onClick={handleDeleteEntity} 
+                        color="secondary" 
+                        variant="contained"
+                        style={{ backgroundColor: '#d32f2f', color: 'white' }}
+                    >
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 }

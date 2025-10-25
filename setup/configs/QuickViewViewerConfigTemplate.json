@@ -34,7 +34,8 @@
       "path": "/portfoliomap",
       "config": {},
       "scriptTypes": [
-        "mmv_config"
+        "mmv_config",
+        "mapTypeActions"
       ]
     }
   },

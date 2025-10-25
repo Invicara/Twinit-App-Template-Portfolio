@@ -1,6 +1,6 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { selectIsSelectingPosition, setDraftType, setIsSelectingPosition, setSelectedCoordinate } from "../../../../redux/siteSetup";
+import { selectDraftType, selectIsSelectingPosition, setDraftType, setIsSelectingPosition, setSelectedCoordinate } from "../../../../redux/siteSetup";
 import { PinDrop } from '@material-ui/icons';
 import { Tooltip } from "@material-ui/core";
 
@@ -9,6 +9,7 @@ const AddSiteSection = ({classes, levels}) => {
     const dispatch = useDispatch();
 
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
+    const draftType = useSelector(selectDraftType)
     
     const handleAddSite = () => {
         dispatch(setSelectedCoordinate());
@@ -17,7 +18,7 @@ const AddSiteSection = ({classes, levels}) => {
     };
 
 
-    return <div className={isSelectingPosition ? classes.addSiteSectionActive : classes.addSiteSection} onClick={handleAddSite} >
+    return <div className={isSelectingPosition && draftType === "site" ? classes.addSiteSectionActive : classes.addSiteSection} onClick={handleAddSite} >
         <Tooltip title="Add Site">
             <PinDrop/>
         </Tooltip>

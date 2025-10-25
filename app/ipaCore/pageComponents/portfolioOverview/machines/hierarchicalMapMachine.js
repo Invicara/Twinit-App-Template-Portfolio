@@ -1,6 +1,6 @@
-// generateMapMachine.js (XState v5 compatible)
-import {assign, fromPromise, setup, sendTo} from 'xstate';
-import {getEntryAction, getInitAction, getExitAction} from './utils/scriptedEntryActions';
+import {assign, fromPromise, setup, sendTo, spawnChild} from 'xstate';
+import {getEntryAction, getInitAction, getExitAction, onDataUpdatedAction} from './utils/scriptedEntryActions';
+import {fixParentFeaturesUsingChildData} from "../../../../client/scripts/mapEntryActions.mjs";
 
 export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
 
@@ -12,17 +12,16 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
     );
 
     function updateContextForEvent(context, event) {
-        const newCtx = {};
-        for (const key of allIdKeys) {
-            if (event.hasOwnProperty(key)) {
-                newCtx[key] = event[key];
-            } else {
-                newCtx[key] = undefined;
-            }
+    const updatedIds = {};
+    for (const key of allIdKeys) {
+        if (event.hasOwnProperty(key)) {
+            updatedIds[key] = event[key];
+        } else {
+            updatedIds[key] = context[key];
         }
-        return newCtx;
     }
-
+        return { ...context, ...updatedIds };
+    }
     function expandPaths(paths) {
         const all = new Set();
         const expanded = [];
@@ -162,10 +161,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                     return { stateValue: stateKey, context, event, self, sendBack: self.send }
                 },
                 onDone: {
-                    actions: assign(({ event }) => {
-                        //console.log("entryService output", event)
-                        return event.output || {}
-                    })
+                    aactions: assign(({ context, event }) => ({ ...context, ...(event.output || {}) }))
                 },
             },
             states: {
@@ -220,11 +216,8 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                                     pendingEvent: null,
                                     suppressEntryActions: false
                                 })),
-                                assign(({ event }) => {
-                                    //console.log("exitService output", {event,stateKey})
-                                    return event.output || {}
-                                })
-                        ]}))
+                                assign(({ context, event }) => ({ ...context, ...(event.output || {}) }))
+                            ]}))
                     }
                 },
                 ...childState
@@ -267,7 +260,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                     input: ({ context, event, self }) => ({ context, event, self, sendBack: self.send }),
                     onDone: {
                         target: `idle`,
-                        actions: assign(({ event }) => {return event.output || {}})
+                        actions: assign(({ context, event }) => ({ ...context, ...(event.output || {}) }))
                     },
                     onError: {
                         target: `#${MACHINE_ID}.error`,
@@ -292,10 +285,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                         return { stateValue, context, event, self, sendBack: self.send }
                     },
                     onDone: {
-                         actions: assign(({ context, event }) => ({
-                        ...context,
-                        ...(event.output || {})
-                    }))
+                        actions: assign(({ context, event }) => ({ ...context, ...(event.output || {}) }))
                     },
                 },
                 on: {
@@ -341,10 +331,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                                 pendingEvent: null,
                                 suppressEntryActions: false
                             })),
-                            assign(({ context, event }) => ({
-                                ...context,
-                                ...(event.output || {})
-                            }))
+                            assign(({ context, event }) => ({ ...context, ...(event.output || {}) }))
                         ]
                     }))
                 }
@@ -375,23 +362,52 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
         },
         on: {
             '*': { actions: [({context, event}) => {
-                console.log('[machine event]', event)
-            }] },
+                    //console.log('[machine event]', event)
+                }] },
             GO_TO: {
                 actions: assign(({ event }) => ({ pendingEvent: event }))
             },
             UPDATE_DATA: {
-                actions: assign(({ event }) => ({
-                    data: event.data
-                }))
+                actions: [assign(({context, event }) => {
+                    const { namedPaths } = context;
+                    const namedPath = namedPaths[0];
+                    const siteLevelDef = namedPath.find(l=>l.state=="site");
+                    const buildingLevelDef = namedPath.find(l=>l.state=="building");
+                    if(siteLevelDef && !buildingLevelDef){
+                        const siteData = event?.data?.["site"];
+                        const buildingData = event?.data?.["building"];
+                        siteData?.forEach(site => {
+                            if(buildingData){
+                                for(const building of buildingData) {
+                                    site.buildings = site.buildings || [];
+                                    if(building[siteLevelDef.idKey]  && building[siteLevelDef.idKey] == site[siteLevelDef.idKey] && site?.buildings && !site.properties.buildings.find(b=>b[buildingLevelDef.idKey]==building[buildingLevelDef.idKey])){
+                                        site.buildings.push(building);
+                                    }
+                                }
+                            }
+                        })
+                    }
+                    return {data: event.data}
+                }),
+                //new context will only be available in a service after async tick
+                sendTo(({ self }) => self, { type: 'APPLY_DATA' }, { delay: 0 })
+                ]
             },
             UPDATE_FILTERS: {
                 actions: [
                     assign(({ event }) => ({
                         filters: event.filters
                     })),
+                    //new context will only be available in a service after async tick
                     sendTo(({ self }) => self, { type: 'APPLY_FILTERS' }, { delay: 0 })],
 
+            },
+            APPLY_DATA: {
+                actions: [
+                    spawnChild('onDataUpdated', {
+                        input: ({ context, event, self }) => ({ context, event, self }),
+                    }),
+                ],
             },
             APPLY_FILTERS: {
                 actions: [({context, self})=>{
@@ -407,7 +423,8 @@ export const createMachine = (id = 'mapMachine', paths, machineSetup = {}) => {
     const machineDef = generateMapMachine(id, paths, {
         initializeService: 'initializeService',
         entryService: 'entryService',
-        exitService: 'exitService'
+        exitService: 'exitService',
+        onDataUpdated: 'onDataUpdated'
     });
 
     // Merge any additional initial context (like Redux store/dispatch)
@@ -424,6 +441,10 @@ export const createMachine = (id = 'mapMachine', paths, machineSetup = {}) => {
             initializeService: fromPromise(async ({ input }) => {
                 const {context, sendBack} = input;
                 return getInitAction(input);
+            }),
+            onDataUpdated: fromPromise(async ({ input }) => {
+                const {context, sendBack} = input;
+                return onDataUpdatedAction(input);
             }),
             entryService: fromPromise(async ({input}) => {
                 //console.log(`Entry Args`, {input});

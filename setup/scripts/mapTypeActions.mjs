@@ -9,6 +9,15 @@ let scriptModule = {
         return Object.assign({}, ...types.map(t => ({[t.title]: t})));
     },
 
+    async getMapStructures(input, libraries, ctx, callback){
+        const { PlatformApi: { IafItemSvc } } = libraries
+
+        const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: "map_structures"}}))._list[0]
+        const structures = (await IafItemSvc.getRelatedItems(coll._userItemId, {}))._list;
+
+        return Object.assign({}, ...structures.map(s => ({[s.name]: s})));
+    },
+
     async updateMapType(input, libraries, ctx, callback){
         const { PlatformApi: { IafItemSvc } } = libraries
 

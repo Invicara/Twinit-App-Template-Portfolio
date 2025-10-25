@@ -7,6 +7,7 @@ import { IafMultiModalViewer } from "@invicara/ipa-core-mmv"
 import { setClickEvent } from '../../../redux/pageComponentState.js';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectIsSelectingPosition } from '../../../redux/siteSetup.js';
+import useAutoRefreshToken from "../../../hooks/useAutoRefreshMapboxToken.jsx";
 
 export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId, mmvEventHandler, command }) {
 
@@ -30,21 +31,23 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
             setMapboxToken(token)
         }
     }
+    useAutoRefreshToken();
 
     useEffect(() => {
-        // enable mapbox and refresh token every hour
         getMapboxToken();
+        // enable mapbox and refresh token every 55 min
         intervalRef.current = setInterval(() => {
             getMapboxToken();
-        }, 1000*60*60);
+        }, 1000*60*55);
+
+        return ()=> {
+            clearInterval(intervalRef.current);
+        }
     }, []);
 
     useEffect(() => {
         if(!mapboxToken) return;
-
-        clearInterval(intervalRef.current);
         mapboxgl.accessToken = mapboxToken;
-
     }, [mapboxToken]);
 
     // Handle MMV events and extract map reference
@@ -62,8 +65,10 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
 
         if(event.payload.action === "click"){
             const ground = event?.payload.ground || {};
+            const elements = event?.payload.elements || [];
             const {latitude, longitude, point, screenCoordinates} = ground;
             const serializableEvent = {
+                elements,
                 ground: {
                     latitude, longitude, point, screenCoordinates
                 }
@@ -91,30 +96,27 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
             position: 'relative',
             cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
         }}>
-            <AutoSizer>
-                {({ height, width }) => (
-                    <div
-                        ref={mmvContainerRef}
-                        style={{
-                            width,
-                            height,
-                            cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
-                        }}
-                    >
-                        {mapboxToken && <IafMultiModalViewer
-                            mode={"mmvGIS"}
-                            config={{...mergedMMVConfig, width, height}}
-                            eventHandler={handleMMVEvent}
-                            appId={appId}
-                            command={command}
-                            style={{
-                                cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
-                            }}
-                            {...{ width, height }}
-                        />}
-                    </div>
-                )}
-            </AutoSizer>
+            <div
+                ref={mmvContainerRef}
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
+                }}
+            >
+                {mapboxToken && <IafMultiModalViewer
+                    mode={"mmvGIS"}
+                    config={mergedMMVConfig}
+                    eventHandler={handleMMVEvent}
+                    appId={appId}
+                    command={command}
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
+                    }}
+                />}
+            </div>
         </div>
     );
 }
