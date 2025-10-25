@@ -179,9 +179,19 @@ const PortfolioBreadCrumbs = ({namedPath, getLabel}) => {
                     const idVal = idKey ? context[idKey] : undefined;
                     const label = getLabel ? getLabel(lvl, context) : _.startCase(lvl.state);
                     const nameKey = idKey ? idKey.replace(/Id$/, 'Name') : null;
-                    const nameVal = nameKey ? context[nameKey] : undefined;
 
-                    // For the current level (last), render as text; others are clickable links that bubble up
+                    let nameVal;
+                    if (nameKey && context?.[nameKey] !== undefined) {
+                        nameVal = context[nameKey];
+                    } else if (idKey && context?.data?.[lvl.state]) {
+                        const entityId = context[idKey];
+                        const entityList = Array.isArray(context.data[lvl.state]) ? context.data[lvl.state] : [];
+                        const currentEntity = entityList.find(e => e?.[idKey] === entityId);
+                        nameVal = currentEntity?.name || entityId || '';
+                    } else {
+                        nameVal = idKey ? context[idKey] ?? '' : '';
+                    }
+
                     if (isLast) {
                         return (
                             <Tooltip

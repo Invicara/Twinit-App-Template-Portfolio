@@ -3464,8 +3464,6 @@ export async function getEntryAction({mapMachineInput }) {
 
         case 'portfolio.site': {
             const siteId = event.siteId ?? context.siteId;
-            const site = context.data?.site?.find((s) => s.siteId === siteId);
-            const siteName = site?.name;
             zoomToFeature({map: context.map, context, state: 'site', featureId: siteId});
             const namedPath = context.namedPaths[0];//TODO, select correct namedPath index
             let { commands, theme = {}, singleMarkers, legend } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
@@ -3476,52 +3474,42 @@ export async function getEntryAction({mapMachineInput }) {
                 const themeConfig = theme[layerId];
                 const state = layerId.split("-")[0];
                 const level = getLevel(state, namedPath);
-             if (level) {
-                try {
-                  const { groupsObject } =
-                    buildGroupsFromBins(context.map, layerId, level.idKey, themeConfig);
+                if(level){
+                    const { groupsObject } =
+                        buildGroupsFromBins(context.map, layerId, level.idKey, themeConfig);
 
-                  const mmvThemeCommands = [{
-                    commandName: MMV_COMMANDS.THEME_ELEMENTS,
-                    commandRef: uuid(),
-                    params: {
-                      groups: groupsObject,
-                      clear: false,
-                      extra: {
-                        field: level.idKey,
-                        fieldType: level.idType || "string",
-                        layerNames: [layerId]
-                      }
-                    }
-                  }];
-
-                  console.log('Theming command', { stateValue, mmvThemeCommands });
-                  context.mmvSend(mmvThemeCommands);
-                } catch (error) {
-                  console.error('Failed to theme layer', layerId, error);
+                    const mmvThemeCommands = [{
+                        commandName: MMV_COMMANDS.THEME_ELEMENTS,
+                        commandRef: uuid(),
+                        params: {
+                            groups: groupsObject,
+                            clear: false,
+                            extra: {
+                                field: level.idKey,
+                                fieldType: level.idType || "string",
+                                layerNames: [layerId]
+                            }
+                        }
+                    }];
+                    console.log("Theming command",{stateValue, mmvThemeCommands});
+                    context.mmvSend(mmvThemeCommands)
                 }
-              }
             }
 
-            return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme, legend, siteName };
+            return { commands: null, manageMarkers: {...context.manageMarkers, [stateValue]: manageMarkers}, theme, legend };
         }
 
         case 'portfolio.site.building': {
             const siteId = event.siteId ?? context.siteId;
             const buildingId = event.buildingId ?? context.buildingId;
-            const building = context.data?.building?.find(
-              (b) => b.buildingId === buildingId,
-            );
-            const buildingName = building?.name ?? null;
             let { commands, theme = {}, singleMarkers, legend } = await ScriptCache.runScript("getEntryActionTheme", {suppressEntryActions, stateValue});
             zoomToFeature({map: context.map, context, state: 'building', featureId: buildingId});
-            return { commands: null, legend, buildingName };
+            return { commands: null, legend };
         }
 
         default:
             return {};
     }
-
 }
 
 /**
