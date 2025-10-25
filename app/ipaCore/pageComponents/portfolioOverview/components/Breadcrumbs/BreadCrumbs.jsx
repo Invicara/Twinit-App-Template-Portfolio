@@ -178,14 +178,14 @@ const PortfolioBreadCrumbs = ({namedPath, getLabel}) => {
                     const idKey = lvl.idKey;
                     const idVal = idKey ? context[idKey] : undefined;
                     const label = getLabel ? getLabel(lvl, context) : _.startCase(lvl.state);
-                    let nameVal = '';
 
-                    if (idKey && context?.data?.[lvl.state]) {
-                        const entityId = context[idKey];
-                        const entityList = Array.isArray(context.data[lvl.state]) ? context.data[lvl.state] : [];
-                        const currentEntity = entityList.find(e => e?.[idKey] === entityId);
-                        nameVal = currentEntity?.name || entityId || '';
-                    }
+                    const nameVal =
+                        idKey &&
+                        (
+                            context?.data?.[lvl.state]?.find?.(e => e?.[idKey] === context?.[idKey])?.name
+                            ?? context?.[idKey]
+                            ?? ''
+                        );
 
                     if (isLast) {
                         return (
