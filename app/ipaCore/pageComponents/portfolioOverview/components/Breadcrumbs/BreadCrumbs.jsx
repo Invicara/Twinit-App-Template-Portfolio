@@ -178,18 +178,13 @@ const PortfolioBreadCrumbs = ({namedPath, getLabel}) => {
                     const idKey = lvl.idKey;
                     const idVal = idKey ? context[idKey] : undefined;
                     const label = getLabel ? getLabel(lvl, context) : _.startCase(lvl.state);
-                    const nameKey = idKey ? idKey.replace(/Id$/, 'Name') : null;
+                    let nameVal = '';
 
-                    let nameVal;
-                    if (nameKey && context?.[nameKey] !== undefined) {
-                        nameVal = context[nameKey];
-                    } else if (idKey && context?.data?.[lvl.state]) {
+                    if (idKey && context?.data?.[lvl.state]) {
                         const entityId = context[idKey];
                         const entityList = Array.isArray(context.data[lvl.state]) ? context.data[lvl.state] : [];
                         const currentEntity = entityList.find(e => e?.[idKey] === entityId);
                         nameVal = currentEntity?.name || entityId || '';
-                    } else {
-                        nameVal = idKey ? context[idKey] ?? '' : '';
                     }
 
                     if (isLast) {
@@ -200,7 +195,7 @@ const PortfolioBreadCrumbs = ({namedPath, getLabel}) => {
                                 placement="bottom"
                             >
                                 <Typography key={lvl.state} variant="body2" className={currentState.matches(lvl.state) ? classes.activeCrumb : classes.crumb}>
-                                    {label}{nameKey ? `: ${nameVal ?? ''}` : ''}
+                                    {label}{idKey ? `: ${nameVal ?? ''}` : ''}
                                 </Typography>
                             </Tooltip>
                         );
@@ -218,7 +213,7 @@ const PortfolioBreadCrumbs = ({namedPath, getLabel}) => {
                                     style={{ cursor: 'pointer' }}
                                 >
                                     <Typography variant="body2" className={currentState.matches(lvl.state) ? classes.activeCrumb : classes.crumb}>
-                                        {label}{nameKey ? `: ${nameVal ?? ''}` : ''}
+                                        {label}{idKey ? `: ${nameVal ?? ''}` : ''}
                                     </Typography>
                                 </Link>
                             </Tooltip>
