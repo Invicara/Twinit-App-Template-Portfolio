@@ -31,7 +31,7 @@ async function uploadFielAndCreateItem(input, libraries, ctx, callback){
 
 	const proj = await IafProj.getCurrent(ctx);
 
-	let container = (await IafFile.getContainers(proj, {_name: containerName}, ctx ))[0];
+	let container = (await IafFile.getContainers(proj, {}, ctx ))[0];
 
 	// IafScriptEngine.uploadFile
 	let newFile = await IafScriptEngine.uploadFile(file, ctx)
@@ -48,6 +48,10 @@ const scriptModule = {
 
     async setupGraphicRefs(input, libraries, ctx, cb){
         return await setupCollEntities({collKey: "map_graphic_references"}, libraries, ctx, cb);
+    },
+
+	async setupStructures(input, libraries, ctx, cb){
+        return await setupCollEntities({collKey: "map_structures"}, libraries, ctx, cb);
     },
 
     async setupGraphicContainers(input, libraries, ctx, cb){
@@ -72,7 +76,7 @@ const scriptModule = {
 
 		const { IafScriptEngine, PlatformApi: {IafItemSvc}, UiUtils } = libraries
 
-		const itemName = "tower"; //tower, antena, exchange
+		const itemName = "VVER"; //graphic reference name to enrich
 
 		const graphicRefsColl = (await IafItemSvc.getNamedUserItems({query: {_kind: "collection", _shortName: "map_graphic_references"}}, ctx))._list?.[0];
 		const graphicReferenceItem = (await IafItemSvc.getRelatedItems(graphicRefsColl._userItemId, {query: {name: itemName}}, ctx))._list?.[0];
