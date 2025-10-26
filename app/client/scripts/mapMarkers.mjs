@@ -4,7 +4,6 @@ import {get} from "lodash";
 import {FilterCompiler} from "../../ipaCore/pageComponents/utils/filters.global.js";
 import {getGlobalFilterFunctions} from "../../ipaCore/pageComponents/utils/filters.global.js";
 import {Mutex} from "./mutex.js";
-import centroid from "@turf/centroid";
 
 const PIE_SIZE  = 48;
 const PIE_ALPHA = 0.7; // (lower -> more transparent)
@@ -120,8 +119,7 @@ function createSingleMarker(context, feature, {bins, property, showLabel = true,
     if(entry){
         return null;
     }
-    const pointFeature = centroid(feature);
-    const coordinates = pointFeature.geometry.coordinates;
+    const coordinates = feature.geometry.coordinates;
 
     const counts = getCounts(map, feature, { bins, property});
     const totalCounts = getTotalCounts ? getTotalCounts(map, feature, { bins, property}) : counts;
