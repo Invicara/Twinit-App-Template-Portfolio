@@ -122,3 +122,65 @@ export const calculateTreeSelectionState = (tree, checkedItems) => {
 
   return { checkedItems: updated, indeterminateItems: newIndeterminate }
 }
+
+export const calculateAssetTreeSelectionState = (tree, checkedItems) => {
+  const updated = { ...checkedItems }
+  const newIndeterminate = {}
+
+  const computeSelectionState = (node) => {
+    const isLeaf = node.level === 5 || !node.children || node.children.length === 0
+
+    if (isLeaf) {
+      return updated[node.id] ? "checked" : "unchecked"
+    }
+
+    const childStates = node.children.map(computeSelectionState)
+    const allChecked = childStates.every(state => state === "checked")
+    const allUnchecked = childStates.every(state => state === "unchecked")
+
+    let currentState
+    if (allChecked) {
+      currentState = "checked"
+      updated[node.id] = true
+      delete newIndeterminate[node.id]
+    } else if (allUnchecked) {
+      currentState = "unchecked"
+      delete updated[node.id]
+      delete newIndeterminate[node.id]
+    } else {
+      currentState = "partial"
+      delete updated[node.id]
+      newIndeterminate[node.id] = true
+    }
+
+    return currentState
+  }
+
+  tree.forEach(computeSelectionState)
+
+  return { checkedItems: updated, indeterminateItems: newIndeterminate }
+}
+
+// Helper to find ancestor ids of a nodeId in the current tree
+export const getAncestorIds = (tree, targetId) => {
+    const path = []
+    
+    const findPath = (nodes, ancestors = []) => {
+        if (!nodes) return false
+        
+        for (const node of nodes) {
+            const currentPath = [...ancestors, node.id]
+            if (node.id === targetId) {
+                path.push(...ancestors)
+                return true;
+            }
+            if (node.children && findPath(node.children, currentPath)) {
+                return true
+            }
+        }
+        return false;
+    }
+    
+    findPath(tree || [])
+    return path
+}
