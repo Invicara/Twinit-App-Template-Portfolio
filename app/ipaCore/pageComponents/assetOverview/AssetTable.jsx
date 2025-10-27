@@ -31,9 +31,6 @@ const useStyles = makeStyles((theme) => ({
     marginTop: theme.spacing(2),
     marginBottom: theme.spacing(2),
   },
-  formControl: { 
-    minWidth: 200 
-  },
   dropdown: {
     border: '1px solid #DCDCDC', 
     borderRadius: '4px', 
@@ -41,7 +38,8 @@ const useStyles = makeStyles((theme) => ({
     padding: '8px'
   },
   sortBox: {
-    width: '5%'
+    minWidth: 'auto',
+    marginLeft: 'auto'
   }
 }));
 
@@ -142,7 +140,7 @@ const FilterdDropdown = ({selectedFilter, setSelectedFilter}) => {
 const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, setSortedTableData, rows, setToast}) => {
     const [selectedCondition, setSelectedCondition] = useState()
 
-    const classes = useStyles
+    const classes = useStyles()
 
     const conditionOptions = ['is', 'is not'] 
 
@@ -226,7 +224,7 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
                 </>
                 :
                 <div className="selecting-condition">
-                    <Box className={classes.filterBox}>
+                    <Box>
                         <FormControl className={classes.formControl}>
                             <Select
                                 onChange={(e) => {
@@ -236,9 +234,7 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
                                 disableUnderline
                                 IconComponent={() => null}
                                 renderValue={() => (
-                                        <div className={classes.dropdown}>
-                                            <span>Select Condition</span>
-                                        </div>
+                                        <span style={{color: '#B8B8B8'}}>Select Condition</span>
                                     )}
                             >
                                 {conditionOptions.map((option) => {
@@ -256,7 +252,7 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
                 </div>
             }
              <div className="delete-dropdown">
-                <Box className={classes.filterBox}>
+                    <Box>
                         <FormControl className={classes.formControl}>
                             <Select
                                 onChange={(e) => {
@@ -266,19 +262,15 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
                                 disableUnderline
                                 IconComponent={() => null}
                                 renderValue={() => (
-                                        <div className={classes.dropdown}>
-                                             <i style={{ margin: 'auto'}} className="fas fa-ellipsis-v"></i>
-                                        </div>
+                                        <i style={{ margin: 'auto', padding: '0px'}} className="fas fa-ellipsis-v"></i>
                                     )}
                             >
-                                return (
-                                    <MenuItem>
-                                        <Box display="flex" alignItems="center" style={{color: '#D32F2F'}} onClick={() => deleteFilter(rows)}>
-                                            <i style={{ margin: 'auto'}} className="fas fa-trash-alt"></i>
-                                            Delete filter
-                                        </Box>
-                                    </MenuItem>
-                                );
+                                <MenuItem>
+                                    <Box display="flex" alignItems="center" style={{color: '#D32F2F'}} onClick={() => deleteFilter(rows)}>
+                                        <i style={{ margin: 'auto'}} className="fas fa-trash-alt"></i>
+                                        Delete filter
+                                    </Box>
+                                </MenuItem>
                             </Select>
                         </FormControl>
                     </Box>
@@ -316,9 +308,24 @@ const AssetTable = ({ rows }) => {
  
     return (
         <Paper>
+             {!selectedFilter ? (
+                <FilterdDropdown
+                    selectedFilter={selectedFilter}
+                    setSelectedFilter={setSelectedFilter}
+                />
+            ) : (
+                <FilteredContainer
+                    selectedFilter={selectedFilter}
+                    setSelectedFilter={setSelectedFilter}
+                    sortedTableData={sortedTableData}
+                    setSortedTableData={setSortedTableData}
+                    rows={rows}
+                    setToast={setToast}
+                />
+            )}
             <TableContainer
                 sx={{
-                    height: '90vh',
+                    height: '80vh',
                     overflowY: 'auto',
                     scrollbarWidth: 'thin',
                     scrollbarColor: 'rgba(0, 0, 0, 0.3) transparent',
@@ -332,28 +339,23 @@ const AssetTable = ({ rows }) => {
                 }}
             >
                 <Table stickyHeader aria-label="scrollable table">
-                    <TableHead>
-                        {!selectedFilter ? 
-                            <FilterdDropdown selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter}/>
-                        : 
-                            <FilteredContainer selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter} sortedTableData={sortedTableData} setSortedTableData={setSortedTableData} rows={rows} setToast={setToast}/>
-                        }
-                        <Snackbar
-                            open={toast.open}
-                            autoHideDuration={4000}
-                            onClose={handleCloseToast}
-                            anchorOrigin={{ vertical: "top", horizontal: "center" }}
-                        >
-                            <Alert onClose={handleCloseToast} severity={toast.severity}>
-                                {toast.message}
-                            </Alert>
-                        </Snackbar>
-                    </TableHead>
+                    <Snackbar
+                        open={toast.open}
+                        autoHideDuration={4000}
+                        onClose={handleCloseToast}
+                        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+                    >
+                        <Alert onClose={handleCloseToast} severity={toast.severity}>
+                            {toast.message}
+                        </Alert>
+                    </Snackbar>
                     <TableHead>
                         <StyledTableHeadRow>
-                            <TableCell className="asset-table-header-cell">
-                                <p>Equipment Name</p>
-                                <SortingDropdown sortedTableData={sortedTableData} setSortedTableData={setSortedTableData}/>
+                            <TableCell className="asset-table-header-cell" sx={{ width: '30%' }}>
+                                <div>
+                                    <p>Equipment Name</p>
+                                    <SortingDropdown sortedTableData={sortedTableData} setSortedTableData={setSortedTableData}/>
+                                </div>
                             </TableCell>
                             <TableCell className="asset-table-header-cell">Name ID</TableCell>
                             <TableCell className="asset-table-header-cell">Equipment Type</TableCell>
@@ -375,7 +377,7 @@ const AssetTable = ({ rows }) => {
                         ) : (
                             sortedTableData?.map((row, idx) => (
                                 <StyledTableRow key={idx}>
-                                     <TableCell>{row.EquipmentName}</TableCell>
+                                    <TableCell sx={{ width: '30%' }}>{row.EquipmentName}</TableCell>
                                     <TableCell>{row.nameId}</TableCell>
                                     <TableCell>{getPropertyValue(row, 'Equipment Type')}</TableCell>
                                     <TableCell>{getPropertyValue(row, 'Manufacturer')}</TableCell>
