@@ -17,6 +17,7 @@
 .filter-container {
     display: flex;
     margin: 12px;
+    max-width: 505px;
 
     .selected-filter {
         border: 1px solid #DCDCDC;
@@ -57,26 +58,31 @@
 
 
 // AssetTable
-.asset-table-header-cell:nth-of-type(1) {
-    display: flex;
-    justify-content: space-between;
-}
-
 .asset-table-header-cell {
     border-right: 1px solid #EBEBEB;
+
+    div {
+        display: flex;
+        justify-content: space-between;
+    }
 }
 
 .asset-table-no-equip {
-    height: 90vh;
+  height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-    div {
-        width: 15%;
-        margin: auto;
-    }
+  div {
+    width: 90%;
+    max-width: 400px;
+    margin: auto;
+    text-align: center;
+  }
 
-    .no-equip-header {
-        font-weight: 700;
-        font-size: 14px;
-        color: #5D5D5D;
-    }
+  .no-equip-header {
+    font-weight: 700;
+    font-size: 16px;
+    color: #5D5D5D;
+  }
 }
