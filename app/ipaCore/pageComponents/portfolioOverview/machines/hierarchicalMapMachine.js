@@ -1,5 +1,6 @@
 import {assign, fromPromise, setup, sendTo, spawnChild} from 'xstate';
 import {getEntryAction, getInitAction, getExitAction, onDataUpdatedAction} from './utils/scriptedEntryActions';
+import {fixParentFeaturesUsingChildData} from "../../../../client/scripts/mapEntryActions.mjs";
 
 export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
 
@@ -11,16 +12,17 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
     );
 
     function updateContextForEvent(context, event) {
-    const updatedIds = {};
-    for (const key of allIdKeys) {
-        if (event.hasOwnProperty(key)) {
-            updatedIds[key] = event[key];
-        } else {
-            updatedIds[key] = context[key];
+        const newCtx = {};
+        for (const key of allIdKeys) {
+            if (event.hasOwnProperty(key)) {
+                newCtx[key] = event[key];
+            } else {
+                newCtx[key] = undefined;
+            }
         }
+        return newCtx;
     }
-        return { ...context, ...updatedIds };
-    }
+
     function expandPaths(paths) {
         const all = new Set();
         const expanded = [];
@@ -160,7 +162,10 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                     return { stateValue: stateKey, context, event, self, sendBack: self.send }
                 },
                 onDone: {
-                    aactions: assign(({ context, event }) => ({ ...context, ...(event.output || {}) }))
+                    actions: assign(({ event }) => {
+                        //console.log("entryService output", event)
+                        return event.output || {}
+                    })
                 },
             },
             states: {
@@ -215,7 +220,10 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                                     pendingEvent: null,
                                     suppressEntryActions: false
                                 })),
-                                assign(({ context, event }) => ({ ...context, ...(event.output || {}) }))
+                                assign(({ event }) => {
+                                    //console.log("exitService output", {event,stateKey})
+                                    return event.output || {}
+                                })
                             ]}))
                     }
                 },
@@ -259,7 +267,7 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                     input: ({ context, event, self }) => ({ context, event, self, sendBack: self.send }),
                     onDone: {
                         target: `idle`,
-                        actions: assign(({ context, event }) => ({ ...context, ...(event.output || {}) }))
+                        actions: assign(({ event }) => {return event.output || {}})
                     },
                     onError: {
                         target: `#${MACHINE_ID}.error`,
@@ -284,7 +292,9 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                         return { stateValue, context, event, self, sendBack: self.send }
                     },
                     onDone: {
-                        actions: assign(({ context, event }) => ({ ...context, ...(event.output || {}) }))
+                        actions: assign(({ context, event }) => ({
+                            ...(event.output || {})
+                        }))
                     },
                 },
                 on: {
@@ -330,7 +340,9 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                                 pendingEvent: null,
                                 suppressEntryActions: false
                             })),
-                            assign(({ context, event }) => ({ ...context, ...(event.output || {}) }))
+                            assign(({ _, event }) => ({
+                                ...(event.output || {})
+                            }))
                         ]
                     }))
                 }
@@ -367,11 +379,29 @@ export function generateMapMachine(MACHINE_ID= 'mapMachine', paths, services) {
                 actions: assign(({ event }) => ({ pendingEvent: event }))
             },
             UPDATE_DATA: {
-                actions: [assign(({ event }) => ({
-                        data: event.data
-                    })),
-                    //new context will only be available in a service after async tick
-                    sendTo(({ self }) => self, { type: 'APPLY_DATA' }, { delay: 0 })
+                actions: [assign(({context, event }) => {
+                    const { namedPaths } = context;
+                    const namedPath = namedPaths[0];
+                    const siteLevelDef = namedPath.find(l=>l.state=="site");
+                    const buildingLevelDef = namedPath.find(l=>l.state=="building");
+                    if(siteLevelDef && !buildingLevelDef){
+                        const siteData = event?.data?.["site"];
+                        const buildingData = event?.data?.["building"];
+                        siteData?.forEach(site => {
+                            if(buildingData){
+                                for(const building of buildingData) {
+                                    site.buildings = site.buildings || [];
+                                    if(building[siteLevelDef.idKey]  && building[siteLevelDef.idKey] == site[siteLevelDef.idKey] && site?.buildings && !site.properties.buildings.find(b=>b[buildingLevelDef.idKey]==building[buildingLevelDef.idKey])){
+                                        site.buildings.push(building);
+                                    }
+                                }
+                            }
+                        })
+                    }
+                    return {data: event.data}
+                }),
+                //new context will only be available in a service after async tick
+                sendTo(({ self }) => self, { type: 'APPLY_DATA' }, { delay: 0 })
                 ]
             },
             UPDATE_FILTERS: {

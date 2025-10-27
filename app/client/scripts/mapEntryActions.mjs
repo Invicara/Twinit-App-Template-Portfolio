@@ -63,6 +63,26 @@ import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
 import scriptModule from "../../../setup/scripts/mmv_config.mjs";
 import { DEFAULT_PATHS } from '../../ipaCore/pageComponents/portfolioOverview/PortfolioOverview.jsx';
 
+
+// Function to generate square coordinates around a centroid
+// widthInMeters: width of the square in meters (default 500m)
+// Returns array of [lng, lat] coordinates forming a closed polygon
+export function generateSquareCoordinates(centerLng, centerLat, widthInMeters = 500) {
+    // Convert meters to degrees (rough approximation)
+    // 1 degree of longitude ≈ 111,320 meters * cos(latitude)
+    // 1 degree of latitude ≈ 110,540 meters
+    const halfWidthLng = (widthInMeters / 2) / (111320 * Math.cos(centerLat * Math.PI / 180));
+    const halfWidthLat = (widthInMeters / 2) / 110540;
+
+    // Create square coordinates (clockwise from top-left)
+    return [
+        [centerLng - halfWidthLng, centerLat + halfWidthLat], // Top-left
+        [centerLng + halfWidthLng, centerLat + halfWidthLat], // Top-right
+        [centerLng + halfWidthLng, centerLat - halfWidthLat], // Bottom-right
+        [centerLng - halfWidthLng, centerLat - halfWidthLat], // Bottom-left
+        [centerLng - halfWidthLng, centerLat + halfWidthLat]  // Close polygon
+    ];
+}
 /**
  * Properly dispose of THREE.js resources to prevent memory leaks
  * @param {THREE.Object3D} obj - The 3D object to dispose
@@ -205,75 +225,80 @@ function makeBinColorExpression(config) {
  * }}
  */
 function buildGroupsFromBins(map, layerId, idKey, binConfig) {
-    const layer = map.getLayer(layerId);
-    if (!layer) throw new Error(`Layer "${layerId}" not found`);
 
-    const sourceId = layer.source;
-    const src = map.getSource(sourceId);
-    if (!src) throw new Error(`Source "${sourceId}" not found for layer "${layerId}"`);
-
-    // Collect features we can access
-    let features = [];
-    if (src.type === 'geojson') {
-        const data = src._data;
-        features = Array.isArray(data?.features) ? data.features : [];
-    } else if (src.type === 'vector') {
-        const sourceLayer = layer['source-layer'];
-        if (!sourceLayer) throw new Error(`Layer "${layerId}" is vector-backed but missing "source-layer"`);
-        features = map.querySourceFeatures(sourceId, { sourceLayer });
-    } else {
-        throw new Error(`Unsupported source type for binning: ${src.type}`);
-    }
-
-    const propName = binConfig.property;
-    const bins = binConfig.bins || [];
-
-    // Determine which keys are "control" keys we shouldn't copy as paint props
-    const CONTROL_KEYS = new Set(['id', 'min', 'max', 'label', 'ids']);
-
-    // Extract top-level extra props to apply to every group (unless overridden)
-    const topLevelExtras = Object.fromEntries(
-        Object.entries(binConfig).filter(([k]) => !['property', 'bins'].includes(k))
-    );
-
-    // Prepare groups keyed by bin id, prefilled with top-level extras
     const groupsObject = {};
-    for (const bin of bins) {
-        const base = { ids: [] };
+    try {
+        const layer = map.getLayer(layerId);
+        if (!layer) throw new Error(`Layer "${layerId}" not found`);
 
-        // Start with top-level extras…
-        for (const [k, v] of Object.entries(topLevelExtras)) {
-            base[k] = isColorProp(k) ? normalizeColorRGB(v) : v;
+        const sourceId = layer.source;
+        const src = map.getSource(sourceId);
+        if (!src) throw new Error(`Source "${sourceId}" not found for layer "${layerId}"`);
+
+        // Collect features we can access
+        let features = [];
+        if (src.type === 'geojson') {
+            const data = src._data;
+            features = Array.isArray(data?.features) ? data.features : [];
+        } else if (src.type === 'vector') {
+            const sourceLayer = layer['source-layer'];
+            if (!sourceLayer) throw new Error(`Layer "${layerId}" is vector-backed but missing "source-layer"`);
+            features = map.querySourceFeatures(sourceId, { sourceLayer });
+        } else {
+            throw new Error(`Unsupported source type for binning: ${src.type}`);
         }
-        // …then apply per-bin props (these override top-level extras)
-        for (const [k, v] of Object.entries(bin)) {
-            if (!CONTROL_KEYS.has(k)) {
-                base[k] = isColorProp(k) ? normalizeColorRGB(v) : v; // includes 'color' and any explicit paint prop like 'circle-radius'
+
+        const propName = binConfig.property;
+        const bins = binConfig.bins || [];
+
+        // Determine which keys are "control" keys we shouldn't copy as paint props
+        const CONTROL_KEYS = new Set(['id', 'min', 'max', 'label', 'ids']);
+
+        // Extract top-level extra props to apply to every group (unless overridden)
+        const topLevelExtras = Object.fromEntries(
+            Object.entries(binConfig).filter(([k]) => !['property', 'bins'].includes(k))
+        );
+
+        // Prepare groups keyed by bin id, prefilled with top-level extras
+        for (const bin of bins) {
+            const base = { ids: [] };
+
+            // Start with top-level extras…
+            for (const [k, v] of Object.entries(topLevelExtras)) {
+                base[k] = isColorProp(k) ? normalizeColorRGB(v) : v;
+            }
+            // …then apply per-bin props (these override top-level extras)
+            for (const [k, v] of Object.entries(bin)) {
+                if (!CONTROL_KEYS.has(k)) {
+                    base[k] = isColorProp(k) ? normalizeColorRGB(v) : v; // includes 'color' and any explicit paint prop like 'circle-radius'
+                }
+            }
+            groupsObject[bin.id] = base;
+        }
+
+        // Assign features to bins
+        for (const f of features) {
+            const props = f?.properties || {};
+            const id = props?.[idKey];
+            if (id == null) continue;
+
+            const rawVal = props?.[propName];
+            const val = typeof rawVal === 'number' ? rawVal : Number(rawVal);
+            if (Number.isNaN(val)) continue;
+
+            const bin = bins.find(b =>
+                (b.min == null || val >= b.min) &&
+                (b.max == null || val <  b.max)
+            );
+            if (bin) {
+                groupsObject[bin.id].ids.push(String(id));
             }
         }
-        groupsObject[bin.id] = base;
+    } catch (e) {
+        console.error(e)
+    } finally {
+        return { groupsObject };
     }
-
-    // Assign features to bins
-    for (const f of features) {
-        const props = f?.properties || {};
-        const id = props?.[idKey];
-        if (id == null) continue;
-
-        const rawVal = props?.[propName];
-        const val = typeof rawVal === 'number' ? rawVal : Number(rawVal);
-        if (Number.isNaN(val)) continue;
-
-        const bin = bins.find(b =>
-            (b.min == null || val >= b.min) &&
-            (b.max == null || val <  b.max)
-        );
-        if (bin) {
-            groupsObject[bin.id].ids.push(String(id));
-        }
-    }
-
-    return { groupsObject };
 }
 
 
@@ -353,37 +378,28 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
 }
 
 function dataToFeatures(levelDef, data) {
-    if (levelDef.feature === 'point') {
-        return data.filter(d => d.longitude && d.latitude).map(d => ({
-            type: 'Feature',
-            geometry: {
-                type: 'Point',
-                coordinates: [parseFloat(d.longitude), parseFloat(d.latitude)]
-            },
-            properties: { ...d }
-        }));
+    if(!data){
+        return null;
     }
-    if (levelDef.feature === 'polygon') {
-        return data.map(d => ({
-            type: 'Feature',
-            geometry: {
-                type: 'Polygon',
-                coordinates: d.coordinates
-            },
-            properties: { ...d}
-        }));
-    }
-    if (levelDef.feature === 'mesh') {
-        return data.filter(d => d.longitude && d.latitude).map(d => ({
-            type: 'Feature',
-            geometry: {
-                type: 'Point',
-                coordinates: [parseFloat(d.longitude), parseFloat(d.latitude)]
-            },
-            properties: { ...d }
-        }));
-    }
-    return null;
+    const features = data.map(d => {
+            let coordinates = d.coordinates;
+            if (levelDef.feature === 'point' && !coordinates) {
+                coordinates = [parseFloat(d.longitude), parseFloat(d.latitude)]
+            }
+            if (levelDef.feature === 'mesh' && !coordinates) {
+                const squareCoords = generateSquareCoordinates(d.longitude, d.latitude, 1);
+                coordinates = [squareCoords];
+            }
+            let f;
+            try {
+                f = featureFromKnownType(levelDef.feature, coordinates, {...d});
+            } catch (e) {
+                console.error("featureFromKnownType",e)
+            }
+            return f;
+        }
+    ).filter(f=>!!f);
+    return features;
 }
 
 export function fixParentFeaturesUsingChildData(levelDef, data, parent={}) {
@@ -402,8 +418,6 @@ export function fixParentFeaturesUsingChildData(levelDef, data, parent={}) {
 
         })
     }
-
-    return dataToFeatures(levelDef, data) || [];
 }
 // Fetch features and convert to GeoJSON for a level
 export async function fetchFeaturesForLevel(levelDef, parent={}) {
@@ -431,14 +445,26 @@ export async function fetchFeaturesForLevel(levelDef, parent={}) {
 }
 
 function getFeatureLayers(namedPath) {
-    return namedPath
-        .map((lvl, i) => ({
+    const layers = namedPath
+        ?.map((lvl, i) => ({
             state: lvl.state,
             idKey: lvl.idKey || null,
             feature: lvl.feature || null,
             layerId: `${lvl.state}-features-layer`
         }))
         .filter(l => !!l.feature); // only states with feature layers
+    // Add 3D wrapper layer for mesh levels so clicks hit the mesh footprint
+    namedPath?.forEach(lvl => {
+        if (lvl.feature === 'mesh') {
+            layers.push({
+                state: lvl.state,
+                idKey: lvl.idKey,
+                feature: 'polygon',
+                layerId: `${lvl.state}-features-3d-graphics`
+            });
+        }
+    });
+    return layers || [];
 }
 const CLICK_HANDLED = Symbol('map.click.handled');
 
@@ -563,12 +589,9 @@ export function featureFromKnownType(type, coords, properties = {}) {
     const t = String(type).toLowerCase();
 
     switch (t) {
+        //case 'mesh':
         case 'point': {
             if (!isPos(coords)) throw new Error('Point coords must be [lng, lat]');
-            return point(coords, properties);
-        }
-        case 'mesh': {
-            if (!isPos(coords)) throw new Error('Mesh coords must be [lng, lat]');
             return point(coords, properties);
         }
         case 'multipoint': {
@@ -586,9 +609,12 @@ export function featureFromKnownType(type, coords, properties = {}) {
                 throw new Error('MultiLineString must be [[[lng,lat],...], ...]');
             return multiLineString(coords, properties);
         }
+        case 'mesh':
         case 'polygon': {
-            if (!Array.isArray(coords) || !Array.isArray(coords[0]) || !coords[0].every(isPos))
-                throw new Error('Polygon must be [[[lng,lat],...], ...]');
+            if (!Array.isArray(coords) || !Array.isArray(coords[0]) || !coords[0].every(isPos)) {
+                console.log("featureFromKnownType mesh", {coords, properties});
+                throw new Error('Polygon must be [[[lng,lat],...], ...]', {coords, properties});
+            }
             const rings = coords.map(closeRing);
             return polygon(rings, properties);
         }
@@ -1003,12 +1029,6 @@ async function setupGraphicLayers({ map, sourceId, level, features, loadedGraphi
                 'fill-extrusion-opacity': 0.0 // Transparent
             }
         });
-
-        // Add click handler
-        const handler = makeMapOnClickHandler({ map, namedPath, send: self.send, getContext });
-        map.on('click', handler);
-        map.on('mouseenter', wrapperLayerId, () => { map.getCanvas().style.cursor = 'pointer'; });
-        map.on('mouseleave', wrapperLayerId, () => { map.getCanvas().style.cursor = ''; });
     }
 
     // Create or update 3D custom layer
@@ -1272,16 +1292,14 @@ export function get3DGraphicsController(map, sourceId) {
 
     // State for tracking interaction mode and handlers
     let interactionState = {
-        mode: null, // 'transform' or null
+        mode: null, // 'move', 'rotate', 'scale', or null
         activeFeatureId: null,
         activeFeature: null,
         isDragging: false,
         startPosition: null,
         startRotation: 0,
         startScale: 1,
-        activeHandle: null, // 'move', 'rotate', or 'scale'
-        onTransformCallback: null, // Callback function for transformation updates
-        dataSource: null,
+        activeHandle: null,
 
         // Event handlers (stored for cleanup)
         mouseMoveHandler: null,
@@ -1290,13 +1308,10 @@ export function get3DGraphicsController(map, sourceId) {
     };
 
     /**
-     * Enable transformation controls (move, rotate, and scale) for a specific feature
-     * All three operations are available simultaneously based on which handle is interacted with
-     * @param {string} featureId - The feature ID to enable transformation for
-     * @param {Function} callback - Optional callback function called during transformations
-     *                               Receives object with: { position, rotation, scale }
+     * Enable move mode for a specific feature
+     * @param {string} featureId - The feature ID to enable move mode for
      */
-    const enableTransform = (featureId, callback = null) => {
+    const enableMove = (featureId) => {
         if (interactionState.mode) {
             console.warn('Another interaction mode is active. Disable it first.');
             return false;
@@ -1308,51 +1323,87 @@ export function get3DGraphicsController(map, sourceId) {
             return false;
         }
 
-        interactionState.mode = 'transform'; // Single unified mode
+        interactionState.mode = 'move';
         interactionState.activeFeatureId = featureId;
         interactionState.activeFeature = feature;
-        interactionState.onTransformCallback = callback;
-        interactionState.dataSource = map.getSource(sourceId);
-        window.dataSource = interactionState.dataSource;
 
         // Add visual handles
         if (layer.startEditingFeature) {
             layer.startEditingFeature(featureId);
         }
 
-        // Attach unified handlers that support all three operations
-        attachUnifiedTransformHandlers();
+        // Attach move-specific event handlers
+        attachMoveHandlers();
 
-        console.log(`Transform mode enabled for feature: ${featureId} (move, rotate, scale available)`);
+        console.log(`Move mode enabled for feature: ${featureId}`);
         map.triggerRepaint();
         return true;
     };
 
     /**
-     * @deprecated Use enableTransform instead - kept for backward compatibility
-     * Enable move mode for a specific feature
-     */
-    const enableMove = (featureId, callback = null) => {
-        console.warn('enableMove is deprecated. Use enableTransform instead for unified move/rotate/scale.');
-        return enableTransform(featureId, callback);
-    };
-
-    /**
-     * @deprecated Use enableTransform instead - kept for backward compatibility
      * Enable rotate mode for a specific feature
+     * @param {string} featureId - The feature ID to enable rotate mode for
      */
-    const enableRotate = (featureId, callback = null) => {
-        console.warn('enableRotate is deprecated. Use enableTransform instead for unified move/rotate/scale.');
-        return enableTransform(featureId, callback);
+    const enableRotate = (featureId) => {
+        if (interactionState.mode) {
+            console.warn('Another interaction mode is active. Disable it first.');
+            return false;
+        }
+
+        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
+        if (!feature) {
+            console.error(`Feature not found: ${featureId}`);
+            return false;
+        }
+
+        interactionState.mode = 'rotate';
+        interactionState.activeFeatureId = featureId;
+        interactionState.activeFeature = feature;
+
+        // Add visual handles
+        if (layer.startEditingFeature) {
+            layer.startEditingFeature(featureId);
+        }
+
+        // Attach rotate-specific event handlers
+        attachRotateHandlers();
+
+        console.log(`Rotate mode enabled for feature: ${featureId}`);
+        map.triggerRepaint();
+        return true;
     };
 
     /**
-     * @deprecated Use enableTransform instead - kept for backward compatibility
      * Enable scale mode for a specific feature
+     * @param {string} featureId - The feature ID to enable scale mode for
      */
-    const enableScale = (featureId, callback = null) => {
-        console.warn('enableScale is deprecated. Use enableTransform instead for unified move/rotate/scale.');
-        return enableTransform(featureId, callback);
+    const enableScale = (featureId) => {
+        if (interactionState.mode) {
+            console.warn('Another interaction mode is active. Disable it first.');
+            return false;
+        }
+
+        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
+        if (!feature) {
+            console.error(`Feature not found: ${featureId}`);
+            return false;
+        }
+
+        interactionState.mode = 'scale';
+        interactionState.activeFeatureId = featureId;
+        interactionState.activeFeature = feature;
+
+        // Add visual handles
+        if (layer.startEditingFeature) {
+            layer.startEditingFeature(featureId);
+        }
+
+        // Attach scale-specific event handlers
+        attachScaleHandlers();
+
+        console.log(`Scale mode enabled for feature: ${featureId}`);
+        map.triggerRepaint();
+        return true;
     };
 
     /**
@@ -1417,7 +1468,6 @@ export function get3DGraphicsController(map, sourceId) {
             startRotation: 0,
             startScale: 1,
             activeHandle: null,
-            onTransformCallback: null,
             mouseMoveHandler: null,
             mouseDownHandler: null,
             mouseUpHandler: null
@@ -1426,185 +1476,6 @@ export function get3DGraphicsController(map, sourceId) {
         console.log(`${previousMode} mode disabled`);
         map.triggerRepaint();
         return true;
-    };
-
-    /**
-     * Attach unified event handlers that support move, rotate, and scale simultaneously
-     * The operation performed depends on which handle the user interacts with
-     */
-    const attachUnifiedTransformHandlers = () => {
-        interactionState.mouseMoveHandler = (e) => {
-            const featureFromSource = dataSource._data.features.find(el => el.id === interactionState.activeFeatureId);
-            window.featureFromSource = featureFromSource;
-
-            const callbackValue = {
-                centroid: [featureFromSource.properties.longitude, featureFromSource.properties.latitude],
-                rotation: featureFromSource.properties.rotation,
-                scale: featureFromSource.properties.scale
-            }
-            console.log("attachUnifiedTransformHandlers", {callbackValue})
-
-
-
-            const point = { x: e.point.x, y: e.point.y };
-
-            if (!interactionState.isDragging && layer.detectHandle) {
-                // Handle hover detection for cursor changes
-                const handleInfo = layer.detectHandle(point);
-                if (layer.updateCursor) {
-                    layer.updateCursor(handleInfo);
-                }
-                return;
-            }
-
-            // Handle active drag operation based on which handle is being used
-            if (interactionState.isDragging) {
-                const feature = interactionState.activeFeature;
-                window.feature = feature;
-                
-                // MOVE operation
-                if (interactionState.activeHandle === 'move') {
-                    const position = [e.lngLat.lng, e.lngLat.lat];
-                    callbackValue.centroid = position;
-                    feature.centroid = position;
-
-                    const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(position, 0);
-                    feature.transform.translateX = modelAsMercatorCoordinate.x;
-                    feature.transform.translateY = modelAsMercatorCoordinate.y;
-                    feature.transform.translateZ = modelAsMercatorCoordinate.z;
-                }
-                
-                // ROTATE operation
-                else if (interactionState.activeHandle === 'rotate') {
-                    const center = feature.centroid;
-                    const centerPixel = map.project(center);
-
-                    const angle = Math.atan2(e.point.y - centerPixel.y, e.point.x - centerPixel.x);
-                    const startAngle = Math.atan2(
-                        interactionState.startPosition.y - centerPixel.y,
-                        interactionState.startPosition.x - centerPixel.x
-                    );
-                    const deltaAngle = (angle - startAngle) * (180 / Math.PI);
-                    const newRotation = (interactionState.startRotation + deltaAngle) % 360;
-                    callbackValue.rotation = newRotation;
-
-                    feature.transform.rotateY = newRotation * -(Math.PI / 180);
-                    feature.properties.rotation = newRotation;
-                }
-                
-                // SCALE operation
-                else if (interactionState.activeHandle === 'scale') {
-                    const center = feature.centroid;
-                    const centerPixel = map.project(center);
-
-                    const currentDistance = Math.sqrt(
-                        Math.pow(e.point.x - centerPixel.x, 2) +
-                        Math.pow(e.point.y - centerPixel.y, 2)
-                    );
-                    const startDistance = Math.sqrt(
-                        Math.pow(interactionState.startPosition.x - centerPixel.x, 2) +
-                        Math.pow(interactionState.startPosition.y - centerPixel.y, 2)
-                    );
-
-                    const scaleFactor = startDistance > 0 ? currentDistance / startDistance : 1;
-                    const newScale = Math.max(0.1, Math.min(3.0, interactionState.startScale * scaleFactor));
-                    callbackValue.scale = newScale;
-
-                    const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(center, 0);
-                    feature.transform.scale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() * newScale;
-                    feature.properties.size = newScale;
-                }
-
-                // Invoke callback with updated transformation data
-                if (interactionState.onTransformCallback) {
-
-                    try {
-                        console.log("attachUnifiedTransformHandlers, prevcallback", {callbackValue, feature})
-                        const outcomeGeneralPosition = {
-                            position: feature.centroid,
-                            rotation: feature.properties.rotation,
-                            size: callbackValue.scale
-                        }
-
-                        interactionState.onTransformCallback(outcomeGeneralPosition);
-                    } catch (error) {
-                        console.error('Error executing transform callback:', error);
-                    }
-                }
-
-                map.triggerRepaint();
-            }
-        };
-
-        interactionState.mouseDownHandler = (e) => {
-            const point = { x: e.point.x, y: e.point.y };
-
-            if (layer.detectHandle) {
-                const handleInfo = layer.detectHandle(point);
-
-                if (handleInfo) {
-                    // Determine which operation based on handle type
-                    if (handleInfo.type === 'moveHandle') {
-                        interactionState.activeHandle = 'move';
-                        interactionState.isDragging = true;
-                        interactionState.startPosition = point;
-                        map.getCanvas().style.cursor = 'grabbing';
-                        map.dragPan.disable();
-                        e.preventDefault();
-                    } 
-                    else if (handleInfo.type === 'boundingBox') {
-                        interactionState.activeHandle = 'rotate';
-                        interactionState.isDragging = true;
-                        interactionState.startPosition = point;
-
-                        // Extract current rotation from transform
-                        const currentRotateY = interactionState.activeFeature.transform.rotateY || 0;
-                        interactionState.startRotation = currentRotateY * -(180 / Math.PI);
-
-                        map.getCanvas().style.cursor = 'grabbing';
-                        map.dragPan.disable();
-                        e.preventDefault();
-                    }
-                    else if (handleInfo.type === 'scaleHandle') {
-                        interactionState.activeHandle = 'scale';
-                        interactionState.isDragging = true;
-                        interactionState.startPosition = point;
-
-                        // Extract current scale from transform
-                        const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
-                            interactionState.activeFeature.centroid,
-                            0
-                        );
-                        const baseScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
-                        interactionState.startScale = interactionState.activeFeature.transform.scale / baseScale;
-
-                        map.getCanvas().style.cursor = 'nw-resize';
-                        map.dragPan.disable();
-                        e.preventDefault();
-                    }
-                }
-            }
-        };
-
-        interactionState.mouseUpHandler = (e) => {
-            if (interactionState.isDragging) {
-                interactionState.isDragging = false;
-                interactionState.activeHandle = null;
-                map.dragPan.enable();
-
-                const point = { x: e.point.x, y: e.point.y };
-                if (layer.detectHandle) {
-                    const handleInfo = layer.detectHandle(point);
-                    if (layer.updateCursor) {
-                        layer.updateCursor(handleInfo);
-                    }
-                }
-            }
-        };
-
-        map.on('mousemove', interactionState.mouseMoveHandler);
-        map.on('mousedown', interactionState.mouseDownHandler);
-        map.on('mouseup', interactionState.mouseUpHandler);
     };
 
     /**
@@ -1867,7 +1738,9 @@ export function get3DGraphicsController(map, sourceId) {
         getAllFeatureVisibility: () => layer.getAllFeatureVisibility && layer.getAllFeatureVisibility(),
 
         // Transformation controls with visual overlays and callbacks
-        enableTransform,    // NEW: Unified function - enables move, rotate, and scale simultaneously
+        enableMove,
+        enableRotate,
+        enableScale,
         disableInteraction,
 
         // Programmatic transform update
@@ -2189,86 +2062,23 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             handleGroup.name = 'editingHandles';
 
             const bbox = geometryInfo.boundingBox;
-            
-            // Add buffer space to the bounding box (2.5 meters on each side)
-            const buffer = 10;
-            
-            // Calculate expanded bounding box dimensions
-            const width = bbox.max.x - bbox.min.x + (buffer * 2);
-            const height = bbox.max.y - bbox.min.y + (buffer * 2);
-            const depth = bbox.max.z - bbox.min.z + (buffer * 2);
-            
-            // Calculate corner positions for the expanded box
-            const halfWidth = width / 2;
-            const halfHeight = height / 2;
-            const halfDepth = depth / 2;
-            const centerY = (bbox.max.y + bbox.min.y) / 2;
 
-            // Create thick edges using cylinders for better visibility
-            const edgeThickness = 1.0; // Thickness of the edge lines in meters (increased for better visibility)
-            const edgeColor = 0x00ffff;
-            const edgeMaterial = new THREE.MeshBasicMaterial({
-                color: edgeColor,
+            // Building outline box - covers entire building shape
+            const boxGeometry = new THREE.BoxGeometry(
+                bbox.max.x - bbox.min.x,
+                bbox.max.y - bbox.min.y,
+                bbox.max.z - bbox.min.z
+            );
+            const boxMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ffff,
+                wireframe: true,
                 transparent: true,
-                opacity: 0.8
+                opacity: 0.6
             });
-
-            // Helper function to create an edge between two points
-            const createEdge = (start, end) => {
-                const direction = new THREE.Vector3().subVectors(end, start);
-                const length = direction.length();
-                const edgeGeometry = new THREE.CylinderGeometry(edgeThickness, edgeThickness, length, 8);
-                const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
-                
-                // Position at midpoint
-                edge.position.copy(start).add(direction.multiplyScalar(0.5));
-                
-                // Rotate to align with direction
-                edge.quaternion.setFromUnitVectors(
-                    new THREE.Vector3(0, 1, 0),
-                    direction.normalize()
-                );
-                
-                return edge;
-            };
-
-            // Define the 8 corners of the box
-            const corners = [
-                new THREE.Vector3(-halfWidth, centerY - halfHeight, -halfDepth), // 0: bottom-back-left
-                new THREE.Vector3(halfWidth, centerY - halfHeight, -halfDepth),  // 1: bottom-back-right
-                new THREE.Vector3(-halfWidth, centerY - halfHeight, halfDepth),  // 2: bottom-front-left
-                new THREE.Vector3(halfWidth, centerY - halfHeight, halfDepth),   // 3: bottom-front-right
-                new THREE.Vector3(-halfWidth, centerY + halfHeight, -halfDepth), // 4: top-back-left
-                new THREE.Vector3(halfWidth, centerY + halfHeight, -halfDepth),  // 5: top-back-right
-                new THREE.Vector3(-halfWidth, centerY + halfHeight, halfDepth),  // 6: top-front-left
-                new THREE.Vector3(halfWidth, centerY + halfHeight, halfDepth)    // 7: top-front-right
-            ];
-
-            // Create 12 edges of the box
-            const edges = [
-                // Bottom face edges
-                [corners[0], corners[1]], // back
-                [corners[1], corners[3]], // right
-                [corners[3], corners[2]], // front
-                [corners[2], corners[0]], // left
-                // Top face edges
-                [corners[4], corners[5]], // back
-                [corners[5], corners[7]], // right
-                [corners[7], corners[6]], // front
-                [corners[6], corners[4]], // left
-                // Vertical edges
-                [corners[0], corners[4]], // back-left
-                [corners[1], corners[5]], // back-right
-                [corners[2], corners[6]], // front-left
-                [corners[3], corners[7]]  // front-right
-            ];
-
-            // Add all edges to the handle group
-            edges.forEach(([start, end]) => {
-                const edge = createEdge(start, end);
-                edge.userData = { type: 'boundingBox', isEditingHandle: true };
-                handleGroup.add(edge);
-            });
+            const boundingBoxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
+            boundingBoxMesh.position.y = (bbox.max.y + bbox.min.y) / 2;
+            boundingBoxMesh.userData = { type: 'boundingBox', isEditingHandle: true };
+            handleGroup.add(boundingBoxMesh);
 
             // Scale handles (corner cubes)
             const handleSize = 0.05;
@@ -2902,12 +2712,13 @@ async function upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, 
                         ? { 'circle-radius': 0.01, 'circle-color': '#fff' }//TODO: or also make invisible by default?
                         : { 'fill-color': '#fff', 'fill-opacity': 0.18 }//TODO: or also make invisible by default?
                 });
-                const handler = makeMapOnClickHandler({ map, namedPath, send: self.send, getContext });
-                map.on('click', handler);
-                map.on('mouseenter', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = 'pointer'; });
-                map.on('mouseleave', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = ''; });
+
             }
         }
+        const handler = makeMapOnClickHandler({ map, namedPath, send: self.send, getContext });
+        map.on('click', handler);
+        map.on('mouseenter', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = ''; });
         // Optionally add/update CLUSTERED layer
         if (!map.getLayer(`${sourceId}-layer-clustered`) && level.feature === 'point' && sourceOptions?.cluster) {
             map.addLayer({
@@ -2919,14 +2730,17 @@ async function upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, 
             });
         }
 
-        // Always add/update centroids layer for polygon features
-        if ((level.feature === "polygon" || level.feature === "multiPolygon")) {
+        // Always add/update centroids layer for polygon/mesh features
+        if ((level.feature === "polygon" || level.feature === "multiPolygon" || level.feature === "mesh")) {
             let centroidFeatures = turfFeatures.map(f => {
                 const c = centroid(f);
                 // copy over properties so pies can use them
                 c.properties = { ...f.properties };
                 return c;
             });
+            if(level.feature === "mesh"){
+               // debugger;
+            }
             const centroidFc = featureCollection(centroidFeatures);
             if (!map.getSource(`${sourceId}-centroids`)) {
                 map.addSource(`${sourceId}-centroids`, {type: "geojson", data: centroidFc});
@@ -2965,6 +2779,7 @@ export async function addAllFeatureLayers({ map, namedPath, getContext, self }) 
         const {sourceOptions} = clusterOptions;
 
         const features = await fetchFeaturesForLevel(level, parentLevelWithFeatures);
+        console.log("addAllFeatureLayers", features)
         parentLevelWithFeatures = {features, level};
         fetchedFeatures.push({...level, features})
     }
@@ -2994,6 +2809,7 @@ export async function updateAllFeatureLayers({ map, namedPath, getContext, self 
         fixParentFeaturesUsingChildData(level, scopedData, parentLevelWithFeatures);
         const features = dataToFeatures(level, scopedData) || [];
         parentLevelWithFeatures = {features, level};
+
         fetchedFeatures.push({...level, features})
     }
 
@@ -3607,7 +3423,8 @@ function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, ge
         features: updatedFeatures
     };
 
-    // Update the source with the new cube wrapper
+    // do not modify the buildings, just modify the layer features
+
     existingSource.setData(updatedFeatureCollection);
 
     console.log(`Added cube wrapper for building ${buildingId}:`, {
