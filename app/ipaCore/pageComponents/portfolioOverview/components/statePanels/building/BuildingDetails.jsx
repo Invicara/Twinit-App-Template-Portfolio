@@ -639,6 +639,16 @@ export default function BuildingDetails({ context }) {
                         </CustomButton>
                     ) : (
                         <Box>
+                            <div style={{ marginBottom: 14 }}>
+                                <span style={{fontWeight: 600}}>Manual Positioning:</span>
+                                <ul>
+                                    <li style={{display: "flex", alignItems: "center", gap: 5}}><span style={{ backgroundColor: "blue", borderRadius: 50, width: 12, height: 12 }} /> Re-locating</li>
+                                    <li style={{display: "flex", alignItems: "center", gap: 5}}><span style={{ backgroundColor: "red", borderRadius: 50, width: 12, height: 12 }} /> Rotation</li>
+                                    <li style={{display: "flex", alignItems: "center", gap: 5}}><span style={{ backgroundColor: "orange", borderRadius: 50, width: 12, height: 12 }} /> Re-sizing</li>                            
+                                </ul>
+                            </div>
+                            <hr />
+                            <div style={{fontWeight: 600, marginBottom: 14}}>Positioning values:</div>
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={6}>
                                     <TextField
