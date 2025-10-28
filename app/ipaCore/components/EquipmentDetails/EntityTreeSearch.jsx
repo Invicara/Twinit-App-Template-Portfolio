@@ -3,6 +3,7 @@ import { makeStyles } from '@material-ui/core/styles'
 import TreeItem from '@material-ui/lab/TreeItem'
 import Checkbox from '@material-ui/core/Checkbox'
 import { Typography } from '@material-ui/core'
+import { CircularProgress } from "@material-ui/core";
 
 const useTreeItemStyles = makeStyles(theme => ({
   labelRoot: { 
@@ -32,14 +33,19 @@ const useTreeItemStyles = makeStyles(theme => ({
   }
 }))
 
-export default function SiteEquipTreeSearch({ labelText, checked, onCheck, nodeId, indeterminate, ...other }) {
+export default function EntityTreeSearch({ labelText, checked, onCheck, nodeId, indeterminate, loadingNodes,  ...other }) {
   const classes = useTreeItemStyles()
+
   return (
     <TreeItem
       nodeId={nodeId}
       label={
         <div className={classes.labelRoot}>
-          <Checkbox checked={checked} indeterminate={indeterminate} onChange={e => onCheck(nodeId, e.target.checked)} className={classes.checkbox} size="small" />
+          {loadingNodes ? 
+            <CircularProgress size={12} style={{ marginRight: '10px' }} />
+          : 
+           <Checkbox checked={checked} indeterminate={indeterminate} onChange={e => onCheck(nodeId, e.target.checked)} className={classes.checkbox} size="small" />
+           }
           <Typography variant="body2" className={classes.labelText}>{labelText}</Typography>
         </div>
       }
