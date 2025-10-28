@@ -471,14 +471,9 @@ export default function BuildingDetails({ context }) {
                     rotation: transformData.rotation,
                     size: transformData.size
                 })
-            });            
+            });
         }, 400);
 
-        send({
-            type: 'END_DRAFT'
-        });
-
-        console.log('Positioning value updated:', { field, value: parsedValue, updatedEntity });
     };
 
     const debounceHandlePositionChange = useDebounce(handlePositioningChange, 300);
