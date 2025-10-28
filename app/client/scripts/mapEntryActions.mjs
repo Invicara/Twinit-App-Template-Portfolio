@@ -1238,7 +1238,7 @@ export function get3DGraphicsController(map, sourceId) {
      */
     const attachUnifiedTransformHandlers = () => {
         interactionState.mouseMoveHandler = (e) => {
-            const featureFromSource = dataSource._data.features.find(el => el.id === interactionState.activeFeatureId);
+            const featureFromSource = interactionState.dataSource._data.features.find(el => el.id === interactionState.activeFeatureId);
             window.featureFromSource = featureFromSource;
 
             const callbackValue = {
@@ -2851,7 +2851,7 @@ function updateCentroidsForLevel(map, level, features) {
     // Ensure source exists
     const existing = map.getSource(centroidsSourceId);
     if (!existing) {
-        map.addSource(centroidsSourceId, { type: "geojson", data: fc });
+        map.addSource(centroidsSourceId, { type: "geojson", data: fc, promoteId: level.idKey });
     } else {
         existing.setData(fc);
     }
@@ -2912,7 +2912,7 @@ export async function upsertOrUpdateAllFeatures({ map, namedPath, getContext, se
         // 1) ensure/update source
         let src = map.getSource(sourceId);
         if (!src) {
-            map.addSource(sourceId, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            map.addSource(sourceId, { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, promoteId: level.idKey });
             src = map.getSource(sourceId);
         }
 
@@ -2980,7 +2980,7 @@ export async function upsertOrUpdateAllFeatures({ map, namedPath, getContext, se
                     }
 
                     const wrapper = buildCubeWrapperFeature({
-                        level, buildingId: id, centroid: c, geometryInfo, featureProperties: props
+                        level, id, centroid: c, geometryInfo, featureProperties: props
                     });
                     if (wrapper) wrappers.push(wrapper);
                 }
