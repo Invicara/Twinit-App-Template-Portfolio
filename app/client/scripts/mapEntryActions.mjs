@@ -475,6 +475,12 @@ function dataToFeatures(levelDef, data) {
             return f;
         }
     ).filter(f=>!!f);
+    //copy scale to size if missing (to sure which one we use)
+    features.forEach(f => {
+        if (f?.properties && f.properties.size == null && f.properties.scale != null) {
+            f.properties.size = f.properties.scale;
+        }
+    });
     return features;
 }
 
@@ -911,7 +917,7 @@ function computeCentroidFromProps(props) {
 function buildModelTransform(centroid, props) {
     // defaults
     const rotationDeg = props?.rotation ?? 0;
-    const sizeProp    = props?.size ?? 1;
+    const sizeProp = (props?.size ?? props?.scale ?? 1); // scale fallback
     const elevation   = props?.elevation ?? 0; // meters above sea level (or terrain)
     const height      = props?.height ?? 0;    // extra vertical offset in meters (building Z lift)
 
@@ -940,7 +946,7 @@ function placementSignature(centroid, props) {
         props?.elevation ?? 0,
         props?.height ?? 0,
         props?.rotation ?? 0,
-        props?.size ?? 1
+        (props?.size ?? props?.scale ?? 1) // scale fallback
     ].join('|');
 }
 
