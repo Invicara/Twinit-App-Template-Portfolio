@@ -56,42 +56,64 @@ const AssetOverviewView = () => {
     }, [])
 
   return (
-        <Box sx={{ display: 'flex', height: '100vh' }}>
-            <Box sx={{ width: '20%', padding: 2, borderRight: '1px solid #DCDCDC'}}>
-            {Object.values(loadingNodes).includes(true) ? (
-                <LinearProgress classes={{ colorPrimary: classes.colorPrimary, barColorPrimary: classes.barColorPrimary }} />
-            ) : null}
-                <p className="tree-panel-header">Properties</p>
-                <AssetTree 
-                    loadingNodes={loadingNodes} 
-                    setLoadingNodes={setLoadingNodes}
-                    setSelectedSiteEquipment={handleSetSelectedSiteEquipment} 
-                    setTableData={handleSetTableData} 
-                />
-            </Box>
-
-            <Box
-                sx={{
-                    width: '80%',
-                    overflowX: 'auto',
-                    padding: 2,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    backgroundColor: '#F3F3F3',
-                    marginRight: '24px'
-                }}
-            >
-                <>
-                    <p className="table-panel-header">Equipments</p>
-                    <AssetTable 
-                        rows={equipData} 
-                        loadingTableData={loadingTableData} 
-                        setLoadingTableData={setLoadingTableData} 
-                    /> 
-                </>
-              {loadingTableData ? <LinearProgress classes={{ colorPrimary: classes.colorPrimary, barColorPrimary: classes.barColorPrimary }} /> : null}
-            </Box>
+    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+        <Box
+          component="section"
+          sx={{
+            width: '20%',
+            display: 'flex',
+            flexDirection: 'column',
+            borderRight: '1px solid #DCDCDC',
+            padding: 2,
+            overflow: 'hidden',
+          }}
+        >
+        <Box sx={{ flexShrink: 0 }}>
+          {Object.values(loadingNodes).includes(true) ? (
+            <LinearProgress
+              classes={{
+                colorPrimary: classes.colorPrimary,
+                barColorPrimary: classes.barColorPrimary,
+              }}
+            />
+          ) : null}
+          <p className="tree-panel-header">Properties</p>
         </Box>
+
+        <Box sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          <AssetTree
+            loadingNodes={loadingNodes}
+            setLoadingNodes={setLoadingNodes}
+            setSelectedSiteEquipment={handleSetSelectedSiteEquipment}
+            setTableData={handleSetTableData}
+          />
+        </Box>
+      </Box>
+
+       <Box
+          sx={{
+              width: '80%',
+              overflow: 'hidden',
+              padding: 2,
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: '#F3F3F3',
+              marginRight: '24px'
+          }}
+        >
+            <>
+                <p className="table-panel-header">Equipments</p>
+                <Box sx={{ flex: 1, minHeight: 0 }}>
+                  <AssetTable 
+                    rows={equipData} 
+                    loadingTableData={loadingTableData} 
+                    setLoadingTableData={setLoadingTableData} 
+                  /> 
+                </Box>
+            </>
+          {loadingTableData ? <LinearProgress classes={{ colorPrimary: classes.colorPrimary, barColorPrimary: classes.barColorPrimary }} /> : null}
+        </Box>
+    </Box>
     );
 };
 
