@@ -1523,7 +1523,7 @@ export function get3DGraphicsController(map, sourceId) {
                         const outcomeGeneralPosition = {
                             position: feature.centroid,
                             rotation: feature.properties.rotation,
-                            size: callbackValue.scale
+                            size: feature.properties.size
                         }
 
                         interactionState.onTransformCallback(outcomeGeneralPosition);
