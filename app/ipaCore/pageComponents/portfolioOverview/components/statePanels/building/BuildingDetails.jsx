@@ -659,6 +659,29 @@ export default function BuildingDetails({ context }) {
                         </CustomButton>
                     ) : (
                         <Box>
+                            <Box style={{ marginBottom: 16, padding: 12, backgroundColor: '#f5f5f5', borderRadius: 8 }}>
+                                <Typography style={{ fontWeight: 600, marginBottom: 8 }}>
+                                    Manual Positioning Controls:
+                                </Typography>
+                                <Box component="ul" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                                    <li style={{ display: "flex", alignItems: "center", gap: 8, padding: '4px 0' }}>
+                                        <span style={{ backgroundColor: "#0088ff", borderRadius: '50%', width: 14, height: 14, flexShrink: 0 }} />
+                                        <Typography variant="body2">Re-locating</Typography>
+                                    </li>
+                                    <li style={{ display: "flex", alignItems: "center", gap: 8, padding: '4px 0' }}>
+                                        <span style={{ backgroundColor: "#ff0000", borderRadius: '50%', width: 14, height: 14, flexShrink: 0 }} />
+                                        <Typography variant="body2">Rotation</Typography>
+                                    </li>
+                                    <li style={{ display: "flex", alignItems: "center", gap: 8, padding: '4px 0' }}>
+                                        <span style={{ backgroundColor: "#ffaa00", borderRadius: '50%', width: 14, height: 14, flexShrink: 0 }} />
+                                        <Typography variant="body2">Re-sizing</Typography>
+                                    </li>
+                                </Box>
+                            </Box>
+                            <Divider style={{ margin: '16px 0' }} />
+                            <Typography style={{ fontWeight: 600, marginBottom: 14 }}>
+                                Positioning Values:
+                            </Typography>
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={6}>
                                     <TextField
