@@ -12,12 +12,8 @@ import EntityTreeSearch from '../../components/EquipmentDetails/EntityTreeSearch
 
 const useStyles = makeStyles(theme => ({
   root: {
-    height: "100%",
-    flexGrow: 1,
-    maxWidth: 400,
-    overflowY: "auto",
-    marginTop: '16px',
-    position: 'relative'
+    width: '100%',
+    overflowY: 'visible'
   }
 }))
 
@@ -63,7 +59,7 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
                 id: `${nodeId}/${item}`,
                 name: item,
                 level,
-                children: []
+                children: level === 5 ? [] : [{}],
             }
             }
         })
@@ -87,7 +83,9 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
             return []
         }
 
-        if (node.children?.length && !deep) {
+        const hasRealChildren = node.children?.length && node.children.some(child => child.id !== undefined)
+
+        if (hasRealChildren && !deep) {
             return node.children
         }
         setNodeLoading(nodeId, true)
@@ -158,13 +156,13 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
         }
     }
 
-    const handleCheck = (id, isChecked, node = null, tree = initialTreeLevels) => {
-        if (!node) node = findNodeById(tree, id)
+    const handleCheck = (id, isChecked, node = null) => {
+        if (!node) node = findNodeById(treeRef.current, id)
         if (!node) return
 
-        // If checking a non-leaf (levels 1-4), immediately mark it and its ancestors as indeterminate.
+        // If checking a non-leaf (levels 1-4), load children first
         if (isChecked && node.level < 5) {
-            const ancestorIds = getAncestorIds(tree, id)
+            const ancestorIds = getAncestorIds(treeRef.current, id)
             // Immediately give UI feedback: mark node + ancestors as indeterminate
             setIndeterminateItems(prev => {
                 const next = { ...prev }
@@ -187,10 +185,7 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
                     setCheckedItems(prevChecked => {
                         const {checkedItems: newChecked, indeterminateItems: newIndeterminate} = calculateAssetTreeSelectionState(treeRef.current, prevChecked)
 
-                        setIndeterminateItems(prevIndeterminate => ({
-                            ...prevIndeterminate,
-                            ...newIndeterminate
-                        }))
+                        setIndeterminateItems(newIndeterminate)
 
                         return newChecked
                     })
@@ -215,56 +210,69 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
             })
         }
 
-    // Update checkedItems map (only mark level 5 nodes as checked directly)
+        // Update checkedItems and calculate indeterminate states
         setCheckedItems(prev => {
             const updated = { ...prev }
 
             if (isChecked) {
-            if (node.level === 5) {
+                // Only mark this specific node (level 5)
                 updated[id] = true
-            }
-            // If the node has descendants already in the tree, mark them as well
-            descendantIds.forEach(childId => {
-                // Only mark descendants if they are leaves (optional) — but safe to mark anyway
-                updated[childId] = true
-            })
+                
+                // Mark any descendants if they exist
+                descendantIds.forEach(childId => {
+                    updated[childId] = true
+                })
             } else {
-            delete updated[id]
-            descendantIds.forEach(childId => delete updated[childId])
+                // Unchecking - remove this node and descendants
+                delete updated[id]
+                descendantIds.forEach(childId => delete updated[childId])
             }
 
-            // Compute immediate indeterminate states for current tree shape (gives instant feedback)
-            const { checkedItems: cleanedChecked, indeterminateItems: newIndeterminate } = calculateAssetTreeSelectionState(tree, updated)
-
-            // Apply indeterminate map and return cleaned checked map
+            // Calculate indeterminate states based on updated checked items
+            const { checkedItems: cleanedChecked, indeterminateItems: newIndeterminate } = calculateAssetTreeSelectionState(treeRef.current, updated)
+            
+            // Update indeterminate states
             setIndeterminateItems(newIndeterminate)
             return cleanedChecked
         })
     }
 
     const renderTree = (nodes) => {
-        return nodes?.map(node => (
-            <EntityTreeSearch
-                key={node.id}
-                nodeId={node.id}
-                labelText={
-                    loadingNodes === node.id ? `${node.name} (loading...)` : node.name
-                }
-                checked={!!checkedItems[node.id]}
-                indeterminate={!!indeterminateItems[node.id]}
-                onCheck={(id, checked) => handleCheck(id, checked, node, initialTreeLevels)}
-                loadingNodes={loadingNodes[node.id]}
-            >
-                {node.children ? renderTree(node.children) : null}
-            </EntityTreeSearch>
-        ))
+        return nodes?.map(node => {
+
+            if (!node || !node.id) return null
+
+            const isLeaf = node.level === 5 || !node.children?.length
+
+            return (
+                <EntityTreeSearch
+                    key={node.id}
+                    nodeId={node.id}
+                    labelText={node.name}
+                    checked={!!checkedItems[node.id]}
+                    indeterminate={!!indeterminateItems[node.id]}
+                    onCheck={(id, checked) => handleCheck(id, checked, node)}
+                    loadingNodes={loadingNodes[node.id]}
+                    expandIcon={
+                        !isLeaf ? (
+                            <ArrowRightIcon style={{ color: "#dbdbdb", fontSize: "25px" }} />
+                        ) : null
+                    }
+                    collapseIcon={
+                        !isLeaf ? (
+                            <ArrowDropDownIcon style={{ color: "#dbdbdb", fontSize: "25px" }} />
+                        ) : null
+                    }
+                >
+                    {node.children ? renderTree(node.children) : null}
+                </EntityTreeSearch>
+            )
+        })
     }
 
   return (
     <TreeView
         className={classes.root}
-        defaultCollapseIcon={<ArrowDropDownIcon style={{ color: '#dbdbdb', fontSize:'25px' }} />}
-        defaultExpandIcon={<ArrowRightIcon style={{ color: '#dbdbdb', fontSize:'25px' }} />}
         expanded={expanded}
         onNodeToggle={handleNodeToggle}
         selected={selected}

@@ -228,7 +228,7 @@ export function clearAllMarkers(){
 
 const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
 
-export async function renderAllMarkers(e, {self}, markersInfo) {
+export async function renderAllMarkers(e, markersInfo, {self}) {
     const context = self.getSnapshot().context;
     const {map} = context;
 

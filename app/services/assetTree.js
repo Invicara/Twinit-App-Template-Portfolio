@@ -73,7 +73,7 @@ export async function getInitialTreeLevels() {
           id: `${facility}/${unit}`,
           name: unit,
           level: 2,
-          children: [],
+          children: [{}],
         })),
       }
 
