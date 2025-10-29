@@ -33,12 +33,14 @@ const useTreeItemStyles = makeStyles(theme => ({
   }
 }))
 
-export default function EntityTreeSearch({ labelText, checked, onCheck, nodeId, indeterminate, loadingNodes,  ...other }) {
+export default function EntityTreeSearch({ labelText, checked, onCheck, nodeId, indeterminate, loadingNodes, expandIcon,  collapseIcon, ...other }) {
   const classes = useTreeItemStyles()
 
   return (
     <TreeItem
       nodeId={nodeId}
+      expandIcon={expandIcon}
+      collapseIcon={collapseIcon}
       label={
         <div className={classes.labelRoot}>
           {loadingNodes ? 
