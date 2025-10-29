@@ -307,7 +307,7 @@ const AssetTable = ({ rows }) => {
     };
  
     return (
-        <Paper>
+        <Paper sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
              {!selectedFilter ? (
                 <FilterdDropdown
                     selectedFilter={selectedFilter}
@@ -325,16 +325,17 @@ const AssetTable = ({ rows }) => {
             )}
             <TableContainer
                 sx={{
-                    height: '80vh',
+                    flex: 1,
+                    minHeight: 0,
                     overflowY: 'auto',
                     scrollbarWidth: 'thin',
                     scrollbarColor: 'rgba(0, 0, 0, 0.3) transparent',
                     '&::-webkit-scrollbar': {
-                        width: '6px',
+                    width: '6px',
                     },
                     '&::-webkit-scrollbar-thumb': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                        borderRadius: '10px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                    borderRadius: '10px',
                     },
                 }}
             >
