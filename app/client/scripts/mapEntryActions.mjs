@@ -1260,7 +1260,7 @@ export function get3DGraphicsController(map, sourceId) {
 
             if (!interactionState.isDragging && layer.detectHandle) {
                 // Handle hover detection for cursor changes
-                const handleInfo = layer.detectHandle(point);
+                const handleInfo = layer.detectHandle(point, e);
                 if (layer.updateCursor) {
                     layer.updateCursor(handleInfo);
                 }
@@ -1333,7 +1333,7 @@ export function get3DGraphicsController(map, sourceId) {
                         const outcomeGeneralPosition = {
                             position: feature.centroid,
                             rotation: feature.properties.rotation,
-                            size: callbackValue.scale
+                            size: feature.properties.size
                         }
 
                         interactionState.onTransformCallback(outcomeGeneralPosition);
@@ -1350,7 +1350,7 @@ export function get3DGraphicsController(map, sourceId) {
             const point = { x: e.point.x, y: e.point.y };
 
             if (layer.detectHandle) {
-                const handleInfo = layer.detectHandle(point);
+                const handleInfo = layer.detectHandle(point, e);
 
                 if (handleInfo) {
                     // Determine which operation based on handle type
@@ -1404,7 +1404,7 @@ export function get3DGraphicsController(map, sourceId) {
 
                 const point = { x: e.point.x, y: e.point.y };
                 if (layer.detectHandle) {
-                    const handleInfo = layer.detectHandle(point);
+                    const handleInfo = layer.detectHandle(point, e);
                     if (layer.updateCursor) {
                         layer.updateCursor(handleInfo);
                     }
@@ -1426,7 +1426,7 @@ export function get3DGraphicsController(map, sourceId) {
 
             if (!interactionState.isDragging && layer.detectHandle) {
                 // Handle hover detection for cursor changes
-                const handleInfo = layer.detectHandle(point);
+                const handleInfo = layer.detectHandle(point, e);
                 if (layer.updateCursor) {
                     layer.updateCursor(handleInfo);
                 }
@@ -1454,7 +1454,7 @@ export function get3DGraphicsController(map, sourceId) {
             const point = { x: e.point.x, y: e.point.y };
 
             if (layer.detectHandle) {
-                const handleInfo = layer.detectHandle(point);
+                const handleInfo = layer.detectHandle(point, e);
 
                 if (handleInfo && handleInfo.type === 'moveHandle') {
                     interactionState.activeHandle = 'move';
@@ -1475,7 +1475,7 @@ export function get3DGraphicsController(map, sourceId) {
 
                 const point = { x: e.point.x, y: e.point.y };
                 if (layer.detectHandle) {
-                    const handleInfo = layer.detectHandle(point);
+                    const handleInfo = layer.detectHandle(point, e);
                     if (layer.updateCursor) {
                         layer.updateCursor(handleInfo);
                     }
@@ -1496,7 +1496,7 @@ export function get3DGraphicsController(map, sourceId) {
             const point = { x: e.point.x, y: e.point.y };
 
             if (!interactionState.isDragging && layer.detectHandle) {
-                const handleInfo = layer.detectHandle(point);
+                const handleInfo = layer.detectHandle(point, e);
                 if (layer.updateCursor) {
                     layer.updateCursor(handleInfo);
                 }
@@ -1532,7 +1532,7 @@ export function get3DGraphicsController(map, sourceId) {
             const point = { x: e.point.x, y: e.point.y };
 
             if (layer.detectHandle) {
-                const handleInfo = layer.detectHandle(point);
+                const handleInfo = layer.detectHandle(point, e);
 
                 if (handleInfo && handleInfo.type === 'boundingBox') {
                     interactionState.activeHandle = 'rotate';
@@ -1558,7 +1558,7 @@ export function get3DGraphicsController(map, sourceId) {
 
                 const point = { x: e.point.x, y: e.point.y };
                 if (layer.detectHandle) {
-                    const handleInfo = layer.detectHandle(point);
+                    const handleInfo = layer.detectHandle(point, e);
                     if (layer.updateCursor) {
                         layer.updateCursor(handleInfo);
                     }
@@ -1579,7 +1579,7 @@ export function get3DGraphicsController(map, sourceId) {
             const point = { x: e.point.x, y: e.point.y };
 
             if (!interactionState.isDragging && layer.detectHandle) {
-                const handleInfo = layer.detectHandle(point);
+                const handleInfo = layer.detectHandle(point, e);
                 if (layer.updateCursor) {
                     layer.updateCursor(handleInfo);
                 }
@@ -1619,7 +1619,7 @@ export function get3DGraphicsController(map, sourceId) {
             const point = { x: e.point.x, y: e.point.y };
 
             if (layer.detectHandle) {
-                const handleInfo = layer.detectHandle(point);
+                const handleInfo = layer.detectHandle(point, e);
 
                 if (handleInfo && handleInfo.type === 'scaleHandle') {
                     interactionState.activeHandle = 'scale';
@@ -1649,7 +1649,7 @@ export function get3DGraphicsController(map, sourceId) {
 
                 const point = { x: e.point.x, y: e.point.y };
                 if (layer.detectHandle) {
-                    const handleInfo = layer.detectHandle(point);
+                    const handleInfo = layer.detectHandle(point, e);
                     if (layer.updateCursor) {
                         layer.updateCursor(handleInfo);
                     }
@@ -1991,7 +1991,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
         },
 
         // Create handle group for a specific feature
-        createHandleGroup: function(feature) {
+        createHandleGroup: function(feature) {           
             // Get geometry info from loaded geometries if available
             const geometryInfo = globalLoadedGeometries.get(feature.graphicId);
             if (!geometryInfo) {
@@ -2003,125 +2003,99 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             handleGroup.name = 'editingHandles';
 
             const bbox = geometryInfo.boundingBox;
-
-            // Add buffer space to the bounding box (2.5 meters on each side)
-            const buffer = 10;
-
-            // Calculate expanded bounding box dimensions
-            const width = bbox.max.x - bbox.min.x + (buffer * 2);
-            const height = bbox.max.y - bbox.min.y + (buffer * 2);
-            const depth = bbox.max.z - bbox.min.z + (buffer * 2);
-
-            // Calculate corner positions for the expanded box
-            const halfWidth = width / 2;
-            const halfHeight = height / 2;
-            const halfDepth = depth / 2;
-            const centerY = (bbox.max.y + bbox.min.y) / 2;
-
-            // Create thick edges using cylinders for better visibility
-            const edgeThickness = 1.0; // Thickness of the edge lines in meters (increased for better visibility)
-            const edgeColor = 0x00ffff;
-            const edgeMaterial = new THREE.MeshBasicMaterial({
-                color: edgeColor,
-                transparent: true,
-                opacity: 0.8
-            });
-
-            // Helper function to create an edge between two points
-            const createEdge = (start, end) => {
-                const direction = new THREE.Vector3().subVectors(end, start);
-                const length = direction.length();
-                const edgeGeometry = new THREE.CylinderGeometry(edgeThickness, edgeThickness, length, 8);
-                const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
-
-                // Position at midpoint
-                edge.position.copy(start).add(direction.multiplyScalar(0.5));
-
-                // Rotate to align with direction
-                edge.quaternion.setFromUnitVectors(
-                    new THREE.Vector3(0, 1, 0),
-                    direction.normalize()
+            console.log("Bounding box:", bbox);
+            
+            
+            // Create 3 rings matching the interaction zones from detectHandleAtPosition
+            const pixelToMeterRatio = 0.5; // Adjust this if rings appear too large/small
+            
+            const rings = [
+                {
+                    radius: 140 * pixelToMeterRatio,  // innermost - move handle
+                    color: 0x0088ff,                  // Blue
+                    type: 'moveHandle',
+                    opacity: 0.7
+                },
+                {
+                    radius: 200 * pixelToMeterRatio,  // middle - scale handle
+                    color: 0xff0000,                  // Red
+                    type: 'rotationHandle',
+                    opacity: 0.7
+                },
+                {
+                    radius: 260 * pixelToMeterRatio,  // outermost - rotation handle
+                    color: 0xffaa00,                  // Orange
+                    type: 'scaleHandle',
+                    opacity: 0.7
+                }
+            ];
+            
+            const ringTubeThickness = 1.5; // Thickness of the ring tube
+            const yPosition = 0; // Position at middle of building height
+            
+            // Create and add each ring to the handle group
+            rings.forEach(ringConfig => {
+                const ringGeometry = new THREE.TorusGeometry(
+                    ringConfig.radius,      // Ring radius
+                    ringTubeThickness,      // Tube thickness
+                    16,                     // Radial segments
+                    64                      // Tubular segments
                 );
-
-                return edge;
-            };
-
-            // Define the 8 corners of the box
-            const corners = [
-                new THREE.Vector3(-halfWidth, centerY - halfHeight, -halfDepth), // 0: bottom-back-left
-                new THREE.Vector3(halfWidth, centerY - halfHeight, -halfDepth),  // 1: bottom-back-right
-                new THREE.Vector3(-halfWidth, centerY - halfHeight, halfDepth),  // 2: bottom-front-left
-                new THREE.Vector3(halfWidth, centerY - halfHeight, halfDepth),   // 3: bottom-front-right
-                new THREE.Vector3(-halfWidth, centerY + halfHeight, -halfDepth), // 4: top-back-left
-                new THREE.Vector3(halfWidth, centerY + halfHeight, -halfDepth),  // 5: top-back-right
-                new THREE.Vector3(-halfWidth, centerY + halfHeight, halfDepth),  // 6: top-front-left
-                new THREE.Vector3(halfWidth, centerY + halfHeight, halfDepth)    // 7: top-front-right
-            ];
-
-            // Create 12 edges of the box
-            const edges = [
-                // Bottom face edges
-                [corners[0], corners[1]], // back
-                [corners[1], corners[3]], // right
-                [corners[3], corners[2]], // front
-                [corners[2], corners[0]], // left
-                // Top face edges
-                [corners[4], corners[5]], // back
-                [corners[5], corners[7]], // right
-                [corners[7], corners[6]], // front
-                [corners[6], corners[4]], // left
-                // Vertical edges
-                [corners[0], corners[4]], // back-left
-                [corners[1], corners[5]], // back-right
-                [corners[2], corners[6]], // front-left
-                [corners[3], corners[7]]  // front-right
-            ];
-
-            // Add all edges to the handle group
-            edges.forEach(([start, end]) => {
-                const edge = createEdge(start, end);
-                edge.userData = { type: 'boundingBox', isEditingHandle: true };
-                handleGroup.add(edge);
+                
+                const ringMaterial = new THREE.MeshBasicMaterial({
+                    color: ringConfig.color,
+                    transparent: true,
+                    opacity: ringConfig.opacity,
+                    side: THREE.DoubleSide
+                });
+                
+                const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                
+                // Position at y=40 (middle of building height)
+                ring.position.set(0, yPosition, 0);
+                
+                // Rotate to lie horizontally (torus is vertical by default)
+                ring.rotation.x = Math.PI / 2;
+                
+                ring.userData = { 
+                    type: ringConfig.type, 
+                    isEditingHandle: true 
+                };
+                
+                handleGroup.add(ring);
+                
+                console.log(`Created ${ringConfig.type} ring:`, {
+                    radius: ringConfig.radius,
+                    color: ringConfig.color.toString(16),
+                    position: ring.position
+                });
             });
 
-            // Scale handles (corner cubes)
-            const handleSize = 0.05;
-            const scalePositions = [
-                [bbox.max.x, bbox.max.y, bbox.max.z], // top-front-right
-                [bbox.min.x, bbox.max.y, bbox.max.z], // top-front-left
-                [bbox.max.x, bbox.min.y, bbox.max.z], // top-back-right
-                [bbox.min.x, bbox.min.y, bbox.max.z]  // top-back-left
-            ];
-
-            scalePositions.forEach((pos, index) => {
-                const handleGeometry = new THREE.BoxGeometry(handleSize, handleSize, handleSize);
-                const scaleHandleMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-                const handle = new THREE.Mesh(handleGeometry, scaleHandleMaterial);
-                handle.position.set(pos[0], pos[1], pos[2]);
-                handle.userData = { type: 'scaleHandle', index, isEditingHandle: true };
-                handleGroup.add(handle);
+            console.log("Handle group created with children:", {
+                totalChildren: handleGroup.children.length,
+                childDetails: handleGroup.children.map(child => ({
+                    type: child.userData.type,
+                    isEditingHandle: child.userData.isEditingHandle,
+                    isMesh: child.isMesh,
+                    geometry: child.geometry?.type,
+                    position: child.position,
+                    visible: child.visible
+                }))
             });
-
-            // Center move handle
-            const moveGeometry = new THREE.SphereGeometry(0.03, 16, 16);
-            const moveMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-            const moveHandle = new THREE.Mesh(moveGeometry, moveMaterial);
-            moveHandle.position.set(0, bbox.max.y + 0.05, 0);
-            moveHandle.userData = { type: 'moveHandle', isEditingHandle: true };
-            handleGroup.add(moveHandle);
+            console.log("=== createHandleGroup END ===");
 
             return handleGroup;
         },
 
         // Handle detection using distance-based approach
-        detectHandle: function(point) {
+        detectHandle: function(point, e) {
             console.log("detectHandle called", {point, editingFeatureId: this.editingFeatureId});
 
             // Check for editing handles on existing features
             if (this.editingFeatureId) {
                 const editingFeature = this.features.find(f => f.properties[this.metadata.featureInfo.idProperty] === this.editingFeatureId);
                 if (editingFeature && editingFeature.handles) {
-                    return this.detectHandleAtPosition(point, editingFeature);
+                    return this.detectHandleAtPosition(point, editingFeature, e);
                 }
             }
 
@@ -2130,47 +2104,42 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
         },
 
         // Common handle detection logic for features
-        detectHandleAtPosition: function(point, feature) {
-            // Simple distance-based detection
-            const canvas = this.map.getCanvas();
+        detectHandleAtPosition: function(point, feature, e) {
+            // Use ground hit lng/lat and compare to feature centroid
+            if (!e || !e.lngLat) {
+                console.warn("No lngLat available in event");
+                return null;
+            }
 
-            // Get the feature's screen position
-            const featureWorldPosition = new THREE.Vector3(
-                feature.transform.translateX,
-                feature.transform.translateY,
-                feature.transform.translateZ
-            );
+            const size = feature?.properties?.size || 1
+            const clickLngLat = e.lngLat;
+            const featureCentroid = feature.centroid; // Should be [lng, lat]
 
-            // Convert world position to lng/lat using map transform
-            const mercatorCoord = {
-                x: feature.transform.translateX,
-                y: feature.transform.translateY,
-                z: feature.transform.translateZ
+            // Ring configuration - must match createHandleGroup
+            const pixelToMeterRatio = 0.5;
+            const ringRadiiInMeters = {
+                move: 140 * pixelToMeterRatio * size,      // 140m
+                rotation: 200 * pixelToMeterRatio * size,  // 200m  
+                scale: 260 * pixelToMeterRatio * size      // 260m
             };
-            const featureLngLat = this.map.transform.coordinateLocation(mercatorCoord);
 
-            const featureScreenPos = this.map.project(featureLngLat);
-
-            // Calculate distance from click point to feature center
-            const distanceToCenter = Math.sqrt(
-                Math.pow(point.x - featureScreenPos.x, 2) +
-                Math.pow(point.y - featureScreenPos.y, 2)
+            // Calculate distance between click point and feature centroid in meters
+            // Using Haversine formula for geographic distance
+            const distanceInMeters = this.calculateGeographicDistance(
+                clickLngLat.lng,
+                clickLngLat.lat,
+                featureCentroid[0],
+                featureCentroid[1]
             );
 
             console.log("Distance calculation", {
-                clickPoint: point,
-                featureScreenPos,
-                distanceToCenter
+                distanceInMeters: distanceInMeters,
+                ringRadii: ringRadiiInMeters
             });
 
-            // Define interaction zones (in pixels)
-            const moveHandleRadius = 30;        // Blue sphere - move
-            const scaleHandleRadius = 50;       // Red cubes - scale
-            const boundingBoxRadius = 80;       // Blue wireframe - rotate
-
             // Check which handle zone we're in (from innermost to outermost)
-            if (distanceToCenter <= moveHandleRadius) {
-                console.log("Detected move handle (blue sphere)");
+            if (distanceInMeters <= ringRadiiInMeters.move) {
+                console.log("Detected move handle (blue ring)");
                 return {
                     type: 'moveHandle',
                     index: 0,
@@ -2178,17 +2147,8 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                     point: point,
                     feature: feature
                 };
-            } else if (distanceToCenter <= scaleHandleRadius) {
-                console.log("Detected scale handle (red cubes)");
-                return {
-                    type: 'scaleHandle',
-                    index: 0,
-                    object: null,
-                    point: point,
-                    feature: feature
-                };
-            } else if (distanceToCenter <= boundingBoxRadius) {
-                console.log("Detected bounding box (blue wireframe - rotation)");
+            } else if (distanceInMeters <= ringRadiiInMeters.rotation) {
+                console.log("Detected rotation handle (red ring)");
                 return {
                     type: 'boundingBox',
                     index: 0,
@@ -2196,10 +2156,34 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                     point: point,
                     feature: feature
                 };
+            } else if (distanceInMeters <= ringRadiiInMeters.scale) {
+                console.log("Detected scale handle (orange ring)");
+                return {
+                    type: 'scaleHandle',
+                    index: 0,
+                    object: null,
+                    point: point,
+                    feature: feature
+                };
             }
 
-            console.log("No handle detected");
             return null;
+        },
+
+        // Calculate geographic distance between two points using Haversine formula
+        calculateGeographicDistance: function(lng1, lat1, lng2, lat2) {
+            const R = 6371000; // Earth's radius in meters
+            const normalisedLat1 = lat1 * Math.PI / 180;
+            const normalisedLat2 = lat2 * Math.PI / 180;
+            const deltaLat = (lat2 - lat1) * Math.PI / 180;
+            const deltaLng = (lng2 - lng1) * Math.PI / 180;
+
+            const distance = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+                      Math.cos(normalisedLat1) * Math.cos(normalisedLat2) *
+                      Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+            const correction = 2 * Math.atan2(Math.sqrt(distance), Math.sqrt(1 - distance));
+
+            return R * correction; // Distance in meters
         },
 
         // Update cursor based on handle hover
@@ -2468,6 +2452,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
 
             // Extract rotation and size from feature properties with fallback values
             const modelTransform = buildModelTransform(centroid, featureProperties);
+            const {size, rotation} = featureProperties || {};
 
             const keyProperty = this.metadata.featureInfo.idProperty
 
@@ -2485,6 +2470,8 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
                     name: 'Placed 3D Model',
                     type: '3d_model',
                     graphic: graphicId,
+                    size, 
+                    rotation,
                     attributes: {
                         mesh_count: meshCount,
                         total_vertices: totalVertices,
