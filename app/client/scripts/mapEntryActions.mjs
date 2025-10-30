@@ -63,8 +63,6 @@ import {IafScriptEngine} from "@dtplatform/iaf-script-engine";
 import scriptModule from "../../../setup/scripts/mmv_config.mjs";
 import { DEFAULT_PATHS } from '../../ipaCore/pageComponents/portfolioOverview/PortfolioOverview.jsx';
 
-
-
 /**
  * Properly dispose of THREE.js resources to prevent memory leaks
  * @param {THREE.Object3D} obj - The 3D object to dispose
@@ -1013,6 +1011,11 @@ async function setupGraphicLayers({ map, sourceId, level, features, loadedGraphi
             }
         });
 
+        // Add click handler
+        const handler = makeMapOnClickHandler({ map, namedPath, send: self.send, getContext });
+        map.on('click', handler);
+        map.on('mouseenter', wrapperLayerId, () => { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', wrapperLayerId, () => { map.getCanvas().style.cursor = ''; });
     }
 
     // Create or update 3D custom layer
@@ -2193,23 +2196,86 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
             handleGroup.name = 'editingHandles';
 
             const bbox = geometryInfo.boundingBox;
+            
+            // Add buffer space to the bounding box (2.5 meters on each side)
+            const buffer = 10;
+            
+            // Calculate expanded bounding box dimensions
+            const width = bbox.max.x - bbox.min.x + (buffer * 2);
+            const height = bbox.max.y - bbox.min.y + (buffer * 2);
+            const depth = bbox.max.z - bbox.min.z + (buffer * 2);
+            
+            // Calculate corner positions for the expanded box
+            const halfWidth = width / 2;
+            const halfHeight = height / 2;
+            const halfDepth = depth / 2;
+            const centerY = (bbox.max.y + bbox.min.y) / 2;
 
-            // Building outline box - covers entire building shape
-            const boxGeometry = new THREE.BoxGeometry(
-                bbox.max.x - bbox.min.x,
-                bbox.max.y - bbox.min.y,
-                bbox.max.z - bbox.min.z
-            );
-            const boxMaterial = new THREE.MeshBasicMaterial({
-                color: 0x00ffff,
-                wireframe: true,
+            // Create thick edges using cylinders for better visibility
+            const edgeThickness = 1.0; // Thickness of the edge lines in meters (increased for better visibility)
+            const edgeColor = 0x00ffff;
+            const edgeMaterial = new THREE.MeshBasicMaterial({
+                color: edgeColor,
                 transparent: true,
-                opacity: 0.6
+                opacity: 0.8
             });
-            const boundingBoxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
-            boundingBoxMesh.position.y = (bbox.max.y + bbox.min.y) / 2;
-            boundingBoxMesh.userData = { type: 'boundingBox', isEditingHandle: true };
-            handleGroup.add(boundingBoxMesh);
+
+            // Helper function to create an edge between two points
+            const createEdge = (start, end) => {
+                const direction = new THREE.Vector3().subVectors(end, start);
+                const length = direction.length();
+                const edgeGeometry = new THREE.CylinderGeometry(edgeThickness, edgeThickness, length, 8);
+                const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
+                
+                // Position at midpoint
+                edge.position.copy(start).add(direction.multiplyScalar(0.5));
+                
+                // Rotate to align with direction
+                edge.quaternion.setFromUnitVectors(
+                    new THREE.Vector3(0, 1, 0),
+                    direction.normalize()
+                );
+                
+                return edge;
+            };
+
+            // Define the 8 corners of the box
+            const corners = [
+                new THREE.Vector3(-halfWidth, centerY - halfHeight, -halfDepth), // 0: bottom-back-left
+                new THREE.Vector3(halfWidth, centerY - halfHeight, -halfDepth),  // 1: bottom-back-right
+                new THREE.Vector3(-halfWidth, centerY - halfHeight, halfDepth),  // 2: bottom-front-left
+                new THREE.Vector3(halfWidth, centerY - halfHeight, halfDepth),   // 3: bottom-front-right
+                new THREE.Vector3(-halfWidth, centerY + halfHeight, -halfDepth), // 4: top-back-left
+                new THREE.Vector3(halfWidth, centerY + halfHeight, -halfDepth),  // 5: top-back-right
+                new THREE.Vector3(-halfWidth, centerY + halfHeight, halfDepth),  // 6: top-front-left
+                new THREE.Vector3(halfWidth, centerY + halfHeight, halfDepth)    // 7: top-front-right
+            ];
+
+            // Create 12 edges of the box
+            const edges = [
+                // Bottom face edges
+                [corners[0], corners[1]], // back
+                [corners[1], corners[3]], // right
+                [corners[3], corners[2]], // front
+                [corners[2], corners[0]], // left
+                // Top face edges
+                [corners[4], corners[5]], // back
+                [corners[5], corners[7]], // right
+                [corners[7], corners[6]], // front
+                [corners[6], corners[4]], // left
+                // Vertical edges
+                [corners[0], corners[4]], // back-left
+                [corners[1], corners[5]], // back-right
+                [corners[2], corners[6]], // front-left
+                [corners[3], corners[7]]  // front-right
+            ];
+
+            // Add all edges to the handle group
+            edges.forEach(([start, end]) => {
+                const edge = createEdge(start, end);
+                edge.userData = { type: 'boundingBox', isEditingHandle: true };
+                handleGroup.add(edge);
+            });
 
             // Scale handles (corner cubes)
             const handleSize = 0.05;
@@ -2843,13 +2909,12 @@ async function upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, 
                         ? { 'circle-radius': 0.01, 'circle-color': '#fff' }//TODO: or also make invisible by default?
                         : { 'fill-color': '#fff', 'fill-opacity': 0.18 }//TODO: or also make invisible by default?
                 });
-
+                const handler = makeMapOnClickHandler({ map, namedPath, send: self.send, getContext });
+                map.on('click', handler);
+                map.on('mouseenter', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = 'pointer'; });
+                map.on('mouseleave', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = ''; });
             }
         }
-        const handler = makeMapOnClickHandler({ map, namedPath, send: self.send, getContext });
-        map.on('click', handler);
-        map.on('mouseenter', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = 'pointer'; });
-        map.on('mouseleave', `${sourceId}-layer`,  () => { map.getCanvas().style.cursor = ''; });
         // Optionally add/update CLUSTERED layer
         if (!map.getLayer(`${sourceId}-layer-clustered`) && level.feature === 'point' && sourceOptions?.cluster) {
             map.addLayer({
@@ -2861,17 +2926,14 @@ async function upsertAllFeatures({ map, namedPath, fetchedFeatures, getContext, 
             });
         }
 
-        // Always add/update centroids layer for polygon/mesh features
-        if ((level.feature === "polygon" || level.feature === "multiPolygon" || level.feature === "mesh")) {
+        // Always add/update centroids layer for polygon features
+        if ((level.feature === "polygon" || level.feature === "multiPolygon")) {
             let centroidFeatures = turfFeatures.map(f => {
                 const c = centroid(f);
                 // copy over properties so pies can use them
                 c.properties = { ...f.properties };
                 return c;
             });
-            if(level.feature === "mesh"){
-               // debugger;
-            }
             const centroidFc = featureCollection(centroidFeatures);
             if (!map.getSource(`${sourceId}-centroids`)) {
                 map.addSource(`${sourceId}-centroids`, {type: "geojson", data: centroidFc});
@@ -2910,7 +2972,6 @@ export async function addAllFeatureLayers({ map, namedPath, getContext, self }) 
         const {sourceOptions} = clusterOptions;
 
         const features = await fetchFeaturesForLevel(level, parentLevelWithFeatures);
-        console.log("addAllFeatureLayers", features)
         parentLevelWithFeatures = {features, level};
         fetchedFeatures.push({...level, features})
     }
@@ -2940,7 +3001,6 @@ export async function updateAllFeatureLayers({ map, namedPath, getContext, self 
         fixParentFeaturesUsingChildData(level, scopedData, parentLevelWithFeatures);
         const features = dataToFeatures(level, scopedData) || [];
         parentLevelWithFeatures = {features, level};
-
         fetchedFeatures.push({...level, features})
     }
 
@@ -3554,8 +3614,7 @@ function addCubeWrapperForBuilding({ map, buildingId, centroid, geometryInfo, ge
         features: updatedFeatures
     };
 
-    // do not modify the buildings, just modify the layer features
-
+    // Update the source with the new cube wrapper
     existingSource.setData(updatedFeatureCollection);
 
     console.log(`Added cube wrapper for building ${buildingId}:`, {
