@@ -24,6 +24,7 @@ import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
 import { useGraphicsVisibility } from '../../hooks/useGraphicsVisibility.js';
 import { useNewEntityManagement } from '../../hooks/useEntityManagement.js';
+import HomepageDialog from '../../components/dialog/HomepageDialog.jsx'
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -156,6 +157,7 @@ function withMapDataInitialization(Component) {
 }
 
 function PortfolioOverview({handler, userConfig, selectedItems}) {
+    const [dialogOpen, setDialogOpen] = useState()
     const store = useStore();
     const dispatch = useDispatch();
 
@@ -321,9 +323,17 @@ function PortfolioOverview({handler, userConfig, selectedItems}) {
 
     const [popupState, setPopupState] = usePopupState({ open:false });
 
+    useEffect(() => {
+        const hasSeenDialog = localStorage.getItem("welcomeDialogDismissed");
+        if (!hasSeenDialog) {
+            setDialogOpen(true)
+        }
+    }, [])
+
     return (
         <MapContext.Provider value={mapContextValue}>
             <MapMachineContext.Provider value={mapMachineContextValue}>
+                <HomepageDialog dialogOpen={dialogOpen} setDialogOpen={setDialogOpen}/>
                 <div className={classes.container}>
                     <div className={classes.secondaryHeader}>
                         <div className={classes.headerInner}>
