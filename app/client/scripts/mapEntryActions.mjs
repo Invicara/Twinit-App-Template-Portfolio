@@ -64,25 +64,7 @@ import scriptModule from "../../../setup/scripts/mmv_config.mjs";
 import { DEFAULT_PATHS } from '../../ipaCore/pageComponents/portfolioOverview/PortfolioOverview.jsx';
 
 
-// Function to generate square coordinates around a centroid
-// widthInMeters: width of the square in meters (default 500m)
-// Returns array of [lng, lat] coordinates forming a closed polygon
-export function generateSquareCoordinates(centerLng, centerLat, widthInMeters = 500) {
-    // Convert meters to degrees (rough approximation)
-    // 1 degree of longitude ≈ 111,320 meters * cos(latitude)
-    // 1 degree of latitude ≈ 110,540 meters
-    const halfWidthLng = (widthInMeters / 2) / (111320 * Math.cos(centerLat * Math.PI / 180));
-    const halfWidthLat = (widthInMeters / 2) / 110540;
 
-    // Create square coordinates (clockwise from top-left)
-    return [
-        [centerLng - halfWidthLng, centerLat + halfWidthLat], // Top-left
-        [centerLng + halfWidthLng, centerLat + halfWidthLat], // Top-right
-        [centerLng + halfWidthLng, centerLat - halfWidthLat], // Bottom-right
-        [centerLng - halfWidthLng, centerLat - halfWidthLat], // Bottom-left
-        [centerLng - halfWidthLng, centerLat + halfWidthLat]  // Close polygon
-    ];
-}
 /**
  * Properly dispose of THREE.js resources to prevent memory leaks
  * @param {THREE.Object3D} obj - The 3D object to dispose
@@ -225,52 +207,54 @@ function makeBinColorExpression(config) {
  * }}
  */
 function buildGroupsFromBins(map, layerId, idKey, binConfig) {
-
     const groupsObject = {};
+
     try {
         const layer = map.getLayer(layerId);
-        if (!layer) throw new Error(`Layer "${layerId}" not found`);
+        if (!layer) {
+            console.warn(`Layer "${layerId}" not found`);
+            return { groupsObject };
+        }
 
         const sourceId = layer.source;
         const src = map.getSource(sourceId);
-        if (!src) throw new Error(`Source "${sourceId}" not found for layer "${layerId}"`);
+        if (!src) {
+            console.warn(`Source "${sourceId}" not found for layer "${layerId}"`);
+            return { groupsObject };
+        }
 
-        // Collect features we can access
+        // Collect features
         let features = [];
         if (src.type === 'geojson') {
             const data = src._data;
             features = Array.isArray(data?.features) ? data.features : [];
         } else if (src.type === 'vector') {
             const sourceLayer = layer['source-layer'];
-            if (!sourceLayer) throw new Error(`Layer "${layerId}" is vector-backed but missing "source-layer"`);
+            if (!sourceLayer) {
+                console.warn(`Layer "${layerId}" is vector-backed but missing "source-layer"`);
+                return { groupsObject };
+            }
             features = map.querySourceFeatures(sourceId, { sourceLayer });
         } else {
-            throw new Error(`Unsupported source type for binning: ${src.type}`);
+            console.warn(`Unsupported source type for binning: ${src.type}`);
+            return { groupsObject };
         }
 
         const propName = binConfig.property;
         const bins = binConfig.bins || [];
-
-        // Determine which keys are "control" keys we shouldn't copy as paint props
         const CONTROL_KEYS = new Set(['id', 'min', 'max', 'label', 'ids']);
-
-        // Extract top-level extra props to apply to every group (unless overridden)
         const topLevelExtras = Object.fromEntries(
             Object.entries(binConfig).filter(([k]) => !['property', 'bins'].includes(k))
         );
 
-        // Prepare groups keyed by bin id, prefilled with top-level extras
         for (const bin of bins) {
             const base = { ids: [] };
-
-            // Start with top-level extras…
             for (const [k, v] of Object.entries(topLevelExtras)) {
                 base[k] = isColorProp(k) ? normalizeColorRGB(v) : v;
             }
-            // …then apply per-bin props (these override top-level extras)
             for (const [k, v] of Object.entries(bin)) {
                 if (!CONTROL_KEYS.has(k)) {
-                    base[k] = isColorProp(k) ? normalizeColorRGB(v) : v; // includes 'color' and any explicit paint prop like 'circle-radius'
+                    base[k] = isColorProp(k) ? normalizeColorRGB(v) : v;
                 }
             }
             groupsObject[bin.id] = base;
@@ -294,13 +278,13 @@ function buildGroupsFromBins(map, layerId, idKey, binConfig) {
                 groupsObject[bin.id].ids.push(String(id));
             }
         }
+
     } catch (e) {
-        console.error(e)
+        console.error('Error in buildGroupsFromBins:', e);
     } finally {
         return { groupsObject };
     }
 }
-
 
 function extendBoundsFromCoords(bounds, coords) {
     if (typeof coords[0] === 'number') {
@@ -378,28 +362,37 @@ export function zoomToFeature({ map, context, state = null, featureId = null }) 
 }
 
 function dataToFeatures(levelDef, data) {
-    if(!data){
-        return null;
+    if (levelDef.feature === 'point') {
+        return data.filter(d => d.longitude && d.latitude).map(d => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: [parseFloat(d.longitude), parseFloat(d.latitude)]
+            },
+            properties: { ...d }
+        }));
     }
-    const features = data.map(d => {
-            let coordinates = d.coordinates;
-            if (levelDef.feature === 'point' && !coordinates) {
-                coordinates = [parseFloat(d.longitude), parseFloat(d.latitude)]
-            }
-            if (levelDef.feature === 'mesh' && !coordinates) {
-                const squareCoords = generateSquareCoordinates(d.longitude, d.latitude, 1);
-                coordinates = [squareCoords];
-            }
-            let f;
-            try {
-                f = featureFromKnownType(levelDef.feature, coordinates, {...d});
-            } catch (e) {
-                console.error("featureFromKnownType",e)
-            }
-            return f;
-        }
-    ).filter(f=>!!f);
-    return features;
+    if (levelDef.feature === 'polygon') {
+        return data.map(d => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: d.coordinates
+            },
+            properties: { ...d}
+        }));
+    }
+    if (levelDef.feature === 'mesh') {
+        return data.filter(d => d.longitude && d.latitude).map(d => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: [parseFloat(d.longitude), parseFloat(d.latitude)]
+            },
+            properties: { ...d }
+        }));
+    }
+    return null;
 }
 
 export function fixParentFeaturesUsingChildData(levelDef, data, parent={}) {
@@ -418,6 +411,8 @@ export function fixParentFeaturesUsingChildData(levelDef, data, parent={}) {
 
         })
     }
+
+    return dataToFeatures(levelDef, data) || [];
 }
 // Fetch features and convert to GeoJSON for a level
 export async function fetchFeaturesForLevel(levelDef, parent={}) {
@@ -445,26 +440,14 @@ export async function fetchFeaturesForLevel(levelDef, parent={}) {
 }
 
 function getFeatureLayers(namedPath) {
-    const layers = namedPath
-        ?.map((lvl, i) => ({
+    return namedPath
+        .map((lvl, i) => ({
             state: lvl.state,
             idKey: lvl.idKey || null,
             feature: lvl.feature || null,
             layerId: `${lvl.state}-features-layer`
         }))
         .filter(l => !!l.feature); // only states with feature layers
-    // Add 3D wrapper layer for mesh levels so clicks hit the mesh footprint
-    namedPath?.forEach(lvl => {
-        if (lvl.feature === 'mesh') {
-            layers.push({
-                state: lvl.state,
-                idKey: lvl.idKey,
-                feature: 'polygon',
-                layerId: `${lvl.state}-features-3d-graphics`
-            });
-        }
-    });
-    return layers || [];
 }
 const CLICK_HANDLED = Symbol('map.click.handled');
 
@@ -589,9 +572,12 @@ export function featureFromKnownType(type, coords, properties = {}) {
     const t = String(type).toLowerCase();
 
     switch (t) {
-        //case 'mesh':
         case 'point': {
             if (!isPos(coords)) throw new Error('Point coords must be [lng, lat]');
+            return point(coords, properties);
+        }
+        case 'mesh': {
+            if (!isPos(coords)) throw new Error('Mesh coords must be [lng, lat]');
             return point(coords, properties);
         }
         case 'multipoint': {
@@ -609,12 +595,9 @@ export function featureFromKnownType(type, coords, properties = {}) {
                 throw new Error('MultiLineString must be [[[lng,lat],...], ...]');
             return multiLineString(coords, properties);
         }
-        case 'mesh':
         case 'polygon': {
-            if (!Array.isArray(coords) || !Array.isArray(coords[0]) || !coords[0].every(isPos)) {
-                console.log("featureFromKnownType mesh", {coords, properties});
-                throw new Error('Polygon must be [[[lng,lat],...], ...]', {coords, properties});
-            }
+            if (!Array.isArray(coords) || !Array.isArray(coords[0]) || !coords[0].every(isPos))
+                throw new Error('Polygon must be [[[lng,lat],...], ...]');
             const rings = coords.map(closeRing);
             return polygon(rings, properties);
         }
@@ -1029,6 +1012,7 @@ async function setupGraphicLayers({ map, sourceId, level, features, loadedGraphi
                 'fill-extrusion-opacity': 0.0 // Transparent
             }
         });
+
     }
 
     // Create or update 3D custom layer
@@ -1292,14 +1276,16 @@ export function get3DGraphicsController(map, sourceId) {
 
     // State for tracking interaction mode and handlers
     let interactionState = {
-        mode: null, // 'move', 'rotate', 'scale', or null
+        mode: null, // 'transform' or null
         activeFeatureId: null,
         activeFeature: null,
         isDragging: false,
         startPosition: null,
         startRotation: 0,
         startScale: 1,
-        activeHandle: null,
+        activeHandle: null, // 'move', 'rotate', or 'scale'
+        onTransformCallback: null, // Callback function for transformation updates
+        dataSource: null,
 
         // Event handlers (stored for cleanup)
         mouseMoveHandler: null,
@@ -1308,102 +1294,69 @@ export function get3DGraphicsController(map, sourceId) {
     };
 
     /**
+     * Enable transformation controls (move, rotate, and scale) for a specific feature
+     * All three operations are available simultaneously based on which handle is interacted with
+     * @param {string} featureId - The feature ID to enable transformation for
+     * @param {Function} callback - Optional callback function called during transformations
+     *                               Receives object with: { position, rotation, scale }
+     */
+    const enableTransform = (featureId, callback = null) => {
+        if (interactionState.mode) {
+            console.warn('Another interaction mode is active. Disable it first.');
+            return false;
+        }
+
+        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
+        if (!feature) {
+            console.error(`Feature not found: ${featureId}`);
+            return false;
+        }
+
+        interactionState.mode = 'transform'; // Single unified mode
+        interactionState.activeFeatureId = featureId;
+        interactionState.activeFeature = feature;
+        interactionState.onTransformCallback = callback;
+        interactionState.dataSource = map.getSource(sourceId);
+        window.dataSource = interactionState.dataSource;
+
+        // Add visual handles
+        if (layer.startEditingFeature) {
+            layer.startEditingFeature(featureId);
+        }
+
+        // Attach unified handlers that support all three operations
+        attachUnifiedTransformHandlers();
+
+        console.log(`Transform mode enabled for feature: ${featureId} (move, rotate, scale available)`);
+        map.triggerRepaint();
+        return true;
+    };
+
+    /**
+     * @deprecated Use enableTransform instead - kept for backward compatibility
      * Enable move mode for a specific feature
-     * @param {string} featureId - The feature ID to enable move mode for
      */
-    const enableMove = (featureId) => {
-        if (interactionState.mode) {
-            console.warn('Another interaction mode is active. Disable it first.');
-            return false;
-        }
-
-        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
-        if (!feature) {
-            console.error(`Feature not found: ${featureId}`);
-            return false;
-        }
-
-        interactionState.mode = 'move';
-        interactionState.activeFeatureId = featureId;
-        interactionState.activeFeature = feature;
-
-        // Add visual handles
-        if (layer.startEditingFeature) {
-            layer.startEditingFeature(featureId);
-        }
-
-        // Attach move-specific event handlers
-        attachMoveHandlers();
-
-        console.log(`Move mode enabled for feature: ${featureId}`);
-        map.triggerRepaint();
-        return true;
+    const enableMove = (featureId, callback = null) => {
+        console.warn('enableMove is deprecated. Use enableTransform instead for unified move/rotate/scale.');
+        return enableTransform(featureId, callback);
     };
 
     /**
+     * @deprecated Use enableTransform instead - kept for backward compatibility
      * Enable rotate mode for a specific feature
-     * @param {string} featureId - The feature ID to enable rotate mode for
      */
-    const enableRotate = (featureId) => {
-        if (interactionState.mode) {
-            console.warn('Another interaction mode is active. Disable it first.');
-            return false;
-        }
-
-        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
-        if (!feature) {
-            console.error(`Feature not found: ${featureId}`);
-            return false;
-        }
-
-        interactionState.mode = 'rotate';
-        interactionState.activeFeatureId = featureId;
-        interactionState.activeFeature = feature;
-
-        // Add visual handles
-        if (layer.startEditingFeature) {
-            layer.startEditingFeature(featureId);
-        }
-
-        // Attach rotate-specific event handlers
-        attachRotateHandlers();
-
-        console.log(`Rotate mode enabled for feature: ${featureId}`);
-        map.triggerRepaint();
-        return true;
+    const enableRotate = (featureId, callback = null) => {
+        console.warn('enableRotate is deprecated. Use enableTransform instead for unified move/rotate/scale.');
+        return enableTransform(featureId, callback);
     };
 
     /**
+     * @deprecated Use enableTransform instead - kept for backward compatibility
      * Enable scale mode for a specific feature
-     * @param {string} featureId - The feature ID to enable scale mode for
      */
-    const enableScale = (featureId) => {
-        if (interactionState.mode) {
-            console.warn('Another interaction mode is active. Disable it first.');
-            return false;
-        }
-
-        const feature = layer.features.find(f => f.properties[layer.metadata.featureInfo.idProperty] === featureId);
-        if (!feature) {
-            console.error(`Feature not found: ${featureId}`);
-            return false;
-        }
-
-        interactionState.mode = 'scale';
-        interactionState.activeFeatureId = featureId;
-        interactionState.activeFeature = feature;
-
-        // Add visual handles
-        if (layer.startEditingFeature) {
-            layer.startEditingFeature(featureId);
-        }
-
-        // Attach scale-specific event handlers
-        attachScaleHandlers();
-
-        console.log(`Scale mode enabled for feature: ${featureId}`);
-        map.triggerRepaint();
-        return true;
+    const enableScale = (featureId, callback = null) => {
+        console.warn('enableScale is deprecated. Use enableTransform instead for unified move/rotate/scale.');
+        return enableTransform(featureId, callback);
     };
 
     /**
@@ -1468,6 +1421,7 @@ export function get3DGraphicsController(map, sourceId) {
             startRotation: 0,
             startScale: 1,
             activeHandle: null,
+            onTransformCallback: null,
             mouseMoveHandler: null,
             mouseDownHandler: null,
             mouseUpHandler: null
@@ -1476,6 +1430,185 @@ export function get3DGraphicsController(map, sourceId) {
         console.log(`${previousMode} mode disabled`);
         map.triggerRepaint();
         return true;
+    };
+
+    /**
+     * Attach unified event handlers that support move, rotate, and scale simultaneously
+     * The operation performed depends on which handle the user interacts with
+     */
+    const attachUnifiedTransformHandlers = () => {
+        interactionState.mouseMoveHandler = (e) => {
+            const featureFromSource = dataSource._data.features.find(el => el.id === interactionState.activeFeatureId);
+            window.featureFromSource = featureFromSource;
+
+            const callbackValue = {
+                centroid: [featureFromSource.properties.longitude, featureFromSource.properties.latitude],
+                rotation: featureFromSource.properties.rotation,
+                scale: featureFromSource.properties.scale
+            }
+            console.log("attachUnifiedTransformHandlers", {callbackValue})
+
+
+
+            const point = { x: e.point.x, y: e.point.y };
+
+            if (!interactionState.isDragging && layer.detectHandle) {
+                // Handle hover detection for cursor changes
+                const handleInfo = layer.detectHandle(point);
+                if (layer.updateCursor) {
+                    layer.updateCursor(handleInfo);
+                }
+                return;
+            }
+
+            // Handle active drag operation based on which handle is being used
+            if (interactionState.isDragging) {
+                const feature = interactionState.activeFeature;
+                window.feature = feature;
+                
+                // MOVE operation
+                if (interactionState.activeHandle === 'move') {
+                    const position = [e.lngLat.lng, e.lngLat.lat];
+                    callbackValue.centroid = position;
+                    feature.centroid = position;
+
+                    const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(position, 0);
+                    feature.transform.translateX = modelAsMercatorCoordinate.x;
+                    feature.transform.translateY = modelAsMercatorCoordinate.y;
+                    feature.transform.translateZ = modelAsMercatorCoordinate.z;
+                }
+                
+                // ROTATE operation
+                else if (interactionState.activeHandle === 'rotate') {
+                    const center = feature.centroid;
+                    const centerPixel = map.project(center);
+
+                    const angle = Math.atan2(e.point.y - centerPixel.y, e.point.x - centerPixel.x);
+                    const startAngle = Math.atan2(
+                        interactionState.startPosition.y - centerPixel.y,
+                        interactionState.startPosition.x - centerPixel.x
+                    );
+                    const deltaAngle = (angle - startAngle) * (180 / Math.PI);
+                    const newRotation = (interactionState.startRotation + deltaAngle) % 360;
+                    callbackValue.rotation = newRotation;
+
+                    feature.transform.rotateY = newRotation * -(Math.PI / 180);
+                    feature.properties.rotation = newRotation;
+                }
+                
+                // SCALE operation
+                else if (interactionState.activeHandle === 'scale') {
+                    const center = feature.centroid;
+                    const centerPixel = map.project(center);
+
+                    const currentDistance = Math.sqrt(
+                        Math.pow(e.point.x - centerPixel.x, 2) +
+                        Math.pow(e.point.y - centerPixel.y, 2)
+                    );
+                    const startDistance = Math.sqrt(
+                        Math.pow(interactionState.startPosition.x - centerPixel.x, 2) +
+                        Math.pow(interactionState.startPosition.y - centerPixel.y, 2)
+                    );
+
+                    const scaleFactor = startDistance > 0 ? currentDistance / startDistance : 1;
+                    const newScale = Math.max(0.1, Math.min(3.0, interactionState.startScale * scaleFactor));
+                    callbackValue.scale = newScale;
+
+                    const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(center, 0);
+                    feature.transform.scale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() * newScale;
+                    feature.properties.size = newScale;
+                }
+
+                // Invoke callback with updated transformation data
+                if (interactionState.onTransformCallback) {
+
+                    try {
+                        console.log("attachUnifiedTransformHandlers, prevcallback", {callbackValue, feature})
+                        const outcomeGeneralPosition = {
+                            position: feature.centroid,
+                            rotation: feature.properties.rotation,
+                            size: callbackValue.scale
+                        }
+
+                        interactionState.onTransformCallback(outcomeGeneralPosition);
+                    } catch (error) {
+                        console.error('Error executing transform callback:', error);
+                    }
+                }
+
+                map.triggerRepaint();
+            }
+        };
+
+        interactionState.mouseDownHandler = (e) => {
+            const point = { x: e.point.x, y: e.point.y };
+
+            if (layer.detectHandle) {
+                const handleInfo = layer.detectHandle(point);
+
+                if (handleInfo) {
+                    // Determine which operation based on handle type
+                    if (handleInfo.type === 'moveHandle') {
+                        interactionState.activeHandle = 'move';
+                        interactionState.isDragging = true;
+                        interactionState.startPosition = point;
+                        map.getCanvas().style.cursor = 'grabbing';
+                        map.dragPan.disable();
+                        e.preventDefault();
+                    } 
+                    else if (handleInfo.type === 'boundingBox') {
+                        interactionState.activeHandle = 'rotate';
+                        interactionState.isDragging = true;
+                        interactionState.startPosition = point;
+
+                        // Extract current rotation from transform
+                        const currentRotateY = interactionState.activeFeature.transform.rotateY || 0;
+                        interactionState.startRotation = currentRotateY * -(180 / Math.PI);
+
+                        map.getCanvas().style.cursor = 'grabbing';
+                        map.dragPan.disable();
+                        e.preventDefault();
+                    }
+                    else if (handleInfo.type === 'scaleHandle') {
+                        interactionState.activeHandle = 'scale';
+                        interactionState.isDragging = true;
+                        interactionState.startPosition = point;
+
+                        // Extract current scale from transform
+                        const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
+                            interactionState.activeFeature.centroid,
+                            0
+                        );
+                        const baseScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
+                        interactionState.startScale = interactionState.activeFeature.transform.scale / baseScale;
+
+                        map.getCanvas().style.cursor = 'nw-resize';
+                        map.dragPan.disable();
+                        e.preventDefault();
+                    }
+                }
+            }
+        };
+
+        interactionState.mouseUpHandler = (e) => {
+            if (interactionState.isDragging) {
+                interactionState.isDragging = false;
+                interactionState.activeHandle = null;
+                map.dragPan.enable();
+
+                const point = { x: e.point.x, y: e.point.y };
+                if (layer.detectHandle) {
+                    const handleInfo = layer.detectHandle(point);
+                    if (layer.updateCursor) {
+                        layer.updateCursor(handleInfo);
+                    }
+                }
+            }
+        };
+
+        map.on('mousemove', interactionState.mouseMoveHandler);
+        map.on('mousedown', interactionState.mouseDownHandler);
+        map.on('mouseup', interactionState.mouseUpHandler);
     };
 
     /**
@@ -1738,9 +1871,7 @@ export function get3DGraphicsController(map, sourceId) {
         getAllFeatureVisibility: () => layer.getAllFeatureVisibility && layer.getAllFeatureVisibility(),
 
         // Transformation controls with visual overlays and callbacks
-        enableMove,
-        enableRotate,
-        enableScale,
+        enableTransform,    // NEW: Unified function - enables move, rotate, and scale simultaneously
         disableInteraction,
 
         // Programmatic transform update
