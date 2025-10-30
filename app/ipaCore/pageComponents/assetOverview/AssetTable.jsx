@@ -171,7 +171,7 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
         const matchesFilter = (item) => {
             switch (selectedFilter) {
                 case 'Equipment Name':
-                    return item.equipmentName?.toLowerCase().includes(lowerKeyword)
+                    return item.EquipmentName?.toLowerCase().includes(lowerKeyword)
                 
                 case 'Name ID':
                     return item.nameId?.toLowerCase().includes(lowerKeyword)
