@@ -50,7 +50,7 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
         }))
     }
 
-    const transformToTreeNodes = (nodeId, items, level) => {
+    const transformToTreeNodes = (nodeId, structureName, items, level) => {
         if (!items) return []
 
         return items.map((item, index) => {
@@ -59,6 +59,7 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
                 id: `${nodeId}/${item}`,
                 name: item,
                 level,
+                structureName,
                 children: level === 5 ? [] : [{}],
             }
             }
@@ -98,15 +99,15 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
                 children = await Promise.all(unitPromises)
                 children = children.flat()
             } else if (node.level === 2) {
-                const systems = await getSystemLevel(node.id)
-                children = transformToTreeNodes(node.id, systems, 3)
+                const systems = await getSystemLevel(node.structureName)
+                children = transformToTreeNodes(node.id, node.structureName, systems, 3)
             } else if (node.level === 3) {
-                const equipTypes = await getEquipTypeLevel(node.id)
-                children = transformToTreeNodes(node.id, equipTypes, 4)
+                const equipTypes = await getEquipTypeLevel(node.id, node.structureName)
+                children = transformToTreeNodes(node.id, node.structureName, equipTypes, 4)
             } else if (node.level === 4) {
-                const equipmentData = await getEquipLevel(node.id)
+                const equipmentData = await getEquipLevel(node.id, node.structureName)
                 const siteEquipIds = equipmentData.map((data, idx) => data.nameId)
-                children = transformToTreeNodes(node.id, siteEquipIds, 5)
+                children = transformToTreeNodes(node.id, node.structureName, siteEquipIds, 5)
                 
                 setTableData(prev => {
                     const dataMap = new Map()
@@ -149,10 +150,8 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
         const isAlreadyExpanded = expanded.includes(nodeId)
         
         if (!isAlreadyExpanded) {
-            setNodeLoading(nodeId, true)
             setExpanded(prev => [...prev, nodeId])
             await loadChildrenForNode(nodeId)
-            setNodeLoading(nodeId, false)
         }
     }
 
