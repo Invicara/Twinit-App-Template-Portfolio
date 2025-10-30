@@ -1,15 +1,20 @@
 import { IafProj, IafSession, IafItemSvc } from '@dtplatform/platform-api';
 
+function splitStructureName(structureName) {
+    return structureName.split(/[-_]/).filter(word => word !== 'Facility' && word !== 'Unit')
+}
+
 // Get Facilities and Units levels
 export async function getInitialTreeLevels() {
   const ctx = IafProj.getCurrent()
-  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`
-  const facilitiesUrl = `${baseOmapiUrl}/siteequip/facilities`
 
-  let facilities = []
+  const BaseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`
+  const URL = `${BaseOmapiUrl}/site/all`
+
+  let treeData = []
 
   try {
-    const response = await fetch(facilitiesUrl, {
+    const response = await fetch(URL, {
       method: 'GET',
       mode: 'cors',
       headers: {
@@ -20,11 +25,25 @@ export async function getInitialTreeLevels() {
 
     if (response.ok) {
       const result = await response.json()
-      if (result._result.status === 200) {
-        facilities = result._result.facilities
-      } else {
-        console.error('OMAPI facilities call returned status', result._result.status)
-      }
+
+      result._result.map((res) => {
+        // Map through result._result
+          const facilityNode = {
+            id: res.name,
+            name: res.name,
+            level: 1,
+            children: res.buildings.map((building) => ({
+              id: `${res.name}/${building.name}`,
+              name: building.name,
+              level: 2,
+              structureName: building.structureName,
+              children: [{}],
+            })),
+          }
+          treeData.push(facilityNode)
+      })
+     
+
     } else {
       console.error('OMAPI facilities call failed', response.status)
     }
@@ -32,62 +51,15 @@ export async function getInitialTreeLevels() {
     console.error('Facility fetch error:', err)
   }
 
-  const tree = []
-
-  // Fetch units for each facility
-  await Promise.all(
-    facilities.map(async (facility) => {
-      const unitUrl = `${baseOmapiUrl}/siteequip/facilities/${facility}/units`
-
-      let units = []
-      try {
-        const response = await fetch(unitUrl, {
-          method: 'GET',
-          mode: 'cors',
-          headers: {
-            Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
-            'Content-Type': 'application/json',
-          },
-        })
-
-        if (response.ok) {
-          const result = await response.json()
-          if (result._result.status === 200) {
-            units = result._result.units
-          } else {
-            console.error(`OMAPI units for ${facility} returned status`, result._result.status)
-          }
-        } else {
-          console.error(`OMAPI units for ${facility} call failed`)
-        }
-      } catch (err) {
-        console.error(`Error fetching units for ${facility}:`, err)
-      }
-
-      // Build the structure for this facility
-      const facilityNode = {
-        id: facility,
-        name: facility,
-        level: 1,
-        children: units.map((unit) => ({
-          id: `${facility}/${unit}`,
-          name: unit,
-          level: 2,
-          children: [{}],
-        })),
-      }
-
-      tree.push(facilityNode)
-    })
-  )
-  return tree
+  return treeData
 }
 
-export async function getSystemLevel(nodeId) {
-  const levels = nodeId.split("/");
+export async function getSystemLevel(structureName) {
+  const parentLevels = splitStructureName(structureName)
+
   const ctx = IafProj.getCurrent()
   const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`
-  const systemLevelUrl = `${baseOmapiUrl}/siteequip/facilities/${levels[0]}/units/${levels[1]}/systems`
+  const systemLevelUrl = `${baseOmapiUrl}/siteequip/facilities/${parentLevels[0]}/units/${parentLevels[1]}/systems`
 
   let system = []
 
@@ -118,11 +90,13 @@ export async function getSystemLevel(nodeId) {
   return system
 }
 
-export async function getEquipTypeLevel(nodeId) {
+export async function getEquipTypeLevel(nodeId, structureName) {
   const levels = nodeId.split("/");
   const ctx = IafProj.getCurrent()
+  const parentLevels = splitStructureName(structureName)
+
   const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`
-  const equipTypeLevelUrl = `${baseOmapiUrl}/siteequip/facilities/${levels[0]}/units/${levels[1]}/systems/${levels[2]}/equipmenttypes`
+  const equipTypeLevelUrl = `${baseOmapiUrl}/siteequip/facilities/${parentLevels[0]}/units/${parentLevels[1]}/systems/${levels[2]}/equipmenttypes`
 
   let equipType = []
 
@@ -153,11 +127,13 @@ export async function getEquipTypeLevel(nodeId) {
   return equipType
 }
 
-export async function getEquipLevel(nodeId) {
+export async function getEquipLevel(nodeId, structureName) {
   const levels = nodeId.split("/");
+  const parentLevels = splitStructureName(structureName)
+
   const ctx = IafProj.getCurrent()
   const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`
-  const equipLevelUrl = `${baseOmapiUrl}/siteequip/facilities/${levels[0]}/units/${levels[1]}/systems/${levels[2]}/equipmenttypes/${levels[3]}/equipment`
+  const equipLevelUrl = `${baseOmapiUrl}/siteequip/facilities/${parentLevels[0]}/units/${parentLevels[1]}/systems/${levels[2]}/equipmenttypes/${levels[3]}/equipment`
 
   let equipment = []
 
