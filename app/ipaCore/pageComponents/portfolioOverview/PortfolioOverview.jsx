@@ -15,7 +15,6 @@ import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
 import clsx from "clsx";
 import {Custom2D3DToggle} from "./components/map/control/Custom2D3DToggle";
-import { IafItemSvc } from '@dtplatform/platform-api';
 import { getMapGraphicReferences, getStructures, setMapGraphicReferences, setMapTypes, setStructures } from '../../redux/pageComponentState.js';
 import {useSelector} from "react-redux";
 import {Legend} from "./components/map/control/Legend.jsx";
@@ -23,7 +22,6 @@ import {flushSync} from "react-dom";
 import PopupPortal from "./components/map/popup/PopupPortal.jsx";
 import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
-import { getChartStatus } from '../../../client/scripts/mapEntryActions.mjs';
 import { useGraphicsVisibility } from '../../hooks/useGraphicsVisibility.js';
 import { useNewEntityManagement } from '../../hooks/useEntityManagement.js';
 
@@ -90,21 +88,12 @@ const useStyles = makeStyles((theme) => ({
 // Create context for the actor
 export const MapMachineContext = createContext();
 export const MapContext = createContext();
-// export const DEFAULT_PATHS = [
-//     [
-//         { displayName: "Portfolio", state: 'portfolio', idKey: null, scopeLevel: 0 },
-//         { displayName: "Site", state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all", scopeLevel: 1, collShortName: "geo_sites_coll" },
-//         { displayName: "Building", state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all", scopeLevel: 2, collShortName: "building_coll" },
-//         { displayName: "Model Element", state: 'modelElement', idKey: 'modelElementId', scopeLevel: 3 },
-//     ]
-// ]
-
 export const DEFAULT_PATHS = [
     [
-        { displayName: "Portfolio", state: 'portfolio', idKey: null, scopeLevel: 0 },
-        { displayName: "Site", state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all", scopeLevel: 1, collShortName: "geo_sites_coll", parentState: "portfolio" },
-        { displayName: "Building", state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all", scopeLevel: 2, collShortName: "building_coll", parentState: "site" },
-        { displayName: "Model Element", state: 'modelElement', idKey: 'modelElementId', scopeLevel: 3, parentState: "building" },
+        { displayName: "Fleet", state: 'portfolio', idKey: null, scopeLevel: 0 },
+        { displayName: "Facility", state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all", scopeLevel: 1, collShortName: "geo_sites_coll", parentState: "portfolio" },
+        { displayName: "Unit", state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all", scopeLevel: 2, collShortName: "building_coll", parentState: "site" },
+        { displayName: "Equipments", state: 'modelElement', idKey: 'modelElementId', scopeLevel: 3, parentState: "building" },
     ]
 ]
 
@@ -167,6 +156,7 @@ function withMapDataInitialization(Component) {
 }
 
 function PortfolioOverview({handler, userConfig, selectedItems}) {
+    const [dialogOpen, setDialogOpen] = useState()
     const store = useStore();
     const dispatch = useDispatch();
 
@@ -332,9 +322,17 @@ function PortfolioOverview({handler, userConfig, selectedItems}) {
 
     const [popupState, setPopupState] = usePopupState({ open:false });
 
+    useEffect(() => {
+        const hasSeenDialog = localStorage.getItem("welcomeDialogDismissed");
+        if (!hasSeenDialog) {
+            setDialogOpen(true)
+        }
+    }, [])
+
     return (
         <MapContext.Provider value={mapContextValue}>
             <MapMachineContext.Provider value={mapMachineContextValue}>
+                {/* <HomepageDialog dialogOpen={dialogOpen} setDialogOpen={setDialogOpen}/> */}
                 <div className={classes.container}>
                     <div className={classes.secondaryHeader}>
                         <div className={classes.headerInner}>
