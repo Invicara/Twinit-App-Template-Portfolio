@@ -366,15 +366,30 @@ const AssetTable = ({ rows }) => {
                     </TableHead>
                     <TableBody>
                         {_.isEmpty(rows) ? (
-                            <TableRow>
-                                <TableCell colSpan={5} align="center" className="asset-table-no-equip">
-                                    <div>
+                            <TableCell
+                                className="asset-table-no-equip"
+                                colSpan={5}
+                                sx={{
+                                    height: 'calc(100vh - 300px)', // adjust based on your header height
+                                    p: 0,
+                                }}
+                                >
+                                <Box
+                                    sx={{
+                                        height: '100%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        textAlign: 'center',
+                                    }}
+                                >
+                                    <Box sx={{ maxWidth: 400 }}>
                                         <i className="fas fa-search"></i>
                                         <p className="no-equip-header">No Equipment selected</p>
                                         <p>Use the panel on the left to browse the filter tree and view equipment data.</p>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
+                                    </Box>
+                                </Box>
+                            </TableCell>
                         ) : (
                             sortedTableData?.map((row, idx) => (
                                 <StyledTableRow key={idx}>
