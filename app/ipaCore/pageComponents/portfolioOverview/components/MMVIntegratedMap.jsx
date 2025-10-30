@@ -2,7 +2,6 @@ import React, {useEffect, useMemo, useRef, useState} from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { getTemporaryMapBoxToken } from "../../utils/mapboxUtils.js";
-import AutoSizer from 'react-virtualized-auto-sizer';
 import { IafMultiModalViewer } from "@invicara/ipa-core-mmv"
 import { setClickEvent } from '../../../redux/pageComponentState.js';
 import { useDispatch, useSelector } from 'react-redux';
