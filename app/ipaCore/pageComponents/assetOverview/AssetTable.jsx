@@ -150,10 +150,10 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
         setSortedTableData(rows)
     }
   
-    const filteredData = (keyword, setToast) => {
-        if (!keyword || !selectedFilter || !selectedCondition) return sortedTableData;
+    const filteredData = (keyword, setToast, data = sortedTableData) => {
+        if (!keyword || !selectedFilter || !selectedCondition) return data;
 
-        if(!sortedTableData) {
+        if(!data) {
             setToast({
                 open: true,
                 severity: "error",
@@ -186,7 +186,7 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
             }
         }
 
-        const result = sortedTableData.filter(item => 
+        const result = data.filter(item => 
             selectedCondition === 'is' ? matchesFilter(item) : !matchesFilter(item)
         )
 
@@ -204,7 +204,7 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
 
     const handleKeyDown = (event, setToast) => {
         if (event.key === 'Enter') {
-            filteredData(event.target.value, setToast)
+            filteredData(event.target.value, setToast, rows)
         }
     }
 
