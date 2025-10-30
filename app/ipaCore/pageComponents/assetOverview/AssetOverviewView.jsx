@@ -9,12 +9,6 @@ import AssetTable from "./AssetTable";
 import './AssetOverviewView.scss'
 
 const useStyles = makeStyles(theme => ({
-  colorPrimary: {
-      background: '#C71784'
-  },
-  barColorPrimary: {
-      background: 'white'
-  },
   customIcon: {
     position: 'absolute',
     right: '20px',
@@ -71,9 +65,9 @@ const AssetOverviewView = () => {
         <Box sx={{ flexShrink: 0 }}>
           {Object.values(loadingNodes).includes(true) ? (
             <LinearProgress
-              classes={{
-                colorPrimary: classes.colorPrimary,
-                barColorPrimary: classes.barColorPrimary,
+               sx={{
+                '&.MuiLinearProgress-colorPrimary': { backgroundColor: '#DF158C' },
+                '& .MuiLinearProgress-barColorPrimary': { backgroundColor: '#FCE8F3' },
               }}
             />
           ) : null}
