@@ -44,7 +44,7 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
                 return false;
             }
         },
-        reactorPalierIn:
+        reactorCapacityIn:
             ({ values = [] }) =>
                 (e) => {
                     // 1) Normalize wanted set (case-insensitive)

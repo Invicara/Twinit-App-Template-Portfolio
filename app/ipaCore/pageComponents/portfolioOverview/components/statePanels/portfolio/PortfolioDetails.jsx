@@ -31,27 +31,27 @@ const sampleFormConfig = {
             fromRule: (rule) => (rule.fn === 'EC_statusIn' && Array.isArray(rule.args?.values) ? rule.args.values[0] : null),
         },
         group: {
-            label: 'Palier Group',
+            label: 'Group',
             type: 'select',
-            rule: "reactorPalierIn",
+            rule: "reactorCapacityIn",
             options: () => {
                 const bins = [
-                    {id: 'CP0/CPY', label: 'CP0/CPY Palier', test: "reactorPalierIn", color: "#8ecbff"},
-                    {id: "P4/P'4", label: "P4/P'4 Palier",test: "reactorPalierIn", color: "#1DC0F7"},
-                    {id: 'N4', label: 'N4 Palier', test: "reactorPalierIn", color: "#0072BC"},
-                    {id: 'EPR',  label: 'EPR (Gen III)',  test: 'reactorPalierIn', color: "#014772"},
-                    {id: 'EPR2', label: 'EPR2 (Gen III+)', test: 'reactorPalierIn', color: "#02304d"},
+                    {id: 'CP0/CPY', label: 'CP0/CPY Palier', test: "reactorCapacityIn", color: "#8ecbff"},
+                    {id: "P4/P'4", label: "P4/P'4 Palier",test: "reactorCapacityIn", color: "#1DC0F7"},
+                    {id: 'N4', label: 'N4 Palier', test: "reactorCapacityIn", color: "#0072BC"},
+                    {id: 'EPR',  label: 'EPR (Gen III)',  test: 'reactorCapacityIn', color: "#014772"},
+                    {id: 'EPR2', label: 'EPR2 (Gen III+)', test: 'reactorCapacityIn', color: "#02304d"},
                     {id: 'Other', label: 'Other',test: () => true},
                 ];
                 return bins.map((bin, index) => ({ value: bin.id, label: bin.label, meta: { bin } }));
             },
             toRule: (value, _ctx, meta) => {
                 return value !== ''
-                    ? {fn: 'reactorPalierIn', args: {values: [value]}}
+                    ? {fn: 'reactorCapacityIn', args: {values: [value]}}
                     : null
             },
             fromRule: (rule, _context, selectOptions = []) => {
-                if (rule?.fn !== 'reactorPalierIn') return null;
+                if (rule?.fn !== 'reactorCapacityIn') return null;
 
                 // normalize the values coming from the rule
                 const ids = Array.isArray(rule.args?.values)
@@ -196,13 +196,13 @@ const defaultChartCfg =  {
 
     // 2) GROUP
     group: {
-        id: 'reactorPalierIn',
+        id: 'reactorCapacityIn',
         bins: [
-            {id: 'CP0/CPY', label: 'CP0/CPY Palier', test: "reactorPalierIn", color: "#8ecbff"},
-            {id: "P4/P'4", label: "P4/P'4 Palier",test: "reactorPalierIn", color: "#1DC0F7"},
-            {id: 'N4', label: 'N4 Palier', test: "reactorPalierIn", color: "#0072BC"},
-            { id: 'EPR',  label: 'EPR (Gen III)',  test: 'reactorPalierIn' },
-            { id: 'EPR2', label: 'EPR2 (Gen III+)', test: 'reactorPalierIn' },
+            {id: 'CP0/CPY', label: 'CP0/CPY Palier', test: "reactorCapacityIn", color: "#8ecbff"},
+            {id: "P4/P'4", label: "P4/P'4 Palier",test: "reactorCapacityIn", color: "#1DC0F7"},
+            {id: 'N4', label: 'N4 Palier', test: "reactorCapacityIn", color: "#0072BC"},
+            { id: 'EPR',  label: 'EPR (Gen III)',  test: 'reactorCapacityIn' },
+            { id: 'EPR2', label: 'EPR2 (Gen III+)', test: 'reactorCapacityIn' },
             {id: 'Other', label: 'Other',test: () => true},
         ],
         // optional pretty label
@@ -248,7 +248,7 @@ const defaultChartCfg =  {
         rules: {
             series: (statusKey) =>
                 statusKey === 'unknown' ? null : ({ fn: 'statusIn', args: { values: [statusKey] } }),
-            group:  (id, ctx) => ({ fn: 'reactorPalierIn', args: { values: [ctx.bin.id] } }),
+            group:  (id, ctx) => ({ fn: 'reactorCapacityIn', args: { values: [ctx.bin.id] } }),
         },
     },
 };
