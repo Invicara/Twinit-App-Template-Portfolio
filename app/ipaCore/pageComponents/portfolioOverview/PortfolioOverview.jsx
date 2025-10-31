@@ -333,7 +333,7 @@ function PortfolioOverview({handler, userConfig, selectedItems}) {
     return (
         <MapContext.Provider value={mapContextValue}>
             <MapMachineContext.Provider value={mapMachineContextValue}>
-                <HomepageDialog dialogOpen={dialogOpen} setDialogOpen={setDialogOpen}/>
+                {/* <HomepageDialog dialogOpen={dialogOpen} setDialogOpen={setDialogOpen}/> */}
                 <div className={classes.container}>
                     <div className={classes.secondaryHeader}>
                         <div className={classes.headerInner}>
