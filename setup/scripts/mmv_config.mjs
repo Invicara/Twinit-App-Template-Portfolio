@@ -323,6 +323,21 @@ let scriptModule = {
 
                 return cap >= min && cap < max;
             },
+            searchQuery: ({ q }) => (e) => {
+                if (!q) return true;
+
+                const entity = e.properties || e;
+                const query = q.toLowerCase();
+
+                // List the fields you want to check
+                const fields = [
+                    entity?.name,
+                    entity?.siteId,
+                    entity?.buildingId
+                ];
+
+                return fields.filter(f=>!!f).some(field => field?.toLowerCase().includes(query));
+            },
         };
     },
 }

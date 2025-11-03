@@ -28,70 +28,30 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
                 return originalPredicate(entity);
             }
         },
-        EC_statusIn: ({values}) => (e) => {
-            const entity = isMapFeatures ? e.properties : e;
-            let ecsByStatus = {};
-            if (entityType == "es") {
-                ecsByStatus[entity.status] = 1;
-            } else {
-                ecsByStatus = entity.ecsByStatus;
-            }
-            const set = new Set(values.map(v => String(v).toUpperCase()));
-            const statuses = new Set(Object.entries(ecsByStatus).filter(([k,v])=>v._total > 0).map(([k,v]) => String(k).toUpperCase()));
-            try {
-                return set.intersection(statuses).size>0;
-            } catch (e){
-                return false;
-            }
-        },
         reactorCapacityIn:
             ({ values = [] }) =>
-                (e) => {
-                    // 1) Normalize wanted set (case-insensitive)
-                    const wanted = new Set(values.map(v => String(v).toUpperCase()));
+            (e) => {
+                const wanted = new Set(values.map(v => String(v).toLowerCase()));
 
-                    // 2) Extract ReactorModel strings for this entity (site or building or map feature)
-                    const props = e && typeof e === 'object' ? (e.properties || e) : {};
-                    const buildings = Array.isArray(props.buildings) ? props.buildings : null;
+                const props = e && typeof e === 'object' ? (e.properties || e) : {};
+                const buildings = Array.isArray(props.buildings) ? props.buildings : null;
 
-                    const models = buildings
-                        ? buildings.map(b => String(b?.ReactorModel ?? '').toUpperCase()).filter(Boolean)
-                        : [String((props?.ReactorModel ?? '')).toUpperCase()].filter(Boolean);
+                const getCapacity = (b) => Number(b?.Capacity ?? props?.Capacity ?? 0);
 
-                    if (models.length === 0) {
-                        // Treat missing model as OTHER only if specifically requested
-                        return wanted.has('OTHER');
-                    }
-                    if (buildings && models.length < buildings.length) {
-                        // Treat missing model as OTHER only if specifically requested
-                        return wanted.has('OTHER');
-                    }
+                const getCategory = (capacity) => {
+                    if (capacity <= 899) return 'low';
+                    if (capacity <= 1299) return 'medium';
+                    if (capacity <= 1449) return 'high';
+                    if (capacity >= 1450) return 'ultra';
+                    return 'unknown';
+                };
 
-                    // 3) Palier patterns (precise & case-insensitive)
-                    const isN4     = (m) => /\bN4\b/.test(m) || /\bN4\s+REP\s+1450\b/.test(m);
-                    const isP4     = (m) => /\bP'?4\b/.test(m);                    // matches P4 or P'4, but not CP4
-                    const isCPY    = (m) => /\bCP(?:0|1|2|Y)\b/.test(m);           // CP0/CP1/CP2/CPY → grouped as CPY
-                    const isEPR2   = (m) => /\bEPR2\b/.test(m);
-                    const isEPR    = (m) => /\bEPR\b/.test(m) && !isEPR2(m);       // plain EPR only
+                const categories = buildings
+                    ? buildings.map(getCapacity).map(getCategory)
+                    : [getCategory(getCapacity(props))];
 
-                    // 4) If OTHER requested, we need to know "named" categories
-                    const matchesNamed = (m) => isN4(m) || isP4(m) || isCPY(m) || isEPR(m) || isEPR2(m);
-
-                    // 5) Decide for each model
-                    const modelMatches = (m) => {
-                        if (wanted.has('N4')        && isN4(m))   return true;
-                        if (wanted.has("P4/P'4")    && isP4(m))   return true;
-                        if (wanted.has('CP0/CPY')   && isCPY(m))  return true;
-                        if (wanted.has('EPR2')      && isEPR2(m)) return true;
-                        if (wanted.has('EPR')       && isEPR(m))  return true;
-                        if (wanted.has('OTHER')     && !matchesNamed(m)) return true;
-                        return false;
-                    };
-
-                    // 6) Any model in the entity that matches → include
-                    return models.some(modelMatches);
-                }
-        ,
+                return categories.some((cat) => wanted.has(cat));
+            },
         reactorModelIn:
             ({values = []}) => (e) => {
                 const entity = isMapFeatures ? e.properties : e;
@@ -107,12 +67,8 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
         facilityIn:
             ({values = []}) => (e) => {
                 const entity = isMapFeatures ? e.properties : e;
-                let facilityIds;
-                if (entityType == "ec") {
-                    facilityIds = entity.facility ? new Set([entity.facility.toUpperCase()]) : undefined;
-                } else {
-                    facilityIds = entity.siteId ? new Set([String(entity.siteId).toUpperCase()]) : undefined;
-                }
+                let facilityIds = entity.siteId ? new Set([String(entity.siteId).toUpperCase()]) : undefined;
+                
                 const set = new Set(values.map(v => String(v).toUpperCase()));
                 try {
                     const inter = facilityIds ? set.intersection(facilityIds) : 0;
@@ -125,9 +81,8 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
             ({values = []}) => (e) => {
                 const entity = isMapFeatures ? e.properties : e;
                 let unitIds;
-                if (entityType == "ec") {
-                    unitIds = entity.unit ? new Set([entity.unit.toUpperCase()]) : undefined;
-                } else if(entityType == "site") {
+
+                if(entityType == "site") {
                     unitIds = entity.buildings ? new Set((entity.buildings.map(b=>String(b.buildingId?.toUpperCase())))) : undefined;
                 } else {
                     unitIds = entity.buildingId ? new Set([entity.buildingId.toUpperCase()]) : undefined;
