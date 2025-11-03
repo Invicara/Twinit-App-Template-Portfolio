@@ -265,8 +265,8 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
                                         <i style={{ margin: 'auto', padding: '0px'}} className="fas fa-ellipsis-v"></i>
                                     )}
                             >
-                                <MenuItem>
-                                    <Box display="flex" alignItems="center" style={{color: '#D32F2F'}} onClick={() => deleteFilter(rows)}>
+                                <MenuItem onClick={() => deleteFilter(rows)}>
+                                    <Box display="flex" alignItems="center" style={{color: '#D32F2F'}}>
                                         <i style={{ margin: 'auto'}} className="fas fa-trash-alt"></i>
                                         Delete filter
                                     </Box>
