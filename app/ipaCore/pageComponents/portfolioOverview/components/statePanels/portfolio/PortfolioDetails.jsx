@@ -11,24 +11,26 @@ import {
     toggleScopedFilter
 } from "../../../../utils/filters.global.js";
 
-
 const sampleFormConfig = {
     initial: { search: '', group: '', structure: '', location: '', status: '' },
     fields: {
         status: {
-            label: 'Engineering Changes Status',
+            label: 'Status',
             type: 'select',
-            rule: "EC_statusIn",
-            options: () => {
+            rule: "statusIn",
+            options: (ctx) => {
                 const labelMap = {
-                    "REGISTERED": "Registered",
-                    "APPROVED": "Approved",
-                    "CLOSED": "Closed",
+                    "1": "Not started",
+                    "2": "In Progress",
+                    "3": "Completed",
+                    "4": "At risk",
+                    "5": "Permanent Shutdown",
+                    "unknown": "Unknown",
                 }
                 return Object.entries(labelMap).map(([id,label]) => ({ value: id, label: label || `Status ${id}` }));
             },
-            toRule: (value) => (value !== '' ? { fn: 'EC_statusIn', args: { values: [value] } } : null),
-            fromRule: (rule) => (rule.fn === 'EC_statusIn' && Array.isArray(rule.args?.values) ? rule.args.values[0] : null),
+            toRule: (value) => (value !== '' ? { fn: 'statusIn', args: { values: [value] } } : null),
+            fromRule: (rule) => (rule.fn === 'statusIn' && Array.isArray(rule.args?.values) ? rule.args.values[0] : null),
         },
         group: {
             label: 'Group',
@@ -36,102 +38,21 @@ const sampleFormConfig = {
             rule: "reactorCapacityIn",
             options: () => {
                 const bins = [
-                    {id: 'CP0/CPY', label: 'CP0/CPY Palier', test: "reactorCapacityIn", color: "#8ecbff"},
-                    {id: "P4/P'4", label: "P4/P'4 Palier",test: "reactorCapacityIn", color: "#1DC0F7"},
-                    {id: 'N4', label: 'N4 Palier', test: "reactorCapacityIn", color: "#0072BC"},
-                    {id: 'EPR',  label: 'EPR (Gen III)',  test: 'reactorCapacityIn', color: "#014772"},
-                    {id: 'EPR2', label: 'EPR2 (Gen III+)', test: 'reactorCapacityIn', color: "#02304d"},
+                    {id: 'low', label: 'Low', test: "reactorCapacityIn", color: "#8ecbff"},
+                    {id: "medium", label: "Medium",test: "reactorCapacityIn", color: "#1DC0F7"},
+                    {id: 'high', label: 'High', test: "reactorCapacityIn", color: "#0072BC"},
+                    {id: 'ultra', label: 'Ultra', test: "reactorCapacityIn", color: "#1D1D1D"},
                     {id: 'Other', label: 'Other',test: () => true},
                 ];
                 return bins.map((bin, index) => ({ value: bin.id, label: bin.label, meta: { bin } }));
             },
             toRule: (value, _ctx, meta) => {
-                return value !== ''
+                return value !== '' && meta?.bin
                     ? {fn: 'reactorCapacityIn', args: {values: [value]}}
                     : null
             },
             fromRule: (rule, _context, selectOptions = []) => {
                 if (rule?.fn !== 'reactorCapacityIn') return null;
-
-                // normalize the values coming from the rule
-                const ids = Array.isArray(rule.args?.values)
-                    ? rule.args.values.map(String)
-                    : rule.args?.id != null
-                        ? [String(rule.args.id)]
-                        : [];
-
-                if (!ids.length) return null;
-
-                // Try to match by option.value first, then by meta.bin.id
-                const opt = selectOptions.find(opt => {
-                    const v = String(opt.value);
-                    const binId = String(opt.meta?.bin?.id ?? '');
-                    return ids.includes(v) || (binId && ids.includes(binId));
-                });
-
-                return opt ? opt.value : null;
-            }
-        },
-
-        location: {
-            label: 'Facility Location',
-            type: 'select',
-            rule: "facilityIn",
-            options: ({context, filters}) => {
-                const fns = getGlobalFilterFunctions("site", false);
-                const filterCompiler = new FilterCompiler(fns);
-                const rules = [sampleFormConfig.fields.group.toRule(filters['group'], context)].filter(r=>!!r);
-                const filterFn = filterCompiler.compileFilter(sampleFormConfig.compile(rules));
-                const bins = context?.data?.["site"] || [];
-                return bins.filter(filterFn ? filterFn : Boolean).map((bin, index) => ({ value: bin.siteId, label: bin.name, meta: { bin } }));
-            },
-            toRule: (value, _ctx) => {
-                return value !== ''
-                    ? {fn: 'facilityIn', args: {values: [value]}}
-                    : null
-            },
-            fromRule: (rule, _context, selectOptions = []) => {
-                if (rule?.fn !== 'facilityIn') return null;
-
-                // normalize the values coming from the rule
-                const ids = Array.isArray(rule.args?.values)
-                    ? rule.args.values.map(String)
-                    : rule.args?.id != null
-                        ? [String(rule.args.id)]
-                        : [];
-
-                if (!ids.length) return null;
-
-                // Try to match by option.value first, then by meta.bin.id
-                const opt = selectOptions.find(opt => {
-                    const v = String(opt.value);
-                    const binId = String(opt.meta?.bin?.id ?? '');
-                    return ids.includes(v) || (binId && ids.includes(binId));
-                });
-
-                return opt ? opt.value : null;
-            }
-        },
-
-        structure: {
-            label: 'Unit Name / Structure',
-            type: 'select',
-            rule: "unitIn",
-            options: ({context, filters}) => {
-                const fns = getGlobalFilterFunctions("building", false);
-                const filterCompiler = new FilterCompiler(fns);
-                const rules = [sampleFormConfig.fields['group'].toRule(filters['group'], context),sampleFormConfig.fields['location'].toRule(filters['location'], context)].filter(r=>!!r);
-                const filterFn = filterCompiler.compileFilter(sampleFormConfig.compile(rules));
-                const bins = context?.data?.["building"] || [];
-                return bins.filter(filterFn ? filterFn : Boolean).map((bin, index) => ({ value: bin.buildingId, label: bin.name, meta: { bin } }));
-            },
-            toRule: (value, _ctx, meta) => {
-                return value !== ''
-                    ? {fn: 'unitIn', args: {values: [value]}}
-                    : null
-            },
-            fromRule: (rule, _context, selectOptions = []) => {
-                if (rule?.fn !== 'unitIn') return null;
 
                 // normalize the values coming from the rule
                 const ids = Array.isArray(rule.args?.values)
@@ -186,6 +107,7 @@ const sampleFormConfig = {
     },
 };
 
+
 const defaultChartCfg =  {
     // 1) where items come from
     itemType: "building",
@@ -198,11 +120,10 @@ const defaultChartCfg =  {
     group: {
         id: 'reactorCapacityIn',
         bins: [
-            {id: 'CP0/CPY', label: 'CP0/CPY Palier', test: "reactorCapacityIn", color: "#8ecbff"},
-            {id: "P4/P'4", label: "P4/P'4 Palier",test: "reactorCapacityIn", color: "#1DC0F7"},
-            {id: 'N4', label: 'N4 Palier', test: "reactorCapacityIn", color: "#0072BC"},
-            { id: 'EPR',  label: 'EPR (Gen III)',  test: 'reactorCapacityIn' },
-            { id: 'EPR2', label: 'EPR2 (Gen III+)', test: 'reactorCapacityIn' },
+            {id: 'low', label: 'Low', test: "reactorCapacityIn", color: "#8ecbff"},
+            {id: "medium", label: "Medium",test: "reactorCapacityIn", color: "#1DC0F7"},
+            {id: 'high', label: 'High', test: "reactorCapacityIn", color: "#0072BC"},
+            { id: 'ultra',  label: 'Ultra',  test: 'reactorCapacityIn', color: "#1D1D1D"},
             {id: 'Other', label: 'Other',test: () => true},
         ],
         // optional pretty label
@@ -253,99 +174,6 @@ const defaultChartCfg =  {
     },
 };
 
-const ec1_ChartCfg =  {
-    // 1) where items come from
-    title: "Top 5 EC Status per Facility",
-    itemType: "ec",
-    itemsOf: (data /* context.data */) => {
-        const sites = Array.isArray(data?.site) ? data.site : [];
-        const top5 = sites
-            .map(item => ({
-                ...item,
-                openECs: (item?.ecsByStatus?.REGISTERED?._total || 0) + (item?.ecsByStatus?.APPROVED?._total || 0),
-                id: item.name
-            }))
-            .sort((a, b) => b.openECs - a.openECs) // descending order
-            .slice(0, 5);
-        const ecs = top5.flatMap(s=>{
-            const hydratedEcs = [];
-            for(const status in s.ecsByStatus){
-                for(const n of new Array(s.ecsByStatus[status]._total)){
-                    hydratedEcs.push({
-                        site: s,
-                        status,
-                        facility: s.siteId,
-                        label: s.name
-                    })
-                }
-            }
-            return hydratedEcs;
-        });
-
-        return ecs;
-        //TODO: alterantively call Platfrom go get full ECs data
-    },
-
-    // 2) GROUP
-    group: {
-        id: 'facilityIn',
-        valueProp: (ec) => String(ec?.siteId ?? 'unknown'),
-        getBins: (data, items) => {
-            const sites = Array.isArray(data?.site) ? data.site : [];
-            const top5 = sites
-                .map(s => ({
-                    ...s,
-                    openECs: (s?.ecsByStatus?.REGISTERED?._total || 0) + (s?.ecsByStatus?.APPROVED?._total || 0),
-                    id: s.siteId,
-                    label: s.name,
-                    test: "facilityIn"
-                }))
-                .sort((a, b) => b.openECs - a.openECs) // descending order
-                .slice(0, 5);
-            return top5;
-        },
-        // optional pretty label
-        groupLabel: (bin) => bin.label,
-    },
-
-    // 3) SERIES: StatusId → stacks, with label/color maps
-    series: {
-        id: 'EC_statusIn',
-        keyProp: (ecs) => String(ecs?.status ?? 'unknown'),
-        config: {
-            colorMap: {
-                "REGISTERED": "#b8b8b8",
-                "APPROVED": "#f4b740",
-                "CLOSED": "#66bb6a",
-            },
-            labelMap: {
-                "REGISTERED": "Registered",
-                "APPROVED": "Approved",
-                "CLOSED": "Closed",
-            },
-        },
-        // keep a stable legend order
-        order: (keys) => {
-            const pref = ['REGISTERED','APPROVED','CLOSED']; // your desired sequence
-            return pref.filter(k => keys.includes(k)).concat(keys.filter(k => !pref.includes(k)));
-        },
-    },
-
-    // 4) METRIC
-    metric: { type: 'count' },
-
-    // 5) Click → filters
-    filter: {
-        scope: 'site',
-        combine: 'and',
-        rules: {
-            series: (statusKey) =>
-                statusKey === 'unknown' ? null : ({ fn: 'EC_statusIn', args: { values: [statusKey] } }),
-            group:  (id, ctx) => ({ fn: 'facilityIn', args: { values: [ctx.bin.id] } }),
-        },
-    },
-};
-
 export default function PortfolioDetails({ context, userConfig, send, stateKey, handler }) {
 
     const globalFilters = useSelector(getFilter)
@@ -381,17 +209,18 @@ export default function PortfolioDetails({ context, userConfig, send, stateKey, 
                     initialFilter={globalFilters["site"]}
                     handler={handler}
                     context={context}
+                    snapshot={snapshot}
                     send={send}
                     stateKey={stateKey}
-                    chartCfg={ec1_ChartCfg}
+                    chartCfg={defaultChartCfg}
                     onFilterChange={(filter) => {
-                        const togglingOptions = {
-                            replace: [ec1_ChartCfg.group.id, ec1_ChartCfg.series.id],// force toggle on filters the chart controls
-                            dropMissing: true, //remove global rules not present in new filter (by fn)
+                        const mergingOptions = {
+                            dropMissing: [defaultChartCfg.group.id, defaultChartCfg.series.id],
+                            replace: true
                         }
-                        const next = toggleScopedFilter(globalFilters, filter, "site", togglingOptions);
-                        console.log("mergeFiltersGeneric SearchPanel", {next, filter, globalFilters, togglingOptions})
-                        dispatch(setFilter(next));
+                        const merged = mergeFiltersGeneric(globalFilters, filter, "site",  mergingOptions);
+                        console.log("mergeFiltersGeneric DeployStatusChart", {merged, filter, globalFilters, mergingOptions})
+                        dispatch(setFilter(merged));
                     }}
                 />
 

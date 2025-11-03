@@ -34,9 +34,10 @@ const sampleFormConfig = {
             rule: "reactorCapacityIn",
             options: () => {
                 const bins = [
-                    {id: 'CP0/CPY', label: 'CP0/CPY Palier', test: "reactorCapacityIn", color: "#8ecbff"},
-                    {id: "P4/P'4", label: "P4/P'4 Palier",test: "reactorCapacityIn", color: "#1DC0F7"},
-                    {id: 'N4', label: 'N4 Palier', test: "reactorCapacityIn", color: "#0072BC"},
+                    {id: 'low', label: 'Low', test: "reactorCapacityIn", color: "#8ecbff"},
+                    {id: "medium", label: "Medium",test: "reactorCapacityIn", color: "#1DC0F7"},
+                    {id: 'high', label: 'High', test: "reactorCapacityIn", color: "#0072BC"},
+                    {id: 'ultra', label: 'Ultra', test: "reactorCapacityIn", color: "#1D1D1D"},
                     {id: 'Other', label: 'Other',test: () => true},
                 ];
                 return bins.map((bin, index) => ({ value: bin.id, label: bin.label, meta: { bin } }));
@@ -113,11 +114,10 @@ const defaultChartCfg =  {
     group: {
         id: 'reactorCapacityIn',
         bins: [
-            {id: 'CP0/CPY', label: 'CP0/CPY Palier', test: "reactorCapacityIn", color: "#8ecbff"},
-            {id: "P4/P'4", label: "P4/P'4 Palier",test: "reactorCapacityIn", color: "#1DC0F7"},
-            {id: 'N4', label: 'N4 Palier', test: "reactorCapacityIn", color: "#0072BC"},
-            { id: 'EPR',  label: 'EPR (Gen III)',  test: 'reactorCapacityIn' },
-            { id: 'EPR2', label: 'EPR2 (Gen III+)', test: 'reactorCapacityIn' },
+            {id: 'low', label: 'Low', test: "reactorCapacityIn", color: "#8ecbff"},
+            {id: "medium", label: "Medium",test: "reactorCapacityIn", color: "#1DC0F7"},
+            {id: 'high', label: 'High', test: "reactorCapacityIn", color: "#0072BC"},
+            { id: 'ultra',  label: 'Ultra',  test: 'reactorCapacityIn', color: "#1D1D1D" },
             {id: 'Other', label: 'Other',test: () => true},
         ],
         // optional pretty label
