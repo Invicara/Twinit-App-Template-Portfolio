@@ -63,7 +63,7 @@ export default function BuildingDetails({ context }) {
 
     // Positioning mode state
     const [isPositioningMode, setIsPositioningMode] = useState(false);
-    
+
     const [controller, setController] = useState();
 
     // Cache for original positioning values when entering positioning mode
@@ -149,6 +149,10 @@ export default function BuildingDetails({ context }) {
             type: 'UPDATE_DATA',
             data: updatedData
         });
+        //disable clicks
+        send({
+            type: 'START_DRAFT'
+        });
     };
 
     // Handle canceling edit mode
@@ -175,6 +179,9 @@ export default function BuildingDetails({ context }) {
             });
 
             // Navigate back to site level since the entity no longer exists
+            send({
+                type: 'END_DRAFT'
+            });
             send({
                 type: 'GO_TO',
                 ...lowerLevelState,
@@ -205,6 +212,9 @@ export default function BuildingDetails({ context }) {
         send({
             type: 'UPDATE_DATA',
             data: restoredData
+        });
+        send({
+            type: 'END_DRAFT'
         });
 
         console.log('Edit cancelled, entity restored:', { original: cachedOriginalEntity, entityId });
@@ -238,6 +248,10 @@ export default function BuildingDetails({ context }) {
             data: updatedData
         });
         // Step 4: Pre-select the new entity with a GO_TO operation
+
+        send({
+            type: 'END_DRAFT'
+        });
         send({
             type: 'GO_TO',
             ...lowerLevelState,
@@ -295,6 +309,9 @@ export default function BuildingDetails({ context }) {
         send({
             type: 'UPDATE_DATA',
             data: updatedData
+        });
+        send({
+            type: 'END_DRAFT'
         });
 
         setCachedPositioning(null);
@@ -389,6 +406,10 @@ export default function BuildingDetails({ context }) {
             console.log('Entity deleted successfully:', { entityId, result });
 
             // Navigate back to higher level since the entity no longer exists
+
+            send({
+                type: 'END_DRAFT'
+            });
             send({
                 type: 'GO_TO',
                 ...lowerLevelState,
@@ -449,7 +470,7 @@ export default function BuildingDetails({ context }) {
                     rotation: transformData.rotation,
                     size: transformData.size
                 })
-            });            
+            });
         }, 400);
 
     };
@@ -507,17 +528,16 @@ export default function BuildingDetails({ context }) {
                 [currentElementType]: restoredEntities
             };
 
-            controller.updateTransform(entityId, {
-                centroid: [cachedPositioning.longitude, cachedPositioning.latitude],
-                rotation: cachedPositioning.rotation,
-                size: cachedPositioning.size
-            });
-
             // Update XState context with restored data
             send({
                 type: 'UPDATE_DATA',
                 data: restoredData
             });
+
+            send({
+                type: 'END_DRAFT'
+            });
+
         }
 
         // Clear cached positioning
@@ -609,8 +629,8 @@ export default function BuildingDetails({ context }) {
             {isInEditMode && (
                 <Box p={2}>
                     <Divider style={{ margin: '16px 0px' }} />
-                    
-                    <BuildingThumbnails 
+
+                    <BuildingThumbnails
                         mapGraphicReferences={mapGraphicReferences}
                         handleCancelNewBuildingMode={() => {}}
                         lowerNamedPath={lowerNamedPath}
@@ -638,6 +658,29 @@ export default function BuildingDetails({ context }) {
                         </CustomButton>
                     ) : (
                         <Box>
+                            <Box style={{ marginBottom: 16, padding: 12, backgroundColor: '#f5f5f5', borderRadius: 8 }}>
+                                <Typography style={{ fontWeight: 600, marginBottom: 8 }}>
+                                    Manual Positioning Controls:
+                                </Typography>
+                                <Box component="ul" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                                    <li style={{ display: "flex", alignItems: "center", gap: 8, padding: '4px 0' }}>
+                                        <span style={{ backgroundColor: "#0088ff", borderRadius: '50%', width: 14, height: 14, flexShrink: 0 }} />
+                                        <Typography variant="body2">Re-locating</Typography>
+                                    </li>
+                                    <li style={{ display: "flex", alignItems: "center", gap: 8, padding: '4px 0' }}>
+                                        <span style={{ backgroundColor: "#ff0000", borderRadius: '50%', width: 14, height: 14, flexShrink: 0 }} />
+                                        <Typography variant="body2">Rotation</Typography>
+                                    </li>
+                                    <li style={{ display: "flex", alignItems: "center", gap: 8, padding: '4px 0' }}>
+                                        <span style={{ backgroundColor: "#ffaa00", borderRadius: '50%', width: 14, height: 14, flexShrink: 0 }} />
+                                        <Typography variant="body2">Re-sizing</Typography>
+                                    </li>
+                                </Box>
+                            </Box>
+                            <Divider style={{ margin: '16px 0' }} />
+                            <Typography style={{ fontWeight: 600, marginBottom: 14 }}>
+                                Positioning Values:
+                            </Typography>
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={6}>
                                     <TextField
@@ -688,7 +731,7 @@ export default function BuildingDetails({ context }) {
                                     />
                                 </Grid>
                             </Grid>
-                            
+
                             <Box style={{ marginTop: 16, display: 'flex', gap: 16 }}>
                                 <CustomButton
                                     variant="outlined"
@@ -740,9 +783,9 @@ export default function BuildingDetails({ context }) {
                     <Button onClick={handleCloseDeleteModal} color="primary">
                         Cancel
                     </Button>
-                    <Button 
-                        onClick={handleDeleteEntity} 
-                        color="secondary" 
+                    <Button
+                        onClick={handleDeleteEntity}
+                        color="secondary"
                         variant="contained"
                         style={{ backgroundColor: '#d32f2f', color: 'white' }}
                     >
