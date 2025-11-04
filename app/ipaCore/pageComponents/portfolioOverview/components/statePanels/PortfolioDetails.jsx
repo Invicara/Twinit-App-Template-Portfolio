@@ -4,8 +4,12 @@ import SearchPanel from '../SearchPanel';
 import {Box} from "@mui/material";
 import {useDispatch, useSelector} from "react-redux";
 import {getFilter, setFilter} from "../../../../redux/filters.js";
-import {mergeFiltersGeneric} from "../../../utils/filters.global.js";
-
+import {
+    FilterCompiler,
+    getGlobalFilterFunctions,
+    mergeFiltersGeneric,
+    toggleScopedFilter
+} from "../../../utils/filters.global.js";
 
 const sampleFormConfig = {
     initial: { search: '', group: '', structure: '', location: '', status: '' },
@@ -69,7 +73,84 @@ const sampleFormConfig = {
                 return opt ? opt.value : null;
             }
         },
+        location: {
+            label: 'Facility Location',
+            type: 'select',
+            rule: "facilityIn",
+            options: ({context, filters}) => {
+                const fns = getGlobalFilterFunctions("site", false);
+                const filterCompiler = new FilterCompiler(fns);
+                const rules = [sampleFormConfig.fields.group.toRule(filters['group'], context)].filter(r=>!!r);
+                const filterFn = filterCompiler.compileFilter(sampleFormConfig.compile(rules));
+                const bins = context?.data?.["site"] || [];
+                return bins.filter(filterFn ? filterFn : Boolean).map((bin, index) => ({ value: bin.siteId, label: bin.name, meta: { bin } }));
+            },
+            toRule: (value, _ctx) => {
+                return value !== ''
+                    ? {fn: 'facilityIn', args: {values: [value]}}
+                    : null
+            },
+            fromRule: (rule, _context, selectOptions = []) => {
+                if (rule?.fn !== 'facilityIn') return null;
 
+                // normalize the values coming from the rule
+                const ids = Array.isArray(rule.args?.values)
+                    ? rule.args.values.map(String)
+                    : rule.args?.id != null
+                        ? [String(rule.args.id)]
+                        : [];
+
+                if (!ids.length) return null;
+
+                // Try to match by option.value first, then by meta.bin.id
+                const opt = selectOptions.find(opt => {
+                    const v = String(opt.value);
+                    const binId = String(opt.meta?.bin?.id ?? '');
+                    return ids.includes(v) || (binId && ids.includes(binId));
+                });
+
+                return opt ? opt.value : null;
+            }
+        },
+        structure: {
+            label: 'Unit Name / Structure',
+            type: 'select',
+            rule: "unitIn",
+            options: ({context, filters}) => {
+                const fns = getGlobalFilterFunctions("building", false);
+                const filterCompiler = new FilterCompiler(fns);
+                const rules = [sampleFormConfig.fields['group'].toRule(filters['group'], context),sampleFormConfig.fields['location'].toRule(filters['location'], context)].filter(r=>!!r);
+                const filterFn = filterCompiler.compileFilter(sampleFormConfig.compile(rules));
+                const bins = context?.data?.["building"] || [];
+                return bins.filter(filterFn ? filterFn : Boolean).map((bin, index) => ({ value: bin.buildingId, label: bin.name, meta: { bin } }));
+            },
+            toRule: (value, _ctx, meta) => {
+                return value !== ''
+                    ? {fn: 'unitIn', args: {values: [value]}}
+                    : null
+            },
+            fromRule: (rule, _context, selectOptions = []) => {
+                if (rule?.fn !== 'unitIn') return null;
+
+                // normalize the values coming from the rule
+                const ids = Array.isArray(rule.args?.values)
+                    ? rule.args.values.map(String)
+                    : rule.args?.id != null
+                        ? [String(rule.args.id)]
+                        : [];
+
+                if (!ids.length) return null;
+
+                // Try to match by option.value first, then by meta.bin.id
+                const opt = selectOptions.find(opt => {
+                    const v = String(opt.value);
+                    const binId = String(opt.meta?.bin?.id ?? '');
+                    return ids.includes(v) || (binId && ids.includes(binId));
+                });
+
+                return opt ? opt.value : null;
+            }
+        },
         search: {
             label: 'Search',
             type: 'text',
@@ -77,8 +158,6 @@ const sampleFormConfig = {
             toRule: (value) => (value?.trim() ? { fn: 'searchQuery', args: { q: value.trim() } } : null),
             fromRule: (rule) => (rule.fn === 'searchQuery' ? rule.args?.q ?? '' : null),
         },
-
-
         sample_group2: {
             label: 'Group2',
             type: 'select',
@@ -117,7 +196,7 @@ const defaultChartCfg =  {
             {id: 'low', label: 'Low', test: "reactorCapacityIn", color: "#8ecbff"},
             {id: "medium", label: "Medium",test: "reactorCapacityIn", color: "#1DC0F7"},
             {id: 'high', label: 'High', test: "reactorCapacityIn", color: "#0072BC"},
-            { id: 'ultra',  label: 'Ultra',  test: 'reactorCapacityIn', color: "#1D1D1D" },
+            {id: 'ultra',  label: 'Ultra',  test: 'reactorCapacityIn', color: "#1D1D1D" },
             {id: 'Other', label: 'Other',test: () => true},
         ],
         // optional pretty label
