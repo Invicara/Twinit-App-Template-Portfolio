@@ -42,7 +42,7 @@ const sampleFormConfig = {
                     {id: "medium", label: "Medium",test: "reactorCapacityIn", color: "#1DC0F7"},
                     {id: 'high', label: 'High', test: "reactorCapacityIn", color: "#0072BC"},
                     {id: 'ultra', label: 'Ultra', test: "reactorCapacityIn", color: "#1D1D1D"},
-                    {id: 'Other', label: 'Other',test: () => true},
+                    {id: 'Other', label: 'Other', test: () => true},
                 ];
                 return bins.map((bin, index) => ({ value: bin.id, label: bin.label, meta: { bin } }));
             },
