@@ -332,8 +332,7 @@ function PortfolioOverview({handler, userConfig, selectedItems}) {
 
     return (
         <MapContext.Provider value={mapContextValue}>
-            <MapMachineContext.Provider value={mapMachineContextValue}>
-                {/* <HomepageDialog dialogOpen={dialogOpen} setDialogOpen={setDialogOpen}/> */}
+            <MapMachineContext.Provider value={mapMachineContextValue}>                
                 <div className={classes.container}>
                     <div className={classes.secondaryHeader}>
                         <div className={classes.headerInner}>
@@ -345,6 +344,7 @@ function PortfolioOverview({handler, userConfig, selectedItems}) {
                         </div>
                     </div>
                     <Grid container className={classes.mainContent}>
+                        {dialogOpen && <HomepageDialog dialogOpen={dialogOpen} setDialogOpen={setDialogOpen}/> }
                         <StatePanel
                             handler={handler}
                             currentState={currentState}
