@@ -42,7 +42,7 @@ export default function EntityTreeSearch({ labelText, checked, onCheck, nodeId, 
       expandIcon={expandIcon}
       collapseIcon={collapseIcon}
       label={
-        <div className={classes.labelRoot}>
+        <div className={classes.labelRoot} onClick={e => e.stopPropagation()}>
           {loadingNodes ? 
             <CircularProgress size={12} style={{ marginRight: '10px' }} />
           : 
