@@ -21,6 +21,7 @@ import {
   siteEquipmentForTreeService,
   rejectPendingRevision,
   approvePendingRevision,
+  ecLogsForSiteEquipment
 } from "../../../../services/siteEquipment";
 import AssignmentLateIcon from "@material-ui/icons/AssignmentLate";
 import { engineeringChangePendingRevision } from "../../../../services/siteEquipment";
@@ -185,7 +186,6 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
               equipmentId,
             );
 
-                 console.log('EC new data', items);
             setProperties(
               items.map((el) => ({
                 ...flattenEquipment(el),
@@ -300,9 +300,6 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
         return;
       }
 
-      console.log("Save success:", res.data);
-
-
     setRefreshECTrigger(prev => prev + 1);
 
       if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
@@ -412,63 +409,78 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
     }
   };
 
-  const handleApprove = async (item) => {
-    const modelName = selectedModelComposite?._name || "";
-    const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
-    const facilityId = match ? match[1].toUpperCase() : null;
-    const buildingId = match ? match[2] : null;
+const handleApprove = async (item) => {
+  const modelName = selectedModelComposite?._name || '';
+  const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
+  const facilityId = match ? match[1].toUpperCase() : null;
+  const buildingId = match ? match[2] : null;
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      let username = "Bob";
-      const res = await approvePendingRevision(
-        item.revision,
+    const username = 'Bob';
+    const res = await approvePendingRevision(
+      item.revision,
+      facilityId,
+      buildingId,
+      item.equipmentId,
+      username,
+    );
+
+    if (!res.success) {
+      console.error('Approve failed:', res.message);
+      return;
+    }
+
+    //Re-fetch EC logs to update status
+    const ecLogs = await ecLogsForSiteEquipment(
+      facilityId,
+      buildingId,
+      [item.equipmentId],
+    );
+
+    // Update engineeringChange in local state 
+    setEngineeringChange(prev => ({
+      ...(prev || {}),
+      logs: ecLogs.successLogs,  
+    }));
+
+    // Re-fetch latest site equipment data so status is in sync
+    let refreshed;
+    if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
+      refreshed = await siteEquipmentService(
+        siteEquipment.EC,
         facilityId,
         buildingId,
         item.equipmentId,
-        username,
       );
-
-      if (res.success) {
-        setRefreshECTrigger(prev => prev + 1);
-        if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
-          const refreshed = await siteEquipmentService(
-            siteEquipment.EC,
-            facilityId,
-            buildingId,
-            item.equipmentId,
-          );
-          setProperties(
-            refreshed.map((el) => ({
-              ...flattenEquipment(el),
-              isEditing: false,
-            })),
-          );
-          setData(refreshed);
-        } else {
-          const refreshed = await siteEquipmentForTreeService(
-            facilityId,
-            buildingId,
-            siteEquipment?.data,
-          );
-          setProperties(
-            refreshed.map((el) => ({
-              ...flattenEquipment(el),
-              isEditing: false,
-            })),
-          );
-          setData(refreshed);
-        }
-      } else {
-        console.error("Approve failed:", res.message);
-      }
-    } catch (err) {
-      console.error("Approve failed:", err);
-    } finally {
-      setLoading(false);
+    } else {
+      refreshed = await siteEquipmentForTreeService(
+        facilityId,
+        buildingId,
+        siteEquipment?.data,
+      );
     }
-  };
+
+    setProperties(
+      refreshed.map(el => ({
+        ...flattenEquipment(el),
+        isEditing: false,
+      })),
+    );
+    setData(refreshed);
+
+    siteEquipment.data = refreshed;
+    siteEquipment.EC = { ...(siteEquipment.EC || {}), logs: ecLogs.successLogs };
+
+    setRefreshECTrigger(prev => prev + 1);
+
+  } catch (err) {
+    console.error('Approve failed:', err);
+  } finally {
+    setLoading(false);
+  }
+};
 
 const handleChange = (index, name, value) => {
   setProperties((prev) =>
@@ -715,7 +727,6 @@ function EquipmentCard({
 
 const dynamicSchema = React.useMemo(() => buildSchema(item, editableFields), [item, item.isEditing]);
 
-console.log('dynamicSchema', dynamicSchema);
 const uiSchema = React.useMemo(() => {
   const baseOrder = ['equipmentId', 'Model', 'equipmentType', 'Manufacturer', 'Safety Class'];
   const techParams = Object.keys(item?.TechnicalParameters || {}).sort();
@@ -723,8 +734,6 @@ const uiSchema = React.useMemo(() => {
     'ui:order': [...baseOrder, ...techParams],
   };
 }, [item]);
-
-console.log('cardItem', item);
 
   const handleLocalChange = (val, name) => {
     setDraft((prev) => {
