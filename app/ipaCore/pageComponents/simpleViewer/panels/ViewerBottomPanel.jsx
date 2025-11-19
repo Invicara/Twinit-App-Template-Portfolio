@@ -186,7 +186,6 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
               equipmentId,
             );
 
-                 console.log('EC new data', items);
             setProperties(
               items.map((el) => ({
                 ...flattenEquipment(el),
@@ -300,9 +299,6 @@ const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
 
         return;
       }
-
-      console.log("Save success:", res.data);
-
 
     setRefreshECTrigger(prev => prev + 1);
 
@@ -526,8 +522,6 @@ const handleChange = (index, name, value) => {
 
 const canEditSE = (property, engineeringChange) => {
 
-  console.log('property', property);
-
   let isEditable = true;
 
   const propStatus =
@@ -541,7 +535,6 @@ const canEditSE = (property, engineeringChange) => {
   const logs = engineeringChange?.logs;
   if (!logs) return true;
 
-  console.log('engineeringchangelogs', logs);
   const eqId = property?.siteEquipmentId || property?.equipmentId;
 
   const toArray = (l) =>
@@ -734,7 +727,6 @@ function EquipmentCard({
 
 const dynamicSchema = React.useMemo(() => buildSchema(item, editableFields), [item, item.isEditing]);
 
-console.log('dynamicSchema', dynamicSchema);
 const uiSchema = React.useMemo(() => {
   const baseOrder = ['equipmentId', 'Model', 'equipmentType', 'Manufacturer', 'Safety Class'];
   const techParams = Object.keys(item?.TechnicalParameters || {}).sort();
@@ -742,8 +734,6 @@ const uiSchema = React.useMemo(() => {
     'ui:order': [...baseOrder, ...techParams],
   };
 }, [item]);
-
-console.log('cardItem', item);
 
   const handleLocalChange = (val, name) => {
     setDraft((prev) => {
