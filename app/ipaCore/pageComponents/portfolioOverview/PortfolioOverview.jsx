@@ -1,6 +1,6 @@
 import React, {useEffect, useMemo, useState, createContext, useCallback, useRef} from 'react';
 import { useActor, useSelector as useXstateSelector, useMachine } from '@xstate/react';
-import { makeStyles } from '@material-ui/core';
+import { makeStyles, CircularProgress, Box } from '@material-ui/core';
 import MMVIntegratedMap from './components/MMVIntegratedMap';
 import StatePanel from './components/StatePanel';
 import PortfolioBreadCrumbs from './components/Breadcrumbs/BreadCrumbs.jsx';
@@ -15,15 +15,13 @@ import { selectIsSelectingPosition } from '../../redux/siteSetup.js';
 import {ScriptCache} from "@invicara/ipa-core/modules/IpaUtils";
 import clsx from "clsx";
 import {Custom2D3DToggle} from "./components/map/control/Custom2D3DToggle";
-import { IafItemSvc } from '@dtplatform/platform-api';
-import { setMapGraphicReferences, setMapTypes } from '../../redux/pageComponentState.js';
+import { getMapGraphicReferences, getStructures, setMapGraphicReferences, setMapTypes, setStructures } from '../../redux/pageComponentState.js';
 import {useSelector} from "react-redux";
 import {Legend} from "./components/map/control/Legend.jsx";
 import {flushSync} from "react-dom";
 import PopupPortal from "./components/map/popup/PopupPortal.jsx";
 import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
-import { getChartStatus } from '../../../client/scripts/mapEntryActions.mjs';
 import { useGraphicsVisibility } from '../../hooks/useGraphicsVisibility.js';
 import { useNewEntityManagement } from '../../hooks/useEntityManagement.js';
 
@@ -56,7 +54,8 @@ const useStyles = makeStyles((theme) => ({
         flexGrow: 1
     },
     mainContent: {
-        height: "calc(100% - 40px)"
+        height: "calc(100% - 40px)",
+        flexWrap: "nowrap !important"
     },
     statePanel: ({stateKey}) => (  {
         width: 580,
@@ -89,23 +88,83 @@ const useStyles = makeStyles((theme) => ({
 // Create context for the actor
 export const MapMachineContext = createContext();
 export const MapContext = createContext();
-const DEFAULT_PATHS = [
+export const DEFAULT_PATHS = [
     [
         { displayName: "Portfolio", state: 'portfolio', idKey: null, scopeLevel: 0 },
-        { displayName: "Site", state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all", scopeLevel: 1, collShortName: "geo_sites_coll" },
-        { displayName: "Building", state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all", scopeLevel: 2, collShortName: "building_coll" },
-        { displayName: "Model Element", state: 'modelElement', idKey: 'modelElementId', scopeLevel: 3 },
+        { displayName: "Site", state: 'site', idKey: 'siteId', feature: "polygon", api: "site/all", scopeLevel: 1, collShortName: "geo_sites_coll", parentState: "portfolio" },
+        { displayName: "Building", state: 'building', idKey: 'buildingId', feature: "mesh", api: "building/all", scopeLevel: 2, collShortName: "building_coll", parentState: "site" },
+        { displayName: "Model Element", state: 'modelElement', idKey: 'modelElementId', scopeLevel: 3, parentState: "building" },
     ]
 ]
 
-export default function PortfolioOverview({handler, userConfig, selectedItems}) {
+// HOC to ensure structures and mapRefs are loaded before initializing the map
+function withMapDataInitialization(Component) {
+    return function WrappedPortfolioOverview(props) {
+        const dispatch = useDispatch();
+        const structures = useSelector(getStructures);
+        const mapRefs = useSelector(getMapGraphicReferences);
+        
+        const componentConfig = props.handler?.componentConfig;
+        const namedPaths = useMemo(() => componentConfig?.namedPaths || DEFAULT_PATHS, [componentConfig]);
+        
+        const [isInitializing, setIsInitializing] = useState(true);
+
+        useEffect(() => {
+            const initializeMapData = async () => {
+                try {
+                    // Fetch structures and map representations in parallel
+                    const [mapStructures, mapGraphicReferences] = await Promise.all([
+                        ScriptCache.runScript("getMapStructures", {namedPaths}),
+                        ScriptCache.runScript("getGraphicReferences", {namedPaths})
+                    ]);
+                    
+                    // Set both states before initialization completes
+                    dispatch(setStructures(mapStructures));
+                    dispatch(setMapGraphicReferences(mapGraphicReferences));
+                    
+                    setIsInitializing(false);
+                } catch (error) {
+                    console.error('Error initializing map data:', error);
+                    setIsInitializing(false);
+                }
+            };
+
+            initializeMapData();
+        }, [namedPaths, dispatch]);
+
+        // Check if both structures and mapRefs are ready
+        const isDataReady = !isInitializing && 
+                           Object.keys(structures || {}).length > 0 && 
+                           (mapRefs || []).length > 0;
+
+        if (!isDataReady) {
+            return (
+                <Box 
+                    display="flex" 
+                    justifyContent="center" 
+                    alignItems="center" 
+                    height="100vh"
+                    bgcolor="#ffffff"
+                >
+                    <CircularProgress />
+                </Box>
+            );
+        }
+
+        return <Component {...props} />;
+    };
+}
+
+function PortfolioOverview({handler, userConfig, selectedItems}) {
+    const [dialogOpen, setDialogOpen] = useState()
     const store = useStore();
+    const dispatch = useDispatch();
 
     const componentConfig = handler?.componentConfig;
-    const namedPaths = useMemo(()=>componentConfig?.namedPaths || DEFAULT_PATHS,[]);
-    const legendPath = useMemo(()=>componentConfig?.legendPath || "building",[]);
+    const namedPaths = useMemo(()=>componentConfig?.namedPaths || DEFAULT_PATHS,[componentConfig]);
+    const legendPath = useMemo(()=>componentConfig?.legendPath || "building",[componentConfig]);
 
-    // Create machine with Redux context
+    // Create machine with Redux context - structures and mapRefs are guaranteed to be set by HOC
     const machineDef = useMemo(()=>{
         return createMachine("mapMachine", namedPaths, {
             initialContext: {
@@ -119,10 +178,12 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
 
     const currentState = useXstateSelector(actor, state => state);
     const states = Object.keys(ipaConfig.mapPortfolio.statePanel.componentPaths || {});
-    const stateKey = useMemo(()=>states.reverse().find(state=>currentState.matches(state)),[currentState]);
+    const stateKey = useMemo(()=> {
+        if(!currentState?.matches) return;
+        return states.reverse().find(state=> currentState?.matches(state));
+    },[currentState]);
 
     const classes = useStyles({ stateKey });
-    const dispatch = useDispatch();
 
     // MMV Configuration state -> this should be removed to a user config or a script
     const [mmvConfig, setMmvConfig] = useState();
@@ -152,15 +213,9 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
             dispatch(setMapTypes(types));
         }
 
-        const fetchMapRepresentations = async () => {
-            const mapGraphicReferences = await ScriptCache.runScript("getGraphicReferences", {namedPaths});
-            dispatch(setMapGraphicReferences(mapGraphicReferences));
-        }
-
         fetchGisConfig();
         fetchMapTypes();
-        fetchMapRepresentations();
-    },[namedPaths])
+    },[namedPaths, dispatch])
 
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
     const [mmvMode, setMmvMode] = useState("");
@@ -188,7 +243,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
 
     useEffect(() => {
         // Check for MMV configuration in user config
-        let newConfig = userConfig?.handlers?.portfolioOverview?.mmvConfig || handler?.componentConfig?.mmvConfig;
+        let newConfig = handler?.mmvConfig || handler?.componentConfig?.mmvConfig;
         if (newConfig) {
             console.log('MMV Config from user/handler:', {newConfig});
             if (newConfig.mode === "project") {
@@ -253,7 +308,7 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
     },[actor, setCommand])
 
     const mapMachineContextValue = useMemo(() => {
-               console.log('actor', actor)
+        console.log('actor', actor)
 
         return { actor, send: actor.send }
     }, [actor]);
@@ -267,15 +322,22 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
 
     const [popupState, setPopupState] = usePopupState({ open:false });
 
+    useEffect(() => {
+        const hasSeenDialog = localStorage.getItem("welcomeDialogDismissed");
+        if (!hasSeenDialog) {
+            setDialogOpen(true)
+        }
+    }, [])
+
     return (
         <MapContext.Provider value={mapContextValue}>
-            <MapMachineContext.Provider value={mapMachineContextValue}>
+            <MapMachineContext.Provider value={mapMachineContextValue}>                
                 <div className={classes.container}>
                     <div className={classes.secondaryHeader}>
                         <div className={classes.headerInner}>
                             <div className={classes.headerFlex}>
                                 <div className={classes.breadcrumbsContainer}>
-                                    <PortfolioBreadCrumbs namedPath={namedPaths[0]} />
+                                    <PortfolioBreadCrumbs namedPath={namedPaths[0]} getLabel={lvl => lvl.displayName} />
                                 </div>
                             </div>
                         </div>
@@ -355,3 +417,6 @@ export default function PortfolioOverview({handler, userConfig, selectedItems}) 
         </MapContext.Provider>
     );
 }
+
+// Export the HOC-wrapped component
+export default withMapDataInitialization(PortfolioOverview);

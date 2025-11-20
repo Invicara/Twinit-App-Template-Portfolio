@@ -1,4 +1,4 @@
-import {  getInitAction as getScriptedInitAction, getEntryAction as getScriptedEntryAction,  getExitAction as getScriptedExitAction } from '../../../../../client/scripts/mapEntryActions.mjs';
+import { getInitAction as getScriptedInitAction, getEntryAction as getScriptedEntryAction, getExitAction as getScriptedExitAction, onDataUpdatedAction as getScriptedOnDataUpdatedAction } from '../../../../../client/scripts/mapEntryActions.mjs';
 
 async function executeScriptedInitAction(mapMachineInput) {
 
@@ -6,6 +6,20 @@ async function executeScriptedInitAction(mapMachineInput) {
     const {mmvSend} = context;
 
     const {commands, ...result} = await getScriptedInitAction({mapMachineInput});
+
+    if(commands && mmvSend) {
+        mmvSend(commands);
+    }
+
+    return result;
+}
+
+async function executeScriptedOnDataUpdatedAction(mapMachineInput) {
+
+    const {context} = mapMachineInput;
+    const {mmvSend} = context;
+
+    const {commands, ...result} = await getScriptedOnDataUpdatedAction({mapMachineInput});
 
     if(commands && mmvSend) {
         mmvSend(commands);
@@ -67,4 +81,8 @@ export async function getEntryAction(mapMachine) {
 
 export async function getExitAction(mapMachineInput) {
     return executeScriptedExitAction(mapMachineInput);
+}
+
+export async function onDataUpdatedAction(mapMachineInput) {
+    return executeScriptedOnDataUpdatedAction(mapMachineInput);
 }

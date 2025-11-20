@@ -58,7 +58,15 @@
       "icon": "fas fa-map-marked-alt fa-2x",
       "pageComponent": "portfolioOverview/PortfolioOverview",
       "path": "/portfoliomap",
-      "config": {},
+      "config": { 
+        "labels": {
+          "search": "Search building...",
+          "group": "Group",
+          "structure": "Choose building / location",
+          "location": "Choose site / region",
+          "status": "Deploy Status"
+        }
+      },
       "scriptTypes": [
         "mmv_config",
         "mapTypeActions"

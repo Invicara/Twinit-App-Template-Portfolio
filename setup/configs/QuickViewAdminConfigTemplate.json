@@ -69,10 +69,10 @@
       "path": "/portfoliomap",
       "config": {
         "labels": {
-          "search": "Search nuclear power plant...",
-          "group": "Palier Group",
-          "structure": "Choose plant name / location",
-          "location": "Choose departments / regions",
+          "search": "Search building...",
+          "group": "Group",
+          "structure": "Choose building / location",
+          "location": "Choose site / region",
           "status": "Deploy Status"
         }
       }
@@ -85,7 +85,8 @@
     "path": "/portfoliomap",
     "config": {},
     "scriptTypes": [
-      "mmv_config"
+      "mmv_config",
+      "mapTypeActions"
     ]
   },
   "homepage": {
