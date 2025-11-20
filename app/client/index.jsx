@@ -26,6 +26,8 @@ const AppWithModelContext = () => {
 
     IafSession.setConfig(endPointConfig)
 
+    AppContext.userConfig = userConfig
+
     // Set the appContext for the ModelContext
     setAppContext(AppContext)
 
@@ -56,9 +58,12 @@ const AppWithModelContext = () => {
 const container = document.getElementById('app')
 const root = createRoot(container)
 root.render(<AliveScope>
-       <AppWithModelContext />
+          <AppWithModelContext />
     </AliveScope>)
 
 if (module.hot) {
   module.hot.accept();
 }
+
+
+

@@ -17,6 +17,13 @@ export async function getTemporaryMapBoxToken() {
 
 }
 
+export async function getTemporaryMapBoxTokenWithMeta() {
+
+   await getTemporaryMapBoxToken();
+   return _getTokenFromSession();
+
+}
+
 // fetches a new temporary access token for the IafViewer
 async function _fetchTemporaryMapBoxToken() {
 

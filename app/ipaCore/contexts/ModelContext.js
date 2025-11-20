@@ -11,6 +11,7 @@ const NO_MODELS = []
 
 const ModelContextProvider = ({ children, project, appContext }) => {
 
+
    // availableModelComposites: Array[<Object>] the array of imported models in the project
    const [availableModelComposites, setAvailableModelComposites] = useState([])
 
@@ -43,6 +44,12 @@ const ModelContextProvider = ({ children, project, appContext }) => {
    // sliceElements: Array[<Object>] the array of elements to isolate in the viewer
    // setSliceElements: <function> the function to set the sliceElements
    const [sliceElements, setSliceElements] = useState([])
+
+   const [refreshECTrigger, setRefreshECTrigger] = useState(0);
+
+
+   const [isBottomECPanelOpen, setIsBottomECPanelOpen] = useState(false);
+   const [siteEquipment, setSiteEquipment] = useState([]);
 
    useEffect(() => {
       loadAllModels(project)
@@ -85,7 +92,13 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          return;
       }
       try {
-         let importedModelComposites = await IafProj.getModels(currentProject)
+         const modelSelectionFilter = appContext?.userConfig?.settings?.modelSelection
+         const criteria = {}
+
+         if (modelSelectionFilter?.length) {
+            criteria.query = { _name: {$in: modelSelectionFilter }}
+         }
+         let importedModelComposites = await IafProj.getModels(currentProject, criteria)
          setAvailableModelComposites(importedModelComposites)
       } catch (err) {
          console.error("ERROR: Retrieving Imported Models")
@@ -610,6 +623,27 @@ const ModelContextProvider = ({ children, project, appContext }) => {
       }
    }
 
+
+//       useEffect(() => {
+//   if (modelRelatedCollections?.dataCache) {
+   
+//     (async () => {
+//       try {
+//         const page = await IafItemSvc.getRelatedItems(
+//           modelRelatedCollections.dataCache._userItemId,
+//           { query: {} },
+//           null,
+//           { page: { _pageSize: 1000, _offset: 0 }, userItemVersionId: modelRelatedCollections.dataCache._userItemVersionId }
+//         )
+
+//         console.log('EC4 Sample datacache items:', page._list)
+//       } catch (err) {
+//         console.error('ERROR: fetching instanceProps for debug', err)
+//       }
+//     })()
+//   }
+// }, [modelRelatedCollections]);
+
    const memoizedContextValue = useMemo(() => {
       return {
          availableModelComposites,
@@ -626,14 +660,20 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          getSelectedElement,
          allPropRefs,
          selectedPropRefs,
+         isBottomECPanelOpen, 
+         siteEquipment,
          setSelectedPropRefs,
          getElementCount,
          sliceElements,
+         refreshECTrigger,
          setSliceElements,
          setSliceElementsByQuery,
          setSelectedElement,
          getPropertyReferences,
          getTotalElementCount,
+         setIsBottomECPanelOpen,
+         setSiteEquipment,
+         setRefreshECTrigger,
          project,
          appContext,
       }
@@ -647,6 +687,9 @@ const ModelContextProvider = ({ children, project, appContext }) => {
       selectedElement,
       allPropRefs,
       selectedPropRefs,
+      isBottomECPanelOpen, 
+      refreshECTrigger,
+      siteEquipment,
       sliceElements,
       project,
       appContext
