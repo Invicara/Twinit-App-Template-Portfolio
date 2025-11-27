@@ -331,7 +331,7 @@ function PortfolioOverview({handler, userConfig, selectedItems}) {
 
     return (
         <MapContext.Provider value={mapContextValue}>
-            <MapMachineContext.Provider value={mapMachineContextValue}>                
+            <MapMachineContext.Provider value={mapMachineContextValue}>
                 <div className={classes.container}>
                     <div className={classes.secondaryHeader}>
                         <div className={classes.headerInner}>
