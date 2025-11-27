@@ -156,7 +156,6 @@ function withMapDataInitialization(Component) {
 }
 
 function PortfolioOverview({handler, userConfig, selectedItems}) {
-    const [dialogOpen, setDialogOpen] = useState()
     const store = useStore();
     const dispatch = useDispatch();
 
@@ -321,13 +320,6 @@ function PortfolioOverview({handler, userConfig, selectedItems}) {
     useGraphicsVisibility({mapInstance, portContext: mapMachineContextValue});
 
     const [popupState, setPopupState] = usePopupState({ open:false });
-
-    useEffect(() => {
-        const hasSeenDialog = localStorage.getItem("welcomeDialogDismissed");
-        if (!hasSeenDialog) {
-            setDialogOpen(true)
-        }
-    }, [])
 
     return (
         <MapContext.Provider value={mapContextValue}>
