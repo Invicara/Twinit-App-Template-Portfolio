@@ -9,26 +9,14 @@
       "path": "/modelcomparison",
       "config": {}
     },
-    "animations2D": {
-      "title": "2D Animations",
-      "icon": "fa fa-ruler-combined fa-2x",
-      "shortName": "animations2D",
-      "description": "2D Animations",
-      "pageComponent": "animations2D/Animations2DView",
-      "path": "/animations2D",
+    "engineeringChange": {
+      "title": "Engineering Change",
+      "icon": "fa fa-file fa-2x",
+      "shortName": "engineeringChange",
+      "description": "Engineering Change",
+      "pageComponent": "engineeringChange/EngineeringChangeView",
+      "path": "/engineeringChange",
       "config": {}
-    },
-    "modelImport": {
-      "title": "Model Import",
-      "icon": "fas fa-file-import fa-2x",
-      "shortName": "modelimp",
-      "description": "Model Import",
-      "pageComponent": "modelImport/SimpleModelImportView",
-      "path": "/modelimp",
-      "config": {
-        "bimpkUserType": "bimpk_importer",
-        "sgpkUserType": "sgpk_importer"
-      }
     },
     "modelView": {
       "title": "Model View",
@@ -41,52 +29,17 @@
         "manageFiles": true
       }
     },
-    "mapboxSettings": {
-      "title": "Mapbox Settings",
-      "icon": "fas fa-map-marked-alt fa-2x",
-      "pageComponent": "mapboxSettings/MapboxSettingsView",
-      "path": "/mapboxsettings",
-      "config": {}
-    },
-    "userGroups": {
-      "title": "User Group",
-      "actionTitle": "User Group Actions",
-      "icon": "fas fa-users fa-2x",
-      "pageComponent": "users/UserGroupView",
-      "path": "/UserGroupView",
-      "config": {
-        "appUrl": "/",
-        "allowUserGroupEdit": true,
-        "allowUserGroupInvite": true,
-        "allowManageInvites": true,
-        "allowManageUsers": true
-      }
-    },
     "portfolioOverview": {
-      "title": "Portfolio Overview",
+      "title": "Fleet Overview",
       "icon": "fas fa-map-marked-alt fa-2x",
       "pageComponent": "portfolioOverview/PortfolioOverview",
       "path": "/portfoliomap",
-      "config": {
-        "labels": {
-          "search": "Search nuclear power plant...",
-          "group": "Palier Group",
-          "structure": "Choose plant name / location",
-          "location": "Choose departments / regions",
-          "status": "Deploy Status"
-        }
-      }
+      "config": {},
+      "scriptTypes": [
+        "mmv_config",
+        "mapTypeActions"
+      ]
     }
-  },
-  "portfolioOverview": {
-    "title": "Portfolio Overview",
-    "icon": "fas fa-map-marked-alt fa-2x",
-    "pageComponent": "portfolioOverview/PortfolioOverview",
-    "path": "/portfoliomap",
-    "config": {},
-    "scriptTypes": [
-      "mmv_config"
-    ]
   },
   "homepage": {
     "handler": "portfolioOverview"
@@ -97,14 +50,24 @@
       "position": 1,
       "pages": [
         {
-          "page": "Portfolio Overview",
+          "page": "Fleet Overview",
           "handler": "portfolioOverview"
+        }
+      ]
+    },
+    "engineeringChange": {
+      "icon": "fas fa-file fa-2x",
+      "position": 2,
+      "pages": [
+        {
+          "page": "Engineering Change",
+          "handler": "engineeringChange"
         }
       ]
     },
     "model": {
       "icon": "fas fa-building fa-2x",
-      "position": 2,
+      "position": 3,
       "pages": [
         {
           "page": "Model View",
@@ -113,32 +76,23 @@
         {
           "page": "Model Comparison",
           "handler": "modelComparison"
-        },
-        {
-          "page": "2D Animations",
-          "handler": "animations2D"
-        },
-        {
-          "page": "Model Import",
-          "handler": "modelImport"
-        }
-      ]
-    },
-    "settings": {
-      "icon": "fas fa-tools fa-2x",
-      "position": 3,
-      "pages": [
-        {
-          "page": "Mapbox Settings",
-          "handler": "mapboxSettings"
         }
       ]
     }
   },
   "settings": {
-    "appTitle": "Quick Model View",
-    "appImage": {},
+    "appTitle": "Fleet Management",
+    "appImage": {
+      "url": "https://lib.invicara.io/hitachi/Hitachi%20Logo%20white.png"
+    },
     "headerComponent": "components/HeaderBar/HeaderBar",
+    "modelSelection": [
+      "Facility-A_Unit-01",
+      "Facility-A_Unit-02",
+      "Facility-B_Unit-01",
+      "Facility-B_Unit-02",
+      "ReferenceDesign"
+    ],
     "styles": {
       "--app-accent-color": "#C71784",
       "--head-bkg-color": "black",

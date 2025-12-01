@@ -1,23 +1,5 @@
 {
   "handlers": {
-    "modelComparison": {
-      "title": "Model Comparison",
-      "icon": "fa fa-clone fa-2x",
-      "shortName": "modelComparison",
-      "description": "Model Comparison",
-      "pageComponent": "modelComparison/ModelComparisonView",
-      "path": "/modelcomparison",
-      "config": {}
-    },
-    "animations2D": {
-      "title": "2D Animations",
-      "icon": "fa fa-ruler-combined fa-2x",
-      "shortName": "animations2D",
-      "description": "2D Animations",
-      "pageComponent": "animations2D/Animations2DView",
-      "path": "/animations2D",
-      "config": {}
-    },
     "modelView": {
       "title": "Model View",
       "icon": "fas fa-building fa-2x",
@@ -28,13 +10,14 @@
       "config": {}
     },
     "portfolioOverview": {
-      "title": "Portfolio Overview",
+      "title": "Fleet Overview",
       "icon": "fas fa-map-marked-alt fa-2x",
       "pageComponent": "portfolioOverview/PortfolioOverview",
       "path": "/portfoliomap",
       "config": {},
       "scriptTypes": [
-        "mmv_config"
+        "mmv_config",
+        "mapTypeActions"
       ]
     }
   },
@@ -47,7 +30,7 @@
       "position": 1,
       "pages": [
         {
-          "page": "Portfolio Overview",
+          "page": "Fleet Overview",
           "handler": "portfolioOverview"
         }
       ]
@@ -59,22 +42,23 @@
         {
           "page": "Model View",
           "handler": "modelView"
-        },
-        {
-          "page": "Model Comparison",
-          "handler": "modelComparison"
-        },
-        {
-          "page": "2D Animations",
-          "handler": "animations2D"
         }
       ]
     }
   },
   "settings": {
-    "appTitle": "Quick Model View",
-    "appImage": {},
+    "appTitle": "Fleet Management",
+    "appImage": {
+      "url": "https://lib.invicara.io/hitachi/Hitachi%20Logo%20white.png"
+    },
     "headerComponent": "components/HeaderBar/HeaderBar",
+    "modelSelection": [
+      "Facility-A_Unit-01",
+      "Facility-A_Unit-02",
+      "Facility-B_Unit-01",
+      "Facility-B_Unit-02",
+      "ReferenceDesign"
+    ],
     "styles": {
       "--app-accent-color": "#C71784",
       "--head-bkg-color": "black",

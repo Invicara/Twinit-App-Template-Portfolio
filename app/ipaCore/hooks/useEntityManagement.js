@@ -10,8 +10,8 @@ import {
     setSelectedCoordinate 
 } from "../redux/siteSetup";
 import { v4 as uuid } from "uuid";
-import { getClickEvent, getMapTypes, getSelectedGraphicReference } from "../redux/pageComponentState";
-import { addFeatureToMapLayer, removeFeatureFromMapLayer, addBuildingToMap, getGeometryInfo } from "../../client/scripts/mapEntryActions.mjs";
+import { getClickEvent, getMapTypes, getSelectedGraphicReference, getSelectedStructure, setSelectedGraphicReference } from "../redux/pageComponentState";
+import { addFeatureToMapLayer, removeFeatureFromMapLayer, getGeometryInfo } from "../../client/scripts/mapEntryActions.mjs";
 import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from "lodash";
 import { getActiveLevels } from "../../services/utils";
@@ -28,13 +28,15 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
     const selectedCoordinate = useSelector(selectSelectedCoordinate);
     const draftType = useSelector(selectDraftType);
-    const selectedGraphicReferecen = useSelector(getSelectedGraphicReference);
+    const selectedGraphicReference = useSelector(getSelectedGraphicReference);
+    const selectedStructure = useSelector(getSelectedStructure);
     const types = useSelector(getMapTypes);
 
     const { send, actor } = portContext || {};
     const currentState = useXstateSelector(actor, state => state);
 
-    const [currentElementType, namedPathDict] = useMemo(() => {
+    const [currentElementType, namedPathDict, namedPath] = useMemo(() => {
+
         const namedPaths = currentState.context.namedPaths[0];
 
         const namedPathDict = Object.assign({}, ...namedPaths.map(p => ({[p.state]: p})));
@@ -43,7 +45,10 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
 
         const sPath = levels?.map(el => el.state).join(".");
         const cElementType = sPath?.split(".")?.slice(-1)?.[0];
-        return [cElementType, namedPathDict]
+
+        const namedPath = namedPaths.find(p => p.state === cElementType);
+
+        return [cElementType, namedPathDict, namedPath]
 
     }, [currentState])
 
@@ -72,62 +77,25 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
         ];
     }
 
-    // Handle site cancellation (remove draft site) - extracted from line 59
-    const handleCancelSite = (siteToRemove) => {
-        console.log("handleCancelSite", {siteToRemove});
+    // Handle element cancellation (remove draft element)
+    const handleCancelElement = (elementToRemove, draftingType, namedPath) => {
+
+        const {idKey} = namedPath
 
         // Remove the draft site from the data
         const currentData = currentState.context?.data || {};
-        const currentSites = currentData.site || [];
+        const currentEntities = currentData[draftingType] || [];
 
-        if(siteToRemove.isDraft){
-            const filteredSites = currentSites.filter(s => s.siteId !== siteToRemove.siteId);
-            const updatedData = {
-                ...currentData,
-                site: filteredSites
-            };
-
-            const namedPath = currentState.context.namedPaths[0].find(p => p.state === "site"); // Use first named path
-
-            const removeSuccess = removeFeatureFromMapLayer({
-                map: mapInstance,
-                levelState: 'site',
-                featureId: siteToRemove.siteId,
-                idKey: 'siteId', // explicitly specify the key for site identification
-                namedPath: namedPath
-            });
-
-            if (!removeSuccess) {
-                console.warn('Failed to remove draft site feature from map layer');
-            }
+        if(elementToRemove.isDraft){
+            const filteredSites = currentEntities.filter(s => s[idKey] !== elementToRemove[idKey]);
+            const updatedData = { ...currentData, [draftingType]: filteredSites };
 
             // Send event to update XState context (removing the site)
             send({
                 type: 'UPDATE_DATA',
                 data: updatedData
             });
-        } else {
-            
-            const finalizedSite = {...siteToRemove}
-            delete finalizedSite.isEditing;
-
-            const updatedSites = currentSites.map(s => 
-                s.siteId === currentState.context.siteId ? finalizedSite : s
-            );
-
-            const updatedData = {
-                ...currentData,
-                site: updatedSites
-            };
-
-            send({
-                type: 'UPDATE_DATA',
-                data: updatedData
-            });
-        }
-
-        dispatch(setSelectedCoordinate());
-        dispatch(setIsSelectingPosition(false));
+        } 
     };
     
     // Function to generate square coordinates around a centroid
@@ -148,14 +116,24 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
 
     // First useEffect - extracted from line 117
     useEffect(() => {
-        const draftSites = currentState?.context?.data?.site.filter(s => s.isDraft) || [];
+        const [draftingType, draftElement] = Object.entries(currentState?.context?.data || {}).map(([k, v]) => {
+            const entity = v.find(el => el.isDraft);
 
-        if(draftSites.length && prevElementType === "site" && currentElementType !== "site"){
-            for(let s of draftSites){
-                handleCancelSite(s);
+            if(entity) return [k, entity]
+            else return [];
+        }).find(el => el[1]) || [];
+
+        if (draftElement && prevElementType === draftingType && currentElementType !== draftingType) {
+            const prev = namedPathDict[prevElementType];
+            const next = namedPathDict[currentElementType];
+            if (!prev || !next) return;
+            const movingToChild = next.scopeLevel > prev.scopeLevel && next.parentState === prev.state;
+            // Only cancel if we are NOT moving to the child of the current draft
+            if (!movingToChild) {
+                handleCancelElement(draftElement, draftingType, namedPathDict[draftingType]);
             }
         }
-    }, [currentState, prevElementType, currentElementType]);
+    }, [currentState, prevElementType, currentElementType, namedPathDict]);
 
     // Second useEffect - extracted from line 138
     useEffect(() => {
@@ -163,9 +141,28 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             dispatch(setSelectedCoordinate([clickEvent.ground.longitude, clickEvent.ground.latitude]));
             dispatch(setIsSelectingPosition(false));
         }
-        if(selectedCoordinate?.length && !isSelectingPosition && draftType === "building"){
+
+        const draftNamedPath = namedPathDict[draftType];
+
+        if(selectedCoordinate?.length && !isSelectingPosition && draftNamedPath?.feature === "mesh"){
 
             const [centerLng, centerLat] = selectedCoordinate;
+
+            const parentNamedPath = currentState.context.namedPaths[0].find(p => p.state === draftNamedPath.parentState);
+            const currentParentId = currentState.context[parentNamedPath.idKey];
+
+            const positionMatchesParent = clickEvent.elements
+                .some(el => el?.extra?.attributeName === parentNamedPath.idKey && el?.extra?.attributeValue === currentParentId);
+
+            send({ type: "END_DRAFT" });
+
+            if(!positionMatchesParent){
+                dispatch(setDraftType());
+                dispatch(setIsSelectingPosition(false));
+                dispatch(setSelectedGraphicReference());
+                return;
+            }
+
             const newBuildingId = `${defaultNewBuildingId}-${+new Date()}`
             
             // Create new building data with mandatory fields
@@ -177,7 +174,10 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 Longitude: centerLng,
                 latitude: centerLat,
                 Latitude: centerLat,
-                graphicRefId: selectedGraphicReferecen._id,
+                size: 1,
+                rotation: 0,
+                structureName: selectedStructure.name,
+                graphicRefId: selectedGraphicReference._id,
                 isDraft: true
             };
 
@@ -199,41 +199,29 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             let geometryInfo = null;
             let graphicId = null;
             
-            if (selectedGraphicReferecen && selectedGraphicReferecen._id) {
-                graphicId = selectedGraphicReferecen.graphic;
+            if (selectedGraphicReference && selectedGraphicReference._id) {
+                graphicId = selectedGraphicReference.graphic;
                 geometryInfo = getGeometryInfo(graphicId);
                 console.log('Retrieved geometry info for graphic:', graphicId, geometryInfo);
             }
 
-            const namedPath = currentState.context.namedPaths[0].find(p => p.state === "building"); // Use first named path
+            send({
+                type: 'START_DRAFT',
+            });
 
-            // Add 3D model to map if geometry info is available
-            if (mapInstance && graphicId && geometryInfo) {
-                const success3D = addBuildingToMap({
-                    entityType: draftType,
-                    map: mapInstance,
-                    buildingId: newBuildingId,
-                    centroid: [centerLng, centerLat],
-                    graphicId: graphicId,
-                    geometryInfo: geometryInfo,
-                    namedPath: namedPath
-                });
-                 
-                if (success3D) {
-                    console.log('Successfully added new building to 3D map layer');
-                } else {
-                    console.warn('Failed to add new building to 3D map layer');
-                }
-            } else {
-                console.warn('No geometry info available for 3D building placement. GraphicId:', graphicId, 'GeometryInfo:', geometryInfo);
+            //build GO_TO event params outside timeout closure to prevent memory leaks
+            const goTo = {
+                siteId: currentState.context.siteId,
+                buildingId: newBuildingId
             }
-
             // Navigate to the newly created building using GO_TO with buildingId
             setTimeout(() => {
                 send({
+                    type: 'END_DRAFT',
+                });
+                send({
                     type: 'GO_TO',
-                    siteId: currentState.context.siteId,
-                    buildingId: newBuildingId
+                    ...goTo
                 });
             }, 100);
 
@@ -244,7 +232,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             dispatch(setSelectedCoordinate([]));
       
         }
-        if(selectedCoordinate?.length && !isSelectingPosition && draftType === "site"){
+        if(selectedCoordinate?.length && !isSelectingPosition && draftNamedPath?.feature === "polygon"){
             const [centerLng, centerLat] = selectedCoordinate;
 
             // Generate square coordinates around the selected point (500m width)
@@ -273,27 +261,19 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 data: updatedData
             });
 
-            // Add the new site to the map layer
-            if (mapInstance && currentState.context?.namedPaths) {
-                const namedPath = currentState.context.namedPaths[0].find(p => p.state === "site"); // Use first named path
-                const success = addFeatureToMapLayer({
-                    map: mapInstance,
-                    levelState: 'site',
-                    feature: newSite,
-                    namedPath: namedPath
-                });
 
-                if (success) {
-                    console.log('Successfully added new site to map layer');
-                    // Trigger map refresh/repaint
-                    mapInstance.triggerRepaint();
-                } else {
-                    console.warn('Failed to add new site to map layer');
-                }
-            }
 
+
+            //prevent any GO_TO events until timeout is called
+            send({
+                type: 'START_DRAFT',
+            });
+            
             // Navigate to the newly created site
             setTimeout(() => {
+                send({
+                    type: 'END_DRAFT'
+                });
                 send({
                     type: 'GO_TO',
                     siteId: newSiteId
@@ -306,7 +286,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
             dispatch(setDraftType());
             dispatch(setSelectedCoordinate([]));
         }
-    }, [previousIsSelectingPosition, isSelectingPosition, selectedCoordinate, previousClick, clickEvent, draftTypeSchema, draftType, selectedGraphicReferecen, currentState, send, dispatch, mapInstance]);
+    }, [previousIsSelectingPosition, isSelectingPosition, selectedCoordinate, previousClick, clickEvent, draftTypeSchema, draftType, selectedGraphicReference, namedPathDict, currentState, send, dispatch, mapInstance]);
 
     return <></>
 };

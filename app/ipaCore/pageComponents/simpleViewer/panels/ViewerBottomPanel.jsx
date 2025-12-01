@@ -1,0 +1,895 @@
+import React, { useState, useContext, useEffect } from "react";
+import { makeStyles } from "@material-ui/core/styles";
+import {
+  Paper,
+  Typography,
+  Button,
+  Divider,
+  CircularProgress,
+  Snackbar,
+} from "@material-ui/core";
+import {
+  Edit as EditIcon,
+  Save as SaveIcon,
+  KeyboardArrowUp,
+  KeyboardArrowDown,
+} from "@material-ui/icons";
+import { ModelContext } from "../../../contexts/ModelContext";
+import { InfoComponent } from "../../../components/InfoComponent/InfoComponent";
+import {
+  siteEquipmentService,
+  siteEquipmentForTreeService,
+  rejectPendingRevision,
+  approvePendingRevision,
+  ecLogsForSiteEquipment
+} from "../../../../services/siteEquipment";
+import AssignmentLateIcon from "@material-ui/icons/AssignmentLate";
+import { engineeringChangePendingRevision } from "../../../../services/siteEquipment";
+import MuiAlert from "@material-ui/lab/Alert";
+import { flattenEquipment, buildSchema } from "../EquipmentHelpers";
+
+function Alert(props) {
+  return <MuiAlert elevation={6} variant="filled" {...props} />;
+}
+
+const useStyles = makeStyles((theme) => ({
+  panel: {
+    position: 'absolute',
+  bottom: 0,
+  backgroundColor: '#fff',
+  boxShadow: '0 -2px 8px rgba(0,0,0,0.2)',
+  display: 'flex',
+  flexDirection: 'column',
+  transition: 'left 0.3s ease, width 0.3s ease, height 0.3s ease',
+  },
+  handle: {
+    height: 32,
+    backgroundColor: "#f5f5f5",
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    paddingRight: theme.spacing(6),
+    cursor: "pointer",
+  },
+  content: {
+    flex: 1,
+    overflowX: "auto",
+    display: "flex",
+    padding: theme.spacing(0),
+  },
+  card: {
+    minWidth: 500,
+    maxHeight: 460,
+    marginRight: theme.spacing(0),
+    padding: theme.spacing(3),
+    border: "1px solid #eee",
+    flexShrink: 0,
+    overflowY: "auto",
+    '&:last-child': {
+        marginRight: 15, 
+    },
+  },
+  headerRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: theme.spacing(2),
+  },
+  property: {
+    marginBottom: theme.spacing(2),
+    paddingBottom: theme.spacing(1),
+    borderBottom: "1px solid #eee",
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: theme.palette.text.secondary,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  value: {
+    fontSize: 14,
+    fontWeight: 400,
+    color: theme.palette.text.primary,
+  },
+  input: {
+    width: "100%",
+    fontSize: 14,
+    padding: theme.spacing(1),
+    border: "1px solid #ccc",
+    borderRadius: 4,
+    outline: "none",
+  },
+  editButton: {
+    backgroundColor: theme.palette.primary.main,
+    color: "#fff",
+    textTransform: "none",
+    "&:hover": {
+      backgroundColor: theme.palette.primary.dark,
+    },
+  },
+  valueInput: {
+    width: "100%",
+    fontSize: 14,
+    fontWeight: 400,
+    color: "#333",
+    border: "none",
+    outline: "none",
+    padding: 0,
+    margin: 0,
+    backgroundColor: "transparent",
+    borderBottom: "1px solid #ccc",
+    lineHeight: "1.6",
+  },
+  loaderWrapper: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    zIndex: 10,
+    backgroundColor: "rgba(255,255,255,0.8)",
+    borderRadius: 8,
+    padding: theme.spacing(2),
+  },
+}));
+
+
+const ViewerBottomPanel = ({ isBottomECPanelOpen, items, isSidePanelOpen }) => {
+  const [toast, setToast] = useState({
+    open: false,
+    severity: "error",
+    message: "",
+  });
+  const classes = useStyles();
+  const { sliceElements, siteEquipment, selectedModelComposite, setRefreshECTrigger } = useContext(ModelContext);
+  const [isOpen, setIsOpen] = useState(false);
+  const [properties, setProperties] = useState([]);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [engineeringChange, setEngineeringChange] = useState()
+  const [panelHeight, setPanelHeight] = useState(350); 
+  const [isDragging, setIsDragging] = useState(false);
+  const [startY, setStartY] = useState(0);
+  const [startHeight, setStartHeight] = useState(350);
+
+  const handleCloseToast = () => {
+    setToast((prev) => ({ ...prev, open: false }));
+  };
+
+  function extractEquipmentIds(siteEquipmentArray) {
+    return siteEquipmentArray.map((item) => ({
+      "Equipment Id": item["Equipment Id"],
+    }));
+  }
+
+  useEffect(() => {
+    if (siteEquipment && siteEquipment?.data?.length > 0) {
+      setIsOpen(true)
+      const facilityId = siteEquipment?.data[0]?.site;
+      const EC = siteEquipment.EC;
+      const buildingId = siteEquipment?.data[0]?.unit;
+      const equipmentId = siteEquipment?.data[0]?.["Equipment Id"];
+
+      setEngineeringChange(EC)
+      const equipmentIdArray = extractEquipmentIds(siteEquipment?.data);
+      const run = async () => {
+        try {
+          setLoading(true);
+
+          if (Object.keys(EC).length > 0) {
+            const items = await siteEquipmentService(
+              EC,
+              facilityId,
+              buildingId,
+              equipmentId,
+            );
+
+            setProperties(
+              items.map((el) => ({
+                ...flattenEquipment(el),
+                isEditing: false,
+              })),
+            );
+            setData(items);
+          } else {
+            const modelName = selectedModelComposite?._name || "";
+            const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
+            const facilityId = match ? match[1].toUpperCase() : null;
+            const buildingId = match ? match[2] : null;
+            const siteEqItems = await siteEquipmentForTreeService(
+              facilityId,
+              buildingId,
+              siteEquipment?.data,
+            );
+            setProperties(
+              siteEqItems.map((el) => ({
+                ...flattenEquipment(el),
+                isEditing: false,
+                status: siteEquipment.data.map((d) => {
+                  if(d['Site Equipment Id'] === el['Site Equipment Id']) {
+                    return d.status
+                  }
+                }).filter((s) => s !== undefined),
+              })),
+            );
+            setData(siteEqItems);
+          }
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      run();
+    } else if (siteEquipment && _.isEmpty(siteEquipment?.data) && _.isEmpty(siteEquipment?.EC)) {
+      // On Treesearch node unselect, clear selectedproperties and close the bottom panel.
+      setProperties([])
+      setIsOpen(false)
+    }
+  }, [siteEquipment]);
+
+  useEffect(() => {
+    if (isBottomECPanelOpen) setIsOpen(true);
+  }, [isBottomECPanelOpen]);
+
+   const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setStartY(e.clientY);
+    setStartHeight(panelHeight);
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e) => {
+      const delta = startY - e.clientY;
+      const newHeight = Math.min(Math.max(startHeight + delta, 150), 700);
+      setPanelHeight(newHeight);
+    };
+
+    const handleMouseUp = () => setIsDragging(false);
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, startY, startHeight]);
+
+  const handleSave = async (index, draft) => {
+    const facilityId = siteEquipment?.data[0]?.site;
+    const buildingId = siteEquipment?.data[0]?.unit;
+    const siteEquipmentId = siteEquipment?.data[0]?.["Equipment Id"];
+    const userName = siteEquipment?.data[0]?.username;
+
+    const updateObject = {
+      facility: facilityId,
+      unit: buildingId,
+      equipmentId: siteEquipmentId,
+      siteEquipmentId: draft.equipmentId,
+      properties: draft.properties,
+      TechnicalParameters: draft.TechnicalParameters,
+      username: userName,
+    };
+
+    try {
+      setLoading(true);
+
+      const res = await engineeringChangePendingRevision(updateObject);
+
+      if (!res.success) {
+        console.error("Save failed:", res.message);
+
+        if (
+          res.message?.includes("Engineering Change") &&
+          (res.message?.includes("not found") ||
+            (res.message?.includes("instructs") &&
+              res.message?.includes("increment any further")))
+        ) {
+          setToast({
+            open: true,
+            severity: "error",
+            message: `No open Engineering Change found for ${draft.equipmentId}`,
+          });
+        }
+
+        return;
+      }
+
+    setRefreshECTrigger(prev => prev + 1);
+
+      if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
+        const refreshed = await siteEquipmentService(
+          siteEquipment.EC,
+          facilityId,
+          buildingId,
+          draft.equipmentId,
+        );
+        
+        setProperties(
+          refreshed.map((el) => ({
+            ...flattenEquipment(el),
+            isEditing: false,
+          })),
+        );
+        setData(refreshed);
+      } else {
+        const modelName = selectedModelComposite?._name || "";
+        const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
+        const fac = match ? match[1].toUpperCase() : null;
+        const bld = match ? match[2] : null;
+
+        const refreshed = await siteEquipmentForTreeService(
+          fac,
+          bld,
+          siteEquipment?.data,
+        );
+        setProperties(
+          refreshed.map((el) => ({
+            ...flattenEquipment(el),
+            isEditing: false,
+          })),
+        );
+        setData(refreshed);
+      }
+
+      return true;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onToggleEdit = (idx) => {
+    setProperties((prev) =>
+      prev.map((p, i) => (i === idx ? { ...p, isEditing: !p.isEditing } : p)),
+    );
+  };
+
+  const [drafts, setDrafts] = useState({});
+
+  const handleReject = async (item) => {
+    const modelName = selectedModelComposite?._name || "";
+    const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
+    const facilityId = match ? match[1].toUpperCase() : null;
+    const buildingId = match ? match[2] : null;
+
+    try {
+      setLoading(true);
+
+      const res = await rejectPendingRevision(
+        facilityId,
+        buildingId,
+        item.equipmentId,
+        item.revision,
+      );
+
+      if (res.success) {
+        console.log("Reject success:", res);
+        setRefreshECTrigger(prev => prev + 1);
+        if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
+
+          const refreshed = await siteEquipmentService(
+            siteEquipment.EC,
+            facilityId,
+            buildingId,
+            item.equipmentId,
+          );
+          setProperties(
+            refreshed.map((el) => ({
+              ...flattenEquipment(el),
+              isEditing: false,
+            })),
+          );
+          setData(refreshed);
+        } else {
+          const refreshed = await siteEquipmentForTreeService(
+            facilityId,
+            buildingId,
+            siteEquipment?.data,
+          );
+          setProperties(
+            refreshed.map((el) => ({
+              ...flattenEquipment(el),
+              isEditing: false,
+            })),
+          );
+          setData(refreshed);
+        }
+      } else {
+        console.error("Reject failed:", res.message);
+      }
+    } catch (err) {
+      console.error("Reject failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+const handleApprove = async (item) => {
+  const modelName = selectedModelComposite?._name || '';
+  const match = modelName.match(/^Facility-([A-Z]+)_Unit-(\d{2})$/i);
+  const facilityId = match ? match[1].toUpperCase() : null;
+  const buildingId = match ? match[2] : null;
+
+  try {
+    setLoading(true);
+
+    const username = 'Bob';
+    const res = await approvePendingRevision(
+      item.revision,
+      facilityId,
+      buildingId,
+      item.equipmentId,
+      username,
+    );
+
+    if (!res.success) {
+      console.error('Approve failed:', res.message);
+      return;
+    }
+
+    //Re-fetch EC logs to update status
+    const ecLogs = await ecLogsForSiteEquipment(
+      facilityId,
+      buildingId,
+      [item.equipmentId],
+    );
+
+    // Update engineeringChange in local state 
+    setEngineeringChange(prev => ({
+      ...(prev || {}),
+      logs: ecLogs.successLogs,  
+    }));
+
+    // Re-fetch latest site equipment data so status is in sync
+    let refreshed;
+    if (siteEquipment?.EC && Object.keys(siteEquipment.EC).length > 0) {
+      refreshed = await siteEquipmentService(
+        siteEquipment.EC,
+        facilityId,
+        buildingId,
+        item.equipmentId,
+      );
+    } else {
+      refreshed = await siteEquipmentForTreeService(
+        facilityId,
+        buildingId,
+        siteEquipment?.data,
+      );
+    }
+
+    setProperties(
+      refreshed.map(el => ({
+        ...flattenEquipment(el),
+        isEditing: false,
+      })),
+    );
+    setData(refreshed);
+
+    siteEquipment.data = refreshed;
+    siteEquipment.EC = { ...(siteEquipment.EC || {}), logs: ecLogs.successLogs };
+
+    setRefreshECTrigger(prev => prev + 1);
+
+  } catch (err) {
+    console.error('Approve failed:', err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleChange = (index, name, value) => {
+  setProperties((prev) =>
+    prev.map((p, i) => {
+      if (i !== index) return p;
+
+      let updated = { ...p, [name]: value };
+
+      if (p.TechnicalParameters && name in p.TechnicalParameters) {
+        updated = {
+          ...updated,
+          TechnicalParameters: {
+            ...p.TechnicalParameters,
+            [name]: {
+              ...p.TechnicalParameters[name],
+              val: value,
+            },
+          },
+        };
+      } else {
+        updated = {
+          ...updated,
+          properties: {
+            ...p.properties,
+            [name]: {
+              ...p.properties?.[name],
+              val: value,
+            },
+          },
+        };
+      }
+
+      return updated;
+    })
+  );
+};
+
+  if (!isBottomECPanelOpen) return null;
+
+const canEditSE = (property, engineeringChange) => {
+
+  let isEditable = true;
+
+  const propStatus =
+    Array.isArray(property?.status) ? property.status[0] : property?.status;
+
+  if (propStatus) {
+    if (String(propStatus).toUpperCase() === 'CLOSED') return false;
+    return true;
+  }
+
+  const logs = engineeringChange?.logs;
+  if (!logs) return true;
+
+  const eqId = property?.siteEquipmentId || property?.equipmentId;
+
+  const toArray = (l) =>
+    Array.isArray(l) ? l : (l && typeof l === 'object') ? Object.values(l) : [];
+
+  const closedInLogs = toArray(logs).some(
+    (log) =>
+      (log['Site Equipment Id'] === eqId) &&
+      String(log?.status).toUpperCase() === 'CLOSED'
+  );
+
+  if (closedInLogs) isEditable = false;
+
+  return isEditable;
+};
+
+  return (
+  <div
+    className={classes.panel}
+    style={{
+      height: isOpen ? panelHeight : 32,
+      left: isSidePanelOpen ? 360 : 0,
+      right: 0,
+      transition: isDragging ? 'none' : 'height 0.25s ease, left 0.3s ease',
+    }}
+  >
+    {/* --- Handle Section --- */}
+    <div
+      className={classes.handle}
+      onMouseDown={handleMouseDown}
+      style={{ cursor: 'ns-resize', position: 'relative' }}
+    >
+      {/* Clickable Arrow Only */}
+      <div
+        style={{
+          position: 'absolute',
+          right: 56,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          cursor: 'pointer',
+          zIndex: 2,
+        }}
+        onClick={(e) => {
+          e.stopPropagation(); 
+          setIsOpen(!isOpen);
+        }}
+      >
+        {isOpen ? <KeyboardArrowDown /> : <KeyboardArrowUp />}
+      </div>
+    </div>
+      {isOpen && (
+        <div className={classes.content}>
+          {loading ? (
+            <div className={classes.loaderWrapper}>
+              <CircularProgress size={48} color="primary" />
+            </div>
+          ) : properties && properties.length > 0 ? (
+            properties.map((prop, index) => {
+              const canEdit = canEditSE(prop, engineeringChange)
+              const editRequests = countEdits(prop.edited);
+              const hasEdits = editRequests > 0;
+
+              const showEditRequests =
+                prop.revision?.endsWith("A") &&
+                prop["revision status"] === "PENDING";
+
+
+              return (
+                <EquipmentCard
+                  key={`${prop.equipmentId}-${prop.revision}-${index}`}
+                  classes={classes}
+                  item={prop}
+                  index={index}
+                  onSave={handleSave}
+                  onToggleEdit={onToggleEdit}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                  canEdit={canEdit}
+                />
+              );
+            })
+          ) : (
+            <Typography variant="body2" color="textSecondary">
+              No engineering change data available
+            </Typography>
+          )}
+        </div>
+      )}
+
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={4000}
+        onClose={handleCloseToast}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert onClose={handleCloseToast} severity={toast.severity}>
+          {toast.message}
+        </Alert>
+      </Snackbar>
+    </div>
+  );
+};
+
+export default ViewerBottomPanel;
+
+function Property({ label, value, editable, onChange }) {
+  const classes = useStyles();
+  return (
+    <div className={classes.property}>
+      <Typography className={classes.label}>{label}</Typography>
+      {editable ? (
+        <input
+          type="text"
+          className={classes.valueInput}
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      ) : (
+        <Typography className={classes.value}>{value || "-"}</Typography>
+      )}
+    </div>
+  );
+}
+
+function UnitInput({ value, unit, onChange, disabled }) {
+  const handleChange = (e) => {
+    const num = e.target.value.replace(/[^\d.]/g, ""); 
+    onChange(num ? `${num} ${unit}` : "");
+  };
+
+  const [numVal] = value ? value.split(" ") : [""];
+
+  return (
+    <div style={{ display: "flex", alignItems: "center" }}>
+      <input
+        type="text"
+        value={numVal}
+        disabled={disabled}
+        onChange={handleChange}
+        style={{
+          flex: 1,
+          border: "none",
+          borderBottom: "1px solid #ccc",
+          padding: "4px",
+          outline: "none",
+        }}
+      />
+      <span style={{ marginLeft: 4 }}>{unit}</span>
+    </div>
+  );
+}
+
+function countEdits(edited) {
+  if (!edited) return 0;
+  return Object.values(edited).reduce((count, val) => {
+    if (Array.isArray(val)) {
+      return count + val.length;
+    }
+    return count + 1;
+  }, 0);
+}
+
+function EquipmentCard({
+  classes,
+  item,
+  index,
+  onSave,
+  onToggleEdit,
+  onApprove,
+  onReject,
+  canEdit, 
+
+}) {
+  const [draft, setDraft] = React.useState(item);
+  const wasEditingRef = React.useRef(item.isEditing);
+
+  React.useEffect(() => {
+    if (!wasEditingRef.current && item.isEditing) {
+      setDraft(item);
+    }
+    wasEditingRef.current = item.isEditing;
+  }, [item.isEditing, item]);
+
+  const techKeys = Object.keys(item?.TechnicalParameters || {});
+  const editableFields = item.isEditing
+    ? ["Manufacturer", "Model", "Safety Class", ...techKeys]
+    : [];
+
+const dynamicSchema = React.useMemo(() => buildSchema(item, editableFields), [item, item.isEditing]);
+
+const uiSchema = React.useMemo(() => {
+  const baseOrder = ['equipmentId', 'Model', 'equipmentType', 'Manufacturer', 'Safety Class'];
+  const techParams = Object.keys(item?.TechnicalParameters || {}).sort();
+  return {
+    'ui:order': [...baseOrder, ...techParams],
+  };
+}, [item]);
+
+  const handleLocalChange = (val, name) => {
+    setDraft((prev) => {
+      let next = { ...prev, [name]: val };
+
+      if (['FlowRate', 'Power', 'CoolingCapacity', 'Surface Area'].includes(name)) {
+        next = {
+          ...next,
+          TechnicalParameters: {
+            ...prev.TechnicalParameters,
+            [name]: {
+              ...prev.TechnicalParameters?.[name],
+              val,
+            },
+          },
+        };
+      } else {
+        next = {
+          ...next,
+          properties: {
+            ...prev.properties,
+            [name]: {
+              ...prev.properties?.[name],
+              val,
+            },
+          },
+        };
+      }
+      return next;
+    });
+  };
+
+  const editRequests = countEdits(item.edited);
+  const hasEdits = editRequests > 0;
+  const showEditRequests =
+    item.revision?.endsWith("A") && item["revision status"] === "PENDING";
+
+  const handleEditClick = async () => {
+    if (item.isEditing) {
+      const hasChanges =
+        JSON.stringify(item.properties) !== JSON.stringify(draft.properties) ||
+        JSON.stringify(item.TechnicalParameters) !==
+          JSON.stringify(draft.TechnicalParameters);
+
+      if (hasChanges) {
+        await onSave(index, draft);
+      } else {
+        console.log("No changes detected, skipping save");
+        onToggleEdit(index);
+      }
+    } else {
+      onToggleEdit(index);
+    }
+  };
+
+  return (
+    <Paper key={item._id || index} className={classes.card}>
+      <div className={classes.headerRow}>
+        <Typography variant="subtitle1" style={{ fontWeight: "bold" }}>
+          Current Properties: {item.siteEquipmentId || item.equipmentId} (
+          {item.revision})
+        </Typography>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {canEdit ? <Button
+            className={classes.editButton}
+            size="small"
+            startIcon={
+              item.isEditing ? (
+                <SaveIcon fontSize="small" />
+              ) : (
+                <EditIcon fontSize="small" />
+              )
+            }
+            onClick={handleEditClick}
+            style={{
+              padding: "6px 14px",
+              minHeight: 34,
+              fontSize: "0.85rem",
+              marginLeft: "4px",
+            }}
+          >
+            {item.isEditing ? "Save" : "Edit"}
+          </Button>
+          : null}
+
+          {hasEdits && showEditRequests && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                backgroundColor: "#e6f0fa",
+                padding: "3px 8px",
+                borderRadius: 6,
+                height: 28,
+              }}
+            >
+              <Typography
+                style={{
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  color: "#1976d2",
+                  marginRight: 8,
+                  lineHeight: 1.2,
+                }}
+              >
+                Edit Requests ({editRequests})
+              </Typography>
+
+              <Typography
+                style={{
+                  fontSize: "0.8rem",
+                  color: "#1976d2",
+                  cursor: "pointer",
+                  marginRight: 6,
+                  lineHeight: 1.2,
+                }}
+                onClick={() => onReject(item)}
+              >
+                Reject
+              </Typography>
+
+              <Divider
+                orientation="vertical"
+                flexItem
+                style={{ margin: "0 6px", height: 16 }}
+              />
+
+              <Typography
+                style={{
+                  fontSize: "0.8rem",
+                  color: "#1976d2",
+                  cursor: "pointer",
+                  marginRight: 6,
+                  lineHeight: 1.2,
+                }}
+                onClick={() => onApprove(item)}
+              >
+                Accept
+              </Typography>
+
+              <AssignmentLateIcon style={{ color: "#1976d2", fontSize: 18 }} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <InfoComponent
+        entity={item.isEditing ? draft : item} 
+        type={dynamicSchema}
+        entityType="equipment"
+        hidePropertyActions={true}
+        disabled={!item.isEditing}
+        handleChange={handleLocalChange}
+        uiSchema={uiSchema}
+      />
+    </Paper>
+  );
+}
