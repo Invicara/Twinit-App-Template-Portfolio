@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {get} from "lodash";
+import { useSelector as useXstateSelector } from "@xstate/react";
 
 const SPACING = {
     titleBottom: 8,        // px under the title
@@ -104,7 +105,7 @@ function humanize(s) {
         .replace(/\b\w/g, c => c.toUpperCase());
 }
 
-export default function StatusPopup({ data, actor, config = {}, className }) {
+export default function StatusPopup({ data: initialData, actor, config = {}, className }) {
     const { statusPopup } = config;
     const {
         titleProp,
@@ -114,6 +115,38 @@ export default function StatusPopup({ data, actor, config = {}, className }) {
         statusAggregation,
         maxWidth = 260
     } = statusPopup || {};
+
+    // Subscribe to XState changes and merge with popup data
+    const currentState = useXstateSelector(actor, state => state);
+    const data = useMemo(() => {
+        // If the popup data's ID matches an entity in the current state, use the updated entity data
+        if (initialData && currentState?.context?.data) {
+            const entityType = statusPopup.entityType || Object.keys(currentState.context.data).find(type =>
+                currentState.context.data[type].some(entity =>
+                    entity.buildingId === initialData.buildingId ||
+                    entity.siteId === initialData.siteId ||
+                    entity._id === initialData._id
+                )
+            );
+
+            const namedPaths = currentState.context.namedPaths[0];
+            const namedPath = namedPaths.find(p => p.state === entityType);
+            const { idKey } = namedPath || {};
+
+            if (entityType) {
+                const updatedEntity = currentState.context.data[entityType]
+                    .find(entity => entity[idKey] === initialData?.properties?.[idKey]);
+
+                if (updatedEntity) {
+                    return { ...initialData, properties: {
+                        ...initialData.properties,
+                        ...updatedEntity
+                    }};
+                }
+            }
+        }
+        return initialData;
+    }, [initialData, currentState]);
 
     const title = titleProp ? get(data, titleProp, "") : "";
     const description = descriptionProp ? get(data, descriptionProp, "") : undefined;

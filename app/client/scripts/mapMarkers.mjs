@@ -1,10 +1,14 @@
 import mapboxgl from "mapbox-gl";
 import {markHandled} from "./mapEntryActions.mjs";
 import {get} from "lodash";
+import {FilterCompiler} from "../../ipaCore/pageComponents/utils/filters.global.js";
+import {getGlobalFilterFunctions} from "../../ipaCore/pageComponents/utils/filters.global.js";
+import {Mutex} from "./mutex.js";
 
 const PIE_SIZE  = 48;
 const PIE_ALPHA = 0.7; // (lower -> more transparent)
 
+export const markersMutex = new Mutex();//we have to lock on the markers map access
 const markers = new Map();
 
 function binIndexFor(val, bins) {
@@ -107,13 +111,10 @@ function wrapToView(lng, centerLng) {
     return lng;
 }
 
-function createSingleMarker(context, feature, {bins, property, showLabel = true, pieAlpha=true, getCounts = getBinCounts, popupConfig, send, featureDef, setPopupState}){
+function createSingleMarker(context, feature, {bins, property, showLabel = true, pieAlpha=true, getCounts = getBinCounts, getTotalCounts, popupConfig, send, featureDef, setPopupState, markerId}){
     const {map, namedPaths} = context;
-    const namedPath = namedPaths[0]
-    const {idKey, path} = featureDef;
-    const id = feature.id ?? feature.properties._id ?? JSON.stringify(feature.geometry.coordinates);
-    const keyVal = feature?.properties?.[idKey] ?? id;
-    const markerId = `${path}-${keyVal}`;
+    const namedPath = namedPaths[0];
+    const {path} = featureDef;
     let entry = markers.get(markerId);
     if(entry){
         return null;
@@ -121,13 +122,14 @@ function createSingleMarker(context, feature, {bins, property, showLabel = true,
     const coordinates = feature.geometry.coordinates;
 
     const counts = getCounts(map, feature, { bins, property});
-    const total = Object.values(counts).reduce((acc, cur) => acc+cur, 0);
+    const totalCounts = getTotalCounts ? getTotalCounts(map, feature, { bins, property}) : counts;
+    const total = Object.values(totalCounts).reduce((acc, cur) => acc+cur, 0);
     const color = total == 1 ? getBinColorFromCounts(counts, bins) : undefined;
     const { labelWrap, badge } = makeMarkerShell(PIE_SIZE, showLabel ? total : "", !showLabel ? color : undefined);
     const wrap = document.createElement('div');
     wrap.style.width = wrap.style.height = PIE_SIZE+'px';
     wrap.style.position = 'relative';
-    wrap.id = "SingleMarker-"+id;
+    wrap.id = "SingleMarker-"+markerId;
     wrap.setAttribute('class', 'singleMarker singleMarker-'+feature.properties.name);
     wrap.style.cursor = 'pointer';   // makes mouse turn to hand
     wrap.appendChild(labelWrap);
@@ -190,9 +192,17 @@ function createSingleMarker(context, feature, {bins, property, showLabel = true,
     }
 }
 
-function clearStaleMarkers(visibleMarkerIds){
+export function getMarkers() {
+    return markers;
+}
+
+export function addMarkers(graphic) {
+    markers.set(graphic.id, graphic);
+}
+
+export function clearStaleMarkers(staleMarkerIds){
     for (const id of Array.from(markers.keys())){
-        if (visibleMarkerIds && !visibleMarkerIds.has(id)){
+        if (staleMarkerIds && staleMarkerIds.includes(id)){
             //markers.get(id).marker.remove();//since moving to mmv command we have no marker access
             markers.delete(id);
         }
@@ -209,46 +219,64 @@ export function clearStaleMarkersByPath(path){
             markers.delete(id);
         }
     }
-    return markerIds;
+    return [...markerIds];
+}
+
+export function clearAllMarkers(){
+    markers.clear();
 }
 
 const getLevel = (stateName, namedPath) => namedPath.find(lvl => lvl.state === stateName);
 
-export async function renderAllMarkers(e, {context, self}, singleMarkers) {
+export async function renderAllMarkers(e, markersInfo, {self}) {
+    const context = self.getSnapshot().context;
     const {map} = context;
 
     let graphics = [];
 
-    for(const markersInfo of singleMarkers){
-        const {featureDef, config, ...restMarkerInfo} = markersInfo;
-        const {path} = featureDef;
+    const {featureDef, config, ...restMarkerInfo} = markersInfo;
+    const {path} = featureDef;
 
-        try {
-            const src = context.map.getSource(markersInfo.sourceId);
-            const data = src._data || src.serialize().data; // raw GeoJSON
-            const features = data?.features;
-            markersInfo.features = features;
-        } catch(e){
-            console.error(e);
-            markersInfo.features = [];
-        }
+    const fns = getGlobalFilterFunctions("site", true);
+    let features;
+    let allFeatures = [];
+    const filters = context?.filters?.[path];
+    try {
+        const src = context?.map?.getSource(markersInfo.sourceId);
+        const data = src ? (src._data || src.serialize().data) : [];
 
-        const sourceId = path+"-features";
-        if (e && e.sourceId === sourceId && e.hasOwnProperty("isSourceLoaded") && !e.isSourceLoaded){
-            continue;
+        features = data?.features;
+        allFeatures = features;
+
+        if(filters) {
+            const compiler = new FilterCompiler(fns)
+            const filterFn = compiler.compileFilter(filters);
+            features = features.filter(filterFn);
         }
-        else if (e && e.sourceId !== sourceId && e.type == "sourcedata"){
-            continue;
-        }
-        let markerGraphics = await Promise.all(markersInfo.features.map(async f => {
-            return  createSingleMarker(context, f,{...config, ...restMarkerInfo, featureDef, send: self.send, setPopupState: context.setPopupState});
-        }));
-        graphics.push(...markerGraphics.filter(m=>!!m));
+    } catch(e){
+        console.error(e);
+        features = [];
     }
-    graphics.forEach(graphic => {
-        markers.set(graphic.id,graphic);//track markers internally
+
+    const visibleFeatures  = features;
+
+    let markerGraphics = await Promise.all(features.map(async f => {
+        const {idKey, path} = featureDef;
+        const id = f.id ?? f.properties._id ?? JSON.stringify(f.geometry.coordinates);
+        const keyVal = f?.properties?.[idKey] ?? id;
+        const markerId = `${path}-${keyVal}`;
+        return {markerId, graphic: createSingleMarker(context, f,{...config, ...restMarkerInfo, markerId, featureDef, send: self.send, setPopupState: context.setPopupState})};
+    }));
+    graphics.push(...markerGraphics.filter(mg=>!!mg.graphic).map(mg=>mg.graphic));
+    const allFeaturesMarkerIds = allFeatures.map(f=>{
+        const {idKey, path} = featureDef;
+        const id = f.id ?? f.properties._id ?? JSON.stringify(f.geometry.coordinates);
+        const keyVal = f?.properties?.[idKey] ?? id;
+        const markerId = `${path}-${keyVal}`;
+        return markerId;
     })
-    return {graphics};
+    const currentMarkerIds = markerGraphics.map(mg => mg.markerId);
+    return {allFeatures, graphics, visibleFeatures, allFeaturesMarkerIds, currentMarkerIds, filters};
 }
 
 

@@ -12,33 +12,50 @@ function get(obj, path, defaultValue = "") {
 }
 
 function countsForSiteBuildings(map, feature, config) {
-    const bins = config.bins;
+     const { bins, property } = config;
     const counts = new Array(bins.length).fill(0);
     const buildings = feature.properties?.buildings || [];
+
     for (const b of buildings) {
-        const val = b[config.property];
+        const val = b?.[property];
+
         for (let i = 0; i < bins.length; i++) {
             const bin = bins[i];
-            const minOk = bin.min == null || val >= bin.min;
-            const maxOk = bin.max == null || val <  bin.max;
-            if (minOk && maxOk) {
-                counts[i] += 1;
-                break;
+
+            const hasRange = bin.min != null || bin.max != null;
+
+            if (hasRange) {
+                // numeric / capacity-style
+                const minOk = bin.min == null || val >= bin.min;
+                const maxOk = bin.max == null || val <  bin.max;
+                if (minOk && maxOk) {
+                    counts[i] += 1;
+                    break;
+                }
+            } else {
+                // categorical / type-style
+                if (
+                    bin.id === val ||
+                    (bin.value !== undefined && bin.value === val) ||
+                    bin.label === val // optional convenience
+                ) {
+                    counts[i] += 1;
+                    break;
+                }
             }
         }
     }
+
     return counts;
 }
 
-
-
 const statusConfig = {
     colorMap: {
-        "1": "#f50be9ff",// Planned
-        "2": "#0b84f5", // Construction
-        "3": "#10B981", // Operating
-        "4": "#EF4444", // Suspended
-        "5": "#6B7280", // Permanent Shutdown (gray-ish)
+        "1": "#d3d3d3",   // Not started / Planned (adjust if you want your old palette)
+        "2": "#f4b740",   // In Progress / Construction
+        "3": "#66bb6a",   // Completed / Operating
+        "4": "#e53935",   // At risk / Suspended Operation
+        "5": "#6B7280",   // Permanent Shutdown
         "unknown": "#CCCCCC",
     },
     labelMap: {
@@ -51,6 +68,25 @@ const statusConfig = {
     },
 }
 
+function countsForSiteECs(map, feature, config) {
+    let bins = config.bins;
+    const counts = new Array(bins.length).fill(0);
+    for (let i = 0; i < bins.length; i++) {
+        const bin = bins[i];
+        const val = bin.id && feature.properties?.ecsByStatus?.[bin.id]?._total;
+        if(val) {
+            counts[i] = val;
+        }
+    }
+    return counts;
+}
+
+function countsForSiteOpenECs(map, feature, config) {
+    return [(feature.properties?.ecsByStatus?.REGISTERED?._total || 0) + (feature.properties?.ecsByStatus?.APPROVED?._total || 0)];
+}
+
+
+
 
 const THEMES = {
     BY_CAPACITY: {
@@ -62,7 +98,17 @@ const THEMES = {
             { id: "ultra", min: 1450, max: null, color: "#1D1D1D", label: "≥1450" }
         ],
         "circle-radius": 7
-    }
+    },
+     BY_TYPE: {
+        property: "Type",
+        bins: [
+            { id: "typeA", color: "#8ecbff", label: "Type A" },
+            { id: "typeB", color: "#1DC0F7", label: "Type B" },
+            { id: "typeC", color: "#0072BC", label: "Type C" },
+            { id: "typeD", color: "#1D1D1D", label: "Type D" }
+        ],
+        "circle-radius": 7
+    },
 }
 
 
@@ -130,7 +176,7 @@ let scriptModule = {
         switch (stateValue) {
             case 'portfolio': {
 
-                const legend = THEMES.BY_CAPACITY;
+                const legend = THEMES.BY_TYPE;
 
                 const theme = {
                     ////we will kepp site invisible by default and only show marker instead
@@ -158,7 +204,7 @@ let scriptModule = {
                     },
                     sourceId: "site-features-centroids",
                     getCounts: countsForSiteBuildings,//this will overwrite the default bin assignment to feature
-                    config: THEMES.BY_CAPACITY,
+                    config: THEMES.BY_TYPE,
                     "popupConfig": {
                         "statusPopup": {
                             titleProp: "properties.name",
@@ -209,11 +255,11 @@ let scriptModule = {
             }
             case 'portfolio.site': {
 
-                const legend = THEMES.BY_CAPACITY;
+                const legend = THEMES.BY_TYPE;
 
                 const theme = {
                     //theme building features by Capacity property
-                    "building-features-layer": THEMES.BY_CAPACITY,
+                    "building-features-layer": THEMES.BY_TYPE,
                     //we will keep site features invisible by default
                     /*"site-features-layer": {
                         property: "buildings_count",//TODO: addept property to be a function
@@ -231,7 +277,8 @@ let scriptModule = {
                         idKey: "buildingId"
                     },
                     sourceId: "building-features" ,
-                    config: theme["building-features-layer"],
+                  //  config: theme["building-features-layer"],
+                    config: theme["building-features-centroids"],
                     showLabel: false,
                     pieAlpha: 0.3,
                     "popupConfig": {
@@ -249,7 +296,7 @@ let scriptModule = {
                 return { commands: null, theme, singleMarkers, legend };
             }
             case 'portfolio.site.building': {
-                const legend = THEMES.BY_CAPACITY;
+                const legend = THEMES.BY_TYPE;
                 return {legend}
             }
 
@@ -283,7 +330,45 @@ let scriptModule = {
         ]
 
         return commands;
-    }
+    },
+    filterRuleFns(input) {
+        return {
+            statusIn:
+            ({ values }) =>
+            (building) => {
+                if (building.StatusId == null) return false;
+                return values.map(String).includes(String(building.StatusId));
+            },
+
+            valueBetween:
+            ({ min, max }) =>
+            (building) => {
+                const cap = building.Capacity;
+                if (typeof cap !== "number") return false;
+
+                if (max == null) {
+                return cap >= min;
+                }
+
+                return cap >= min && cap < max;
+            },
+            searchQuery: ({ q }) => (e) => {
+                if (!q) return true;
+
+                const entity = e.properties || e;
+                const query = q.toLowerCase();
+
+                // List the fields you want to check
+                const fields = [
+                    entity?.name,
+                    entity?.siteId,
+                    entity?.buildingId
+                ];
+
+                return fields.filter(f=>!!f).some(field => field?.toLowerCase().includes(query));
+            },
+        };
+    },
 }
 
 export default scriptModule

@@ -12,7 +12,7 @@ export function useGraphicsVisibility({mapInstance, portContext}){
     const { send, actor } = portContext || {};
     const currentState = useXstateSelector(actor, state => state);
 
-    const meshFeaturesPerLevel = useMemo(() => {
+    const [meshFeaturesPerLevel, remainingMeshFeaturesPerLevel] = useMemo(() => {
         const levels = getActiveLevels(currentState);
 
         const valuesPerLevelKey = levels
@@ -24,23 +24,52 @@ export function useGraphicsVisibility({mapInstance, portContext}){
 
         const namedPaths = currentState.context.namedPaths[0];
         const namedPath = namedPaths.find(p => p.state === cElementType);
-        const lowerNamedPath = namedPaths.find(p => p.scopeLevel === namedPath.scopeLevel + 1);
+        const lowerNamedPath = namedPaths.find(p => p?.scopeLevel === namedPath?.scopeLevel + 1);
 
 
-        const meshLevels = levels.concat([lowerNamedPath]).filter(l => l.feature === "mesh");
+        const meshLevels = [...levels, ...(lowerNamedPath ? [lowerNamedPath] : [])]
+            .filter(l => l && l.feature === 'mesh');
+
+        /* prev - only features matching each level
         const meshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
             const featureIds = currentState.context.data[l.state]
-                .filter(el => valuesPerLevelKey.some(([k, v]) => el[k] === v))
+                .filter(el => valuesPerLevelKey.every(([k, v]) => el[k] === v))
                 .map(f => f[l.idKey]);
 
             return {[l.state]: featureIds}
         }));
+        */
 
-        return meshFeaturesPerLevel;
+        //new requirement - show buildings that belong to the same parent as well
+        //so you can position them relative to the other buildings
+        const meshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
+            const parentPath   = (currentState.context.namedPaths[0] || []).find(p => p.state === l.parentState);
+            const parentIdKey  = parentPath?.idKey;
+            const parentIdVal  = parentIdKey ? currentState.context[parentIdKey] : undefined;
+            let featureIds = [];
+            if(parentIdKey && parentIdVal != null) {
+                featureIds = (currentState.context.data[l.state] || [])
+                    // if this level has a parent, require child[parentIdKey] === context[parentIdKey]
+                    .filter(f => f[parentIdKey] === parentIdVal)
+                    .map(f => f[l.idKey]);
+            } else {
+                featureIds = (currentState.context.data[l.state] || [])
+                    .filter(f => valuesPerLevelKey.every(([k, v]) => f[k] === v))
+                    .map(f => f[l.idKey]);
+            }
+            return { [l.state]: featureIds };
+        }));
+
+        const remainingMeshFeaturesPerLevel = Object.assign({}, ...meshLevels.map(l => {
+            const allIds = currentState.context.data[l.state].map(f => f[l.idKey]);
+            const showIds = meshFeaturesPerLevel[l.state] || [];
+            const hideIds = allIds.filter(id => !showIds.includes(id));
+            return { [l.state]: hideIds };
+        }));
+
+        return [meshFeaturesPerLevel, remainingMeshFeaturesPerLevel];
 
     }, [currentState]);
-
-    const prevMeshFeaturesPerLevel = usePrevious(meshFeaturesPerLevel);
 
     // Main effect to handle 3D graphics visibility changes
     useEffect(() => {
@@ -49,51 +78,31 @@ export function useGraphicsVisibility({mapInstance, portContext}){
             return;
         }
 
-        console.log('UseGraphicsVisibility: Processing visibility changes', {
-            current: meshFeaturesPerLevel,
-            previous: prevMeshFeaturesPerLevel
-        });
-
         // Process each level's mesh features
         Object.keys(meshFeaturesPerLevel).forEach(levelKey => {
-            const currentFeatures = meshFeaturesPerLevel[levelKey] || [];
-            const previousFeatures = prevMeshFeaturesPerLevel?.[levelKey] || [];
-
-            // Skip if no changes for this level
-            if (JSON.stringify(currentFeatures) === JSON.stringify(previousFeatures)) {
-                console.log(`UseGraphicsVisibility: No changes for level ${levelKey}`);
-                return;
-            }
-
-            console.log(`UseGraphicsVisibility: Processing level ${levelKey}`, {
-                current: currentFeatures,
-                previous: previousFeatures
-            });
+            const featuresToShow = meshFeaturesPerLevel[levelKey] || [];
+            const featuresToHide = remainingMeshFeaturesPerLevel[levelKey] || [];
 
             // Get the 3D graphics controller for this level
             const sourceId = `${levelKey}-features`;
             const controller = get3DGraphicsController(mapInstance, sourceId);
 
+            console.log("LOOPING_VISIBILITY", {levelKey, featuresToShow, featuresToHide})
             if (!controller) {
                 console.warn(`UseGraphicsVisibility: No 3D graphics controller found for level ${levelKey} (sourceId: ${sourceId})`);
                 return;
             }
 
-            // First, ensure the layer is visible if we have features to show
-            if (currentFeatures.length > 0 && !controller.isVisible()) {
-                console.log(`UseGraphicsVisibility: Enabling layer visibility for ${levelKey}`);
-                controller.show();
+            // Hide removed features
+            if (featuresToHide.length > 0) {
+                console.log(`UseGraphicsVisibility: Hiding features for ${levelKey}:`, featuresToHide);
+                try {
+                    controller.hideFeatures(featuresToHide);
+                } catch (error) {
+                    console.error(`UseGraphicsVisibility: Error hiding features for ${levelKey}:`, error);
+                }
             }
 
-            // Find features to show (new features that weren't in previous)
-            const featuresToShow = currentFeatures.filter(featureId => 
-                !previousFeatures.includes(featureId)
-            );
-
-            // Find features to hide (features that were in previous but not in current)
-            const featuresToHide = previousFeatures.filter(featureId => 
-                !currentFeatures.includes(featureId)
-            );
 
             // Show new features
             if (featuresToShow.length > 0) {
@@ -105,52 +114,20 @@ export function useGraphicsVisibility({mapInstance, portContext}){
                 }
             }
 
-            // Hide removed features
-            if (featuresToHide.length > 0) {
-                console.log(`UseGraphicsVisibility: Hiding features for ${levelKey}:`, featuresToHide);
-                try {
-                    controller.hideFeatures(featuresToHide.filter(f => !f.includes(defaultNewBuildingId)));
-                } catch (error) {
-                    console.error(`UseGraphicsVisibility: Error hiding features for ${levelKey}:`, error);
-                }
-            }
-
             // If no current features, hide the entire layer for performance
-            if (currentFeatures.length === 0 && controller.isVisible()) {
+            if (featuresToShow.length === 0 && controller.isVisible()) {
                 console.log(`UseGraphicsVisibility: Hiding entire layer for ${levelKey} (no features)`);
                 controller.hide();
             }
+
+            // If no current features, hide the entire layer for performance
+            if (featuresToShow.length > 0 && !controller.isVisible()) {
+                console.log(`UseGraphicsVisibility: Showing layer for ${levelKey}`);
+                controller.show();
+            }                
         });
 
-        // Handle levels that existed previously but don't exist now
-        if (prevMeshFeaturesPerLevel) {
-            Object.keys(prevMeshFeaturesPerLevel).forEach(levelKey => {
-                if (!meshFeaturesPerLevel[levelKey]) {
-                    console.log(`UseGraphicsVisibility: Level ${levelKey} no longer exists, hiding all features`);
-                    
-                    const sourceId = `${levelKey}-features`;
-                    const controller = get3DGraphicsController(mapInstance, sourceId);
-                    
-                    if (controller && controller.isVisible()) {
-                        console.log(`UseGraphicsVisibility: Hiding entire layer for removed level ${levelKey}`);
-                        controller.hide();
-                    }
-                }
-            });
-        }
-
-    }, [mapInstance, meshFeaturesPerLevel, prevMeshFeaturesPerLevel]);
-
-    // Debug effect to log state changes
-    useEffect(() => {
-        if (process.env.NODE_ENV === 'development') {
-            console.log('UseGraphicsVisibility: State update', {
-                meshFeaturesPerLevel,
-                prevMeshFeaturesPerLevel,
-                hasMapInstance: !!mapInstance
-            });
-        }
-    }, [meshFeaturesPerLevel, prevMeshFeaturesPerLevel, mapInstance]);
+    }, [mapInstance, meshFeaturesPerLevel, remainingMeshFeaturesPerLevel]);
 
     return <></>
 }
