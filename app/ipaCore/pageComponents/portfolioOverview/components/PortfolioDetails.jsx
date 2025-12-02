@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
-import DeployStatusChart from '../DeployStatusBarChart';
-import SearchPanel from '../SearchPanel';
+import DeployStatusChart from './DeployStatusBarChart';
+import SearchPanel from './SearchPanel';
 import {Box} from "@mui/material";
 import {useDispatch, useSelector} from "react-redux";
 import {getFilter, setFilter} from "../../../redux/filters.js";

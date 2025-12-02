@@ -15,8 +15,6 @@ import { ModelContext } from '../../contexts/ModelContext'
 import ArrowDownwardIcon from '@material-ui/icons/ArrowDownward'
 import ArrowUpwardIcon from '@material-ui/icons/ArrowUpward'
 
-import ViewerBottomPanel from './panels/ViewerBottomPanel'
-
 import '@dtplatform/iaf-viewer/dist/iaf-viewer.css'
 import './SimpleViewerView.scss'
 const dataExample = [
@@ -249,7 +247,6 @@ useEffect(() => {
                   />
                 )}
               </div>
-              <ViewerBottomPanel isBottomECPanelOpen={isBottomECPanelOpen} items={dataExample} isSidePanelOpen={isAnyDrawerOpen}/>
             </div>
           </div>
         </Panel>
