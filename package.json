@@ -13,7 +13,7 @@
    },
    "keywords": [],
    "author": "Scott Mollon",
-   "dependencies": {
+    "dependencies": {
       "@arcgis/core": "^4.30.8",
       "@dtplatform/iaf-script-engine": "~4.6.0",
       "@dtplatform/iaf-viewer": "^5.0.98",
