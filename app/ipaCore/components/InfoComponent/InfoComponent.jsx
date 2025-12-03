@@ -20,7 +20,6 @@ import {makeLayouts} from "../jsonForms/layouts/Layouts.jsx";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import {flushSync} from "react-dom";
-import FlowPowerCellRenderer from './controls/FlowPowerCellRenderer.jsx';
 import {  rankWith, and, scopeEndsWith, isNumberControl } from '@jsonforms/core';
 
 const useStyles = makeStyles(() => ({
