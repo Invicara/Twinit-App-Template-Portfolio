@@ -1,4 +1,9 @@
 import { IafProj, IafSession, IafItemSvc } from '@dtplatform/platform-api';
+import { IafScriptEngine } from '@dtplatform/iaf-script-engine';
+import { CombinatorTranslationEnum } from '@jsonforms/core';
+
+//TODO REMOVE
+import { getSitesWithRelated } from '../../setup/scripts/omapi_entities.mjs';
 
 function splitStructureName(structureName) {
     return structureName.split(/[-_]/).filter(word => word !== 'Facility' && word !== 'Unit')
@@ -26,7 +31,11 @@ export async function getInitialTreeLevels() {
     if (response.ok) {
       const result = await response.json()
 
-      result._result.map((res) => {
+      const resultTest = await getSitesWithRelated(null, { PlatformApi: { IafItemSvc }, IafScriptEngine }, ctx);
+
+    console.log('getInitialTreeLevels result', resultTest);
+
+      resultTest.map((res) => {
         // Map through result._result
           const facilityNode = {
             id: res.name,
@@ -75,6 +84,7 @@ export async function getSystemLevel(structureName) {
 
     if (response.ok) {
       const result = await response.json()
+      console.log('getSystemLevel result', result);
       if (result._result.status === 200) {
         system = result._result.systemIds
       } else {

@@ -98,8 +98,10 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
                 const unitPromises = (node.children || []).map(unit => loadChildrenForNode(unit.id, deep))
                 children = await Promise.all(unitPromises)
                 children = children.flat()
+                console.log('Loaded level 1 children for node', children);
             } else if (node.level === 2) {
                 const systems = await getSystemLevel(node.structureName)
+                console.log('Fetched systems for node', nodeId, systems);
                 children = transformToTreeNodes(node.id, node.structureName, systems, 3)
             } else if (node.level === 3) {
                 const equipTypes = await getEquipTypeLevel(node.id, node.structureName)

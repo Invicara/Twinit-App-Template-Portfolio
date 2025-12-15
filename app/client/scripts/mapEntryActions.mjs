@@ -3455,8 +3455,26 @@ async function handleFeatureFilters(stateValue, levels, {context, self}) {
     return {manageFeatureFilters}
 }
 
-export async function onDataUpdatedAction({mapMachineInput }) {
-    return updateLayersFromData(mapMachineInput)
+export async function onDataUpdatedAction({ mapMachineInput }) {
+    const result = await updateLayersFromData(mapMachineInput);
+
+    const { context } = mapMachineInput;
+
+    // After sources/layers update, force all marker managers to recompute
+    if (context?.manageMarkers) {
+        Object.values(context.manageMarkers)
+            .filter(fn => typeof fn === 'function')
+            .forEach(fn => {
+                try {
+                    // pass null so the handler doesn’t early-return on sourceId checks
+                    fn(null);
+                } catch (err) {
+                    console.error('Error running manageMarkers on data update:', err);
+                }
+            });
+    }
+
+    return result || {};
 }
 export async function getInitAction({mapMachineInput }) {
     return addLayers(mapMachineInput)

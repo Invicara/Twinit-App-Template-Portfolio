@@ -257,7 +257,7 @@ const defaultChartCfg =  {
                 "4": "#e53935",   // At risk / Suspended Operation
                 "5": "#6B7280",   // Permanent Shutdown
                 "unknown": "#CCCCCC",
-        },
+            },
             labelMap: {
                 "1": "Planned",
                 "2": "Construction",
@@ -266,7 +266,7 @@ const defaultChartCfg =  {
                 "5": "Permanent Shutdown",
                 "unknown": "Unknown",
             },
-     },
+        },
         // keep a stable legend order
         order: (keys) => {
             const pref = ['1','2','4','3','5','unknown']; // your desired sequence

@@ -47,7 +47,7 @@ if(!_.isEmpty(selectedSiteEquipObj.siteEquipName)) {
 
   if(ecWithLogs.rejectedSEIds) rejectedIDs = ecWithLogs.rejectedSEIds
 
-  // push into ModelContext like EngineeringChangesTab does
+  // push into ModelContext
   setSiteEquipment({
     data: ecWithLogs.successLogs,
     EC: {}
@@ -91,6 +91,8 @@ export default function SiteEquipmentTab({levelData, loadingLevelData, hasFetche
   const [searchText, setSearchText] = useState('')
   const [rejectedIds, setRejectedIds] = useState()
   const [indeterminateItems, setIndeterminateItems] = useState({})
+
+  console.log('levelData in SiteEquipmentTab:', levelData);
 
   const handleNodeToggle = (_, nodes) => setExpanded(nodes)
 
@@ -158,11 +160,11 @@ const handleSearchKeyDown = (e) => {
     return;
   }
 
-  // ✅ Clear previous selections — start fresh each time
+  // Clear previous selections — start fresh each time
   const updated = {};
   matchedIds.forEach(id => (updated[id] = true));
 
-  // ✅ Recalculate tree state
+  // Recalculate tree state
   const { checkedItems: cleanedChecked, indeterminateItems: newIndeterminate } =
     calculateTreeSelectionState(levelData, updated);
 
@@ -202,7 +204,7 @@ const handleSearchKeyDown = (e) => {
       ) : hasFetched && _.isEmpty(levelData) ? (
         <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" py={6}>
           <Typography variant="h6" color="textSecondary" gutterBottom>
-            Sorry, there are no site equipments to show.
+            Sorry, there are entities to show.
           </Typography>
           <Typography variant="body2" color="textSecondary">
             Try selecting a different filter or building.

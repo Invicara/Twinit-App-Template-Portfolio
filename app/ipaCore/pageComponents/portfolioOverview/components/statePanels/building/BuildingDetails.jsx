@@ -28,6 +28,7 @@ export default function BuildingDetails({ context }) {
         const cElementType = sPath?.split(".")?.slice(-1)?.[0];
 
         const namedPaths = currentState.context.namedPaths[0];
+        console.log('namedPaths:', namedPaths);
 
         const namedPath = namedPaths.find(p => p.state === cElementType);
         const { idKey } = namedPath;
@@ -46,6 +47,44 @@ export default function BuildingDetails({ context }) {
         return [levels, cElementType, namedPaths, namedPath, idKey, entityId, currentEntity, lowerLevelState, higherNamedPath, lowerNamedPath];
 
     }, [currentState]);
+
+      const syncBuildingIntoParent = React.useCallback(
+        (baseData, modifier) => {
+            // Only relevant when we’re editing buildings and we know the parent level
+            if (currentElementType !== 'building' || !higherNamedPath) {
+                return baseData;
+            }
+
+            const parentState = higherNamedPath.state;     // e.g. 'site'
+            const parentIdKey = higherNamedPath.idKey;     // e.g. 'siteId'
+            const parentId =
+                currentEntity?.[parentIdKey] ??
+                currentState.context?.[parentIdKey];
+
+            if (!parentId) return baseData;
+
+            const data = _.cloneDeep(baseData);
+            const parents = data[parentState] || [];
+
+            data[parentState] = parents.map(parent => {
+                if (parent[parentIdKey] !== parentId) return parent;
+
+                const buildings = Array.isArray(parent.buildings)
+                    ? parent.buildings
+                    : [];
+
+                const updatedBuildings = modifier(buildings);
+
+                return {
+                    ...parent,
+                    buildings: updatedBuildings
+                };
+            });
+
+            return data;
+        },
+        [currentElementType, higherNamedPath, currentEntity, currentState.context, idKey]
+    );
 
     const { mapInstance } = useContext(MapContext);
     const dispatch = useDispatch();
@@ -86,28 +125,32 @@ export default function BuildingDetails({ context }) {
     }, [currentEntity])
 
     // Handle entity property changes
-    const handleEntityChange = (newValue, propertyName, metadata) => {
+         const handleEntityChange = (newValue, propertyName, metadata) => {
         if (!currentEntity || (propertyName === idKey && newValue === undefined)) return;
 
-        // Store the old entityId for comparison
         const oldEntityId = currentEntity[idKey];
 
-        // Update the entity object
+        // Updated version of the building/entity
         const updatedEntity = {
             ...currentEntity,
             [propertyName]: newValue
         };
 
-        // Update XState context - operate on entity data
         const currentData = currentState.context?.data || {};
-        const currentEntities = currentData?.[currentElementType] || [];
-        const updatedEntities = currentEntities.map(b =>
+        let updatedData = _.cloneDeep(currentData);
+
+        // 1) Update flat collection (e.g. data.building)
+        const currentEntities = updatedData[currentElementType] || [];
+        updatedData[currentElementType] = currentEntities.map(b =>
             b[idKey] === entityId ? updatedEntity : b
         );
-        const updatedData = {
-            ...currentData,
-            [currentElementType]: updatedEntities
-        };
+
+        // 2) Keep site.buildings in sync (important for charts/markers)
+        updatedData = syncBuildingIntoParent(updatedData, buildings =>
+            buildings.map(b =>
+                b[idKey] === entityId ? { ...b, ...updatedEntity } : b
+            )
+        );
 
         // Send event to update XState context with new data
         send({
@@ -116,18 +159,19 @@ export default function BuildingDetails({ context }) {
         });
 
         // If entityId was changed, navigate to the new entityId to maintain selection
-        if (["structureName", idKey].includes(propertyName) && newValue !== oldEntityId && newValue.length) {
+        if (['structureName', idKey].includes(propertyName) &&
+            newValue !== oldEntityId &&
+            newValue?.length
+        ) {
             console.log('EntityId changed, navigating to new entity:', { oldEntityId, newEntityId: newValue });
 
-            // Send GO_TO action to navigate to the updated entityId
-            if(propertyName === idKey){
+            if (propertyName === idKey) {
                 send({
                     type: 'GO_TO',
                     ...lowerLevelState,
                     [idKey]: newValue
                 });
             }
-
         }
 
         console.log('Entity property updated:', { propertyName, newValue, updatedEntity });
@@ -156,32 +200,26 @@ export default function BuildingDetails({ context }) {
     };
 
     // Handle canceling edit mode
-    const handleCancelEdit = () => {
-
-        // Check if the entity is a draft - if so, remove it from the map entirely
+      const handleCancelEdit = () => {
+        // Draft → delete entirely
         if (currentEntity?.isDraft) {
+            console.log('Canceling draft entity, removing from map:', { mapInstance, entityId, namedPath });
 
-            console.log('Canceling draft entity, removing from map:', {mapInstance, entityId, namedPath});
-
-            // Remove the draft entity from the data entirely
             const currentData = currentState.context?.data || {};
-            const currentEntities = currentData[currentElementType] || [];
-            const filteredEntities = currentEntities.filter(b => b[idKey] !== entityId);
-            const updatedData = {
-                ...currentData,
-                [currentElementType]: filteredEntities
-            };
+            let updatedData = _.cloneDeep(currentData);
 
-            // Update XState context with filtered data
-            send({
-                type: 'UPDATE_DATA',
-                data: updatedData
-            });
+            // Remove from flat collection
+            const currentEntities = updatedData[currentElementType] || [];
+            updatedData[currentElementType] = currentEntities.filter(b => b[idKey] !== entityId);
 
-            // Navigate back to site level since the entity no longer exists
-            send({
-                type: 'END_DRAFT'
-            });
+            // Remove from parent site.buildings as well
+            updatedData = syncBuildingIntoParent(updatedData, buildings =>
+                buildings.filter(b => b[idKey] !== entityId)
+            );
+
+            send({ type: 'UPDATE_DATA', data: updatedData });
+
+            send({ type: 'END_DRAFT' });
             send({
                 type: 'GO_TO',
                 ...lowerLevelState,
@@ -192,138 +230,136 @@ export default function BuildingDetails({ context }) {
             return;
         }
 
-        handleEntityChange(cachedOriginalEntity.structureName, "structureName");
         if (!cachedOriginalEntity) return;
+
         setCachedPositioning(null);
         setIsPositioningMode(false);
 
-        // For non-draft entities, restore the original entity data
         const currentData = currentState.context?.data || {};
-        const currentEntities = currentData[currentElementType] || [];
-        const restoredEntities = currentEntities.map(b =>
+        let updatedData = _.cloneDeep(currentData);
+
+        // Restore flat collection
+        const currentEntities = updatedData[currentElementType] || [];
+        updatedData[currentElementType] = currentEntities.map(b =>
             b[idKey] === entityId ? cachedOriginalEntity : b
         );
-        const restoredData = {
-            ...currentData,
-            [currentElementType]: restoredEntities
-        };
 
-        // Update XState context with restored data
-        send({
-            type: 'UPDATE_DATA',
-            data: restoredData
-        });
-        send({
-            type: 'END_DRAFT'
-        });
+        // Restore parent site.buildings copy
+        updatedData = syncBuildingIntoParent(updatedData, buildings =>
+            buildings.map(b =>
+                b[idKey] === entityId ? { ...b, ...cachedOriginalEntity } : b
+            )
+        );
+
+        send({ type: 'UPDATE_DATA', data: updatedData });
+        send({ type: 'END_DRAFT' });
 
         console.log('Edit cancelled, entity restored:', { original: cachedOriginalEntity, entityId });
     };
 
     // Handle entity submission (finalize draft)
-    const handleSubmitEntity = async () => {
+       const handleSubmitEntity = async () => {
         if (!currentEntity || !mapInstance || !currentState.context?.namedPaths) return;
 
-        // Step 2: Update the entity to mark it as no longer draft
         const finalizedEntity = { ...currentEntity };
         delete finalizedEntity.isDraft;
 
-        // Update XState context
         const currentData = currentState.context?.data || {};
-        const currentEntities = currentData[currentElementType] || [];
-        const updatedEntities = currentEntities.map(s =>
-            s[idKey] === entityId ? finalizedEntity : s
-        );
-        const updatedData = {
-            ...currentData,
-            [currentElementType]: updatedEntities
-        };
+        let updatedData = _.cloneDeep(currentData);
+
+        // 1) Update flat building collection (add or replace)
+        const currentEntities = updatedData[currentElementType] || [];
+        const idx = currentEntities.findIndex(s => s[idKey] === entityId);
+        if (idx === -1) {
+            updatedData[currentElementType] = [...currentEntities, finalizedEntity];
+        } else {
+            updatedData[currentElementType] = currentEntities.map(s =>
+                s[idKey] === entityId ? finalizedEntity : s
+            );
+        }
+
+        // 2) Ensure parent site.buildings contains the same finalized entity
+        updatedData = syncBuildingIntoParent(updatedData, buildings => {
+            const bIdx = buildings.findIndex(b => b[idKey] === entityId);
+            if (bIdx === -1) {
+                return [...buildings, finalizedEntity];
+            }
+            return buildings.map(b =>
+                b[idKey] === entityId ? { ...b, ...finalizedEntity } : b
+            );
+        });
 
         setCachedPositioning(null);
         setIsPositioningMode(false);
 
-        // Send event to update XState context with finalized entity
-        send({
-            type: 'UPDATE_DATA',
-            data: updatedData
-        });
+        send({ type: 'UPDATE_DATA', data: updatedData });
 
-        // Step 4: Pre-select the new entity with a GO_TO operation
-
-        send({
-            type: 'END_DRAFT'
-        });
+        send({ type: 'END_DRAFT' });
         send({
             type: 'GO_TO',
             ...lowerLevelState,
             [idKey]: finalizedEntity[idKey]
         });
 
-        if(namedPath.parentState){
-            const parentPath = namedPaths.find(el => el.state === namedPath.parentState);
-            const parentColl = (await IafItemSvc.getNamedUserItems({query: {_shortName: parentPath.collShortName}}))._list[0];
+        if (namedPath.parentState) {
+            const parentPath = currentState.context.namedPaths[0].find(el => el.state === namedPath.parentState);
+            const parentColl = (await IafItemSvc.getNamedUserItems({ query: { _shortName: parentPath.collShortName } }))._list[0];
 
             const parentEntity = currentState.context.data[parentPath.state]
-                .find(el => [currentState.context[parentPath.idKey], finalizedEntity[parentPath.idKey]].includes(el[parentPath.idKey]))
+                .find(el => [currentState.context[parentPath.idKey], finalizedEntity[parentPath.idKey]].includes(el[parentPath.idKey]));
 
             finalizedEntity._relationships = [{
-                "_relatedUserItemId": parentColl._userItemId,
-                "_relatedToIds": [
-                    parentEntity._id
-                ]
-            }]
+                _relatedUserItemId: parentColl._userItemId,
+                _relatedToIds: [parentEntity._id]
+            }];
         }
 
-        //item service creation side effect
-        const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
+        const coll = (await IafItemSvc.getNamedUserItems({ query: { _shortName: namedPath.collShortName } }))._list[0];
         const result = await IafItemSvc.createRelatedItems(coll._userItemId, [finalizedEntity]);
 
-        console.log('Entity submitted and finalized:', {finalizedEntity, result});
+        console.log('result', result);
+        console.log('Entity submitted and finalized:', { finalizedEntity, result });
     };
 
     // Handle saving edit mode
-    const handleSaveEdit = async () => {
+     const handleSaveEdit = async () => {
         if (!currentEntity || !cachedOriginalEntity) return;
 
-        // Check if there were any changes
         const hasChanges = !_.isEqual(
             _.omit(currentEntity, ['isEditing']),
             _.omit(cachedOriginalEntity, ['isEditing'])
         );
 
-        // Finalize the edited entity (remove isEditing flag)
         const finalizedEntity = { ...currentEntity };
         delete finalizedEntity.isEditing;
 
-        // Update XState context
         const currentData = currentState.context?.data || {};
-        const currentEntities = currentData[currentElementType] || [];
-        const updatedEntities = currentEntities.map(b =>
+        let updatedData = _.cloneDeep(currentData);
+
+        // 1) Update flat collection
+        const currentEntities = updatedData[currentElementType] || [];
+        updatedData[currentElementType] = currentEntities.map(b =>
             b[idKey] === entityId ? finalizedEntity : b
         );
-        const updatedData = {
-            ...currentData,
-            [currentElementType]: updatedEntities
-        };
 
-        // Send event to update XState context with finalized entity
-        send({
-            type: 'UPDATE_DATA',
-            data: updatedData
-        });
-        send({
-            type: 'END_DRAFT'
-        });
+        // 2) Update parent site.buildings
+        updatedData = syncBuildingIntoParent(updatedData, buildings =>
+            buildings.map(b =>
+                b[idKey] === entityId ? { ...b, ...finalizedEntity } : b
+            )
+        );
+
+        send({ type: 'UPDATE_DATA', data: updatedData });
+        send({ type: 'END_DRAFT' });
 
         setCachedPositioning(null);
         setIsPositioningMode(false);
 
-        // If there were changes, update the backend
         if (hasChanges) {
             try {
-                const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
+                const coll = (await IafItemSvc.getNamedUserItems({ query: { _shortName: namedPath.collShortName } }))._list[0];
                 const result = await IafItemSvc.updateRelatedItems(coll._userItemId, [finalizedEntity]);
-                console.log('Entity updated successfully:', {finalizedEntity, result});
+                console.log('Entity updated successfully:', { finalizedEntity, result });
             } catch (error) {
                 console.error('Error updating entity:', error);
             }
@@ -385,95 +421,85 @@ export default function BuildingDetails({ context }) {
         try {
             console.log('Deleting entity:', { entityId, currentEntity });
 
-            // 1. Apply UPDATE_DATA action removing the entity
             const currentData = currentState.context?.data || {};
-            const currentEntities = currentData[currentElementType] || [];
-            const filteredEntities = currentEntities.filter(e => e[idKey] !== entityId);
-            const updatedData = {
-                ...currentData,
-                [currentElementType]: filteredEntities
-            };
+            let updatedData = _.cloneDeep(currentData);
 
-            // Update XState context with filtered data
-            send({
-                type: 'UPDATE_DATA',
-                data: updatedData
-            });
+            // 1) Remove from flat collection
+            const currentEntities = updatedData[currentElementType] || [];
+            updatedData[currentElementType] = currentEntities.filter(e => e[idKey] !== entityId);
 
-            // 3. Get the collection and delete from backend
-            const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
+            // 2) Remove from parent site.buildings
+            updatedData = syncBuildingIntoParent(updatedData, buildings =>
+                buildings.filter(b => b[idKey] !== entityId)
+            );
+
+            send({ type: 'UPDATE_DATA', data: updatedData });
+
+            const coll = (await IafItemSvc.getNamedUserItems({ query: { _shortName: namedPath.collShortName } }))._list[0];
             const result = await IafItemSvc.deleteRelatedItem(coll._userItemId, currentEntity._id);
 
             console.log('Entity deleted successfully:', { entityId, result });
 
-            // Navigate back to higher level since the entity no longer exists
-
-            send({
-                type: 'END_DRAFT'
-            });
+            send({ type: 'END_DRAFT' });
             send({
                 type: 'GO_TO',
                 ...lowerLevelState,
                 [idKey]: null
             });
 
-            // Close the modal
             setDeleteModalOpen(false);
-
         } catch (error) {
             console.error('Error deleting entity:', error);
-            // You might want to show an error message to the user here
         }
     };
 
     // Handle positioning value changes
     const handlePositioningChange = (modification) => {
-        const newPosition = _.cloneDeep(modification)
+        const newPosition = _.cloneDeep(modification);
         if (!currentEntity) return;
 
-        for(let k of Object.keys(newPosition)){
-            if(!newPosition[k] || Number.isNaN(newPosition[k])){
+        for (let k of Object.keys(newPosition)) {
+            if (!newPosition[k] || Number.isNaN(newPosition[k])) {
                 delete newPosition[k];
             } else {
                 newPosition[k] = parseFloat(newPosition[k]);
             }
         }
 
-        // Update the entity with new positioning value
         const updatedEntity = {
             ...currentEntity,
             ...newPosition
         };
 
-        // Update XState context
         const currentData = currentState.context?.data || {};
-        const currentEntities = currentData[currentElementType] || [];
-        const updatedEntities = currentEntities.map(b =>
+        let updatedData = _.cloneDeep(currentData);
+
+        // 1) Update flat collection
+        const currentEntities = updatedData[currentElementType] || [];
+        updatedData[currentElementType] = currentEntities.map(b =>
             b[idKey] === entityId ? updatedEntity : b
         );
-        const updatedData = {
-            ...currentData,
-            [currentElementType]: updatedEntities
-        };
 
-        // Send event to update XState context with new data
-        send({
-            type: 'UPDATE_DATA',
-            data: updatedData
-        });
+        // 2) Update parent site.buildings
+        updatedData = syncBuildingIntoParent(updatedData, buildings =>
+            buildings.map(b =>
+                b[idKey] === entityId ? { ...b, ...updatedEntity } : b
+            )
+        );
+
+        send({ type: 'UPDATE_DATA', data: updatedData });
 
         setTimeout(() => {
             controller?.disableInteraction();
-            controller.enableTransform(entityId, (transformData) => {
+            controller?.enableTransform(entityId, (transformData) => {
                 debounceHandlePositionChange({
                     longitude: transformData.position[0],
                     latitude: transformData.position[1],
                     rotation: transformData.rotation,
                     size: transformData.size
-                })
+                });
             });
         }, 400);
-
     };
 
     const debounceHandlePositionChange = useDebounce(handlePositioningChange, 300);
@@ -516,37 +542,38 @@ export default function BuildingDetails({ context }) {
     };
 
     // Cancel positioning mode
-    const cancelPositioningMode = () => {
-        // Restore cached positioning values if positioning is cancelled
+   const cancelPositioningMode = () => {
         if (cachedPositioning && currentEntity) {
             const currentData = currentState.context?.data || {};
-            const currentEntities = currentData[currentElementType] || [];
-            const restoredEntities = currentEntities.map(b =>
-                b[idKey] === entityId ? { ...b, ...cachedPositioning } : b
-            );
-            const restoredData = {
-                ...currentData,
-                [currentElementType]: restoredEntities
+            let updatedData = _.cloneDeep(currentData);
+
+            const restoredEntity = {
+                ...currentEntity,
+                ...cachedPositioning
             };
 
-            // Update XState context with restored data
-            send({
-                type: 'UPDATE_DATA',
-                data: restoredData
-            });
+            // flat collection
+            const currentEntities = updatedData[currentElementType] || [];
+            updatedData[currentElementType] = currentEntities.map(b =>
+                b[idKey] === entityId ? restoredEntity : b
+            );
 
-            send({
-                type: 'END_DRAFT'
-            });
+            // site.buildings
+            updatedData = syncBuildingIntoParent(updatedData, buildings =>
+                buildings.map(b =>
+                    b[idKey] === entityId ? { ...b, ...restoredEntity } : b
+                )
+            );
 
+            send({ type: 'UPDATE_DATA', data: updatedData });
+            send({ type: 'END_DRAFT' });
         }
 
-        // Clear cached positioning
         setCachedPositioning(null);
         setIsPositioningMode(false);
         console.log('Cancelled positioning mode');
     };
-
+    
     // Toggle positioning mode
     const togglePositioningMode = () => {
         if (isPositioningMode) {

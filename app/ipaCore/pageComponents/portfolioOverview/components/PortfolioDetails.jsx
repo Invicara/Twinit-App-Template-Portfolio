@@ -20,10 +20,10 @@ const sampleFormConfig = {
             rule: "statusIn",
             options: (ctx) => {
                 const labelMap = {
-                    "1": "Not started",
-                    "2": "In Progress",
-                    "3": "Completed",
-                    "4": "At risk",
+                    "1": "Planned",
+                    "2": "Construction",
+                    "3": "Operating",
+                    "4": "Suspended Operation",
                     "5": "Permanent Shutdown",
                     "unknown": "Unknown",
                 }
@@ -250,21 +250,21 @@ const defaultChartCfg =  {
         keyProp: (b) => String(b?.StatusId ?? 'unknown'),
         config: {
              colorMap: {
-         "1": "#d3d3d3",   // Not started / Planned (adjust if you want your old palette)
+                "1": "#d3d3d3",   // Not started / Planned (adjust if you want your old palette)
                 "2": "#f4b740",   // In Progress / Construction
                 "3": "#66bb6a",   // Completed / Operating
                 "4": "#e53935",   // At risk / Suspended Operation
                 "5": "#6B7280",   // Permanent Shutdown
                 "unknown": "#CCCCCC",
-    },
-    labelMap: {
-        "1": "Planned",
-        "2": "Construction",
-        "3": "Operating",
-        "4": "Suspended Operation",
-        "5": "Permanent Shutdown",
-        "unknown": "Unknown",
-    },
+        },
+            labelMap: {
+                "1": "Planned",
+                "2": "Construction",
+                "3": "Operating",
+                "4": "Suspended Operation",
+                "5": "Permanent Shutdown",
+                "unknown": "Unknown",
+            },
         },
         // keep a stable legend order
         order: (keys) => {
