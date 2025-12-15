@@ -21,10 +21,10 @@ const sampleFormConfig = {
             rule: "statusIn",
             options: (ctx) => {
                 const labelMap = {
-                    "1": "Not started",
-                    "2": "In Progress",
-                    "3": "Completed",
-                    "4": "At risk",
+                    "1": "Planned",
+                    "2": "Construction",
+                    "3": "Operating",
+                    "4": "Suspended Operation",
                     "5": "Permanent Shutdown",
                     "unknown": "Unknown",
                 }
@@ -299,6 +299,9 @@ export default function PortfolioDetails({ context, userConfig, snapshot, send, 
         send({ type: 'UPDATE_FILTERS', filters: globalFilters });
     },[globalFilters]);
 
+
+    console.log('PortfolioDetails context', context);
+    console.log('PortfolioDetails globalFilters', globalFilters);
 
     return (
         <div>

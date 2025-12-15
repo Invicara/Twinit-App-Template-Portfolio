@@ -96,7 +96,7 @@ const AssetOverviewView = () => {
           }}
         >
             <>
-                <p className="table-panel-header">Equipments</p>
+                <p className="table-panel-header">Assets</p>
                 <Box sx={{ flex: 1, minHeight: 0 }}>
                   <AssetTable 
                     rows={equipData} 

@@ -95,7 +95,7 @@ const SortingDropdown = ({sortedTableData, setSortedTableData}) => {
 }
 
 const FilterdDropdown = ({selectedFilter, setSelectedFilter}) => {
-    const filterOptions = ['Equipment Name', 'Name ID', 'Equipment Type', 'Manufacturer', 'Model']
+    const filterOptions = ['Name', 'Name ID', 'Type', 'Manufacturer', 'Model']
 
     const classes = useStyles()
 
@@ -170,13 +170,13 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
 
         const matchesFilter = (item) => {
             switch (selectedFilter) {
-                case 'Equipment Name':
+                case 'Name':
                     return item.EquipmentName?.toLowerCase().includes(lowerKeyword)
                 
                 case 'Name ID':
                     return item.nameId?.toLowerCase().includes(lowerKeyword)
                 
-                case 'Equipment Type':
+                case 'Type':
                 case 'Manufacturer':
                 case 'Model':
                     return getPropertyValue(item, selectedFilter).includes(lowerKeyword)
@@ -354,12 +354,12 @@ const AssetTable = ({ rows }) => {
                         <StyledTableHeadRow>
                             <TableCell className="asset-table-header-cell" sx={{ width: '30%' }}>
                                 <div>
-                                    <p>Equipment Name</p>
+                                    <p>Name</p>
                                     <SortingDropdown sortedTableData={sortedTableData} setSortedTableData={setSortedTableData}/>
                                 </div>
                             </TableCell>
                             <TableCell className="asset-table-header-cell">Name ID</TableCell>
-                            <TableCell className="asset-table-header-cell">Equipment Type</TableCell>
+                            <TableCell className="asset-table-header-cell">Type</TableCell>
                             <TableCell className="asset-table-header-cell">Manufacturer</TableCell>
                             <TableCell className="asset-table-header-cell">Model</TableCell>
                         </StyledTableHeadRow>
@@ -385,8 +385,8 @@ const AssetTable = ({ rows }) => {
                                 >
                                     <Box sx={{ maxWidth: 400 }}>
                                         <i className="fas fa-search"></i>
-                                        <p className="no-equip-header">No Equipment selected</p>
-                                        <p>Use the panel on the left to browse the filter tree and view equipment data.</p>
+                                        <p className="no-equip-header">No Elements selected</p>
+                                        <p>Use the panel on the left to browse the filter tree and view data.</p>
                                     </Box>
                                 </Box>
                             </TableCell>
@@ -395,7 +395,7 @@ const AssetTable = ({ rows }) => {
                                 <StyledTableRow key={idx}>
                                     <TableCell sx={{ width: '30%' }}>{row.EquipmentName}</TableCell>
                                     <TableCell>{row.nameId}</TableCell>
-                                    <TableCell>{getPropertyValue(row, 'Equipment Type')}</TableCell>
+                                    <TableCell>{getPropertyValue(row, 'Type')}</TableCell>
                                     <TableCell>{getPropertyValue(row, 'Manufacturer')}</TableCell>
                                     <TableCell>{getPropertyValue(row, 'Model')}</TableCell>
                                 </StyledTableRow>

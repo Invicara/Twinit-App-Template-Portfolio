@@ -348,10 +348,10 @@ export default function DeployStatusChart({ handler, context, onFilterChange, ch
 
 
   const matrix = useMemo(() => deriveChartMatrix({
-    data: context.data,
-    fns,
-    chartCfg
-  }), [context.data]);
+  data: context.data,
+  fns,
+  chartCfg
+}), [context.data]);
 
   const chartData = useMemo(() => buildChartData(matrix), [matrix]);
 

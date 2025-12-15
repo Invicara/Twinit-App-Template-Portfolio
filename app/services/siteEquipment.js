@@ -783,3 +783,138 @@ function cleanForApi(equipment) {
     TechnicalParameters: cleanTechs,
   };
 }
+
+function extractSiteEquipRevs(res) {
+  const extractedData = [];
+
+  // Step 1: Get latest revision and add top-level fields
+  res[0].siteEquipment.forEach((equip) => {
+    if (equip.revisions && equip.revisions.length > 0) {
+      const latestRevision = { ...equip.revisions[0] };
+
+      // Add top-level fields to the revision object
+      latestRevision.siteEquipmentId = equip["Site Equipment Id"] || null;
+      latestRevision.equipmentType = equip.equipmentType || null;
+
+      extractedData.push(latestRevision);
+    }
+  });
+
+  // Step 2: Transform properties + TechnicalParameters into keyed objects
+  const transformedData = extractedData.map((rev) => {
+    // Transform `properties`
+    const propsObj =
+      rev.properties?.reduce((acc, prop) => {
+        acc[prop.name] = {
+          val: prop.val,
+          type: prop.type,
+        };
+        return acc;
+      }, {}) || {};
+
+    // Transform `TechnicalParameters`
+    const techParamsObj =
+      rev.TechnicalParameters?.reduce((acc, param) => {
+        acc[param.name] = {
+          val: param.val,
+          type: param.type,
+          unit: param.unit,
+        };
+        return acc;
+      }, {}) || {};
+
+    return {
+      ...rev,
+      properties: propsObj,
+      TechnicalParameters: techParamsObj,
+    };
+  });
+  return transformedData;
+}
+
+export async function treeLevels(facility, unit) {
+  const ctx = IafProj.getCurrent();
+  const token = IafSession.getAuthToken(ctx);
+  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+
+  try {
+    // Get all system IDs
+    const firstUrl = `${baseOmapiUrl}/siteequip/facilities/${facility}/units/${unit}/systems`;
+    const firstRes = await fetch(firstUrl, { headers, mode: "cors" });
+
+    if (!firstRes.ok) throw new Error(`First-level fetch failed: ${firstRes.status}`);
+    const firstJson = await firstRes.json();
+    const systemIds = firstJson?._result?.systemIds || [];
+
+    let finalData = systemIds.map(systemId => ({
+      id: systemId,
+      name: systemId,
+      children: [],
+    }));
+
+    // Fetch all equipment types
+    const secondLevelResponses = await Promise.all(
+      systemIds.map(systemId => {
+        const secondUrl = `${baseOmapiUrl}/siteequip/facilities/${facility}/units/${unit}/systems/${systemId}/equipmenttypes`;
+        return fetch(secondUrl, { headers, mode: "cors" }).then(res => res.json());
+      })
+    );
+
+    // Attach equipment types to finalData
+    for (const result of secondLevelResponses) {
+      const { systemId, equipmentTypes } = result._result || {};
+      const systemNode = finalData.find(sys => sys.id === systemId);
+      if (systemNode && Array.isArray(equipmentTypes)) {
+        systemNode.children = equipmentTypes.map(eqType => ({
+          id: `${systemId}/${eqType}`,
+          name: eqType,
+          children: [],
+        }));
+      }
+    }
+
+    // Fetch all equipment for each equipment type
+    const equipmentFetches = [];
+    for (const system of finalData) {
+      for (const type of system.children) {
+        const typeIdOnly = type.name;
+        const thirdUrl = `${baseOmapiUrl}/siteequip/facilities/${facility}/units/${unit}/systems/${system.id}/equipmenttypes/${typeIdOnly}/equipment`;
+        equipmentFetches.push(
+          fetch(thirdUrl, { headers, mode: "cors" })
+            .then(res => res.json())
+            .then(json => ({
+              systemId: system.id,
+              typeId: typeIdOnly,
+              data: json?._result?.equipment?._list || [],
+            }))
+        );
+      }
+    }
+
+    const equipmentResults = await Promise.all(equipmentFetches);
+
+    // Attach equipment with unique IDs
+    for (const { systemId, typeId, data } of equipmentResults) {
+      const systemNode = finalData.find(sys => sys.id === systemId);
+      const typeNode = systemNode?.children.find(child => child.name === typeId);
+      if (typeNode) {
+        typeNode.children = data.map(eq => ({
+          id: `${systemId}/${typeId}/${eq["Equipment Id"]}`,
+          name: eq["Site Equipment Id"],
+          siteEquipId: eq["Equipment Id"]
+        }));
+      }
+    }
+
+    console.log("Final tree with unique IDs:", finalData);
+    return finalData;
+  } catch (err) {
+    console.error("Error fetching data:", err);
+    throw err;
+  }
+}
