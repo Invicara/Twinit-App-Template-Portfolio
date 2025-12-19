@@ -17,7 +17,7 @@ function countsForSiteBuildings(map, feature, config) {
     const buildings = feature.properties?.buildings || [];
 
     for (const b of buildings) {
-        const val = b?.[property];
+        const val = String(b?.[property] ?? 'unknown');
 
         for (let i = 0; i < bins.length; i++) {
             const bin = bins[i];
@@ -35,6 +35,7 @@ function countsForSiteBuildings(map, feature, config) {
             } else {
                 // categorical / type-style
                 if (
+                    String(bin.id) === val ||
                     bin.id === val ||
                     (bin.value !== undefined && bin.value === val) ||
                     bin.label === val // optional convenience
@@ -109,6 +110,19 @@ const THEMES = {
         ],
         "circle-radius": 7
     },
+       BY_STATUS: {
+        property: "StatusId",
+        bins: [
+            { id: "1", color: "#d3d3d3", label: "Planned" },
+            { id: "2", color: "#f4b740", label: "Construction" },
+            { id: "3", color: "#66bb6a", label: "Operating" },
+            { id: "4", color: "#e53935", label: "Suspended Operation"},
+            { id: "5", color: "#6B7280", label: "Permanent Shutdown" },
+            { id: "unknown", color: "#CCCCCC", label: "Unknown" }
+        ],
+        "circle-radius": 7
+    },
+
 }
 
 
@@ -176,7 +190,7 @@ let scriptModule = {
         switch (stateValue) {
             case 'portfolio': {
 
-                const legend = THEMES.BY_TYPE;
+                const legend = THEMES.BY_STATUS;
 
                 const theme = {
                     ////we will kepp site invisible by default and only show marker instead
@@ -204,7 +218,7 @@ let scriptModule = {
                     },
                     sourceId: "site-features-centroids",
                     getCounts: countsForSiteBuildings,//this will overwrite the default bin assignment to feature
-                    config: THEMES.BY_TYPE,
+                    config: THEMES.BY_STATUS,
                     "popupConfig": {
                         "statusPopup": {
                             titleProp: "properties.name",
@@ -255,11 +269,11 @@ let scriptModule = {
             }
             case 'portfolio.site': {
 
-                const legend = THEMES.BY_TYPE;
+                const legend = THEMES.BY_STATUS;
 
                 const theme = {
                     //theme building features by Capacity property
-                    "building-features-layer": THEMES.BY_TYPE,
+                    "building-features-layer": THEMES.BY_STATUS,
                     //we will keep site features invisible by default
                     /*"site-features-layer": {
                         property: "buildings_count",//TODO: addept property to be a function
@@ -296,7 +310,7 @@ let scriptModule = {
                 return { commands: null, theme, singleMarkers, legend };
             }
             case 'portfolio.site.building': {
-                const legend = THEMES.BY_TYPE;
+                const legend = THEMES.BY_STATUS;
                 return {legend}
             }
 

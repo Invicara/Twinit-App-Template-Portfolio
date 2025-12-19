@@ -3,7 +3,7 @@ import { IafScriptEngine } from '@dtplatform/iaf-script-engine';
 import { CombinatorTranslationEnum } from '@jsonforms/core';
 
 //TODO REMOVE
-import { getSitesWithRelated } from '../../setup/scripts/omapi_entities.mjs';
+import { getSitesWithRelated, getModelElementsWithRelated, getStructureModelElements } from '../../setup/scripts/omapi_entities.mjs';
 
 function splitStructureName(structureName) {
     return structureName.split(/[-_]/).filter(word => word !== 'Facility' && word !== 'Unit')
@@ -96,6 +96,48 @@ export async function getSystemLevel(structureName) {
   } catch (err) {
     console.error('Facility fetch error:', err)
   }
+
+  return system
+}
+
+export async function getElementsLevel(structureName) {
+  // const parentLevels = splitStructureName(structureName)
+
+  const ctx = IafProj.getCurrent()
+  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`
+  const elementsLevelUrl = `${baseOmapiUrl}/model/all`
+
+  let system = []
+
+  try {
+    // const response = await fetch(elementsLevelUrl, {
+    //   method: 'GET',
+    //   mode: 'cors',
+    //   headers: {
+    //     Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
+    //     'Content-Type': 'application/json',
+    //   },
+    // })
+
+       //    const resultTest = await getModelElementsWithRelated(null, { PlatformApi: { IafItemSvc }, IafScriptEngine }, ctx);
+    const resultTest = await getStructureModelElements(
+      { params: { structureName } },
+      { PlatformApi: { IafItemSvc }, IafScriptEngine },
+      ctx
+    );
+
+    console.log('getElementsLevel resultTest', resultTest);
+
+    if (resultTest?.status === 200) {
+      return resultTest._list || []
+    } else {
+      console.error('OMAPI facilities call failed', resultTest?.status)
+    }
+  } catch (err) {
+    console.error('Facility fetch error:', err)
+  }
+
+  console.log('getElementsLevel system', system);
 
   return system
 }

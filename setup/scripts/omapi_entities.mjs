@@ -424,19 +424,22 @@ const getEntityWithRelatedFactory = (entityName) => async (input, libraries, ctx
 
   const entities = parentWithChildList._list || []
 
+  if(entityName === 'building') {
 
   const buildingsColl = (await getCollections(IafItemSvc, 'building_coll', ctx))[0]
 
-   await Promise.all(
-    entities.map(async (site) => {
-      site.buildings = await getAllRelatedItemsPaged(
-        buildingsColl._userItemId,
-        { siteId: site.siteId },
-        IafItemSvc,
-        ctx
-      )
-    })
-  )
+    await Promise.all(
+        entities.map(async (site) => {
+        site.buildings = await getAllRelatedItemsPaged(
+            buildingsColl._userItemId,
+            { siteId: site.siteId },
+            IafItemSvc,
+            ctx
+        )
+        })
+    )
+
+}
 
   entities.forEach((e) => {
     e._metadata._userItemId = parent._userItemId
@@ -458,6 +461,153 @@ const getEntityWithRelatedFactory = (entityName) => async (input, libraries, ctx
       e.buildings = []
     }
   })
+
+  return entities
+}
+
+const getEntityWithRelatedFactoryModel = (entityName) => async (input, libraries, ctx, callback) => {
+  let { PlatformApi, IafScriptEngine } = libraries
+  const { IafItemSvc } = PlatformApi
+  console.log('modelapiinput', input);
+  const parent = (await getCollections(IafItemSvc, entityCollections[entityName].entity._userType, ctx))[0]
+  console.log('modelapiparent', parent);
+  
+
+  const { query = {}, relatedPaths, inverslyRelatedPaths, relatedFilter } = input || {}
+
+  const relatedInput = relatedPaths?.reduce((accum, r) => {
+    accum[r] = entityCollections[entityName].related[r]
+    return accum
+  }, {})
+
+  const inverslyRelatedInput = inverslyRelatedPaths?.reduce((accum, r) => {
+    accum[r] = entityCollections[entityName].inverslyRelated[r]
+    return accum
+  }, {})
+
+  const related = relatedInput || entityCollections[entityName].related
+  const inverslyRelated = inverslyRelatedInput || entityCollections[entityName].inverslyRelated
+
+  let findWithRelated = {
+    parent: {
+      query: query[entityName] || {},
+      collectionDesc: {
+        _userItemId: parent._userItemId,
+        _userType: parent._userType,
+      },
+    },
+  }
+
+  // IMPORTANT: do NOT filter buildings out of inverslyRelated if you want inverse-fetch
+  const relatedWithoutEmbedded = Object.fromEntries(
+    Object.entries(related || {}).filter(([key]) => key !== 'buildings')
+  )
+
+  const hasRelated = Object.keys(relatedWithoutEmbedded).length > 0
+  const hasInverse = inverslyRelated && Object.keys(inverslyRelated).length > 0
+
+  if (hasRelated || hasInverse) {
+    findWithRelated.related = []
+      .concat(
+        hasRelated
+          ? Object.entries(relatedWithoutEmbedded).map(([key, r]) => ({
+              relatedDesc: { _relatedUserType: r._userType },
+              query: query[key] || {},
+              as: key,
+            }))
+          : []
+      )
+      .concat(
+        hasInverse
+          ? Object.entries(inverslyRelated).map(([key, r]) => ({
+              relatedDesc: { _relatedUserType: r._userType, _isInverse: true },
+              query: query[key] || {},
+              as: key,
+            }))
+          : []
+      )
+  }
+
+  if (relatedFilter) {
+    const { filterQuery = {}, relatedFilterPaths, inverslyRelatedFilterPaths, operand = '$and' } = relatedFilter || {}
+
+    const relatedFilterInput = relatedFilterPaths?.reduce((accum, r) => {
+      accum[r] = entityCollections[entityName].related[r]
+      return accum
+    }, {})
+
+    const inverslyRelatedFilterInput = inverslyRelatedFilterPaths?.reduce((accum, r) => {
+      accum[r] = entityCollections[entityName].inverslyRelated[r]
+      return accum
+    }, {})
+
+    const relatedFilterRelated = relatedFilterInput || []
+    const relatedFilterInverslyRelated = inverslyRelatedFilterInput || []
+
+    findWithRelated.relatedFilter = {
+      includeResult: true,
+      [operand]: Object.entries(relatedFilterRelated)
+        .map(([key, r]) => ({
+          relatedDesc: { _relatedUserType: r._userType },
+          query: filterQuery[key] || {},
+          as: key,
+        }))
+        .concat(
+          Object.entries(relatedFilterInverslyRelated).map(([key, r]) => ({
+            relatedDesc: { _relatedUserType: r._userType, _isInverse: true },
+            query: filterQuery[key] || {},
+            as: key,
+          }))
+        ),
+    }
+  }
+
+  console.log('getEntityWithRelatedFactory findWithRelated', findWithRelated)
+
+  let parentWithChildList = await IafScriptEngine.findWithRelated(findWithRelated, ctx)
+  console.log('getEntityWithRelatedFactory parentWithChildList', parentWithChildList)
+
+  const entities = parentWithChildList._list || []
+
+  if(entityName === 'building') {
+
+  const buildingsColl = (await getCollections(IafItemSvc, 'building_coll', ctx))[0]
+
+    await Promise.all(
+        entities.map(async (site) => {
+        site.buildings = await getAllRelatedItemsPaged(
+            buildingsColl._userItemId,
+            { siteId: site.siteId },
+            IafItemSvc,
+            ctx
+        )
+        })
+    )
+
+}
+
+  entities.forEach((e) => {
+    e._metadata._userItemId = parent._userItemId
+
+    // related => many
+    Object.keys(entityCollections[entityName].related || {}).forEach((prop) => {
+      const v = e[prop]
+      e[prop] = Array.isArray(v) ? v : v?._list
+    })
+
+    // inverslyRelated => ALSO many (do NOT collapse to [0], because buildings is plural)
+    Object.keys(entityCollections[entityName].inverslyRelated || {}).forEach((prop) => {
+      const v = e[prop]
+      e[prop] = Array.isArray(v) ? v : v?._list || []
+    })
+
+    // ensure buildings always an array
+    if (!Array.isArray(e.buildings)) {
+      e.buildings = []
+    }
+  })
+
+  console.log('modelapientities', entities);
 
   return entities
 }
@@ -524,6 +674,7 @@ const createEntityFactory = (entityName) => async (input = null, libraries, ctx,
   }
     return persisted
 }
+
 
 /*
 Create and attach steps at once for comment
@@ -1258,6 +1409,7 @@ const createSite =  (input, libraries, ctx) => createEntityFactory("site")(input
 const updateSite =  (input, libraries, ctx) => updateEntityFactory("site")(input?.params || {}, libraries, ctx);
 const deleteSite =  (input, libraries, ctx) => deleteEntityFactory("site")(input?.params || {}, libraries, ctx);
 export const getSitesWithRelated = withDecimalFix(getEntityWithRelatedFactory("site"));
+
 export const getSitesWithRelatedHit = async (input, libraries, ctx) => {
 
 
@@ -1361,6 +1513,78 @@ const getBuildingsWithRelated = async (input, libraries, ctx) => {
 
 }
 
+export const getStructureModelElements = async (input, libraries, ctx) => {
+  const { PlatformApi, IafScriptEngine } = libraries
+  const { IafItemSvc } = PlatformApi
+
+//   const { structureName } = input || {}
+  const { structureName } = input?.params || {}
+  if (!structureName) {
+    return { status: 400, message: 'Missing structureName', _list: [] }
+  }
+
+  // 1) map_structures
+  const structuresColl = (await getCollections(IafItemSvc, 'map_structures', ctx))[0]
+  if (!structuresColl) {
+    return { status: 500, message: 'map_structures_coll not found', _list: [] }
+  }
+
+//   const structuresRes = await IafScriptEngine.findWithRelated({
+//     query: { name: structureName },
+//     collectionDesc: {
+//       _userItemId: structuresColl._userItemId,
+//       _userType: structuresColl._userType,
+//     },
+//   }, ctx)
+
+  const structuresRes = await IafScriptEngine.findWithRelated({
+    parent: {
+      query: { name: structureName },
+      collectionDesc: {
+        _userItemId: structuresColl._userItemId,
+        _userType: structuresColl._userType,
+      },
+    },
+  }, ctx)
+
+  const structure = structuresRes?._list?.[0]
+  if (!structure) {
+    return { status: 404, message: `No structure found for name '${structureName}'`, _list: [] }
+  }
+
+  const { modelName } = structure
+  if (!modelName) {
+    return { status: 422, message: `Structure '${structureName}' has no modelName`, _list: [] }
+  }
+
+  // 2) rvt_type_elements (or whatever your userType is)
+  const rvtTypesColl = (await getCollections(IafItemSvc, 'rvt_type_elements', ctx))[0]
+
+  console.log("getStructureModelElements", rvtTypesColl);
+  if (!rvtTypesColl) {
+    return { status: 500, message: 'rvt_type_elements collection not found', _list: [] }
+  }
+
+
+const rvtTypesRes = await IafScriptEngine.findWithRelated({
+  parent: {
+    query: {}, // TEMP: no filter, just prove you can get items
+    collectionDesc: {
+      _userItemId: rvtTypesColl._userItemId,
+      _userType: rvtTypesColl._userType,
+    },
+  },
+  options: { limit: 5 },
+}, ctx);
+
+  return {
+    status: 200,
+    structure,
+    modelName,
+    _list: rvtTypesRes?._list || [],
+  }
+}
+
 
 //BUILDING ENTITY
 const createBuilding =  (input, libraries, ctx) => createEntityFactory("building")(input?.params || {}, libraries, ctx);
@@ -1373,7 +1597,7 @@ const updateBuildingAndAttachToOneSite = (input, libraries, ctx) =>  updateAndAt
 
 
 //MODEL
-const getModelElementsWithRelated = (input, libraries, ctx) => getEntityWithRelatedFactory("modelElement")(input?.params || {}, libraries, ctx);
+export const getModelElementsWithRelated = (input, libraries, ctx) => getEntityWithRelatedFactoryModel("modelElement")(input?.params || {}, libraries, ctx);
 
 
 function getRunnableScripts() {

@@ -28,6 +28,10 @@ const AssetOverviewView = () => {
     const [selectedSiteEquipment, setSelectedSiteEquipment] = useState()
     const [equipData, setEquipData] = useState()
 
+    useEffect(() => {
+  console.log('PARENT tableData updated:', tableData)
+}, [tableData])
+
     const classes = useStyles()
 
     // Memoizing the filtered equipData
@@ -45,9 +49,9 @@ const AssetOverviewView = () => {
       setSelectedSiteEquipment(newSelection)
     }, [])
 
-    const handleSetTableData = useCallback((newTableData) => {
-      setTableData(newTableData)
-    }, [])
+   const handleSetTableData = useCallback((updater) => {
+  setTableData(prev => (typeof updater === 'function' ? updater(prev) : updater))
+}, []);
 
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
@@ -98,11 +102,11 @@ const AssetOverviewView = () => {
             <>
                 <p className="table-panel-header">Assets</p>
                 <Box sx={{ flex: 1, minHeight: 0 }}>
-                  <AssetTable 
-                    rows={equipData} 
-                    loadingTableData={loadingTableData} 
-                    setLoadingTableData={setLoadingTableData} 
-                  /> 
+                    <AssetTable
+                    rows={tableData}
+                    loadingTableData={loadingTableData}
+                    setLoadingTableData={setLoadingTableData}
+                  />
                 </Box>
             </>
           {loadingTableData ? <LinearProgress classes={{ colorPrimary: classes.colorPrimary, barColorPrimary: classes.barColorPrimary }} /> : null}
