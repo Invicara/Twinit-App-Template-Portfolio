@@ -1023,22 +1023,6 @@ const withDecimalFix = (originalFn) => async (input, libraries, ctx, callback) =
     return fixedResult;
 }
 
-//SITE ENTITY
-const createSite = createEntityFactory("site");
-const updateSite = updateEntityFactory("site");
-const deleteSite = deleteEntityFactory("site");
-const getSitesWithRelated = withDecimalFix(getEntityWithRelatedFactory("site"));
-
-//BUILDING ENTITY
-const createBuilding = createEntityFactory("building");
-const updateBuilding = updateEntityFactory("building");
-const deleteBuilding = deleteEntityFactory("building");
-const getBuildingsWithRelated = withDecimalFix(getEntityWithRelatedFactory("building"));
-const attachBuildingToSite = createAndAttachToEntityFactory("building","site");
-const createBuildingAndAttachToSite = createAndAttachToEntityFactory("building","site");
-
-//MODEL
-const getModelElementsWithRelated = getEntityWithRelatedFactory("modelElement");
 const statusHierarchy = ['REGISTERED', 'APPROVED', 'CLOSED'];
 const rank = s => statusHierarchy.indexOf(s);
 
@@ -1181,125 +1165,125 @@ function computeSiteECStats2(sites, engineeringChanges, logs) {
 
 
 //SITE ENTITY
-// const createSite =  (input, libraries, ctx) => createEntityFactory("site")(input?.params || {}, libraries, ctx);
-// const updateSite =  (input, libraries, ctx) => updateEntityFactory("site")(input?.params || {}, libraries, ctx);
-// const deleteSite =  (input, libraries, ctx) => deleteEntityFactory("site")(input?.params || {}, libraries, ctx);
-// const getSitesWithRelated = async (input, libraries, ctx) => {
+const createSite =  (input, libraries, ctx) => createEntityFactory("site")(input?.params || {}, libraries, ctx);
+const updateSite =  (input, libraries, ctx) => updateEntityFactory("site")(input?.params || {}, libraries, ctx);
+const deleteSite =  (input, libraries, ctx) => deleteEntityFactory("site")(input?.params || {}, libraries, ctx);
+const getSitesWithRelated = async (input, libraries, ctx) => {
 
 
-//     const { IafItemSvc } = libraries.PlatformApi;
+    const { IafItemSvc } = libraries.PlatformApi;
 
-//     const siteIdToFacilityIdMap = {
-//         "Belleville": "A",
-//         "St. Laurent": "B",
-//     }
+    const siteIdToFacilityIdMap = {
+        "Belleville": "A",
+        "St. Laurent": "B",
+    }
 
-//     const buildingIdToUnitMap = {
-//         "Belleville-1": "01",
-//         "Belleville-2": "02",
-//         "St. Laurent-A1": "01",
-//         "St. Laurent-B2": "02",
-//     }
+    const buildingIdToUnitMap = {
+        "Belleville-1": "01",
+        "Belleville-2": "02",
+        "St. Laurent-A1": "01",
+        "St. Laurent-B2": "02",
+    }
 
-//     const sites = await withDecimalFix(getEntityWithRelatedFactory("site"))(input?.params || {}, libraries, ctx);
+    const sites = await withDecimalFix(getEntityWithRelatedFactory("site"))(input?.params || {}, libraries, ctx);
 
-//     let collections = await IafItemSvc.getNamedUserItems({
-//         query: { _userType: { $in: ["ecs", "ecs-logs"]} , _itemClass: 'NamedUserCollection' }
-//     }, ctx, { page: {_pageSize: 10, _offset: 0}})
+    let collections = await IafItemSvc.getNamedUserItems({
+        query: { _userType: { $in: ["ecs", "ecs-logs"]} , _itemClass: 'NamedUserCollection' }
+    }, ctx, { page: {_pageSize: 10, _offset: 0}})
 
-//     const ecsColl =  collections._list.find(c => c._userType === "ecs")
-//     const ecsLogsColl =  collections._list.find(c => c._userType === "ecs-logs")
-
-
-//     const ecs = (await IafItemSvc.getRelatedItems(ecsColl._userItemId, {}, ctx, { page: { getAllItems: true }}))?._list
-//     let relatedLogs = (await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, { query: {} }, ctx, { page: { getAllItems: true }}))?._list
-
-//     const ecStats = computeSiteECStats([{siteId:"A"},{siteId:"B"}], ecs, relatedLogs);
-
-//     const defaultEcsByStatus = {
-//             "REGISTERED": {
-//                "_total": 0
-//             },
-//             "APPROVED": {
-//                "_total": 0
-//             },
-//             "CLOSED": {
-//                "_total": 10
-//             }
-//     }
-//     sites.forEach(site=>{
-//         const randomFacility = Math.random() < 0.5 ? "A" : "B";
-//         const siteECStats = ecStats.find(stat=>stat.siteId==siteIdToFacilityIdMap[site.siteId]);
-//         site.ecsByStatus = siteECStats?.statusCounts || defaultEcsByStatus;
-//         if(site.buildings){
-//             site.buildings.forEach(building=>{
-//                 const randomUnit = Math.random() < 0.5 ? "01" : "02";
-//                 building.ecsByStatus = siteECStats?.statusCountsPerUnit?.[buildingIdToUnitMap[building.buildingId]] || defaultEcsByStatus
-//             });
-//         }
-//     });
-
-//     return sites;
+    const ecsColl =  collections._list.find(c => c._userType === "ecs")
+    const ecsLogsColl =  collections._list.find(c => c._userType === "ecs-logs")
 
 
+    const ecs = (await IafItemSvc.getRelatedItems(ecsColl._userItemId, {}, ctx, { page: { getAllItems: true }}))?._list
+    let relatedLogs = (await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, { query: {} }, ctx, { page: { getAllItems: true }}))?._list
 
-// }
+    const ecStats = computeSiteECStats([{siteId:"A"},{siteId:"B"}], ecs, relatedLogs);
 
-// const getBuildingsWithRelated = async (input, libraries, ctx) => {
-//     const siteIdToFacilityIdMap = {
-//         "Belleville": "A",
-//         "St. Laurent": "B",
-//     }
+    const defaultEcsByStatus = {
+            "REGISTERED": {
+               "_total": 0
+            },
+            "APPROVED": {
+               "_total": 0
+            },
+            "CLOSED": {
+               "_total": 10
+            }
+    }
+    sites.forEach(site=>{
+        const randomFacility = Math.random() < 0.5 ? "A" : "B";
+        const siteECStats = ecStats.find(stat=>stat.siteId==siteIdToFacilityIdMap[site.siteId]);
+        site.ecsByStatus = siteECStats?.statusCounts || defaultEcsByStatus;
+        if(site.buildings){
+            site.buildings.forEach(building=>{
+                const randomUnit = Math.random() < 0.5 ? "01" : "02";
+                building.ecsByStatus = siteECStats?.statusCountsPerUnit?.[buildingIdToUnitMap[building.buildingId]] || defaultEcsByStatus
+            });
+        }
+    });
 
-//     const buildingIdToUnitMap = {
-//         "Belleville-1": "01",
-//         "Belleville-2": "02",
-//         "St. Laurent-A1": "01",
-//         "St. Laurent-B2": "02",
-//     }
+    return sites;
 
 
-//     const buildings = await withDecimalFix(getEntityWithRelatedFactory("building"))(input?.params || {}, libraries, ctx);
 
-//     let collections = await IafItemSvc.getNamedUserItems({
-//         query: { _userType: { $in: ["ecs", "ecs-logs"]} , _itemClass: 'NamedUserCollection' }
-//     }, ctx, { page: {_pageSize: 10, _offset: 0}})
+}
 
-//     const ecsColl =  collections._list.find(c => c._userType === "ecs")
-//     const ecsLogsColl =  collections._list.find(c => c._userType === "ecs-logs")
+const getBuildingsWithRelated = async (input, libraries, ctx) => {
+    const siteIdToFacilityIdMap = {
+        "Belleville": "A",
+        "St. Laurent": "B",
+    }
+
+    const buildingIdToUnitMap = {
+        "Belleville-1": "01",
+        "Belleville-2": "02",
+        "St. Laurent-A1": "01",
+        "St. Laurent-B2": "02",
+    }
 
 
-//     const ecs = (await IafItemSvc.getRelatedItems(ecsColl._userItemId, {}, ctx, { page: { getAllItems: true }}))?._list
-//     let relatedLogs = (await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, { query: {} }, ctx, { page: { getAllItems: true }}))?._list
+    const buildings = await withDecimalFix(getEntityWithRelatedFactory("building"))(input?.params || {}, libraries, ctx);
 
-//     const siteIds = buildings.map(b=>b.siteId).filter(siteId=>!!siteId)
-//     const sites = [...new Set(siteIds)].map(siteId=>({siteId}));
-//     const ecStats = computeSiteECStats([{siteId:"A"},{siteId:"B"}], ecs, relatedLogs);
+    let collections = await IafItemSvc.getNamedUserItems({
+        query: { _userType: { $in: ["ecs", "ecs-logs"]} , _itemClass: 'NamedUserCollection' }
+    }, ctx, { page: {_pageSize: 10, _offset: 0}})
 
-//     buildings.forEach(building=>{
-//         const randomFacility = Math.random() < 0.5 ? "A" : "B";
-//         const randomUnit = Math.random() < 0.5 ? "01" : "02";
-//         const siteECStats = ecStats.find(stat=>siteIdToFacilityIdMap[building.siteId]==stat.siteId);
-//         building.ecsByStatus = siteECStats?.statusCountsPerUnit?.[buildingIdToUnitMap[building.buildingId]]
-//     });
+    const ecsColl =  collections._list.find(c => c._userType === "ecs")
+    const ecsLogsColl =  collections._list.find(c => c._userType === "ecs-logs")
 
-//     return buildings;
 
-// }
+    const ecs = (await IafItemSvc.getRelatedItems(ecsColl._userItemId, {}, ctx, { page: { getAllItems: true }}))?._list
+    let relatedLogs = (await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, { query: {} }, ctx, { page: { getAllItems: true }}))?._list
+
+    const siteIds = buildings.map(b=>b.siteId).filter(siteId=>!!siteId)
+    const sites = [...new Set(siteIds)].map(siteId=>({siteId}));
+    const ecStats = computeSiteECStats([{siteId:"A"},{siteId:"B"}], ecs, relatedLogs);
+
+    buildings.forEach(building=>{
+        const randomFacility = Math.random() < 0.5 ? "A" : "B";
+        const randomUnit = Math.random() < 0.5 ? "01" : "02";
+        const siteECStats = ecStats.find(stat=>siteIdToFacilityIdMap[building.siteId]==stat.siteId);
+        building.ecsByStatus = siteECStats?.statusCountsPerUnit?.[buildingIdToUnitMap[building.buildingId]]
+    });
+
+    return buildings;
+
+}
 
 
 //BUILDING ENTITY
-// const createBuilding =  (input, libraries, ctx) => createEntityFactory("building")(input?.params || {}, libraries, ctx);
-// const updateBuilding =  (input, libraries, ctx) => updateEntityFactory("building")(input?.params || {}, libraries, ctx);
-// const deleteBuilding =  (input, libraries, ctx) => deleteEntityFactory("building")(input?.params || {}, libraries, ctx);
-// const attachBuildingToSite =  (input, libraries, ctx) => createAndAttachToEntityFactory("building","site")(input?.params || {}, libraries, ctx);
-//const createBuildingAndAttachToSite = (input, libraries, ctx) => createAndAttachToEntityFactory("building","site")(input?.params || {}, libraries, ctx);
+const createBuilding =  (input, libraries, ctx) => createEntityFactory("building")(input?.params || {}, libraries, ctx);
+const updateBuilding =  (input, libraries, ctx) => updateEntityFactory("building")(input?.params || {}, libraries, ctx);
+const deleteBuilding =  (input, libraries, ctx) => deleteEntityFactory("building")(input?.params || {}, libraries, ctx);
+const attachBuildingToSite =  (input, libraries, ctx) => createAndAttachToEntityFactory("building","site")(input?.params || {}, libraries, ctx);
+const createBuildingAndAttachToSite = (input, libraries, ctx) => createAndAttachToEntityFactory("building","site")(input?.params || {}, libraries, ctx);
 const createBuildingAndAttachToOneSite = (input, libraries, ctx) => createAndAttachToOneParentFactory("building","site")(input?.params || {}, libraries, ctx);
 const updateBuildingAndAttachToOneSite = (input, libraries, ctx) =>  updateAndAttachToOneParentFactory("building","site")(input?.params || {}, libraries, ctx);
 
 
 //MODEL
-//const getModelElementsWithRelated = (input, libraries, ctx) => getEntityWithRelatedFactory("modelElement")(input?.params || {}, libraries, ctx);
+const getModelElementsWithRelated = (input, libraries, ctx) => getEntityWithRelatedFactory("modelElement")(input?.params || {}, libraries, ctx);
 
 
 function getRunnableScripts() {

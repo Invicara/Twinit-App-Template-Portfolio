@@ -1,16 +1,15 @@
 import React, {useEffect, useState} from 'react';
-import DeployStatusChart from '../DeployStatusBarChart';
-import SearchPanel from '../SearchPanel';
+import DeployStatusChart from './DeployStatusBarChart';
+import SearchPanel from './SearchPanel';
 import {Box} from "@mui/material";
 import {useDispatch, useSelector} from "react-redux";
-import {getFilter, setFilter} from "../../../../redux/filters.js";
+import {getFilter, setFilter} from "../../../redux/filters.js";
 import {
     FilterCompiler,
     getGlobalFilterFunctions,
     mergeFiltersGeneric,
     toggleScopedFilter
-} from "../../../utils/filters.global.js";
-
+} from "../../utils/filters.global.js";
 
 const sampleFormConfig = {
     initial: { search: '', group: '', structure: '', location: '', status: '' },
@@ -250,23 +249,23 @@ const defaultChartCfg =  {
         id: 'statusIn',
         keyProp: (b) => String(b?.StatusId ?? 'unknown'),
         config: {
-            colorMap: {
-                "1": "#d3d3d3",   // Not started / Planned (adjust if you want your old palette)
+             colorMap: {
+         "1": "#d3d3d3",   // Not started / Planned (adjust if you want your old palette)
                 "2": "#f4b740",   // In Progress / Construction
                 "3": "#66bb6a",   // Completed / Operating
                 "4": "#e53935",   // At risk / Suspended Operation
                 "5": "#6B7280",   // Permanent Shutdown
                 "unknown": "#CCCCCC",
+    },
+    labelMap: {
+        "1": "Planned",
+        "2": "Construction",
+        "3": "Operating",
+        "4": "Suspended Operation",
+        "5": "Permanent Shutdown",
+        "unknown": "Unknown",
+    },
         },
-            labelMap: {
-                "1": "Planned",
-                "2": "Construction",
-                "3": "Operating",
-                "4": "Suspended Operation",
-                "5": "Permanent Shutdown",
-                "unknown": "Unknown",
-            },
-     },
         // keep a stable legend order
         order: (keys) => {
             const pref = ['1','2','4','3','5','unknown']; // your desired sequence

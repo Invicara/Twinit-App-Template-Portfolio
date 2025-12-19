@@ -247,6 +247,7 @@ export default function BuildingDetails({ context }) {
             type: 'UPDATE_DATA',
             data: updatedData
         });
+
         // Step 4: Pre-select the new entity with a GO_TO operation
 
         send({

@@ -15,140 +15,98 @@
                 "description": "The timestamp when the building was last updated",
                 "propertyOrder": 1
             },
-            "ReactorModel": {
+            "Type": {
                 "type": "string",
-                "title": "Reactor Model",
-                "description": "The model type of the reactor",
+                "title": "Type",
+                "description": "The numeric identifier for the reactor type",
                 "propertyOrder": 2
-            },
-            "latitude": {
-                "type": "number",
-                "title": "Latitude",
-                "description": "The latitude coordinate of the building",
-                "propertyOrder": 3
             },
             "buildingDesignator": {
                 "type": "string",
                 "title": "Building Designator",
                 "description": "The designator identifier for the building",
-                "propertyOrder": 4
+                "propertyOrder": 3
             },
             "OperationalFrom": {
                 "type": "string",
                 "format": "date",
                 "title": "Operational From",
                 "description": "The date when the building became operational",
-                "propertyOrder": 5
-            },
-            "Latitude": {
-                "type": "number",
-                "title": "Latitude (Alternative)",
-                "description": "Alternative latitude coordinate field",
-                "propertyOrder": 6
+                "propertyOrder": 4
             },
             "Source": {
                 "type": "string",
                 "title": "Source",
                 "description": "The data source for the building information",
-                "propertyOrder": 7
+                "propertyOrder": 5
             },
             "Name": {
                 "type": "string",
                 "title": "Name",
                 "description": "The official name of the building",
-                "propertyOrder": 8
-            },
-            "Capacity": {
-                "type": "number",
-                "title": "Capacity",
-                "description": "The capacity rating of the building/facility",
-                "propertyOrder": 9
+                "propertyOrder": 6
             },
             "requestId": {
                 "type": "string",
                 "title": "Request ID",
                 "description": "Unique identifier for the request that created this building record",
-                "propertyOrder": 10
+                "propertyOrder": 7
             },
             "CountryCode": {
                 "type": "string",
                 "title": "Country Code",
                 "description": "The ISO country code where the building is located",
-                "propertyOrder": 11
-            },
-            "longitude": {
-                "type": "number",
-                "title": "Longitude",
-                "description": "The longitude coordinate of the building",
-                "propertyOrder": 12
+                "propertyOrder": 8
             },
             "ModelName": {
                 "type": "string",
                 "title": "Model Name",
                 "description": "The name of the building model or template",
-                "propertyOrder": 13
-            },
-            "IAEAId": {
-                "type": "number",
-                "title": "IAEA ID",
-                "description": "The International Atomic Energy Agency identifier",
-                "propertyOrder": 14
-            },
-            "ReactorTypeId": {
-                "type": "number",
-                "title": "Reactor Type ID",
-                "description": "The numeric identifier for the reactor type",
-                "propertyOrder": 15
-            },
-            "Longitude": {
-                "type": "number",
-                "title": "Longitude (Alternative)",
-                "description": "Alternative longitude coordinate field",
-                "propertyOrder": 16
+                "propertyOrder": 9
             },
             "OperationalTo": {
                 "type": ["string", "null"],
                 "format": "date",
                 "title": "Operational To",
                 "description": "The date when the building ceased operations (null if still operational)",
-                "propertyOrder": 17
+                "propertyOrder": 10
             },
             "buildingId": {
                 "type": "string",
                 "title": "Building ID",
                 "description": "Unique identifier for the building",
-                "propertyOrder": 18
+                "propertyOrder": 11
             },
             "ConstructionStartAt": {
                 "type": "string",
                 "format": "date",
                 "title": "Construction Start At",
                 "description": "The date when construction of the building started",
-                "propertyOrder": 19
+                "propertyOrder": 12
             },
             "name": {
                 "type": "string",
                 "title": "Name (Alternative)",
                 "description": "Alternative name field for the building",
-                "propertyOrder": 20
+                "propertyOrder": 13
             },
             "siteId": {
                 "type": "string",
                 "title": "Site ID",
                 "description": "Identifier of the site where this building is located",
-                "propertyOrder": 21
+                "propertyOrder": 14
             },
             "StatusId": {
                 "type": "number",
                 "title": "Status ID",
                 "description": "Numeric identifier for the building status",
-                "propertyOrder": 22
+                "propertyOrder": 15
             },
             "Id": {
                 "type": "number",
                 "title": "ID",
                 "description": "Primary numeric identifier for the building",
-                "propertyOrder": 23
+                "propertyOrder": 16
             }
         }
     },
