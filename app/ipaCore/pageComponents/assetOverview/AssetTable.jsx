@@ -47,20 +47,19 @@ const SortingDropdown = ({sortedTableData, setSortedTableData}) => {
     const sortingOptions = ['Sort ascending', 'Sort descending']
     const classes = useStyles();
 
-    function sortByNameId(data, order = 'ascending', setSortedTableData) {
-        if (order !== 'Sort ascending' && order !== 'Sort descending') {
-            throw new Error('Invalid order parameter. Use "ascending" or "descending".');
-        }
+    function sortByName(data, order = 'ascending', setSortedTableData) {
+  if (order !== 'Sort ascending' && order !== 'Sort descending') {
+    throw new Error('Invalid order parameter. Use "ascending" or "descending".')
+  }
 
-        const sortedData = [...data].sort((a, b) => {
-            if (order === 'Sort ascending') {
-                return a.nameId.localeCompare(b.nameId)
-            } else {
-                return b.nameId.localeCompare(a.nameId)
-            }
-        })
-        setSortedTableData(sortedData)
-    }
+  const sortedData = [...data].sort((a, b) => {
+    const aName = String(a?.Name || '')
+    const bName = String(b?.Name || '')
+    return order === 'Sort ascending' ? aName.localeCompare(bName) : bName.localeCompare(aName)
+  })
+
+  setSortedTableData(sortedData)
+}
 
 
     return (
@@ -95,7 +94,7 @@ const SortingDropdown = ({sortedTableData, setSortedTableData}) => {
 }
 
 const FilterdDropdown = ({selectedFilter, setSelectedFilter}) => {
-    const filterOptions = ['Name', 'Name ID', 'Type', 'Manufacturer', 'Model']
+    const filterOptions = ['Name', 'ID', 'Display Name', 'Source Type'];
 
     const classes = useStyles()
 
@@ -163,28 +162,34 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
         }
         const lowerKeyword = keyword.toLowerCase()
 
-        const getPropertyValue = (item, propertyName) => {
-            const prop = item.Properties?.find(p => p.name === propertyName);
-            return prop ? String(prop.val).toLowerCase() : ''
-        }
+        // const getPropertyValue = (item, propertyName) => {
+        //     const prop = item.Properties?.find(p => p.name === propertyName);
+        //     return prop ? String(prop.val).toLowerCase() : ''
+        // }
 
-        const matchesFilter = (item) => {
-            switch (selectedFilter) {
-                case 'Name':
-                    return item.EquipmentName?.toLowerCase().includes(lowerKeyword)
-                
-                case 'Name ID':
-                    return item.nameId?.toLowerCase().includes(lowerKeyword)
-                
-                case 'Type':
-                case 'Manufacturer':
-                case 'Model':
-                    return getPropertyValue(item, selectedFilter).includes(lowerKeyword)
-                
-                default:
-                    return false
-            }
-        }
+       const matchesFilter = (item) => {
+  const name = String(item?.Name || '').toLowerCase()
+  const id = String(item?.ID || '').toLowerCase()
+  const displayName = String(item?.['Display Name'] || '').toLowerCase()
+  const sourceType = String(item?.['Source Type'] || '').toLowerCase()
+
+  switch (selectedFilter) {
+    case 'Name':
+      return name.includes(lowerKeyword)
+
+    case 'ID':
+      return id.includes(lowerKeyword)
+
+    case 'Display Name':
+      return displayName.includes(lowerKeyword)
+
+    case 'Source Type':
+      return sourceType.includes(lowerKeyword)
+
+    default:
+      return false
+  }
+}
 
         const result = data.filter(item => 
             selectedCondition === 'is' ? matchesFilter(item) : !matchesFilter(item)
@@ -358,17 +363,16 @@ const AssetTable = ({ rows }) => {
                                     <SortingDropdown sortedTableData={sortedTableData} setSortedTableData={setSortedTableData}/>
                                 </div>
                             </TableCell>
-                            <TableCell className="asset-table-header-cell">Name ID</TableCell>
-                            <TableCell className="asset-table-header-cell">Type</TableCell>
-                            <TableCell className="asset-table-header-cell">Manufacturer</TableCell>
-                            <TableCell className="asset-table-header-cell">Model</TableCell>
+                            <TableCell className="asset-table-header-cell">ID</TableCell>
+                            <TableCell className="asset-table-header-cell">Display Name</TableCell>
+                            <TableCell className="asset-table-header-cell">Source Type</TableCell>
                         </StyledTableHeadRow>
                     </TableHead>
                     <TableBody>
                         {_.isEmpty(rows) ? (
                             <TableCell
                                 className="asset-table-no-equip"
-                                colSpan={5}
+                                colSpan={4}
                                 sx={{
                                     height: 'calc(100vh - 300px)', // adjust based on your header height
                                     p: 0,
@@ -392,13 +396,14 @@ const AssetTable = ({ rows }) => {
                             </TableCell>
                         ) : (
                             sortedTableData?.map((row, idx) => (
-                                <StyledTableRow key={idx}>
-                                    <TableCell sx={{ width: '30%' }}>{row.EquipmentName}</TableCell>
-                                    <TableCell>{row.nameId}</TableCell>
-                                    <TableCell>{getPropertyValue(row, 'Type')}</TableCell>
-                                    <TableCell>{getPropertyValue(row, 'Manufacturer')}</TableCell>
-                                    <TableCell>{getPropertyValue(row, 'Model')}</TableCell>
-                                </StyledTableRow>
+                              
+                                    <StyledTableRow key={idx}>
+                                        <TableCell sx={{ width: '30%' }}>{row.Name}</TableCell>
+                                        <TableCell>{row.ID}</TableCell>
+                                        <TableCell>{row['Display Name']}</TableCell>
+                                        <TableCell>{row['Source Type']}</TableCell>
+                                        </StyledTableRow>
+                          
                             ))
                         )}
                     </TableBody>

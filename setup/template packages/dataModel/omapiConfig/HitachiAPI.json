@@ -61,6 +61,18 @@
                }
             ]
          },
+         "model": {
+            "paths": [
+               {
+                  "path": "/model/all",
+                  "method": "OPTIONS",
+                  "script": {
+                     "_userType": "omapi_entities",
+                     "_scriptName": "getModelElementsWithRelated"
+                  }
+               }
+            ]
+         },
          "references": {
             "paths": [
                {
