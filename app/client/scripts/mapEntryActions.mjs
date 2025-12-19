@@ -222,84 +222,77 @@ function makeBinColorExpression(config) {
  * }}
  */
 function buildGroupsFromBins(map, layerId, idKey, binConfig) {
-    const groupsObject = {};
+    const layer = map.getLayer(layerId);
+    if (!layer) return {};// throw new Error(`Layer "${layerId}" not found`);
 
-    try {
-        const layer = map.getLayer(layerId);
-        if (!layer) {
-            console.warn(`Layer "${layerId}" not found`);
-            return { groupsObject };
-        }
+    const sourceId = layer.source;
+    const src = map.getSource(sourceId);
+    if (!src) return {};// throw new Error(`Source "${sourceId}" not found for layer "${layerId}"`);
 
-        const sourceId = layer.source;
-        const src = map.getSource(sourceId);
-        if (!src) {
-            console.warn(`Source "${sourceId}" not found for layer "${layerId}"`);
-            return { groupsObject };
-        }
-
-        // Collect features
-        let features = [];
-        if (src.type === 'geojson') {
-            const data = src._data;
-            features = Array.isArray(data?.features) ? data.features : [];
-        } else if (src.type === 'vector') {
-            const sourceLayer = layer['source-layer'];
-            if (!sourceLayer) {
-                console.warn(`Layer "${layerId}" is vector-backed but missing "source-layer"`);
-                return { groupsObject };
-            }
-            features = map.querySourceFeatures(sourceId, { sourceLayer });
-        } else {
-            console.warn(`Unsupported source type for binning: ${src.type}`);
-            return { groupsObject };
-        }
-
-        const propName = binConfig.property;
-        const bins = binConfig.bins || [];
-        const CONTROL_KEYS = new Set(['id', 'min', 'max', 'label', 'ids']);
-        const topLevelExtras = Object.fromEntries(
-            Object.entries(binConfig).filter(([k]) => !['property', 'bins'].includes(k))
-        );
-
-        for (const bin of bins) {
-            const base = { ids: [] };
-            for (const [k, v] of Object.entries(topLevelExtras)) {
-                base[k] = isColorProp(k) ? normalizeColorRGB(v) : v;
-            }
-            for (const [k, v] of Object.entries(bin)) {
-                if (!CONTROL_KEYS.has(k)) {
-                    base[k] = isColorProp(k) ? normalizeColorRGB(v) : v;
-                }
-            }
-            groupsObject[bin.id] = base;
-        }
-
-        // Assign features to bins
-        for (const f of features) {
-            const props = f?.properties || {};
-            const id = props?.[idKey];
-            if (id == null) continue;
-
-            const rawVal = props?.[propName];
-            const val = typeof rawVal === 'number' ? rawVal : Number(rawVal);
-            if (Number.isNaN(val)) continue;
-
-            const bin = bins.find(b =>
-                (b.min == null || val >= b.min) &&
-                (b.max == null || val <  b.max)
-            );
-            if (bin) {
-                groupsObject[bin.id].ids.push(String(id));
-            }
-        }
-
-    } catch (e) {
-        console.error('Error in buildGroupsFromBins:', e);
-    } finally {
-        return { groupsObject };
+    // Collect features we can access
+    let features = [];
+    if (src.type === 'geojson') {
+        const data = src._data;
+        features = Array.isArray(data?.features) ? data.features : [];
+    } else if (src.type === 'vector') {
+        const sourceLayer = layer['source-layer'];
+        if (!sourceLayer) throw new Error(`Layer "${layerId}" is vector-backed but missing "source-layer"`);
+        features = map.querySourceFeatures(sourceId, { sourceLayer });
+    } else {
+        return {};//throw new Error(`Unsupported source type for binning: ${src.type}`);
     }
+
+    const propName = binConfig.property;
+    const bins = binConfig.bins || [];
+
+    // Determine which keys are "control" keys we shouldn't copy as paint props
+    const CONTROL_KEYS = new Set(['id', 'min', 'max', 'label', 'ids']);
+
+    // Extract top-level extra props to apply to every group (unless overridden)
+    const topLevelExtras = Object.fromEntries(
+        Object.entries(binConfig).filter(([k]) => !['property', 'bins'].includes(k))
+    );
+
+    // Prepare groups keyed by bin id, prefilled with top-level extras
+    const groupsObject = {};
+    for (const bin of bins) {
+        const base = { ids: [] };
+
+        // Start with top-level extras…
+        for (const [k, v] of Object.entries(topLevelExtras)) {
+            base[k] = isColorProp(k) ? normalizeColorRGB(v) : v;
+        }
+        // …then apply per-bin props (these override top-level extras)
+        for (const [k, v] of Object.entries(bin)) {
+            if (!CONTROL_KEYS.has(k)) {
+                base[k] = isColorProp(k) ? normalizeColorRGB(v) : v; // includes 'color' and any explicit paint prop like 'circle-radius'
+            }
+        }
+        groupsObject[bin.id] = base;
+    }
+
+    // Assign features to bins
+    for (const f of features) {
+        const props = f?.properties || {};
+        const id = props?.[idKey];
+        if (id == null) continue;
+
+        const rawVal = props?.[propName];
+        const val = typeof rawVal === 'number' ? rawVal : Number(rawVal);
+        if (Number.isNaN(val)) continue;
+
+        const bin = bins.find(b =>
+            (b.min == null || val >= b.min) &&
+            (b.max == null || val <  b.max)
+        );
+        if (bin) {
+            groupsObject[bin.id].ids.push(String(id));
+        }
+    }
+
+    return { groupsObject };
 }
+
 
 function extendBoundsFromCoords(bounds, coords) {
     if (typeof coords[0] === 'number') {
@@ -332,7 +325,7 @@ function zoomToAllFeatures(map, sources) {
     }
 
     if (!bounds.isEmpty()) {
-        map.fitBounds(bounds, { padding: 40 });
+        map.fitBounds(bounds, { maxZoom: 8, padding: 40 });
     }
 }
 // ---- helpers ---------------------------------------------------------------

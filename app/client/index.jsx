@@ -13,6 +13,7 @@ import { ThemeProvider, CssBaseline } from '@material-ui/core';
 import { ThemeProvider as ThemeProviderV5, CssBaseline as CssBaselineV5 } from '@mui/material';
 import { themeOptions } from '../styles/defaultTheme';
 import { themeOptions as themeOptionsV5 } from '../styles/defaultTheme_mui_v5';
+// import { TreeProvider } from '../ipaCore/contexts/TreeContext'; 
 
 mmvRegisterMode("mmvGIS", mapboxGISMode)
 
@@ -58,12 +59,11 @@ const AppWithModelContext = () => {
 const container = document.getElementById('app')
 const root = createRoot(container)
 root.render(<AliveScope>
+          {/* <TreeProvider> */}
           <AppWithModelContext />
+        {/* </TreeProvider> */}
     </AliveScope>)
 
 if (module.hot) {
   module.hot.accept();
 }
-
-
-
