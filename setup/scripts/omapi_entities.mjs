@@ -284,11 +284,8 @@ const getEntityFactory = (entityName) => async (input, libraries, ctx, callback)
             },
         }
     }
-    //console.log("q",q)
-    let parentWithChildList = await IafScriptEngine.findWithRelated(q, ctx);
-    //console.log("parentWithChildList")
-    //console.log("parentWithChildList",parentWithChildList._list.length)
 
+    let parentWithChildList = await IafScriptEngine.findWithRelated(q, ctx);
 
     const entities = parentWithChildList._list || [];
 
@@ -321,12 +318,12 @@ const getEntityFactory = (entityName) => async (input, libraries, ctx, callback)
     return all
     }
 
+    
 const getEntityWithRelatedFactory = (entityName) => async (input, libraries, ctx, callback) => {
   let { PlatformApi, IafScriptEngine } = libraries
   const { IafItemSvc } = PlatformApi
 
   const parent = (await getCollections(IafItemSvc, entityCollections[entityName].entity._userType, ctx))[0]
-  console.log('parent', parent)
 
   const { query = {}, relatedPaths, inverslyRelatedPaths, relatedFilter } = input || {}
 
@@ -424,169 +421,21 @@ const getEntityWithRelatedFactory = (entityName) => async (input, libraries, ctx
 
   const entities = parentWithChildList._list || []
 
-  if(entityName === 'building') {
 
   const buildingsColl = (await getCollections(IafItemSvc, 'building_coll', ctx))[0]
 
-    await Promise.all(
-        entities.map(async (site) => {
-        site.buildings = await getAllRelatedItemsPaged(
-            buildingsColl._userItemId,
-            { siteId: site.siteId },
-            IafItemSvc,
-            ctx
-        )
-        })
-    )
-
-}
-
-  entities.forEach((e) => {
-    e._metadata._userItemId = parent._userItemId
-
-    // related => many
-    Object.keys(entityCollections[entityName].related || {}).forEach((prop) => {
-      const v = e[prop]
-      e[prop] = Array.isArray(v) ? v : v?._list
+   await Promise.all(
+    entities.map(async (site) => {
+      site.buildings = await getAllRelatedItemsPaged(
+        buildingsColl._userItemId,
+        { siteId: site.siteId },
+        IafItemSvc,
+        ctx
+      )
     })
-
-    // inverslyRelated => ALSO many (do NOT collapse to [0], because buildings is plural)
-    Object.keys(entityCollections[entityName].inverslyRelated || {}).forEach((prop) => {
-      const v = e[prop]
-      e[prop] = Array.isArray(v) ? v : v?._list || []
-    })
-
-    // ensure buildings always an array
-    if (!Array.isArray(e.buildings)) {
-      e.buildings = []
-    }
-  })
-
-  return entities
-}
-
-const getEntityWithRelatedFactoryModel = (entityName) => async (input, libraries, ctx, callback) => {
-  let { PlatformApi, IafScriptEngine } = libraries
-  const { IafItemSvc } = PlatformApi
-  console.log('modelapiinput', input);
-  const parent = (await getCollections(IafItemSvc, entityCollections[entityName].entity._userType, ctx))[0]
-  console.log('modelapiparent', parent);
-  
-
-  const { query = {}, relatedPaths, inverslyRelatedPaths, relatedFilter } = input || {}
-
-  const relatedInput = relatedPaths?.reduce((accum, r) => {
-    accum[r] = entityCollections[entityName].related[r]
-    return accum
-  }, {})
-
-  const inverslyRelatedInput = inverslyRelatedPaths?.reduce((accum, r) => {
-    accum[r] = entityCollections[entityName].inverslyRelated[r]
-    return accum
-  }, {})
-
-  const related = relatedInput || entityCollections[entityName].related
-  const inverslyRelated = inverslyRelatedInput || entityCollections[entityName].inverslyRelated
-
-  let findWithRelated = {
-    parent: {
-      query: query[entityName] || {},
-      collectionDesc: {
-        _userItemId: parent._userItemId,
-        _userType: parent._userType,
-      },
-    },
-  }
-
-  // IMPORTANT: do NOT filter buildings out of inverslyRelated if you want inverse-fetch
-  const relatedWithoutEmbedded = Object.fromEntries(
-    Object.entries(related || {}).filter(([key]) => key !== 'buildings')
   )
 
-  const hasRelated = Object.keys(relatedWithoutEmbedded).length > 0
-  const hasInverse = inverslyRelated && Object.keys(inverslyRelated).length > 0
-
-  if (hasRelated || hasInverse) {
-    findWithRelated.related = []
-      .concat(
-        hasRelated
-          ? Object.entries(relatedWithoutEmbedded).map(([key, r]) => ({
-              relatedDesc: { _relatedUserType: r._userType },
-              query: query[key] || {},
-              as: key,
-            }))
-          : []
-      )
-      .concat(
-        hasInverse
-          ? Object.entries(inverslyRelated).map(([key, r]) => ({
-              relatedDesc: { _relatedUserType: r._userType, _isInverse: true },
-              query: query[key] || {},
-              as: key,
-            }))
-          : []
-      )
-  }
-
-  if (relatedFilter) {
-    const { filterQuery = {}, relatedFilterPaths, inverslyRelatedFilterPaths, operand = '$and' } = relatedFilter || {}
-
-    const relatedFilterInput = relatedFilterPaths?.reduce((accum, r) => {
-      accum[r] = entityCollections[entityName].related[r]
-      return accum
-    }, {})
-
-    const inverslyRelatedFilterInput = inverslyRelatedFilterPaths?.reduce((accum, r) => {
-      accum[r] = entityCollections[entityName].inverslyRelated[r]
-      return accum
-    }, {})
-
-    const relatedFilterRelated = relatedFilterInput || []
-    const relatedFilterInverslyRelated = inverslyRelatedFilterInput || []
-
-    findWithRelated.relatedFilter = {
-      includeResult: true,
-      [operand]: Object.entries(relatedFilterRelated)
-        .map(([key, r]) => ({
-          relatedDesc: { _relatedUserType: r._userType },
-          query: filterQuery[key] || {},
-          as: key,
-        }))
-        .concat(
-          Object.entries(relatedFilterInverslyRelated).map(([key, r]) => ({
-            relatedDesc: { _relatedUserType: r._userType, _isInverse: true },
-            query: filterQuery[key] || {},
-            as: key,
-          }))
-        ),
-    }
-  }
-
-  console.log('getEntityWithRelatedFactory findWithRelated', findWithRelated)
-
-  let parentWithChildList = await IafScriptEngine.findWithRelated(findWithRelated, ctx)
-  console.log('getEntityWithRelatedFactory parentWithChildList', parentWithChildList)
-
-  const entities = parentWithChildList._list || []
-
-  if(entityName === 'building') {
-
-  const buildingsColl = (await getCollections(IafItemSvc, 'building_coll', ctx))[0]
-
-    await Promise.all(
-        entities.map(async (site) => {
-        site.buildings = await getAllRelatedItemsPaged(
-            buildingsColl._userItemId,
-            { siteId: site.siteId },
-            IafItemSvc,
-            ctx
-        )
-        })
-    )
-
-}
-
-  entities.forEach((e) => {
+   entities.forEach((e) => {
     e._metadata._userItemId = parent._userItemId
 
     // related => many
@@ -606,8 +455,6 @@ const getEntityWithRelatedFactoryModel = (entityName) => async (input, libraries
       e.buildings = []
     }
   })
-
-  console.log('modelapientities', entities);
 
   return entities
 }
@@ -675,7 +522,6 @@ const createEntityFactory = (entityName) => async (input = null, libraries, ctx,
     return persisted
 }
 
-
 /*
 Create and attach steps at once for comment
  */
@@ -695,6 +541,7 @@ const createAndAttachToEntityFactory = (entityName, parentEntityName) => async (
         _relatedUserItemDbId: entityColl._userItemId
     }];
 
+    
     const relation = await createRelation(IafItemSvc, relationData, parentColl._userItemId, ctx)
     return persisted
 }
@@ -724,7 +571,7 @@ const createAndAttachToOneParentFactory = (entityName, parentEntityName) => asyn
         throw new Error(`entity.${parentKeyId} is required to resolve the parent. Entity: ${JSON.stringify(entity)}`);
     }
 
-    // 1) Create the new entity
+  // 1) Create the new entity
     const createEntity = createEntityFactory(entityName);
     const persisted = await createEntity(entity, libraries, ctx, callback);
 
@@ -870,6 +717,7 @@ const createAndAttachToOneParentFactory = (entityName, parentEntityName) => asyn
     return persisted;
 };
 
+
 const updateAndAttachToOneParentFactory = (entityName, parentEntityName) => async ({ parentKeyId= "siteId", entity }, libraries, ctx, callback) => {
     const { PlatformApi } = libraries;
     const { IafItemSvc } = PlatformApi;
@@ -886,6 +734,7 @@ const updateAndAttachToOneParentFactory = (entityName, parentEntityName) => asyn
         return parents.slice().sort((a, b) => score(b) - score(a))[0];
     }
 
+    
     if (!parentKeyId) {
         throw new Error("parentKeyId is required");
     }
@@ -994,6 +843,7 @@ const updateAndAttachToOneParentFactory = (entityName, parentEntityName) => asyn
         }
     }
 
+    
     // 8) Now ensure attachment to the canonical parent
     let canonicalRows = (await getRelations(
         IafItemSvc,
@@ -1128,8 +978,8 @@ const getDistinctFieldsFactory = (entityName) => async (input, libraries, ctx, c
         },
     }));
 
+    
     let distinctWithMulti = await IafScriptEngine.getDistinctMulti(distinctWithMultiInput, ctx);
-    console.log("distinctWithMulti",{input, distinctWithMultiInput,distinctWithMulti});
 
     const distinctRelatedItemFields = {
         collectionDesc: entityCollections[entityName].entity,
@@ -1145,7 +995,7 @@ const getDistinctFieldsFactory = (entityName) => async (input, libraries, ctx, c
 
     }
 
-    let p = ctx || await IafProj.getCurrent();
+        let p = ctx || await IafProj.getCurrent();
 
     const baseUri = IafFetch.CONFIG.itemServiceOrigin;
     const namespace = encodeURI(`nsfilter=${p._namespaces[0]}`);
@@ -1192,6 +1042,130 @@ const getDistinctFieldsFactory = (entityName) => async (input, libraries, ctx, c
     console.log("getDistinctFieldsFactory",{input, distinctRelatedItemFields,result, aggregatedResult});
     return {result,aggregatedResult}
 }
+
+const getModelTypeElements = async (input, libraries, ctx) => {
+  const origin = input?.headers?.origin || input?.headers?.Origin || '*'
+
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  }
+
+  try {
+    const { PlatformApi, IafScriptEngine } = libraries || {}
+    const { IafItemSvc } = PlatformApi || {}
+
+    if (!IafItemSvc || !IafScriptEngine) {
+      return { status: 500, headers: corsHeaders, message: 'Missing libraries injection', _list: [] }
+    }
+
+    const structureName =
+        input?.structureName ??
+        input?.query?.structureName ??
+        input?.params?.structureName
+
+    if (!structureName) {
+      return { 
+        status: 400, 
+        headers: corsHeaders, 
+        message: 'Missing structureName', 
+        _list: [],
+        }
+      }
+
+    const structuresColl = (await getCollections(IafItemSvc, 'map_structures', ctx))[0]
+    if (!structuresColl) {
+      return { status: 500, headers: corsHeaders, message: 'map_structures_coll not found', _list: [] }
+    }
+
+    const structuresRes = await IafScriptEngine.findWithRelated({
+      parent: {
+        query: { name: structureName },
+        collectionDesc: {
+          _userItemId: structuresColl._userItemId,
+          _userType: structuresColl._userType,
+        },
+      },
+    }, ctx)
+
+    const structure = structuresRes?._list?.[0]
+    if (!structure) {
+      return {
+        status: 404,
+        headers: corsHeaders,
+        message: `No structure found for name '${structureName}'`,
+        _list: [],
+      }
+    }
+
+    const { modelName } = structure
+    if (!modelName) {
+      return {
+        status: 422,
+        headers: corsHeaders,
+        message: `Structure '${structureName}' has no modelName`,
+        _list: [],
+      }
+    }
+
+    const allTypeCollections = await getCollections(IafItemSvc, 'rvt_type_elements', ctx)
+
+    const expectedName = `${modelName}_type_el`
+
+    let rvtTypesColl =
+    allTypeCollections.find(c => c?._name === expectedName) ||
+    // case-insensitive exact match
+    allTypeCollections.find(c => String(c?._name).toLowerCase() === expectedName.toLowerCase())
+
+    // normalized contains match (handles double spaces etc.)
+    if (!rvtTypesColl) {
+    const norm = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
+    const expectedNorm = norm(expectedName)
+
+    rvtTypesColl = allTypeCollections.find(c => norm(c?._name) === expectedNorm)
+    }
+
+    if (!rvtTypesColl) {
+    return {
+        status: 404,
+        headers: corsHeaders,
+        message: `No rvt_type_elements collection found for modelName '${modelName}' (expected '${expectedName}')`,
+        _list: [],
+    }
+    }
+
+    // TODO: filter by modelName (or whatever field links type elements -> model)
+    const rvtTypesRes = await IafScriptEngine.findWithRelated({
+      parent: {
+        query: {}, // e.g. { modelName } once you confirm the field
+        collectionDesc: {
+          _userItemId: rvtTypesColl._userItemId,
+          _userType: rvtTypesColl._userType,
+        },
+      },
+      options: { limit: 5 },
+    }, ctx)
+
+    return {
+      status: 200,
+      headers: corsHeaders,
+      structure,
+      modelName,
+      _list: rvtTypesRes?._list || [],
+    }
+
+    // --- your existing code ends here ---
+  } catch (e) {
+    return {
+      status: 500,
+      headers: corsHeaders,
+      message: e?.message || String(e),
+      _list: [],
+    }
+  }
+}
+
 
 function decodeDecimal128({ high, low, negative }) {
     const SIGN_BIT_MASK = 0x8000000000000000n;
@@ -1263,328 +1237,11 @@ const withDecimalFix = (originalFn) => async (input, libraries, ctx, callback) =
     return fixedResult;
 }
 
-const statusHierarchy = ['REGISTERED', 'APPROVED', 'CLOSED'];
-const rank = s => statusHierarchy.indexOf(s);
-
-function computeSiteECStats(sites, ecs, logs, siteRollup = 'any-closed' /* 'all-closed' | 'any-closed' */ ) {
-    // 1) Per-target aggregation: site:unit:equipment:ecid -> highest status
-    const perTarget = new Map(); // key -> { site, unit, equip, siteEquip, ecid, status }
-    for (const log of logs) {
-        const site = log.site;
-        const unit = log.unit ?? '';
-        const equip = log['Equipment Id'] || '';
-        const siteEquip = log['Site Equipment Id'] || '';
-        const ecid = log.ecid;
-        const status = log.status;
-
-    if (!site || !ecid || !status) continue;
-
-        const key = `${site}:${unit}:${equip}:${ecid}`;
-        const cur = perTarget.get(key);
-        if (!cur || rank(status) > rank(cur.status)) {
-            perTarget.set(key, { site, unit, equip, siteEquip, ecid, status });
-        }
-    }
-
-    // 2) Build site → unit → equipment structures
-    const bySite = new Map();
-    for (const { site, unit, equip, siteEquip, ecid, status } of perTarget.values()) {
-        if (!bySite.has(site)) bySite.set(site, { targets: [], byUnit: new Map() });
-        const S = bySite.get(site);
-        S.targets.push({ unit, equip, siteEquip, ecid, status });
-
-        if (!S.byUnit.has(unit)) S.byUnit.set(unit, []);
-        S.byUnit.get(unit).push({ equip, siteEquip, ecid, status });
-    }
-
-    // 3) Per-unit statusCounts (counts per equipment target)
-    function emptyCounts() { return { REGISTERED: { _total: 0 }, APPROVED: { _total: 0 }, CLOSED: { _total: 0 } }; }
-
-    const results = sites.map(({ siteId }) => {
-        const siteData = bySite.get(siteId);
-        const statusCountsPerUnit = {};
-        const siteLevelECStatus = new Map(); // ecid -> rolled-up site status for that EC
-
-        if (!siteData) {
-            return {
-                siteId,
-                totalEC: 0,
-                statusCounts: emptyCounts(),
-                statusCountsPerUnit: {}
-            };
-        }
-
-        // Per-unit
-        for (const [unit, items] of siteData.byUnit.entries()) {
-            const counts = emptyCounts();
-            for (const { status } of items) counts[status]._total += 1;
-            statusCountsPerUnit[unit] = counts;
-        }
-
-        // 4) Roll-up to site-level EC status (one status per EC/SiteEquip pair per site)
-        // Group targets by ecid/site Equip pair
-        const byEcidAndSiteEquip = new Map();
-        for (const t of siteData.targets) {
-            const key = `${t.ecid}/${t.siteEquip}`
-            if (!byEcidAndSiteEquip.has(key)) byEcidAndSiteEquip.set(key, []);
-            byEcidAndSiteEquip.get(key).push(t.status);
-        }
-
-        for (const [key, statuses] of byEcidAndSiteEquip.entries()) {
-            const r = statuses.map(rank);
-            const siteStatus =
-                siteRollup === 'all-closed'
-                    ? statusHierarchy[Math.min(...r)] // lowest wins; CLOSED only if all closed
-                    : statusHierarchy[Math.max(...r)]; // highest wins
-            siteLevelECStatus.set(key, siteStatus);
-        }
-
-        // 5) Per-site statusCounts over ECs (not per equipment)
-        const siteCounts = emptyCounts();
-        for (const s of siteLevelECStatus.values()) siteCounts[s]._total += 1;
-
-        return {
-            siteId,
-            totalEC: siteLevelECStatus.size,
-            statusCounts: siteCounts,
-            statusCountsPerUnit
-        };
-    });
-
-    return results;
-}
-
-
-
-function computeSiteECStats2(sites, engineeringChanges, logs) {
-
-    const statusHierarchy = ['REGISTERED', 'APPROVED', 'CLOSED'];
-
-    const siteUnitECStatus = {};
-
-    for (const log of logs) {
-        const { site, unit, ecid, status } = log;
-        const key = `${site}:${unit}:${ecid}`;
-        const current = siteUnitECStatus[key];
-
-        if (!current || statusHierarchy.indexOf(status) > statusHierarchy.indexOf(current)) {
-            siteUnitECStatus[key] = status;
-        }
-    }
-
-    // Aggregate per site
-    const result = sites.map(({ siteId }) => {
-
-        const statuses = { REGISTERED: { _total: 0 }, APPROVED: { _total: 0 }, CLOSED: { _total: 0 } };
-        const statusesPerUnit = {};
-
-
-        const rendomFacility = Math.random() < 0.5 ? "A" : "B";
-
-        const ecForSite = Object.entries(siteUnitECStatus).filter(([key]) => key.startsWith(/*siteId*/ rendomFacility + ":"));
-
-        for (const [key, status] of ecForSite) {
-            const [, unit] = key.split(":"); // extract unit
-            statuses[status]._total++;
-            if (!statusesPerUnit[unit]) {
-                statusesPerUnit[unit] = { REGISTERED:  { _total: 0 }, APPROVED:  { _total: 0 }, CLOSED:  { _total: 0 } };
-            }
-            statusesPerUnit[unit][status]._total++;
-        }
-
-        return {
-            siteId,
-            totalEC: ecForSite.length,
-            statusCounts: statuses,
-            statusCountsPerUnit: statusesPerUnit
-        };
-    });
-
-    return result;
-}
-
-
 //SITE ENTITY
 const createSite =  (input, libraries, ctx) => createEntityFactory("site")(input?.params || {}, libraries, ctx);
 const updateSite =  (input, libraries, ctx) => updateEntityFactory("site")(input?.params || {}, libraries, ctx);
 const deleteSite =  (input, libraries, ctx) => deleteEntityFactory("site")(input?.params || {}, libraries, ctx);
-export const getSitesWithRelated = withDecimalFix(getEntityWithRelatedFactory("site"));
-
-export const getSitesWithRelatedHit = async (input, libraries, ctx) => {
-
-
-    const { IafItemSvc } = libraries.PlatformApi;
-
-    const siteIdToFacilityIdMap = {
-        "Belleville": "A",
-        "St. Laurent": "B",
-    }
-
-    const buildingIdToUnitMap = {
-        "Belleville-1": "01",
-        "Belleville-2": "02",
-        "St. Laurent-A1": "01",
-        "St. Laurent-B2": "02",
-    }
-
-    const sites = await withDecimalFix(getEntityWithRelatedFactory("site"))(input?.params || {}, libraries, ctx);
-
-    let collections = await IafItemSvc.getNamedUserItems({
-        query: { _userType: { $in: ["ecs", "ecs-logs"]} , _itemClass: 'NamedUserCollection' }
-    }, ctx, { page: {_pageSize: 10, _offset: 0}})
-
-    const ecsColl =  collections._list.find(c => c._userType === "ecs")
-    const ecsLogsColl =  collections._list.find(c => c._userType === "ecs-logs")
-
-
-    const ecs = (await IafItemSvc.getRelatedItems(ecsColl._userItemId, {}, ctx, { page: { getAllItems: true }}))?._list
-    let relatedLogs = (await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, { query: {} }, ctx, { page: { getAllItems: true }}))?._list
-
-    const ecStats = computeSiteECStats([{siteId:"A"},{siteId:"B"}], ecs, relatedLogs);
-
-    const defaultEcsByStatus = {
-            "REGISTERED": {
-               "_total": 0
-            },
-            "APPROVED": {
-               "_total": 0
-            },
-            "CLOSED": {
-               "_total": 10
-            }
-    }
-    sites.forEach(site=>{
-        const randomFacility = Math.random() < 0.5 ? "A" : "B";
-        const siteECStats = ecStats.find(stat=>stat.siteId==siteIdToFacilityIdMap[site.siteId]);
-        site.ecsByStatus = siteECStats?.statusCounts || defaultEcsByStatus;
-        if(site.buildings){
-            site.buildings.forEach(building=>{
-                const randomUnit = Math.random() < 0.5 ? "01" : "02";
-                building.ecsByStatus = siteECStats?.statusCountsPerUnit?.[buildingIdToUnitMap[building.buildingId]] || defaultEcsByStatus
-            });
-        }
-    });
-
-    return sites;
-
-
-
-}
-
-const getBuildingsWithRelated = async (input, libraries, ctx) => {
-    const siteIdToFacilityIdMap = {
-        "Belleville": "A",
-        "St. Laurent": "B",
-    }
-
-    const buildingIdToUnitMap = {
-        "Belleville-1": "01",
-        "Belleville-2": "02",
-        "St. Laurent-A1": "01",
-        "St. Laurent-B2": "02",
-    }
-
-
-    const buildings = await withDecimalFix(getEntityWithRelatedFactory("building"))(input?.params || {}, libraries, ctx);
-
-    let collections = await IafItemSvc.getNamedUserItems({
-        query: { _userType: { $in: ["ecs", "ecs-logs"]} , _itemClass: 'NamedUserCollection' }
-    }, ctx, { page: {_pageSize: 10, _offset: 0}})
-
-    const ecsColl =  collections._list.find(c => c._userType === "ecs")
-    const ecsLogsColl =  collections._list.find(c => c._userType === "ecs-logs")
-
-
-    const ecs = (await IafItemSvc.getRelatedItems(ecsColl._userItemId, {}, ctx, { page: { getAllItems: true }}))?._list
-    let relatedLogs = (await IafItemSvc.getRelatedItems(ecsLogsColl._userItemId, { query: {} }, ctx, { page: { getAllItems: true }}))?._list
-
-    const siteIds = buildings.map(b=>b.siteId).filter(siteId=>!!siteId)
-    const sites = [...new Set(siteIds)].map(siteId=>({siteId}));
-    const ecStats = computeSiteECStats([{siteId:"A"},{siteId:"B"}], ecs, relatedLogs);
-
-    buildings.forEach(building=>{
-        const randomFacility = Math.random() < 0.5 ? "A" : "B";
-        const randomUnit = Math.random() < 0.5 ? "01" : "02";
-        const siteECStats = ecStats.find(stat=>siteIdToFacilityIdMap[building.siteId]==stat.siteId);
-        building.ecsByStatus = siteECStats?.statusCountsPerUnit?.[buildingIdToUnitMap[building.buildingId]]
-    });
-
-    return buildings;
-
-}
-
-export const getStructureModelElements = async (input, libraries, ctx) => {
-  const { PlatformApi, IafScriptEngine } = libraries
-  const { IafItemSvc } = PlatformApi
-
-//   const { structureName } = input || {}
-  const { structureName } = input?.params || {}
-  if (!structureName) {
-    return { status: 400, message: 'Missing structureName', _list: [] }
-  }
-
-  // 1) map_structures
-  const structuresColl = (await getCollections(IafItemSvc, 'map_structures', ctx))[0]
-  if (!structuresColl) {
-    return { status: 500, message: 'map_structures_coll not found', _list: [] }
-  }
-
-//   const structuresRes = await IafScriptEngine.findWithRelated({
-//     query: { name: structureName },
-//     collectionDesc: {
-//       _userItemId: structuresColl._userItemId,
-//       _userType: structuresColl._userType,
-//     },
-//   }, ctx)
-
-  const structuresRes = await IafScriptEngine.findWithRelated({
-    parent: {
-      query: { name: structureName },
-      collectionDesc: {
-        _userItemId: structuresColl._userItemId,
-        _userType: structuresColl._userType,
-      },
-    },
-  }, ctx)
-
-  const structure = structuresRes?._list?.[0]
-  if (!structure) {
-    return { status: 404, message: `No structure found for name '${structureName}'`, _list: [] }
-  }
-
-  const { modelName } = structure
-  if (!modelName) {
-    return { status: 422, message: `Structure '${structureName}' has no modelName`, _list: [] }
-  }
-
-  // 2) rvt_type_elements (or whatever your userType is)
-  const rvtTypesColl = (await getCollections(IafItemSvc, 'rvt_type_elements', ctx))[0]
-
-  console.log("getStructureModelElements", rvtTypesColl);
-  if (!rvtTypesColl) {
-    return { status: 500, message: 'rvt_type_elements collection not found', _list: [] }
-  }
-
-
-const rvtTypesRes = await IafScriptEngine.findWithRelated({
-  parent: {
-    query: {}, // TEMP: no filter, just prove you can get items
-    collectionDesc: {
-      _userItemId: rvtTypesColl._userItemId,
-      _userType: rvtTypesColl._userType,
-    },
-  },
-  options: { limit: 5 },
-}, ctx);
-
-  return {
-    status: 200,
-    structure,
-    modelName,
-    _list: rvtTypesRes?._list || [],
-  }
-}
-
+const getSitesWithRelated = withDecimalFix(getEntityWithRelatedFactory("site"));
 
 //BUILDING ENTITY
 const createBuilding =  (input, libraries, ctx) => createEntityFactory("building")(input?.params || {}, libraries, ctx);
@@ -1594,17 +1251,19 @@ const attachBuildingToSite =  (input, libraries, ctx) => createAndAttachToEntity
 const createBuildingAndAttachToSite = (input, libraries, ctx) => createAndAttachToEntityFactory("building","site")(input?.params || {}, libraries, ctx);
 const createBuildingAndAttachToOneSite = (input, libraries, ctx) => createAndAttachToOneParentFactory("building","site")(input?.params || {}, libraries, ctx);
 const updateBuildingAndAttachToOneSite = (input, libraries, ctx) =>  updateAndAttachToOneParentFactory("building","site")(input?.params || {}, libraries, ctx);
-
+const getBuildingsWithRelated = withDecimalFix(getEntityWithRelatedFactory("building"));
 
 //MODEL
-export const getModelElementsWithRelated = (input, libraries, ctx) => getEntityWithRelatedFactoryModel("modelElement")(input?.params || {}, libraries, ctx);
-
+const getModelElementsWithRelated = (input, libraries, ctx) => getEntityWithRelatedFactory("modelElement")(input?.params || {}, libraries, ctx);
+const getModelTypeElementsWithRelated = (input, libraries, ctx) => getModelTypeElements(input, libraries, ctx);
 
 function getRunnableScripts() {
     return [
         { name: "------GET", script: ""},
         { name: "3. Get Sites", script: "getSitesWithRelated" },
         { name: "3. Get Buildings", script: "getBuildingsWithRelated" },
-        { name: "3. Get Model Elements", script: "getModelElementsWithRelated" }
+        { name: "3. Get Model Elements", script: "getModelElementsWithRelated" },
+        { name: "3. Get Model Type Elements", script: "getModelTypeElementsWithRelated" },
     ]
 }
+

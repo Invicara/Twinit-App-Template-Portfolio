@@ -3,7 +3,7 @@ import { IafScriptEngine } from '@dtplatform/iaf-script-engine';
 import { CombinatorTranslationEnum } from '@jsonforms/core';
 
 //TODO REMOVE
-import { getSitesWithRelated, getModelElementsWithRelated, getStructureModelElements } from '../../setup/scripts/omapi_entities.mjs';
+import { getSitesWithRelated, getModelTypeElementsWithRelated, getStructureModelElements } from '../../setup/scripts/omapi_entities.mjs';
 
 function splitStructureName(structureName) {
     return structureName.split(/[-_]/).filter(word => word !== 'Facility' && word !== 'Unit')
@@ -101,45 +101,37 @@ export async function getSystemLevel(structureName) {
 }
 
 export async function getElementsLevel(structureName) {
-  // const parentLevels = splitStructureName(structureName)
-
   const ctx = IafProj.getCurrent()
   const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`
-  const elementsLevelUrl = `${baseOmapiUrl}/model/all`
+  const elementsLevelUrl = `${baseOmapiUrl}/model/typeElements`
 
   let system = []
 
-  try {
-    // const response = await fetch(elementsLevelUrl, {
-    //   method: 'GET',
-    //   mode: 'cors',
-    //   headers: {
-    //     Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
-    //     'Content-Type': 'application/json',
-    //   },
-    // })
+    const url = `${baseOmapiUrl}/model/typeElements/${encodeURIComponent(structureName)}`
 
-       //    const resultTest = await getModelElementsWithRelated(null, { PlatformApi: { IafItemSvc }, IafScriptEngine }, ctx);
-    const resultTest = await getStructureModelElements(
-      { params: { structureName } },
-      { PlatformApi: { IafItemSvc }, IafScriptEngine },
-      ctx
-    );
+    try {
+      const res = await fetch(url, {
+      method: 'GET',
+      mode: 'cors',
+      headers: {
+        Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
+        'Content-Type': 'application/json',
+      },
+    })
 
-    console.log('getElementsLevel resultTest', resultTest);
+    const json = await res.json()
+    const result = json?._result
 
-    if (resultTest?.status === 200) {
-      return resultTest._list || []
-    } else {
-      console.error('OMAPI facilities call failed', resultTest?.status)
+    if (res.ok && result?.status === 200) {
+      return result._list || []
     }
+
+    console.error('OMAPI typeElements call failed', { httpStatus: res.status, jsonStatus: json?.status, json })
   } catch (err) {
-    console.error('Facility fetch error:', err)
+    console.error('getElementsLevel fetch error:', err)
   }
 
-  console.log('getElementsLevel system', system);
-
-  return system
+  return []
 }
 
 export async function getEquipTypeLevel(nodeId, structureName) {

@@ -145,17 +145,6 @@
                 "title": "Site Address",
                 "description": "Address of the site installations",
                 "propertyOrder": 4
-            },
-            "siteType": {
-                "title": "Site Type",
-                "description": "Type of the site based on power generation",
-                "propertyOrder": 5,
-                "type": "string",
-                "enum": [
-                    "900MW",
-                    "1300MW",
-                    "1450MW"
-                ]
             }
         }
     }

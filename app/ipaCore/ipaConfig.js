@@ -1,6 +1,7 @@
 import { STATE_KEY } from "./redux/pageComponentState"
 import { SETUP_SITE_KEY } from "./redux/siteSetup"
 import { FILTERS_KEY } from "./redux/filters"
+import { GRAPHICS_GATE_KEY } from "./redux/graphicsGate";
 
 const ipaConfig = {
    appName: "Fleet Management",
@@ -12,7 +13,8 @@ const ipaConfig = {
         slices: [
             {name: STATE_KEY, file: 'pageComponentState.js'},
             {name: SETUP_SITE_KEY, file: 'siteSetup.js'},
-            {name: FILTERS_KEY, file: 'filters.js'}
+            {name: FILTERS_KEY, file: 'filters.js'},
+            { name: GRAPHICS_GATE_KEY, file: 'graphicsGate.js' }
         ]
     },
    components: {
