@@ -16,6 +16,7 @@ import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from "lodash";
 import { getActiveLevels } from "../../services/utils";
 
+
 export const defaultNewSiteId = "<newSite>";
 export const defaultNewBuildingId = "<newBuilding>";
 

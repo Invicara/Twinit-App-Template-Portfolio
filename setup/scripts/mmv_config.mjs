@@ -11,6 +11,7 @@ function get(obj, path, defaultValue = "") {
     return path.split(".").reduce((acc, key) => (acc == null ? acc : acc[key]), obj) ?? defaultValue;
 }
 
+
 function countsForSiteBuildings(map, feature, config) {
      const { bins, property } = config;
     const counts = new Array(bins.length).fill(0);
@@ -52,11 +53,11 @@ function countsForSiteBuildings(map, feature, config) {
 
 const statusConfig = {
     colorMap: {
-        "1": "#d3d3d3",   // Not started / Planned (adjust if you want your old palette)
-        "2": "#f4b740",   // In Progress / Construction
-        "3": "#66bb6a",   // Completed / Operating
-        "4": "#e53935",   // At risk / Suspended Operation
-        "5": "#6B7280",   // Permanent Shutdown
+        "1": "#d3d3d3",// Planned
+        "2": "#f4b740", // Construction
+        "3": "#66bb6a", // Operating
+        "4": "#e53935", // Suspended
+        "5": "#6B7280", // Permanent Shutdown (gray-ish)
         "unknown": "#CCCCCC",
     },
     labelMap: {
@@ -69,39 +70,10 @@ const statusConfig = {
     },
 }
 
-function countsForSiteECs(map, feature, config) {
-    let bins = config.bins;
-    const counts = new Array(bins.length).fill(0);
-    for (let i = 0; i < bins.length; i++) {
-        const bin = bins[i];
-        const val = bin.id && feature.properties?.ecsByStatus?.[bin.id]?._total;
-        if(val) {
-            counts[i] = val;
-        }
-    }
-    return counts;
-}
-
-function countsForSiteOpenECs(map, feature, config) {
-    return [(feature.properties?.ecsByStatus?.REGISTERED?._total || 0) + (feature.properties?.ecsByStatus?.APPROVED?._total || 0)];
-}
-
-
-
 
 const THEMES = {
-    BY_CAPACITY: {
-        property: "Capacity",//this is used to as a property to match agains the bin (unless getCounts is overwritten)
-        bins: [
-            { id: "low",   min: 0,    max: 900,  color: "#8ecbff", label: "< 900" },
-            { id: "mid",   min: 900,  max: 1300, color: "#1DC0F7", label: "900–1299" },
-            { id: "high",  min: 1300, max: 1450, color: "#0072BC", label: "1300–1449" },
-            { id: "ultra", min: 1450, max: null, color: "#1D1D1D", label: "≥1450" }
-        ],
-        "circle-radius": 7
-    },
-     BY_TYPE: {
-        property: "Type",
+    BY_TYPE: {
+        property: "Type",//this is used to as a property to match agains the bin (unless getCounts is overwritten)
         bins: [
             { id: "typeA", color: "#8ecbff", label: "Type A" },
             { id: "typeB", color: "#1DC0F7", label: "Type B" },
@@ -122,7 +94,6 @@ const THEMES = {
         ],
         "circle-radius": 7
     },
-
 }
 
 
@@ -171,7 +142,7 @@ let scriptModule = {
                 }
             },
             initialCameraPosition: {
-                position: [2, 46],
+                position: [-8, 53.4],
                 zoom: 5,
                 rotation: {
                     pitch: 0,
@@ -272,18 +243,8 @@ let scriptModule = {
                 const legend = THEMES.BY_STATUS;
 
                 const theme = {
-                    //theme building features by Capacity property
-                    "building-features-layer": THEMES.BY_STATUS,
-                    //we will keep site features invisible by default
-                    /*"site-features-layer": {
-                        property: "buildings_count",//TODO: addept property to be a function
-                        bins: [
-                            { id: "few",   min: 0,   max: 5,  color: "#8ecbff", label: "1–4 buildings" },
-                            { id: "mid",   min: 5,   max: 10, color: "#3aa7ff", label: "5–9 buildings" },
-                            { id: "large", min: 10,  max: 20, color: "#7fb2c8", label: "10–19 buildings" },
-                            { id: "mega",  min: 20,  max: null, color: "#2b2b2b", label: "20+" }
-                        ]
-                    }*/
+                    //theme building features by Type property
+                    "building-features-layer": THEMES.BY_TYPE,
                 }
                 const singleMarkers = [{
                     featureDef: {
@@ -291,8 +252,7 @@ let scriptModule = {
                         idKey: "buildingId"
                     },
                     sourceId: "building-features" ,
-                  //  config: theme["building-features-layer"],
-                    config: theme["building-features-centroids"],
+                    config: theme["building-features-layer"],
                     showLabel: false,
                     pieAlpha: 0.3,
                     "popupConfig": {
@@ -310,7 +270,7 @@ let scriptModule = {
                 return { commands: null, theme, singleMarkers, legend };
             }
             case 'portfolio.site.building': {
-                const legend = THEMES.BY_STATUS;
+                const legend = THEMES.BY_TYPE;
                 return {legend}
             }
 
@@ -346,25 +306,12 @@ let scriptModule = {
         return commands;
     },
     filterRuleFns(input) {
-        return {
+          return {
             statusIn:
             ({ values }) =>
             (building) => {
                 if (building.StatusId == null) return false;
                 return values.map(String).includes(String(building.StatusId));
-            },
-
-            valueBetween:
-            ({ min, max }) =>
-            (building) => {
-                const cap = building.Capacity;
-                if (typeof cap !== "number") return false;
-
-                if (max == null) {
-                return cap >= min;
-                }
-
-                return cap >= min && cap < max;
             },
             searchQuery: ({ q }) => (e) => {
                 if (!q) return true;

@@ -3,7 +3,6 @@ import { Panel, PanelGroup } from 'react-resizable-panels'
 import ResizeHandle from '../../components/panels/ResizeHandle'
 import { IafViewerDBM } from '@dtplatform/iaf-viewer'
 import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls'
-import EquipmentDetails from '../../components/EquipmentDetails/EquipmentDetails'
 import ModelSelect from '../../components/ModelSelect/ModelSelect'
 import SearchPane from '../../components/search/SearchPane'
 import ElementDetails from '../../components/ElementDetails/ElementDetails'
@@ -100,19 +99,8 @@ useEffect(() => {
               </div>
             </StackableDrawer>
 
-              <StackableDrawer
-              level={2}
-              iconKey='fa-columns'
-              tooltip='Search'
-              isDrawerOpen={false}
-            >
-              <div className='viewer-sidebar'>
-                <EquipmentDetails />
-              </div>
-            </StackableDrawer>
-
             <StackableDrawer
-              level={3}
+              level={2}
               iconKey='fa-info'
               tooltip='Element'
               isDrawerOpen={false}
@@ -135,7 +123,7 @@ useEffect(() => {
             </StackableDrawer>
 
             <StackableDrawer
-              level={4}
+              level={3}
               iconKey='fa-file-alt'
               tooltip='Files'
               isDrawerOpen={false}
@@ -200,7 +188,6 @@ useEffect(() => {
           </div>
         </Panel>
         <ResizeHandle />
-         <ResizeHandle />
          <Panel id="table-panel" collapsible={true} order={2} defaultSize={1} className='table-panel'>
             <TablePanel
                readOnly={!handler?.config?.manageFiles}
