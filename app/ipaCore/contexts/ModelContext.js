@@ -45,12 +45,6 @@ const ModelContextProvider = ({ children, project, appContext }) => {
    // setSliceElements: <function> the function to set the sliceElements
    const [sliceElements, setSliceElements] = useState([])
 
-   const [refreshECTrigger, setRefreshECTrigger] = useState(0);
-
-
-   const [isBottomECPanelOpen, setIsBottomECPanelOpen] = useState(false);
-   const [siteEquipment, setSiteEquipment] = useState([]);
-
    useEffect(() => {
       loadAllModels(project)
    }, [project])
@@ -443,7 +437,6 @@ const ModelContextProvider = ({ children, project, appContext }) => {
             // typePropery ---_isInverse:true---> element
 
             let result = await IafScriptEngine.findWithRelated(makeElementByPropQuery(tempCollections.typeProps, typeQueryPartials, null, tempCollections.elements))
-            console.log('result ----->', result)
             return result._list.reduce((acc, value) => acc += value.elements._total, 0)
 
          } else if (instanceQuery && typeQuery) {
@@ -623,27 +616,6 @@ const ModelContextProvider = ({ children, project, appContext }) => {
       }
    }
 
-
-//       useEffect(() => {
-//   if (modelRelatedCollections?.dataCache) {
-   
-//     (async () => {
-//       try {
-//         const page = await IafItemSvc.getRelatedItems(
-//           modelRelatedCollections.dataCache._userItemId,
-//           { query: {} },
-//           null,
-//           { page: { _pageSize: 1000, _offset: 0 }, userItemVersionId: modelRelatedCollections.dataCache._userItemVersionId }
-//         )
-
-//         console.log('EC4 Sample datacache items:', page._list)
-//       } catch (err) {
-//         console.error('ERROR: fetching instanceProps for debug', err)
-//       }
-//     })()
-//   }
-// }, [modelRelatedCollections]);
-
    const memoizedContextValue = useMemo(() => {
       return {
          availableModelComposites,
@@ -660,20 +632,14 @@ const ModelContextProvider = ({ children, project, appContext }) => {
          getSelectedElement,
          allPropRefs,
          selectedPropRefs,
-         isBottomECPanelOpen, 
-         siteEquipment,
          setSelectedPropRefs,
          getElementCount,
          sliceElements,
-         refreshECTrigger,
          setSliceElements,
          setSliceElementsByQuery,
          setSelectedElement,
          getPropertyReferences,
          getTotalElementCount,
-         setIsBottomECPanelOpen,
-         setSiteEquipment,
-         setRefreshECTrigger,
          project,
          appContext,
       }
@@ -687,9 +653,6 @@ const ModelContextProvider = ({ children, project, appContext }) => {
       selectedElement,
       allPropRefs,
       selectedPropRefs,
-      isBottomECPanelOpen, 
-      refreshECTrigger,
-      siteEquipment,
       sliceElements,
       project,
       appContext

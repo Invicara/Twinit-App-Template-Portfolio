@@ -5,8 +5,8 @@ import TreeView from '@material-ui/lab/TreeView'
 import ArrowDropDownIcon from '@material-ui/icons/ArrowDropDown'
 import ArrowRightIcon from '@material-ui/icons/ArrowRight'
 
-import { getInitialTreeLevels, getSystemLevel, getEquipTypeLevel, getEquipLevel, getElementsLevel } from '../../../services/assetTree'
-import { getAllDescendantIds, findNodeById,calculateAssetTreeSelectionState, getAncestorIds } from '../../components/EquipmentDetails/utils/treeHelpers'
+import { getInitialTreeLevels, getEquipTypeLevel, getElementsLevel } from '../../../services/assetTree'
+import { findNodeById, getAncestorIds } from '../../components/EquipmentDetails/utils/treeHelpers'
 
 import EntityTreeSearch from '../../components/EquipmentDetails/EntityTreeSearch'
 
@@ -17,7 +17,7 @@ const useStyles = makeStyles(theme => ({
   }
 }))
 
-const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, setTableData}) => {
+const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedElements, setTableData}) => {
     const [initialTreeLevels, setInitialTreeLevels] = useState()
     const [expanded, setExpanded] = useState([])
     const [checkedItems, setCheckedItems] = useState({})
@@ -198,9 +198,9 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
                         delete next[child.id]
                         setCheckedItems(prevChecked => ({ ...prevChecked, [child.id]: true }))
                         
-                        // Add level 5 nodes to selectedSiteEquipment
+                        // Add level 5 nodes to selectedElements
                         if (child.level === 5) {
-                            setSelectedSiteEquipment(prev => {
+                            setSelectedElements(prev => {
                                 const prevList = Array.isArray(prev) ? prev : []
                                 if (!prevList.includes(child.name)) {
                                     return [...prevList, child.name]
@@ -214,8 +214,8 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
                             delete next[child.id]
                             setCheckedItems(prevChecked => ({ ...prevChecked, [child.id]: true }))
                             
-                            // Add level 5 nodes to selectedSiteEquipment
-                            setSelectedSiteEquipment(prev => {
+                            // Add level 5 nodes to selectedElements
+                            setSelectedElements(prev => {
                                 const prevList = Array.isArray(prev) ? prev : []
                                 if (!prevList.includes(child.name)) {
                                     return [...prevList, child.name]
@@ -417,7 +417,7 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedSiteEquipment, set
   updateAncestors(treeRef.current, id)
 
   if (toAddLevel5.size > 0 || toRemoveLevel5.size > 0) {
-    setSelectedSiteEquipment(prev => {
+    setSelectedElements(prev => {
       const prevList = Array.isArray(prev) ? prev.slice() : []
       const filtered = prevList.filter(name => !toRemoveLevel5.has(name))
       toAddLevel5.forEach(name => {
