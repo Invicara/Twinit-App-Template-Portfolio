@@ -25,7 +25,7 @@ const AssetOverviewView = () => {
     const [loadingNodes, setLoadingNodes] = useState({A: true})
     const [loadingTableData, setLoadingTableData] = useState()
     const [tableData, setTableData] = useState()
-    const [selectedSiteEquipment, setSelectedSiteEquipment] = useState()
+    const [selectedElements, setSelectedElements] = useState()
     const [equipData, setEquipData] = useState()
 
     useEffect(() => {
@@ -36,8 +36,8 @@ const AssetOverviewView = () => {
 
     // Memoizing the filtered equipData
     const filteredEquipData = useMemo(() => {
-      return tableData?.filter(data => selectedSiteEquipment?.includes(data.nameId))
-    }, [selectedSiteEquipment, tableData])
+      return tableData?.filter(data => selectedElements?.includes(data.nameId))
+    }, [selectedElements, tableData])
 
     // Setting equipData once filtered data is available
     useEffect(() => {
@@ -45,8 +45,8 @@ const AssetOverviewView = () => {
     }, [filteredEquipData])
 
     // Callback to prevent unnecessary re-renders
-    const handleSetSelectedSiteEquipment = useCallback((newSelection) => {
-      setSelectedSiteEquipment(newSelection)
+    const handleSetSelectedElements = useCallback((newSelection) => {
+      setSelectedElements(newSelection)
     }, [])
 
    const handleSetTableData = useCallback((updater) => {
@@ -82,7 +82,7 @@ const AssetOverviewView = () => {
           <AssetTree
             loadingNodes={loadingNodes}
             setLoadingNodes={setLoadingNodes}
-            setSelectedSiteEquipment={handleSetSelectedSiteEquipment}
+            setSelectedElements={handleSetSelectedElements}
             setTableData={handleSetTableData}
           />
         </Box>

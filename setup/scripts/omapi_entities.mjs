@@ -1241,7 +1241,7 @@ const withDecimalFix = (originalFn) => async (input, libraries, ctx, callback) =
 const createSite =  (input, libraries, ctx) => createEntityFactory("site")(input?.params || {}, libraries, ctx);
 const updateSite =  (input, libraries, ctx) => updateEntityFactory("site")(input?.params || {}, libraries, ctx);
 const deleteSite =  (input, libraries, ctx) => deleteEntityFactory("site")(input?.params || {}, libraries, ctx);
-const getSitesWithRelated = withDecimalFix(getEntityWithRelatedFactory("site"));
+export const getSitesWithRelated = withDecimalFix(getEntityWithRelatedFactory("site"));
 
 //BUILDING ENTITY
 const createBuilding =  (input, libraries, ctx) => createEntityFactory("building")(input?.params || {}, libraries, ctx);
