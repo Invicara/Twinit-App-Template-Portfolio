@@ -141,7 +141,6 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedElements, setTable
         try {
             let children = []
 
-      
             if (node.level === 1) {
                 const unitPromises = (node.children || []).map(unit => loadChildrenForNode(unit.id, deep))
                 children = await Promise.all(unitPromises)
@@ -296,6 +295,7 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedElements, setTable
     ID: prop?.id,
     'Display Name': prop?.psDispName,
     'Source Type': prop?.srcType,
+    'Value': prop?.val
   })
 
   const toAddProps = new Map() // key: String(id) -> row
