@@ -1,6 +1,5 @@
 // TreeContext.js
 import React, { createContext, useContext, useState, useCallback } from "react";
-import { treeLevels } from "../../services/siteEquipment";
 
 const TreeContext = createContext();
 

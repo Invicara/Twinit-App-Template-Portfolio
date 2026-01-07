@@ -371,7 +371,7 @@ const AssetTable = ({ rows }) => {
                     <TableBody>
                         {_.isEmpty(rows) ? (
                             <TableCell
-                                className="asset-table-no-equip"
+                                className="asset-table-no-elements"
                                 colSpan={4}
                                 sx={{
                                     height: 'calc(100vh - 300px)', // adjust based on your header height
@@ -389,7 +389,7 @@ const AssetTable = ({ rows }) => {
                                 >
                                     <Box sx={{ maxWidth: 400 }}>
                                         <i className="fas fa-search"></i>
-                                        <p className="no-equip-header">No Elements selected</p>
+                                        <p className="no-elements-header">No Elements selected</p>
                                         <p>Use the panel on the left to browse the filter tree and view data.</p>
                                     </Box>
                                 </Box>

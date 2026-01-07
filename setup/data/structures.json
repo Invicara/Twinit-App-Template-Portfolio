@@ -11,7 +11,7 @@
         "modelName": "General Medical - Architecture2024",
         "mapGraphicRefId": "68c13e1a71aa127e59765ab0",
         "structureMetadata": {},
-        "name": "antena",
+        "name": "medical",
         "requiredBackgroundProperties": {
         }
     },

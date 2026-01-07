@@ -6,9 +6,9 @@ import ArrowDropDownIcon from '@material-ui/icons/ArrowDropDown'
 import ArrowRightIcon from '@material-ui/icons/ArrowRight'
 
 import { getInitialTreeLevels, getEquipTypeLevel, getElementsLevel } from '../../../services/assetTree'
-import { findNodeById, getAncestorIds } from '../../components/EquipmentDetails/utils/treeHelpers'
+import { findNodeById, getAncestorIds } from '../../components/ElementDetails/utils/treeHelpers'
 
-import EntityTreeSearch from '../../components/EquipmentDetails/EntityTreeSearch'
+import EntityTreeSearch from '../../components/ElementDetails/EntityTreeSearch'
 
 const useStyles = makeStyles(theme => ({
   root: {
@@ -170,7 +170,7 @@ const AssetTree = ({loadingNodes, setLoadingNodes, setSelectedElements, setTable
                         prev.forEach(item => dataMap.set(item.nameId, item))
                     }
                     
-                    equipmentData.forEach(item => dataMap.set(item.nameId, item))
+                    elementData.forEach(item => dataMap.set(item.nameId, item))
                     
                     return Array.from(dataMap.values())
                 })
