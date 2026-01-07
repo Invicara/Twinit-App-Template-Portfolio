@@ -94,7 +94,7 @@ const SortingDropdown = ({sortedTableData, setSortedTableData}) => {
 }
 
 const FilterdDropdown = ({selectedFilter, setSelectedFilter}) => {
-    const filterOptions = ['Name', 'ID', 'Display Name', 'Source Type'];
+    const filterOptions = ['Name', 'ID', 'Display Name', 'Source Type', 'Value'];
 
     const classes = useStyles()
 
@@ -172,6 +172,7 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
   const id = String(item?.ID || '').toLowerCase()
   const displayName = String(item?.['Display Name'] || '').toLowerCase()
   const sourceType = String(item?.['Source Type'] || '').toLowerCase()
+  const value = String(item?.Value ?? '').toLowerCase()
 
   switch (selectedFilter) {
     case 'Name':
@@ -185,6 +186,9 @@ const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, 
 
     case 'Source Type':
       return sourceType.includes(lowerKeyword)
+
+    case 'Value':
+      return value.includes(lowerKeyword)
 
     default:
       return false
@@ -366,13 +370,14 @@ const AssetTable = ({ rows }) => {
                             <TableCell className="asset-table-header-cell">ID</TableCell>
                             <TableCell className="asset-table-header-cell">Display Name</TableCell>
                             <TableCell className="asset-table-header-cell">Source Type</TableCell>
+                            <TableCell className="asset-table-header-cell">Value</TableCell>
                         </StyledTableHeadRow>
                     </TableHead>
                     <TableBody>
                         {_.isEmpty(rows) ? (
                             <TableCell
                                 className="asset-table-no-elements"
-                                colSpan={4}
+                                colSpan={5}
                                 sx={{
                                     height: 'calc(100vh - 300px)', // adjust based on your header height
                                     p: 0,
@@ -402,6 +407,7 @@ const AssetTable = ({ rows }) => {
                                         <TableCell>{row.ID}</TableCell>
                                         <TableCell>{row['Display Name']}</TableCell>
                                         <TableCell>{row['Source Type']}</TableCell>
+                                        <TableCell>{row.Value ? row?.Value : '-'}</TableCell>
                                         </StyledTableRow>
                           
                             ))
