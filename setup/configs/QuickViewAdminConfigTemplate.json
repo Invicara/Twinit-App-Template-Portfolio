@@ -9,14 +9,17 @@
       "path": "/modelcomparison",
       "config": {}
     },
-    "engineeringChange": {
-      "title": "Engineering Change",
-      "icon": "fa fa-file fa-2x",
-      "shortName": "engineeringChange",
-      "description": "Engineering Change",
-      "pageComponent": "engineeringChange/EngineeringChangeView",
-      "path": "/engineeringChange",
-      "config": {}
+    "modelImport": {
+      "title": "Model Import",
+      "icon": "fas fa-file-import fa-2x",
+      "shortName": "modelimp",
+      "description": "Model Import",
+      "pageComponent": "modelImport/SimpleModelImportView",
+      "path": "/modelimp",
+      "config": {
+        "bimpkUserType": "bimpk_importer",
+        "sgpkUserType": "sgpk_importer"
+      }
     },
     "modelView": {
       "title": "Model View",
@@ -29,16 +32,73 @@
         "manageFiles": true
       }
     },
+    "mapboxSettings": {
+      "title": "Mapbox Settings",
+      "icon": "fas fa-map-marked-alt fa-2x",
+      "pageComponent": "mapboxSettings/MapboxSettingsView",
+      "path": "/mapboxsettings",
+      "config": {}
+    },
+    "userGroups": {
+      "title": "User Group",
+      "actionTitle": "User Group Actions",
+      "icon": "fas fa-users fa-2x",
+      "pageComponent": "users/UserGroupView",
+      "path": "/UserGroupView",
+      "config": {
+        "appUrl": "/",
+        "allowUserGroupEdit": true,
+        "allowUserGroupInvite": true,
+        "allowManageInvites": true,
+        "allowManageUsers": true
+      }
+    },
     "portfolioOverview": {
-      "title": "Fleet Overview",
+      "title": "Portfolio Overview",
       "icon": "fas fa-map-marked-alt fa-2x",
       "pageComponent": "portfolioOverview/PortfolioOverview",
       "path": "/portfoliomap",
-      "config": {},
+      "config": {
+        "labels": {
+          "search": "Search building...",
+          "group": "Group",
+          "structure": "Choose building / location",
+          "location": "Choose site / region",
+          "status": "Deploy Status",
+          "chartTitle": "Deploy Status"
+        },
+        "statusConfig": {
+          "notStarted": {
+            "label": "Not started",
+            "color": "#d3d3d3"
+          },
+          "inProgress": {
+            "label": "In Progress",
+            "color": "#f4b740"
+          },
+          "atRisk": {
+            "label": "At risk",
+            "color": "#e53935"
+          },
+          "completed": {
+            "label": "Completed",
+            "color": "#66bb6a"
+          }
+        }
+      },
       "scriptTypes": [
         "mmv_config",
         "mapTypeActions"
       ]
+    },
+    "assetTree": {
+      "title": "Asset Overview",
+      "icon": "fa fa-list fa-2x",
+      "shortName": "assetoverview",
+      "description": "Asset Overview",
+      "pageComponent": "assetOverview/AssetOverviewView",
+      "path": "/assetoverview",
+      "config": {}
     }
   },
   "homepage": {
@@ -50,24 +110,18 @@
       "position": 1,
       "pages": [
         {
-          "page": "Fleet Overview",
+          "page": "Portfolio Overview",
           "handler": "portfolioOverview"
-        }
-      ]
-    },
-    "engineeringChange": {
-      "icon": "fas fa-file fa-2x",
-      "position": 2,
-      "pages": [
+        },
         {
-          "page": "Engineering Change",
-          "handler": "engineeringChange"
+          "page": "Asset Overview",
+          "handler": "assetTree"
         }
       ]
     },
     "model": {
       "icon": "fas fa-building fa-2x",
-      "position": 3,
+      "position": 2,
       "pages": [
         {
           "page": "Model View",
@@ -76,23 +130,28 @@
         {
           "page": "Model Comparison",
           "handler": "modelComparison"
+        },
+        {
+          "page": "Model Import",
+          "handler": "modelImport"
+        }
+      ]
+    },
+    "settings": {
+      "icon": "fas fa-tools fa-2x",
+      "position": 3,
+      "pages": [
+        {
+          "page": "Mapbox Settings",
+          "handler": "mapboxSettings"
         }
       ]
     }
   },
   "settings": {
-    "appTitle": "Fleet Management",
-    "appImage": {
-      "url": "https://lib.invicara.io/hitachi/Hitachi%20Logo%20white.png"
-    },
+    "appTitle": "Quick Model View",
+    "appImage": {},
     "headerComponent": "components/HeaderBar/HeaderBar",
-    "modelSelection": [
-      "Facility-A_Unit-01",
-      "Facility-A_Unit-02",
-      "Facility-B_Unit-01",
-      "Facility-B_Unit-02",
-      "ReferenceDesign"
-    ],
     "styles": {
       "--app-accent-color": "#C71784",
       "--head-bkg-color": "black",

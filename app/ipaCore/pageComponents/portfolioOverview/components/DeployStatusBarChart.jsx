@@ -329,20 +329,16 @@ export const getChartFilters = (click, chartCfg) => {
   return { op, rules: merged };
 };
 
-
-
-
 export default function DeployStatusChart({ handler, context, onFilterChange, chartCfg }) {
-
-  const chartTitle = handler.config.labels?.chartTitle || "Status";
-  const fns = getGlobalFilterFunctions("building", false)
-
+  const chartTitle = handler.config.labels?.chartTitle || 'Status';
+  const fns = getGlobalFilterFunctions('building', false);
+  const gateReady = useReduxSelector((s) => !!s.graphicsGate?.byState?.portfolio?.ready);
 
   const matrix = useMemo(() => deriveChartMatrix({
     data: context.data,
     fns,
     chartCfg
-  }), [context.data]);
+  }), [context.data, chartCfg]);
 
   const chartData = useMemo(() => buildChartData(matrix), [matrix]);
 
@@ -350,14 +346,37 @@ export default function DeployStatusChart({ handler, context, onFilterChange, ch
   const chartHeight = Math.max(240, rowsCount * 80);
   const classes = useStyles({ chartHeight });
 
-  const dispatch = useDispatch();
+  // IMPORTANT: this is NOT "graphics downloaded", this is "3D layer initialized"
+  const [layerReady, setLayerReady] = useState(false);
 
-  const isLoading =
+
+ useEffect(() => {
+  const onLoading = (e) => {
+    if (e?.detail?.stateValue === 'portfolio') setLayerReady(false);
+  };
+
+  const onReady = (e) => {
+    if (e?.detail?.stateValue === 'portfolio') setLayerReady(true);
+  };
+
+  window.addEventListener('mmv:3d-layer-loading', onLoading);
+  window.addEventListener('mmv:3d-layer-initialized', onReady);
+
+  return () => {
+    window.removeEventListener('mmv:3d-layer-loading', onLoading);
+    window.removeEventListener('mmv:3d-layer-initialized', onReady);
+  };
+}, []);
+
+  const isChartEmpty =
     !chartData?.datasets?.length ||
     chartData.datasets.every((ds) => ds.data.every((v) => v === 0));
 
+  // Gate by layerReady FIRST so nothing renders early
+const isLoading = !gateReady || isChartEmpty;
+
   const options = {
-    indexAxis: "y",
+    indexAxis: 'y',
     responsive: true,
     maintainAspectRatio: false,
     layout: { padding: { left: 0, right: 10, top: 40, bottom: 0 } },
@@ -368,51 +387,44 @@ export default function DeployStatusChart({ handler, context, onFilterChange, ch
       },
       legend: {
         display: true,
-        position: "bottom",
+        position: 'bottom',
         labels: {
           usePointStyle: true,
-          pointStyle: "circle",
+          pointStyle: 'circle',
           boxWidth: 8,
           boxHeight: 8,
           padding: 20,
-          font: { family: "Inter", size: 10, weight: "400" },
+          font: { family: 'Inter', size: 10, weight: '400' },
           generateLabels(chart) {
             const datasets = chart.data.datasets;
-            const total = datasets.reduce(
-              (sum, ds) => sum + ds.data.reduce((a, b) => a + b, 0),
-              0,
-            );
+            const total = datasets.reduce((sum, ds) => sum + ds.data.reduce((a, b) => a + b, 0), 0);
             return datasets.map((ds, i) => {
               const statusTotal = ds.data.reduce((a, b) => a + b, 0);
-              const percent = ((statusTotal / total) * 100).toFixed(0);
+              const percent = total ? ((statusTotal / total) * 100).toFixed(0) : '0';
               return {
                 text: `${percent}% ${ds.label}`,
                 fillStyle: ds.backgroundColor,
                 strokeStyle: ds.backgroundColor,
                 hidden: !chart.isDatasetVisible(i),
-                pointStyle: "circle",
+                pointStyle: 'circle',
               };
             });
           },
         },
       },
       tooltip: {
-        position: "centerBar",
-        yAlign: "bottom",
-        xAlign: "center",
+        position: 'centerBar',
+        yAlign: 'bottom',
+        xAlign: 'center',
         displayColors: false,
         padding: 12,
-        backgroundColor: "#000",
-        titleColor: "#fff",
-        bodyColor: "#fff",
-        bodyFont: { family: "Inter", size: 12 },
+        backgroundColor: '#000',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        bodyFont: { family: 'Inter', size: 12 },
         callbacks: {
           title: () => null,
-          label: (context) => {
-            const datasetLabel = context.dataset.label || "";
-            const value = context.parsed.x;
-            return `${datasetLabel}: ${value}`;
-          },
+          label: (ctx) => `${ctx.dataset.label || ''}: ${ctx.parsed.x}`,
         },
       },
       datalabels: false,
@@ -423,18 +435,14 @@ export default function DeployStatusChart({ handler, context, onFilterChange, ch
         grid: {
           display: true,
           drawBorder: false,
-          //color: "#d3d3d3",
-          color: (ctx) => {
-            return ctx.tick.value === ctx.chart.scales.x.max ? 'transparent' : '#d3d3d3';
-        },
-
+          color: (ctx) => (ctx.tick.value === ctx.chart.scales.x.max ? 'transparent' : '#d3d3d3'),
         },
         ticks: {
-          color: "#555",
+          color: '#555',
           font: { size: 12 },
-          callback: function (value) {
+          callback: function(value) {
             const maxValue = this.max;
-            return value === maxValue ? "" : value;
+            return value === maxValue ? '' : value;
           },
         },
         border: { display: false },
@@ -442,9 +450,7 @@ export default function DeployStatusChart({ handler, context, onFilterChange, ch
       },
       y: {
         stacked: true,
-        // categoryPercentage < 1 → shrink the category band (adds space between groups)
         categoryPercentage: 0.4,
-        // barPercentage < 1 → shrink the bar within its band (adds space within group if multiple bars)
         barPercentage: 0.6,
         grid: { display: false, drawBorder: false },
         border: { display: false },
@@ -457,41 +463,32 @@ export default function DeployStatusChart({ handler, context, onFilterChange, ch
       const { datasetIndex, index } = elements[0];
       const seriesKey = chart.data.datasets[datasetIndex].key;
       const bin = matrix.rows[index];
-      const newFilter = getChartFilters({ seriesKey, series: matrix.legend[seriesKey], bin, ctx: {} }, chartCfg);
+      const newFilter = getChartFilters(
+        { seriesKey, series: matrix.legend[seriesKey], bin, ctx: {} },
+        chartCfg
+      );
       onFilterChange(newFilter);
     },
   };
 
   return (
     <div className={classes.container}>
-      {/* Header */}
       <div className={classes.header}>
         <BarChartOutlinedIcon className={classes.icon} />
         <span className={classes.headerText}>{chartTitle}</span>
       </div>
 
-      {/* Chart */}
       <div
         className={classes.chartWrapper}
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
+        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
       >
         {isLoading ? (
           <CircularProgress />
         ) : (
-          <Bar
-            data={chartData}
-            options={options}
-            plugins={[
-              ChartDataLabels,
-              GroupLabelPlugin
-            ]}
-          />
+          <Bar data={chartData} options={options} plugins={[ChartDataLabels, GroupLabelPlugin]} />
         )}
       </div>
     </div>
   );
 }
+

@@ -111,85 +111,122 @@ function wrapToView(lng, centerLng) {
     return lng;
 }
 
-function createSingleMarker(context, feature, {bins, property, showLabel = true, pieAlpha=true, getCounts = getBinCounts, getTotalCounts, popupConfig, send, featureDef, setPopupState, markerId}){
-    const {map, namedPaths} = context;
+function createSingleMarker(context, feature, {
+    bins,
+    property,
+    showLabel = true,
+    pieAlpha = true,
+    getCounts = getBinCounts,
+    getTotalCounts,
+    popupConfig,
+    send,
+    featureDef,
+    setPopupState,
+    markerId
+}) {
+    const { map, namedPaths } = context;
     const namedPath = namedPaths[0];
-    const {path} = featureDef;
-    let entry = markers.get(markerId);
-    if(entry){
+    const { path } = featureDef;
+
+    const existing = markers.get(markerId);
+
+    const coordinates = feature.geometry.coordinates;
+    const counts = getCounts(map, feature, { bins, property });
+    const totalCounts = getTotalCounts ? getTotalCounts(map, feature, { bins, property }) : counts;
+    const total = Object.values(totalCounts).reduce((acc, cur) => acc + cur, 0);
+    const color = total == 1 ? getBinColorFromCounts(counts, bins) : undefined;
+
+    //  If marker already exists, just update its DOM 
+    if (existing && existing.element) {
+        const el = existing.element;
+
+        // update badge text & background color
+        const badge = el.querySelector('.count-badge');
+        if (badge) {
+            badge.textContent = showLabel ? String(total) : '';
+            if (!showLabel && color) {
+                badge.style.backgroundColor = color;
+            }
+        }
+
+        // repaint pie canvas
+        const canvas = makePieCanvas(PIE_SIZE, counts, bins.map(b => b.color), pieAlpha);
+        const oldCanvas = el.querySelector('canvas');
+        if (oldCanvas) oldCanvas.remove();
+        el.prepend(canvas);
+
+        // IMPORTANT: don’t return a new graphic, so handleMarkers won't try to ADD_GRAPHICS again
         return null;
     }
-    const coordinates = feature.geometry.coordinates;
 
-    const counts = getCounts(map, feature, { bins, property});
-    const totalCounts = getTotalCounts ? getTotalCounts(map, feature, { bins, property}) : counts;
-    const total = Object.values(totalCounts).reduce((acc, cur) => acc+cur, 0);
-    const color = total == 1 ? getBinColorFromCounts(counts, bins) : undefined;
-    const { labelWrap, badge } = makeMarkerShell(PIE_SIZE, showLabel ? total : "", !showLabel ? color : undefined);
+    //  Original creation path
+    const { labelWrap, badge } = makeMarkerShell(
+        PIE_SIZE,
+        showLabel ? total : '',
+        !showLabel ? color : undefined
+    );
+
     const wrap = document.createElement('div');
-    wrap.style.width = wrap.style.height = PIE_SIZE+'px';
+    wrap.style.width = wrap.style.height = PIE_SIZE + 'px';
     wrap.style.position = 'relative';
-    wrap.id = "SingleMarker-"+markerId;
-    wrap.setAttribute('class', 'singleMarker singleMarker-'+feature.properties.name);
-    wrap.style.cursor = 'pointer';   // makes mouse turn to hand
+    wrap.id = 'SingleMarker-' + markerId;
+    wrap.setAttribute('class', 'singleMarker singleMarker-' + feature.properties.name);
+    wrap.style.cursor = 'pointer';
     wrap.appendChild(labelWrap);
+
     wrap.addEventListener('click', (e) => {
         if (send) {
-            // Payload carries the actual property name as a key
-            // e.g. if idKey === 'siteId' -> { type:'GO_TO', siteId: 'ABC123', path }
             markHandled(e);
-            const targetIdx = namedPath.map(p=>p.state).indexOf(path);
+            const targetIdx = namedPath.map(p => p.state).indexOf(path);
             const evt = { type: 'GO_TO' };
             namedPath.forEach((lvl, idx) => {
                 const { idKey } = lvl;
-                if (!idKey) return; // top-most usually has no idKey
+                if (!idKey) return;
                 if (idx < targetIdx) {
-                    // Keep current value if present; if you want to force re-entry, you can set it explicitly
                     evt[idKey] = context[idKey] ?? undefined;
-                } else if (idx == targetIdx) {
-                    // Keep current value if present; if you want to force re-entry, you can set it explicitly
+                } else if (idx === targetIdx) {
                     evt[idKey] = feature?.properties?.[idKey] ?? undefined;
                 } else {
-                    // Null deeper ids to bubble up
                     evt[idKey] = null;
                 }
             });
-            console.log("evt",evt)
             send(evt);
         }
     });
+
     function show() {
-        if(!popupConfig){
-            hide()
+        if (!popupConfig) {
+            hide();
             return;
         }
-        setPopupState((s) => ({ open: true, lngLat: coordinates, data: feature, config: popupConfig }));
+        setPopupState((s) => ({
+            open: true,
+            lngLat: coordinates,
+            data: feature,
+            config: popupConfig
+        }));
     }
 
     function hide() {
         setPopupState((s) => ({ ...s, open: false }));
     }
 
-    // Show on hover, hide when leaving the marker element
     wrap.addEventListener('mouseenter', show);
     wrap.addEventListener('mouseleave', hide);
-
-    // also hide when the map is dragged/zoomed
-    map.on('dragstart', ()=>{hide()});
-    map.on('zoomstart', ()=>{hide()});
+    map.on('dragstart', hide);
+    map.on('zoomstart', hide);
 
     const element = wrap;
-
-    const canvas = makePieCanvas(PIE_SIZE, counts, bins.map(b=>b.color), pieAlpha);
+    const canvas = makePieCanvas(PIE_SIZE, counts, bins.map(b => b.color), pieAlpha);
     const old = element.querySelector('canvas'); if (old) old.remove();
     element.prepend(canvas);
 
     return {
         element,
         coordinates,
-        type: "marker",
+        type: 'marker',
         id: markerId
-    }
+    };
 }
 
 export function getMarkers() {

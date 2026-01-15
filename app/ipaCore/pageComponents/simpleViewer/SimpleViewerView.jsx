@@ -3,7 +3,6 @@ import { Panel, PanelGroup } from 'react-resizable-panels'
 import ResizeHandle from '../../components/panels/ResizeHandle'
 import { IafViewerDBM } from '@dtplatform/iaf-viewer'
 import { StackableDrawer } from '@invicara/ipa-core/modules/IpaControls'
-
 import ModelSelect from '../../components/ModelSelect/ModelSelect'
 import SearchPane from '../../components/search/SearchPane'
 import ElementDetails from '../../components/ElementDetails/ElementDetails'
@@ -13,71 +12,10 @@ import { getTemporaryMapBoxToken } from '../utils/mapboxUtils'
 import { ModelContext } from '../../contexts/ModelContext'
 import ArrowDownwardIcon from '@material-ui/icons/ArrowDownward'
 import ArrowUpwardIcon from '@material-ui/icons/ArrowUpward'
+import TablePanel from './panels/TablePanel'
 
 import '@dtplatform/iaf-viewer/dist/iaf-viewer.css'
 import './SimpleViewerView.scss'
-const dataExample = [
-  {
-    _id: "68d64f9771aa127e59875140",
-    "revision status date": "2010-09-12T00:00:00Z",
-    "revision status": "ISSUED",
-    equipmentId: "RCP-900-014",
-    properties: {
-      Manufacturer: { val: "Westinghouse", type: "string" },
-      Model: { val: "RCP-900", type: "string" },
-      "Safety Class": { val: "Class 1", type: "string" },
-      "Operating Status": { val: "Operational", type: "string" },
-      "Operational Status Date": { val: "2024-10-25T00:00:00Z", type: "date" },
-    },
-    revision: "001",
-    TechnicalParameters: {
-      FlowRate: { val: 2100, type: "number", unit: "gpm" },
-      Power: { val: 10, type: "number", unit: "MW" },
-    },
-    siteEquipmentId: "RCP-A-024",
-    equipmentType: "Pump",
-  },
-  {
-    _id: "68d64f9771aa127e59875142",
-    "revision status date": "2019-11-28T00:00:00Z",
-    "revision status": "ISSUED",
-    equipmentId: "RCP-900-011",
-    properties: {
-      Manufacturer: { val: "KSB", type: "string" },
-      Model: { val: "RSR", type: "string" },
-      "Safety Class": { val: "Class 1", type: "string" },
-      "Operating Status": { val: "Operational", type: "string" },
-      "Operational Status Date": { val: "2024-10-25T00:00:00Z", type: "date" },
-    },
-    revision: "002",
-    TechnicalParameters: {
-      FlowRate: { val: 2800, type: "number", unit: "gpm" },
-      Power: { val: 18, type: "number", unit: "MW" },
-    },
-    siteEquipmentId: "RCP-A-021",
-    equipmentType: "Pump",
-  },
-  {
-    _id: "68d64f9771aa127e59875143",
-    "revision status date": "2019-11-28T00:00:00Z",
-    "revision status": "ISSUED",
-    equipmentId: "RCP-900-012",
-    properties: {
-      Manufacturer: { val: "KSB", type: "string" },
-      Model: { val: "RSR", type: "string" },
-      "Safety Class": { val: "Class 1", type: "string" },
-      "Operating Status": { val: "Operational", type: "string" },
-      "Operational Status Date": { val: "2024-10-25T00:00:00Z", type: "date" },
-    },
-    revision: "002",
-    TechnicalParameters: {
-      FlowRate: { val: 2800, type: "number", unit: "gpm" },
-      Power: { val: 18, type: "number", unit: "MW" },
-    },
-    siteEquipmentId: "RCP-A-022",
-    equipmentType: "Pump",
-  },
-];
 
 const SimpleViewerView = ({ handler }) => {
   const viewerRef = useRef()
@@ -160,7 +98,6 @@ useEffect(() => {
                 )}
               </div>
             </StackableDrawer>
-
             <StackableDrawer
               level={2}
               iconKey='fa-info'
@@ -247,11 +184,22 @@ useEffect(() => {
                 )}
               </div>
             </div>
+      
           </div>
         </Panel>
-        <ResizeHandle />
+
+        
+         <ResizeHandle /> 
+         <Panel id="table-panel"  order={2} defaultSize={5} minSize={5} collapsible={false} className='table-panel'>
+            <TablePanel
+               readOnly={!handler?.config?.manageFiles}
+               onView={(docInfo) => setDocView(docInfo)}
+            />
+         </Panel>
       </PanelGroup>
+    
     </div>
+    
   )
 }
 
