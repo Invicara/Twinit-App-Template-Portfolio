@@ -76,7 +76,7 @@ const scriptModule = {
 
 		const { IafScriptEngine, PlatformApi: {IafItemSvc}, UiUtils } = libraries
 
-		const itemName = "VVER"; //graphic reference name to enrich
+		const itemName = "exchange"; //graphic reference name to enrich
 
 		const graphicRefsColl = (await IafItemSvc.getNamedUserItems({query: {_kind: "collection", _shortName: "map_graphic_references"}}, ctx))._list?.[0];
 		const graphicReferenceItem = (await IafItemSvc.getRelatedItems(graphicRefsColl._userItemId, {query: {name: itemName}}, ctx))._list?.[0];
