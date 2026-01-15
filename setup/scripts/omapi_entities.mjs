@@ -54,6 +54,50 @@ const entityCollections = {
 
 /* --------------------- small utils --------------------- */
 
+const norm = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
+
+function pickCollectionForModel(collections, expectedName) {
+  if (!Array.isArray(collections) || !collections.length) return null
+  const expected = norm(expectedName)
+  return (
+    collections.find(c => norm(c?._name) === expected) ||
+    collections.find(c => norm(c?._name).includes(expected)) ||
+    null
+  )
+}
+
+async function getTotalCount(IafScriptEngine, coll, ctx) {
+  // Cheap count without pulling docs
+  const res = await IafScriptEngine.find({
+    query: {},
+    collectionDesc: { _userItemId: coll._userItemId, '_versions.all': true },
+    options: { count: true, pageSize: 1, page: 0, getCollInfo: false },
+  }, ctx)
+
+  return res?._count ?? res?.count ?? null
+}
+
+async function getSampleDocs(IafScriptEngine, coll, ctx, limit = 5) {
+  const res = await IafScriptEngine.find({
+    query: {},
+    collectionDesc: { _userItemId: coll._userItemId, '_versions.all': true },
+    options: { pageSize: limit, page: 0, getCollInfo: false },
+  }, ctx)
+
+  return res?._list || []
+}
+
+function summarizeCollections(collections, take = 20) {
+  return (collections || [])
+    .slice(0, take)
+    .map(c => ({
+      _name: c?._name,
+      _userItemId: c?._userItemId,
+      _userType: c?._userType,
+    }))
+}
+
+
 function chunk(arr, size) {
     const out = [];
     for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
@@ -1043,128 +1087,425 @@ const getDistinctFieldsFactory = (entityName) => async (input, libraries, ctx, c
     return {result,aggregatedResult}
 }
 
-const getModelTypeElements = async (input, libraries, ctx) => {
-  const origin = input?.headers?.origin || input?.headers?.Origin || '*'
+// const chunk = (arr, size) => {
+//     const out = []
+//     for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
+//     return out
+//   }
 
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Headers': 'Authorization, Content-Type',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  }
-
-  try {
-    const { PlatformApi, IafScriptEngine } = libraries || {}
-    const { IafItemSvc } = PlatformApi || {}
-
-    if (!IafItemSvc || !IafScriptEngine) {
-      return { status: 500, headers: corsHeaders, message: 'Missing libraries injection', _list: [] }
+  export const getModelTypeElements = async (input, libraries, ctx) => {
+    const origin = input?.headers?.origin || input?.headers?.Origin || '*'
+  
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
     }
-
-    const structureName =
+  
+    try {
+      const { PlatformApi, IafScriptEngine } = libraries || {}
+      const { IafItemSvc } = PlatformApi || {}
+  
+      if (!IafItemSvc || !IafScriptEngine) {
+        return { status: 500, headers: corsHeaders, message: 'Missing libraries injection', _list: [] }
+      }
+  
+      const structureName =
         input?.structureName ??
         input?.query?.structureName ??
         input?.params?.structureName
-
-    if (!structureName) {
-      return { 
-        status: 400, 
-        headers: corsHeaders, 
-        message: 'Missing structureName', 
-        _list: [],
+  
+      const family =
+        input?.family ??
+        input?.query?.family ??
+        input?.params?.family
+  
+      // NEW: for elements mode
+      const typeIdRaw =
+        input?.typeId ??
+        input?.type_id ??
+        input?.query?.typeId ??
+        input?.query?.type_id ??
+        input?.params?.typeId ??
+        input?.params?.type_id
+  
+      const typeId = typeIdRaw != null ? Number(typeIdRaw) : null
+  
+      if (!structureName) {
+        return { status: 400, headers: corsHeaders, message: 'Missing structureName', _list: [] }
+      }
+  
+      // 1) resolve structure -> modelName
+      const structuresColl = (await getCollections(IafItemSvc, 'map_structures', ctx))[0]
+      if (!structuresColl) {
+        return { status: 500, headers: corsHeaders, message: 'map_structures_coll not found', _list: [] }
+      }
+  
+      const structuresRes = await IafScriptEngine.findWithRelated({
+        parent: {
+          query: { name: structureName },
+          collectionDesc: {
+            _userItemId: structuresColl._userItemId,
+            _userType: structuresColl._userType,
+          },
+        },
+      }, ctx)
+  
+      const structure = structuresRes?._list?.[0]
+      if (!structure) {
+        return {
+          status: 404,
+          headers: corsHeaders,
+          message: `No structure found for name '${structureName}'`,
+          _list: [],
         }
       }
+  
+      const { modelName } = structure
+      if (!modelName) {
+        return {
+          status: 422,
+          headers: corsHeaders,
+          message: `Structure '${structureName}' has no modelName`,
+          _list: [],
+        }
+      }
+  
+      // 2) find rvt_type_elements + rvt_elements collections for this modelName
+      const allTypeCollections = await getCollections(IafItemSvc, 'rvt_type_elements', ctx)
+      const allElemCollections = await getCollections(IafItemSvc, 'rvt_elements', ctx)
+  
+      const expectedTypesName = `${modelName}_type_el`
+      const expectedElemsName = `${modelName}_el`
+  
+      const rvtTypesColl = pickCollectionForModel(allTypeCollections, expectedTypesName)
+      const rvtElemsColl = pickCollectionForModel(allElemCollections, expectedElemsName)
 
-    const structuresColl = (await getCollections(IafItemSvc, 'map_structures', ctx))[0]
-    if (!structuresColl) {
-      return { status: 500, headers: corsHeaders, message: 'map_structures_coll not found', _list: [] }
-    }
+    //   const elemDocsRes = await IafScriptEngine.findWithRelated({
+    //     parent: {
+    //       query: {},
+    //       collectionDesc: {
+    //         _userItemId: rvtElemsColl._userItemId,
+    //         _userType: rvtElemsColl._userType,
+    //       },
+    //       options: { limit: 5000 },
+    //     },
+    //   }, ctx)
 
-    const structuresRes = await IafScriptEngine.findWithRelated({
-      parent: {
-        query: { name: structureName },
-        collectionDesc: {
-          _userItemId: structuresColl._userItemId,
-          _userType: structuresColl._userType,
+      const elemTypeRes = await IafScriptEngine.findWithRelated({
+        parent: {
+          query: {},
+          collectionDesc: {
+            _userItemId: rvtTypesColl._userItemId,
+            _userType: rvtTypesColl._userType,
+          },
+          options: { limit: 5000 },
         },
-      },
-    }, ctx)
+      }, ctx)
 
-    const structure = structuresRes?._list?.[0]
-    if (!structure) {
-      return {
-        status: 404,
-        headers: corsHeaders,
-        message: `No structure found for name '${structureName}'`,
-        _list: [],
+      const elemDocs = elemTypeRes?._list || []
+      console.log('elemDocs', elemDocs);
+  
+      if (!rvtTypesColl) {
+        return {
+          status: 404,
+          headers: corsHeaders,
+          message: `No rvt_type_elements collection found for modelName '${modelName}' (expected '${expectedTypesName}')`,
+          _list: [],
+        }
       }
-    }
-
-    const { modelName } = structure
-    if (!modelName) {
-      return {
-        status: 422,
-        headers: corsHeaders,
-        message: `Structure '${structureName}' has no modelName`,
-        _list: [],
+  
+      // Helpers
+      const splitName = (n) => {
+        const s = String(n ?? '')
+        const idx = s.indexOf('::')
+        if (idx === -1) return { family: s.trim(), type: '' }
+        return { family: s.slice(0, idx).trim(), type: s.slice(idx + 2).trim() }
       }
-    }
+  
+      // MODE C: typeId provided -> return ELEMENTS from rvt_elements by type_id
+      if (typeId != null) {
+        if (!rvtElemsColl) {
+          return {
+            status: 404,
+            headers: corsHeaders,
+            message: `No rvt_elements collection found for modelName '${modelName}' (expected '${expectedElemsName}')`,
+            _list: [],
+          }
+        }
+  
+        const elemsRes = await IafScriptEngine.findWithRelated({
+          parent: {
+            query: { type_id: typeId },
+            collectionDesc: {
+              _userItemId: rvtElemsColl._userItemId,
+              _userType: rvtElemsColl._userType,
+            },
+            options: { limit: 5000 },
+          },
+        }, ctx)
+  
+        const elems = elemsRes?._list || []
 
-    const allTypeCollections = await getCollections(IafItemSvc, 'rvt_type_elements', ctx)
-
-    const expectedName = `${modelName}_type_el`
-
-    let rvtTypesColl =
-    allTypeCollections.find(c => c?._name === expectedName) ||
-    // case-insensitive exact match
-    allTypeCollections.find(c => String(c?._name).toLowerCase() === expectedName.toLowerCase())
-
-    // normalized contains match (handles double spaces etc.)
-    if (!rvtTypesColl) {
-    const norm = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
-    const expectedNorm = norm(expectedName)
-
-    rvtTypesColl = allTypeCollections.find(c => norm(c?._name) === expectedNorm)
-    }
-
-    if (!rvtTypesColl) {
-    return {
-        status: 404,
-        headers: corsHeaders,
-        message: `No rvt_type_elements collection found for modelName '${modelName}' (expected '${expectedName}')`,
-        _list: [],
-    }
-    }
-
-    // TODO: filter by modelName (or whatever field links type elements -> model)
-    const rvtTypesRes = await IafScriptEngine.findWithRelated({
-      parent: {
-        query: {}, // e.g. { modelName } once you confirm the field
+        console.log('elems', elems);
+  
+        const list = elems.map((el, i) => {
+          const elKey = el?._id || el?.source_id || el?.id || i
+          const elementId = String(el?.id ?? el?.source_id ?? elKey)
+  
+          const hasProps =
+            el?.properties &&
+            typeof el.properties === 'object' &&
+            Object.values(el.properties).some((p) => Boolean(p?.psDispName))
+  
+          return {
+            id: `${structureName}/typeId/${typeId}/el/${encodeURIComponent(elementId)}`,
+            name: el?.name || elementId,
+            level: 5,
+            structureName,
+            element: el,
+            children: hasProps ? [{}] : [],
+          }
+        })
+  
+        return {
+          status: 200,
+          headers: corsHeaders,
+          structure,
+          modelName,
+          mode: 'elements',
+          typeId,
+          _list: list,
+        }
+      }
+  
+      // names from rvt_type_elements
+      // Use distinct names to get families quickly
+      const distinctRes = await IafScriptEngine.getDistinct({
+        getAllUserItems: true,
         collectionDesc: {
           _userItemId: rvtTypesColl._userItemId,
-          _userType: rvtTypesColl._userType,
+          '_versions.all': true,
         },
-      },
-      options: { limit: 5 },
-    }, ctx)
+        field: 'name',
+        query: {},
+        options: { getCollInfo: false },
+      }, ctx)
+  
+      const names = distinctRes?.name || []
+  
+      // MODE A: no family -> return families
+      if (!family) {
+        const families = Array.from(
+          new Set(names.map((n) => splitName(n).family).filter(Boolean))
+        ).sort((a, b) => a.localeCompare(b))
+  
+        const list = families.map((f) => ({
+          id: `${structureName}/family/${encodeURIComponent(f)}`,
+          name: f,
+          level: 3,
+          structureName,
+          family: f,
+          children: [{}],
+        }))
+  
+        return {
+          status: 200,
+          headers: corsHeaders,
+          structure,
+          modelName,
+          mode: 'families',
+          _list: list,
+        }
+      }
+  
+      // MODE B: family specified -> return TYPES (include typeId!)
+      // Instead of only distinct strings, we fetch the docs so we can return their numeric `id`
+      const typeDocsRes = await IafScriptEngine.findWithRelated({
+        parent: {
+          query: { name: { $regex: `^${escapeRegex(String(family))}::` } },
+          collectionDesc: {
+            _userItemId: rvtTypesColl._userItemId,
+            _userType: rvtTypesColl._userType,
+          },
+          options: { limit: 5000 },
+        },
+      }, ctx)
 
-    return {
-      status: 200,
-      headers: corsHeaders,
-      structure,
-      modelName,
-      _list: rvtTypesRes?._list || [],
-    }
+  
+      const typeDocs = typeDocsRes?._list || []
+ 
+      console.log('typeDocs', typeDocs);
+  
+      // by numeric type id (or by name if needed)
+      const seen = new Set()
+      const list = typeDocs
+        .map((t) => {
+            const full = t?.name
+            const { type } = splitName(full)
+            const tid = t?.id
+            if (!type || tid == null) return null
 
-    // --- your existing code ends here ---
-  } catch (e) {
-    return {
-      status: 500,
-      headers: corsHeaders,
-      message: e?.message || String(e),
-      _list: [],
+            return {
+            id: `${structureName}/family/${encodeURIComponent(family)}/typeId/${tid}`,
+            name: type,
+            level: 4,
+            structureName,
+            family,
+            typeId: tid,
+            typeDoc: t,      
+            children: [],
+            }
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.name.localeCompare(b.name))
+  
+      return {
+        status: 200,
+        headers: corsHeaders,
+        structure,
+        modelName,
+        mode: 'types',
+        family,
+        _list: list,
+      }
+    } catch (e) {
+      return {
+        status: 500,
+        headers: corsHeaders,
+        message: e?.message || String(e),
+        _list: [],
+      }
     }
   }
-}
+  
+  // helper if you don’t already have one
+  function escapeRegex(str) {
+    return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  }
+  
+  
+//   export const getModelTypeElements = async (input, libraries, ctx) => {
+//     const origin = input?.headers?.origin || input?.headers?.Origin || '*'
+  
+//     const corsHeaders = {
+//       'Access-Control-Allow-Origin': origin,
+//       'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+//       'Access-Control-Allow-Methods': 'GET, OPTIONS',
+//     }
+  
+//     try {
+//       const { PlatformApi, IafScriptEngine } = libraries || {}
+//       const { IafItemSvc } = PlatformApi || {}
+  
+//       if (!IafItemSvc || !IafScriptEngine) {
+//         return { status: 500, headers: corsHeaders, message: 'Missing libraries injection', _list: [] }
+//       }
+  
+//       const structureName =
+//         input?.structureName ??
+//         input?.query?.structureName ??
+//         input?.params?.structureName
+  
+//       if (!structureName) {
+//         return { status: 400, headers: corsHeaders, message: 'Missing structureName', _list: [] }
+//       }
+  
+//       const structuresColl = (await getCollections(IafItemSvc, 'map_structures', ctx))[0]
+//       if (!structuresColl) {
+//         return { status: 500, headers: corsHeaders, message: 'map_structures_coll not found', _list: [] }
+//       }
+  
+//       const structuresRes = await IafScriptEngine.findWithRelated({
+//         parent: {
+//           query: { name: structureName },
+//           collectionDesc: {
+//             _userItemId: structuresColl._userItemId,
+//             _userType: structuresColl._userType,
+//           },
+//         },
+//       }, ctx)
+  
+//       const structure = structuresRes?._list?.[0]
+//       if (!structure) {
+//         return { status: 404, headers: corsHeaders, message: `No structure found for name '${structureName}'`, _list: [] }
+//       }
+  
+//       const { modelName } = structure
+//       if (!modelName) {
+//         return { status: 422, headers: corsHeaders, message: `Structure '${structureName}' has no modelName`, _list: [] }
+//       }
+  
+//       const allTypeCollections = await getCollections(IafItemSvc, 'rvt_type_elements', ctx)
+//       const expectedName = `${modelName}_type_el`
+  
+//       let rvtTypesColl =
+//         allTypeCollections.find(c => c?._name === expectedName) ||
+//         allTypeCollections.find(c => String(c?._name).toLowerCase() === expectedName.toLowerCase())
+  
+//       if (!rvtTypesColl) {
+//         const norm = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
+//         const expectedNorm = norm(expectedName)
+//         rvtTypesColl = allTypeCollections.find(c => norm(c?._name) === expectedNorm)
+//       }
+  
+//       if (!rvtTypesColl) {
+//         return {
+//           status: 404,
+//           headers: corsHeaders,
+//           message: `No rvt_type_elements collection found for modelName '${modelName}' (expected '${expectedName}')`,
+//           _list: [],
+//         }
+//       }
+  
+//       // 1) distinct
+//       const distinctField = 'source_id'
+//       const distinctRes = await IafScriptEngine.getDistinct({
+//         collectionDesc: {
+//           _userItemId: rvtTypesColl._userItemId,
+//           _userType: rvtTypesColl._userType,
+//         },
+//         field: distinctField,
+//         query: {},
+//         options: { getCollInfo: false },
+//       }, ctx)
+  
+//       const sourceIds = distinctRes?._list || []
+//       if (!sourceIds.length) {
+//         return { status: 200, headers: corsHeaders, structure, modelName, _list: [] }
+//       }
+  
+//       // 2) fetch full docs (chunk to avoid huge $in)
+//       const batches = chunk(sourceIds, 200)
+  
+//       const pages = await Promise.all(
+//         batches.map(ids =>
+//           IafScriptEngine.findWithRelated({
+//             parent: {
+//               query: { source_id: { $in: ids } },
+//               collectionDesc: {
+//                 _userItemId: rvtTypesColl._userItemId,
+//                 _userType: rvtTypesColl._userType,
+//               },
+//             },
+//           }, ctx)
+//         )
+//       )
+  
+//       const fullDocs = pages.flatMap(p => p?._list || [])
+      
+  
+//       return {
+//         status: 200,
+//         headers: corsHeaders,
+//         structure,
+//         modelName,
+//         _list: fullDocs,
+//       }
+//     } catch (e) {
+//       return { status: 500, headers: corsHeaders, message: e?.message || String(e), _list: [] }
+//     }
+//   }
 
 
 function decodeDecimal128({ high, low, negative }) {

@@ -98,7 +98,6 @@ useEffect(() => {
                 )}
               </div>
             </StackableDrawer>
-
             <StackableDrawer
               level={2}
               iconKey='fa-info'
@@ -185,17 +184,22 @@ useEffect(() => {
                 )}
               </div>
             </div>
+      
           </div>
         </Panel>
-        <ResizeHandle />
-         <Panel id="table-panel" collapsible={true} order={2} defaultSize={1} className='table-panel'>
+
+        
+         <ResizeHandle /> 
+         <Panel id="table-panel"  order={2} defaultSize={5} minSize={5} collapsible={false} className='table-panel'>
             <TablePanel
                readOnly={!handler?.config?.manageFiles}
                onView={(docInfo) => setDocView(docInfo)}
             />
          </Panel>
       </PanelGroup>
+    
     </div>
+    
   )
 }
 
