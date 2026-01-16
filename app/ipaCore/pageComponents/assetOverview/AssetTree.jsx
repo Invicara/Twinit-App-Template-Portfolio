@@ -5,7 +5,7 @@ import TreeView from '@material-ui/lab/TreeView';
 import ArrowDropDownIcon from '@material-ui/icons/ArrowDropDown';
 import ArrowRightIcon from '@material-ui/icons/ArrowRight';
 
-import { getInitialTreeLevels, getFamiliesLevel, getFamilyTypesLevel } from '../../../services/assetTree';
+import { getInitialTreeLevels, getFamiliesLevel, getFamilyTypesLevel, getTypeElementsLevel } from '../../../services/assetTree';
 import { findNodeById, getAncestorIds } from '../../components/ElementDetails/utils/treeHelpers';
 
 import EntityTreeSearch from '../../components/ElementDetails/EntityTreeSearch';
@@ -24,6 +24,8 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
   const [indeterminateItems, setIndeterminateItems] = useState({});
   const [selected, setSelected] = useState(null);
 
+  const elementsCacheRef = useRef(new Map());
+
   function useSyncedRef(value) {
     const ref = useRef(value);
     useEffect(() => {
@@ -38,21 +40,47 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
 
   const classes = useStyles();
 
+  // CHANGED: ref-counted loading (single source of truth)
+  const loadingCountRef = useRef(new Map());
+
+  const beginLoading = (nodeId) => {
+    if (!nodeId) return;
+
+    const prev = loadingCountRef.current.get(nodeId) || 0;
+    loadingCountRef.current.set(nodeId, prev + 1);
+
+    setLoadingNodes((p) => ({ ...p, [nodeId]: true }));
+  };
+
+  const endLoading = (nodeId) => {
+    if (!nodeId) return;
+
+    const prev = loadingCountRef.current.get(nodeId) || 0;
+    const next = Math.max(0, prev - 1);
+
+    if (next === 0) {
+      loadingCountRef.current.delete(nodeId);
+      setLoadingNodes((p) => {
+        const copy = { ...p };
+        delete copy[nodeId];
+        return copy;
+      });
+    } else {
+      loadingCountRef.current.set(nodeId, next);
+      setLoadingNodes((p) => ({ ...p, [nodeId]: true }));
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       const result = await getInitialTreeLevels();
       setInitialTreeLevels(result);
-      setLoadingNodes({}, false);
+
+      // CHANGED: do not globally clear loadingNodes (breaks ref-counting)
+      // If you want to clear the initial page load spinner, just ensure none were started.
     };
     fetchData();
-  }, [setLoadingNodes]);
-
-  const setNodeLoading = (nodeId, isLoading) => {
-    setLoadingNodes((prev) => ({
-      ...prev,
-      [nodeId]: isLoading,
-    }));
-  };
+  }, []);
 
   const addChildrenToNode = (tree, nodeId, children) => {
     if (!Array.isArray(tree)) return tree;
@@ -80,6 +108,23 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
   const getRealChildren = (node) => {
     if (!Array.isArray(node?.children)) return [];
     return node.children.filter((c) => c && !c.isPlaceholder && c.id !== undefined);
+  };
+
+  const collectDescendants = (node) => {
+    const out = [];
+
+    const walk = (n) => {
+      const kids = getRealChildren(n);
+      if (!kids.length) return;
+
+      for (const c of kids) {
+        out.push(c);
+        walk(c);
+      }
+    };
+
+    walk(node);
+    return out;
   };
 
   const updateAncestors = (tree, targetId, nextChecked, nextIndeterminate) => {
@@ -167,7 +212,7 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
       return getRealChildren(node);
     }
 
-    setNodeLoading(nodeId, true);
+    beginLoading(nodeId);
 
     try {
       let children = [];
@@ -207,7 +252,7 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
             family: familyName,
             type: typeLabel,
             typeId: t.typeId ?? t.id,
-            typeDoc: t.typeDoc ?? t.type, // tolerate older shape
+            typeDoc: t.typeDoc ?? t.type,
             children: [],
           };
         });
@@ -226,7 +271,7 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
       console.error('Error loading node children:', err);
       return [];
     } finally {
-      setLoadingNodes({}, false);
+      endLoading(nodeId);
     }
   };
 
@@ -239,63 +284,120 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
     }
   };
 
-  // ============================================================
-  // Table row builder: ONE ROW PER TYPE + dynamic columns
-  // ============================================================
-
-  const getTypeStableId = (typeNode) => {
-    const doc = typeNode?.typeDoc;
-    const id = doc?.id ?? typeNode?.typeId ?? doc?.source_id ?? doc?._id;
-    return id != null ? String(id) : '-';
-  };
-
-  const getTypeDisplayName = (typeNode) => {
-    const docName = typeNode?.typeDoc?.name;
-    return typeNode?.name ?? docName ?? '-';
-  };
-
   const getPropCellValue = (prop) => {
     const raw = prop?.val ?? prop?.dVal ?? prop?.name ?? '-';
     if (prop?.uom && raw !== '-' && raw != null && String(raw) !== '') return `${raw} ${prop.uom}`;
     return raw != null && String(raw) !== '' ? raw : '-';
   };
 
-  const buildRowForType = (typeNode) => {
-    const typeId = getTypeStableId(typeNode);
-    const typeName = getTypeDisplayName(typeNode);
-
-    const props =
-      typeNode?.typeDoc?.properties && typeof typeNode.typeDoc.properties === 'object'
-        ? typeNode.typeDoc.properties
-        : {};
-
-    const row = {
-      __rowKey: `type::${typeId}`,
-      'Type Name': typeName,
-      'Type ID': typeId,
-    };
+  const flattenPropertiesToRow = (props) => {
+    const out = {};
+    if (!props || typeof props !== 'object') return out;
 
     for (const [propKey, propObj] of Object.entries(props)) {
-      row[propKey] = getPropCellValue(propObj);
+      out[propKey] = getPropCellValue(propObj);
     }
 
-    return row;
+    return out;
   };
 
-  const updateTableForTypeToggle = (typeNode, nextIsChecked) => {
-    if (!setTableData || !typeNode) return;
+  const buildRowForElement = (typeNode, elementDoc) => {
+    const typeDoc = typeNode?.typeDoc;
+    const typeId = String(typeNode?.typeId ?? typeDoc?.id ?? typeDoc?._id ?? '-');
+    const typeName = typeNode?.name ?? typeDoc?.name ?? '-';
 
-    const row = buildRowForType(typeNode);
+    const elementId = String(elementDoc?.id ?? elementDoc?.source_id ?? elementDoc?._id ?? '-');
+    const elementName = elementDoc?.name ?? elementId;
+
+    const typeProps = flattenPropertiesToRow(typeDoc?.properties);
+    const elementProps = flattenPropertiesToRow(elementDoc?.properties);
+
+    const mergedProps = { ...typeProps, ...elementProps };
+
+    return {
+      __rowKey: `type::${typeId}::el::${elementId}`,
+      'Type Name': typeName,
+      'Type ID': typeId,
+      'Element Name': elementName,
+      'Element ID': elementId,
+      ...mergedProps,
+    };
+  };
+
+  const buildRowsForElements = ({ typeNode, elements }) => {
+    const list = Array.isArray(elements) ? elements : [];
+
+    return list.map((el) => {
+      const elementDoc = el?.element ?? el;
+      return buildRowForElement(typeNode, elementDoc);
+    });
+  };
+
+  const removeRowsForType = (typeId) => {
+    if (!setTableData) return;
+
+    setTableData((prev) => {
+      const prevList = Array.isArray(prev) ? prev : [];
+      const prefix = `type::${String(typeId)}::el::`;
+      return prevList.filter((r) => !String(r?.__rowKey ?? '').startsWith(prefix));
+    });
+  };
+
+  const addRowsForType = (typeNode, elements) => {
+    if (!setTableData) return;
+
+    const typeId = typeNode?.typeId ?? typeNode?.typeDoc?.id;
+    const rows = buildRowsForElements({ typeNode, elements });
 
     setTableData((prev) => {
       const prevList = Array.isArray(prev) ? prev : [];
       const map = new Map(prevList.map((r) => [String(r.__rowKey), r]));
 
-      if (nextIsChecked) map.set(row.__rowKey, row);
-      else map.delete(row.__rowKey);
+      const prefix = `type::${String(typeId)}::el::`;
+      for (const key of Array.from(map.keys())) {
+        if (String(key).startsWith(prefix)) map.delete(key);
+      }
 
+      rows.forEach((r) => map.set(String(r.__rowKey), r));
       return Array.from(map.values());
     });
+  };
+
+  const fetchElementsForType = async (typeNode) => {
+    const typeId = typeNode?.typeId ?? typeNode?.typeDoc?.id;
+    if (typeId == null) return [];
+
+    const cacheKey = `${typeNode?.structureName ?? ''}::${String(typeId)}`;
+    const cached = elementsCacheRef.current.get(cacheKey);
+    if (cached) return cached;
+
+    // CHANGED: use ref-counted loading so spinner doesn't flicker or end early
+    beginLoading(typeNode.id);
+
+    try {
+      const elementsResponse = await getTypeElementsLevel(typeNode.structureName, typeId);
+      const elements = elementsResponse?._list || elementsResponse || [];
+
+      elementsCacheRef.current.set(cacheKey, elements);
+      return elements;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Error loading elements for type:', err);
+      return [];
+    } finally {
+      endLoading(typeNode.id);
+    }
+  };
+
+  const ensureLoaded = async (n) => {
+    if (!n) return { loaded: false, children: [] };
+
+    if (n.level < 4 && isPlaceholderOnly(n)) {
+      const children = await loadChildrenForNode(n.id, false);
+      return { loaded: true, children };
+    }
+
+    return { loaded: false, children: getRealChildren(n) };
   };
 
   const handleCheck = async (id, isChecked, node = null) => {
@@ -303,13 +405,9 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
 
     const liveNode = findNodeById(treeRef.current, node.id) || node;
 
-    if (liveNode.level < 4 && isPlaceholderOnly(liveNode)) {
-      await loadChildrenForNode(liveNode.id, true);
-    }
-
-    const refreshedNode = findNodeById(treeRef.current, liveNode.id) || liveNode;
-
-    const isLeaf = refreshedNode.level === 4;
+    const wasChecked = !!checkedItemsRef.current?.[id];
+    const wasIndeterminate = !!indeterminateItemsRef.current?.[id];
+    const nextIsChecked = !(wasChecked || wasIndeterminate);
 
     let newChecked = { ...checkedItemsRef.current };
     let newIndeterminate = { ...indeterminateItemsRef.current };
@@ -319,89 +417,106 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
 
     const isTypeLeaf = (n) => n?.level === 4;
 
-    const toggleDescendants = (children, action) => {
-      if (!Array.isArray(children)) return;
+    const toggleLeaf = async (leafNode, shouldCheck) => {
+      if (!leafNode) return;
 
-      children.forEach((child) => {
-        if (!child || child.isPlaceholder) return;
+      if (shouldCheck) {
+        newChecked[leafNode.id] = true;
+        delete newIndeterminate[leafNode.id];
+        if (leafNode.name) toAddTypes.add(leafNode.name);
 
-        const leaf = isTypeLeaf(child);
+        const elements = await fetchElementsForType(leafNode);
+        addRowsForType(leafNode, elements);
+      } else {
+        delete newChecked[leafNode.id];
+        delete newIndeterminate[leafNode.id];
+        if (leafNode.name) toRemoveTypes.add(leafNode.name);
 
-        if (action === 'checkLeaves') {
-          if (leaf) {
-            newChecked[child.id] = true;
-            delete newIndeterminate[child.id];
-            if (child.name) toAddTypes.add(child.name);
-
-            // ✅ table row add for each leaf
-            updateTableForTypeToggle(child, true);
-          } else {
-            delete newChecked[child.id];
-            newIndeterminate[child.id] = true;
-          }
-        } else if (action === 'uncheck') {
-          if (leaf && newChecked[child.id] && child.name) {
-            toRemoveTypes.add(child.name);
-          }
-
-          // ✅ table row remove for each leaf (if it was checked)
-          if (leaf && (newChecked[child.id] || newIndeterminate[child.id])) {
-            updateTableForTypeToggle(child, false);
-          }
-
-          delete newChecked[child.id];
-          delete newIndeterminate[child.id];
-        }
-
-        toggleDescendants(getRealChildren(child), action);
-      });
+        removeRowsForType(leafNode.typeId ?? leafNode?.typeDoc?.id);
+      }
     };
 
-    const wasChecked = !!newChecked[id];
-    const wasIndeterminate = !!newIndeterminate[id];
+    // Leaf type click
+    if (isTypeLeaf(liveNode)) {
+      await toggleLeaf(liveNode, nextIsChecked);
 
-    if (isLeaf) {
-      const nextIsChecked = !(wasChecked || wasIndeterminate);
+      updateAncestors(treeRef.current, id, newChecked, newIndeterminate);
 
-      if (wasChecked || wasIndeterminate) {
-        delete newChecked[id];
-        delete newIndeterminate[id];
-        if (refreshedNode.name) toRemoveTypes.add(refreshedNode.name);
-      } else {
-        newChecked[id] = true;
-        delete newIndeterminate[id];
-        if (refreshedNode.name) toAddTypes.add(refreshedNode.name);
+      if (toAddTypes.size > 0 || toRemoveTypes.size > 0) {
+        setSelectedElements((prev) => {
+          const prevList = Array.isArray(prev) ? prev.slice() : [];
+          const filtered = prevList.filter((name) => !toRemoveTypes.has(name));
+          toAddTypes.forEach((name) => {
+            if (!filtered.includes(name)) filtered.push(name);
+          });
+          return filtered;
+        });
       }
 
-      // ✅ add/remove the ONE table row for this type
-      updateTableForTypeToggle(refreshedNode, nextIsChecked);
-    } else {
-      if (wasChecked || wasIndeterminate) {
-        delete newChecked[id];
-        delete newIndeterminate[id];
-        toggleDescendants(getRealChildren(refreshedNode), 'uncheck');
-      } else {
+      setCheckedItems(newChecked);
+      setIndeterminateItems(newIndeterminate);
+      return;
+    }
+
+    // CHANGED: keep the branch spinner up until the whole operation completes
+    // (types load + all element fetches + table updates)
+    const branchNodeId = liveNode.id;
+    if (nextIsChecked) beginLoading(branchNodeId);
+
+    try {
+      // Branch click (site/building/family etc)
+      if (nextIsChecked) {
         delete newChecked[id];
         newIndeterminate[id] = true;
-        toggleDescendants(getRealChildren(refreshedNode), 'checkLeaves');
+      } else {
+        delete newChecked[id];
+        delete newIndeterminate[id];
       }
-    }
 
-    updateAncestors(treeRef.current, id, newChecked, newIndeterminate);
+      // Ensure family children are loaded on first click
+      let loadedChildren = [];
+      let loaded = false;
 
-    if (toAddTypes.size > 0 || toRemoveTypes.size > 0) {
-      setSelectedElements((prev) => {
-        const prevList = Array.isArray(prev) ? prev.slice() : [];
-        const filtered = prevList.filter((name) => !toRemoveTypes.has(name));
-        toAddTypes.forEach((name) => {
-          if (!filtered.includes(name)) filtered.push(name);
+      if (liveNode.level < 4) {
+        const res = await ensureLoaded(liveNode);
+        loaded = res.loaded;
+        loadedChildren = res.children;
+      }
+
+      // Resolve which type nodes to toggle
+      let typesToToggle = [];
+
+      if (liveNode.level === 3 && loaded) {
+        // family node that just loaded its types
+        typesToToggle = loadedChildren.filter(isTypeLeaf);
+      } else {
+        // general fallback
+        typesToToggle = collectDescendants(liveNode).filter(isTypeLeaf);
+      }
+
+      // Toggle all resolved types (this awaits element fetches too)
+      for (const typeNode of typesToToggle) {
+        await toggleLeaf(typeNode, nextIsChecked);
+      }
+
+      updateAncestors(treeRef.current, id, newChecked, newIndeterminate);
+
+      if (toAddTypes.size > 0 || toRemoveTypes.size > 0) {
+        setSelectedElements((prev) => {
+          const prevList = Array.isArray(prev) ? prev.slice() : [];
+          const filtered = prevList.filter((name) => !toRemoveTypes.has(name));
+          toAddTypes.forEach((name) => {
+            if (!filtered.includes(name)) filtered.push(name);
+          });
+          return filtered;
         });
-        return filtered;
-      });
-    }
+      }
 
-    setCheckedItems(newChecked);
-    setIndeterminateItems(newIndeterminate);
+      setCheckedItems(newChecked);
+      setIndeterminateItems(newIndeterminate);
+    } finally {
+      if (nextIsChecked) endLoading(branchNodeId);
+    }
   };
 
   const renderTree = (nodes) => {
