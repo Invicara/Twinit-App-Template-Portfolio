@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
-import { Box, FormControl, MenuItem, Select, Snackbar } from '@material-ui/core';
+import { Box, Checkbox, FormControl, ListItemText, MenuItem, Select, Snackbar } from '@material-ui/core';
+
 import { styled } from '@mui/material/styles';
 import MuiAlert from '@material-ui/lab/Alert';
 
@@ -8,6 +9,16 @@ import './AssetTable.scss';
 
 const BASE_COL_MIN_WIDTH = 220;
 const DYNAMIC_COL_MIN_WIDTH = 180;
+
+const DEFAULT_COLUMNS = [
+  'Type Name',
+  'Type ID',
+  'Revit Family',
+  'Revit Type',
+  'Type Mark',
+];
+
+const STORAGE_KEY = 'assetTable.selectedExtraProperties.v1';
 
 const StyledTableHeadRow = styled(TableRow)(({ theme }) => ({
   backgroundColor: '#eaeaea',
@@ -32,13 +43,14 @@ function Alert(props) {
   return <MuiAlert elevation={6} variant='filled' {...props} />;
 }
 
-const FilterDropdown = ({ selectedFilter, setSelectedFilter }) => {
-  const filterOptions = ['Type Name', 'Type ID', 'Revit Family', 'Revit Type', 'Type Mark'];
+const FilterDropdown = ({ selectedFilter, setSelectedFilter, disabled }) => {
+  const filterOptions = DEFAULT_COLUMNS;
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
       <FormControl>
         <Select
+          disabled={disabled}
           value={selectedFilter ?? ''}
           onChange={(e) => setSelectedFilter(e.target.value)}
           displayEmpty
@@ -54,6 +66,8 @@ const FilterDropdown = ({ selectedFilter, setSelectedFilter }) => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
+                opacity: disabled ? 0.5 : 1,
+                cursor: disabled ? 'not-allowed' : 'pointer',
               }}
             >
               <i className='fas fa-filter'></i>
@@ -79,7 +93,98 @@ const FilterDropdown = ({ selectedFilter, setSelectedFilter }) => {
   );
 };
 
-const FilterBar = ({ rows, setFilteredRows, setToast }) => {
+const PropertyColumnsDropdown = ({ options, selected, setSelected, disabled }) => {
+  const value = Array.isArray(selected) ? selected : [];
+
+  const [anchorEl, setAnchorEl] = useState(null);
+
+  const menuProps = useMemo(
+    () => ({
+      anchorEl,
+      getContentAnchorEl: null,
+      anchorOrigin: { vertical: 'bottom', horizontal: 'left' },
+      transformOrigin: { vertical: 'top', horizontal: 'left' },
+      disableScrollLock: true,
+      PaperProps: {
+        style: {
+          maxHeight: 360,
+          minWidth: anchorEl ? anchorEl.clientWidth : 240,
+        },
+      },
+    }),
+    [anchorEl],
+  );
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <FormControl>
+        <Select
+          disabled={disabled}
+          multiple
+          value={value}
+          onOpen={(e) => {
+            if (disabled) return;
+            setAnchorEl(e.currentTarget);
+          }}
+          onClose={() => setAnchorEl(null)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setSelected(Array.isArray(next) ? next : []);
+          }}
+          displayEmpty
+          disableUnderline
+          IconComponent={() => null}
+          renderValue={(selectedVals) => (
+            <div
+              style={{
+                border: '1px solid #DCDCDC',
+                borderRadius: 4,
+                padding: 8,
+                color: '#5D5D5D',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                minWidth: 240,
+                whiteSpace: 'nowrap',
+                opacity: disabled ? 0.5 : 1,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <i className='fas fa-columns'></i>
+              <span>
+                {Array.isArray(selectedVals) && selectedVals.length
+                  ? `${selectedVals.length} properties`
+                  : 'Add properties'}
+              </span>
+            </div>
+          )}
+          MenuProps={menuProps}
+        >
+          {options.map((name) => (
+            <MenuItem key={name} value={name}>
+              <Checkbox
+                checked={value.indexOf(name) > -1}
+                size='small'
+                sx={{ padding: '2px' }}
+              />
+              <ListItemText primary={name} />
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    </Box>
+  );
+};
+
+const FilterBar = ({
+  rows,
+  setFilteredRows,
+  setToast,
+  extraPropertyOptions,
+  selectedExtraProperties,
+  setSelectedExtraProperties,
+  disabled,
+}) => {
   const [selectedFilter, setSelectedFilter] = useState('');
   const [selectedCondition, setSelectedCondition] = useState('');
   const [keyword, setKeyword] = useState('');
@@ -87,7 +192,6 @@ const FilterBar = ({ rows, setFilteredRows, setToast }) => {
   const conditionOptions = ['is', 'is not'];
 
   useEffect(() => {
-    // When base rows change, reapply filter if we have one; otherwise show all.
     if (!selectedFilter || !selectedCondition || !keyword) {
       setFilteredRows(rows);
       return;
@@ -115,25 +219,37 @@ const FilterBar = ({ rows, setFilteredRows, setToast }) => {
   }, [rows, selectedFilter, selectedCondition, keyword, setFilteredRows, setToast]);
 
   const clearFilter = () => {
+    if (disabled) return;
     setSelectedFilter('');
     setSelectedCondition('');
     setKeyword('');
     setFilteredRows(rows);
   };
 
+  const propertiesDisabled = disabled || extraPropertyOptions.length === 0;
+
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 12, p: 2 }}>
-      <FilterDropdown selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter} />
+      <FilterDropdown
+        selectedFilter={selectedFilter}
+        setSelectedFilter={(v) => {
+          if (disabled) return;
+          setSelectedFilter(v);
+        }}
+        disabled={disabled}
+      />
 
       {selectedFilter ? (
         <>
           <FormControl>
             <Select
+              disabled={disabled}
               value={selectedCondition}
               onChange={(e) => setSelectedCondition(e.target.value)}
               displayEmpty
               disableUnderline
               IconComponent={() => null}
+              inputProps={{ style: { padding: 0 } }}
               renderValue={() => (
                 <span style={{ color: selectedCondition ? '#111' : '#B8B8B8' }}>
                   {selectedCondition ? selectedCondition : 'Select Condition'}
@@ -142,8 +258,13 @@ const FilterBar = ({ rows, setFilteredRows, setToast }) => {
               style={{
                 border: '1px solid #DCDCDC',
                 borderRadius: 4,
-                padding: '0 8px',
+                height: 36,
                 minWidth: 140,
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0 10px',
+                opacity: disabled ? 0.5 : 1,
+                cursor: disabled ? 'not-allowed' : 'pointer',
               }}
             >
               {conditionOptions.map((option) => (
@@ -166,19 +287,22 @@ const FilterBar = ({ rows, setFilteredRows, setToast }) => {
               borderRadius: 4,
               padding: '0 10px',
               minWidth: 240,
+              opacity: disabled ? 0.5 : 1,
+              cursor: disabled ? 'not-allowed' : 'text',
             }}
-            disabled={!selectedCondition}
+            disabled={disabled || !selectedCondition}
           />
 
           <Box
             onClick={clearFilter}
             sx={{
-              cursor: 'pointer',
+              cursor: disabled ? 'not-allowed' : 'pointer',
               color: '#D32F2F',
               display: 'flex',
               alignItems: 'center',
               gap: 1,
-              ml: 'auto',
+              ml: 2,
+              opacity: disabled ? 0.5 : 1,
             }}
             title='Clear filter'
           >
@@ -187,11 +311,21 @@ const FilterBar = ({ rows, setFilteredRows, setToast }) => {
           </Box>
         </>
       ) : (
-        <Box sx={{ ml: 'auto', color: '#5D5D5D' }} />
+        <Box sx={{ ml: 'auto' }} />
       )}
+
+      <Box sx={{ ml: 'auto' }}>
+        <PropertyColumnsDropdown
+          options={extraPropertyOptions}
+          selected={selectedExtraProperties}
+          setSelected={setSelectedExtraProperties}
+          disabled={propertiesDisabled}
+        />
+      </Box>
     </Box>
   );
 };
+
 
 const AssetTable = ({ rows }) => {
   const [toast, setToast] = useState({
@@ -202,31 +336,84 @@ const AssetTable = ({ rows }) => {
 
   const [filteredRows, setFilteredRows] = useState(() => (Array.isArray(rows) ? rows : []));
 
+  const hasRows = Array.isArray(rows) && rows.length > 0;
+  const controlsDisabled = !hasRows;
+
+  // Persisted selection (can include items not currently available yet)
+  const [persistedExtraProperties, setPersistedExtraProperties] = useState(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
   useEffect(() => {
     setFilteredRows(Array.isArray(rows) ? rows : []);
   }, [rows]);
 
   const safeRows = useMemo(() => (Array.isArray(filteredRows) ? filteredRows : []), [filteredRows]);
 
-  const dynamicColumns = useMemo(() => {
+  // Collect ALL non-default property names from the currently available rows (de-dup)
+  const extraPropertyOptions = useMemo(() => {
     const keys = new Set();
 
-    safeRows.forEach((r) => {
+    (Array.isArray(rows) ? rows : []).forEach((r) => {
       if (!r || typeof r !== 'object') return;
 
       Object.keys(r).forEach((k) => {
         if (k === '__rowKey') return;
-        // base columns stay first; we don't want them duplicated
-        if (k === 'Type Name') return;
-        if (k === 'Type ID') return;
+        if (DEFAULT_COLUMNS.includes(k)) return;
         keys.add(k);
       });
     });
 
     return Array.from(keys).sort((a, b) => a.localeCompare(b));
-  }, [safeRows]);
+  }, [rows]);
 
-  const colCount = 2 + dynamicColumns.length;
+  // Memo set for fast lookup + stable reference
+  const optionSet = useMemo(() => new Set(extraPropertyOptions), [extraPropertyOptions]);
+
+  // Only show selected properties if they exist in current options
+  const availableSelectedExtraProperties = useMemo(() => {
+    const saved = Array.isArray(persistedExtraProperties) ? persistedExtraProperties : [];
+    return saved.filter((k) => optionSet.has(k));
+  }, [persistedExtraProperties, optionSet]);
+
+  // Called by dropdown: updates persisted selection but never loses unavailable items
+  const handleSetSelectedExtraProperties = (nextAvailableSelection) => {
+    const next = Array.isArray(nextAvailableSelection) ? nextAvailableSelection : [];
+
+    setPersistedExtraProperties((prev) => {
+      const prevSafe = Array.isArray(prev) ? prev : [];
+
+      // Keep anything that isn't currently available (so it can come back later)
+      const keepUnavailable = prevSafe.filter((k) => !optionSet.has(k));
+
+      // Persist = unavailable saved + newly chosen available
+      // Dedup while preserving order
+      const merged = [...keepUnavailable, ...next];
+      return Array.from(new Set(merged));
+    });
+  };
+
+  // Persist whenever selection changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedExtraProperties || []));
+    } catch (e) {
+      // ignore
+    }
+  }, [persistedExtraProperties]);
+
+  // Column order: default columns first, then selected extra props that are actually available
+  const visibleColumns = useMemo(() => {
+    return [...DEFAULT_COLUMNS, ...availableSelectedExtraProperties];
+  }, [availableSelectedExtraProperties]);
+
+  const colCount = visibleColumns.length;
 
   const handleCloseToast = () => {
     setToast((prev) => ({ ...prev, open: false }));
@@ -239,9 +426,23 @@ const AssetTable = ({ rows }) => {
     maxWidth: 360,
   };
 
+  const colMinWidth = (col) => {
+    if (col === 'Type Name') return BASE_COL_MIN_WIDTH;
+    if (col === 'Type ID') return 140;
+    return DYNAMIC_COL_MIN_WIDTH;
+  };
+
   return (
     <Paper sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      <FilterBar rows={Array.isArray(rows) ? rows : []} setFilteredRows={setFilteredRows} setToast={setToast} />
+      <FilterBar
+        rows={Array.isArray(rows) ? rows : []}
+        setFilteredRows={setFilteredRows}
+        setToast={setToast}
+        extraPropertyOptions={extraPropertyOptions}
+        selectedExtraProperties={availableSelectedExtraProperties}
+        setSelectedExtraProperties={handleSetSelectedExtraProperties}
+        disabled={controlsDisabled}
+      />
 
       <TableContainer
         sx={{
@@ -277,11 +478,8 @@ const AssetTable = ({ rows }) => {
 
           <TableHead>
             <StyledTableHeadRow>
-              <TableCell sx={{ minWidth: BASE_COL_MIN_WIDTH }}>Type Name</TableCell>
-              <TableCell sx={{ minWidth: 140 }}>Type ID</TableCell>
-
-              {dynamicColumns.map((col) => (
-                <TableCell key={col} sx={{ minWidth: DYNAMIC_COL_MIN_WIDTH }}>
+              {visibleColumns.map((col) => (
+                <TableCell key={col} sx={{ minWidth: colMinWidth(col) }}>
                   {col}
                 </TableCell>
               ))}
@@ -303,31 +501,23 @@ const AssetTable = ({ rows }) => {
                   >
                     <Box sx={{ maxWidth: 420 }}>
                       <i className='fas fa-search'></i>
-                      <p className='no-elements-header'>No Types selected</p>
-                      <p>Use the tree on the left to select one or more Revit Types.</p>
+                      <p className='no-elements-header'>No elements selected</p>
+                      <p>Use the tree on the left to select one or more elements.</p>
                     </Box>
                   </Box>
                 </TableCell>
               </TableRow>
             ) : (
               safeRows.map((row) => (
-                <StyledTableRow key={row?.__rowKey ?? `${row?.['Type ID'] ?? ''}::${row?.['Type Name'] ?? ''}`}>
-                  <TableCell sx={{ ...baseCellSx, minWidth: BASE_COL_MIN_WIDTH }} title={row?.['Type Name'] ?? ''}>
-                    {row?.['Type Name'] ?? '-'}
-                  </TableCell>
-
-                  <TableCell sx={{ ...baseCellSx, minWidth: 140 }} title={row?.['Type ID'] ?? ''}>
-                    {row?.['Type ID'] ?? '-'}
-                  </TableCell>
-
-                  {dynamicColumns.map((col) => {
+                <StyledTableRow key={row?.__rowKey ?? `${row?.['Type ID'] ?? ''}::${row?.['Element ID'] ?? ''}`}>
+                  {visibleColumns.map((col) => {
                     const value = row?.[col];
-                    const display = value != null && value !== '' ? String(value) : '-';
+                    const display = value != null && value !== '' ? String(value) : '';
 
                     return (
                       <TableCell
                         key={`${row?.__rowKey ?? 'row'}::${col}`}
-                        sx={{ ...baseCellSx, minWidth: DYNAMIC_COL_MIN_WIDTH }}
+                        sx={{ ...baseCellSx, minWidth: colMinWidth(col) }}
                         title={display}
                       >
                         {display}
@@ -343,5 +533,6 @@ const AssetTable = ({ rows }) => {
     </Paper>
   );
 };
+
 
 export default AssetTable;
