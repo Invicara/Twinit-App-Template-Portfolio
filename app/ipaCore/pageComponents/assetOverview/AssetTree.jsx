@@ -24,6 +24,8 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
   const [indeterminateItems, setIndeterminateItems] = useState({});
   const [selected, setSelected] = useState(null);
 
+  const INIT_LOAD_ID = '__tree_init__';
+
   const elementsCacheRef = useRef(new Map());
 
   function useSyncedRef(value) {
@@ -71,15 +73,30 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
     }
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const result = await getInitialTreeLevels();
-      setInitialTreeLevels(result);
+  const withLoading = async (nodeId, fn) => {
+    beginLoading(nodeId);
+    try {
+      return await fn();
+    } finally {
+      endLoading(nodeId);
+    }
+  };
 
-      // CHANGED: do not globally clear loadingNodes (breaks ref-counting)
-      // If you want to clear the initial page load spinner, just ensure none were started.
+  useEffect(() => {
+    let cancelled = false;
+  
+    const fetchData = async () => {
+      await withLoading(INIT_LOAD_ID, async () => {
+        const result = await getInitialTreeLevels();
+        if (!cancelled) setInitialTreeLevels(result);
+      });
     };
+  
     fetchData();
+  
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const addChildrenToNode = (tree, nodeId, children) => {
@@ -199,31 +216,23 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
   };
 
   const loadChildrenForNode = async (nodeId, deep = false) => {
-    const node = findNodeById(initialTreeLevels, nodeId);
+    const node = findNodeById(treeRef.current, nodeId);
     if (!node) {
-      // eslint-disable-next-line no-console
       console.warn('Node not found:', nodeId);
       return [];
     }
-
+  
     const hasRealChildren = !isPlaceholderOnly(node);
-
-    if (hasRealChildren && !deep) {
-      return getRealChildren(node);
-    }
-
-    beginLoading(nodeId);
-
-    try {
+    if (hasRealChildren && !deep) return getRealChildren(node);
+  
+    return withLoading(nodeId, async () => {
       let children = [];
-
+  
       if (node.level === 1) {
         const unitPromises = (node.children || []).map((unit) => loadChildrenForNode(unit.id, deep));
-        children = await Promise.all(unitPromises);
-        children = children.flat();
+        children = (await Promise.all(unitPromises)).flat();
       } else if (node.level === 2) {
         const families = await getFamiliesLevel(node.structureName);
-
         children = (families || []).map((f, i) => {
           const rawId = f.id ?? f.family ?? f.name ?? i;
           return {
@@ -238,11 +247,11 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
       } else if (node.level === 3) {
         const familyName = node.family || node.name;
         const types = await getFamilyTypesLevel(node.structureName, familyName);
-
+  
         children = (types || []).map((t, i) => {
           const typeLabel = t.name ?? t.type ?? t.typeName ?? String(t.typeId ?? t.id ?? i);
           const stableTypeId = t.typeId ?? t.id ?? t.typeDoc?.id ?? t.typeDoc?._id ?? i;
-
+  
           return {
             ...t,
             id: `${node.id}/type/${encodeURIComponent(String(stableTypeId))}`,
@@ -257,22 +266,16 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
           };
         });
       }
-
+  
       syncNewChildrenFromParentState(nodeId, children);
       setInitialTreeLevels((prev) => addChildrenToNode(prev, nodeId, children));
-
+  
       if (deep && children.length > 0) {
         await Promise.all(children.map((child) => loadChildrenForNode(child.id, true)));
       }
-
+  
       return children;
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('Error loading node children:', err);
-      return [];
-    } finally {
-      endLoading(nodeId);
-    }
+    });
   };
 
   const handleNodeToggle = async (event, nodeIds) => {
@@ -301,29 +304,46 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
     return out;
   };
 
+  const getTypeMarkValue = (typeDoc) => {
+    const p =
+      typeDoc?.properties?.['Type Mark'] ??
+      typeDoc?.properties?.TypeMark ??
+      typeDoc?.properties?.typeMark;
+  
+    if (!p) return '-';
+    return getPropCellValue(p);
+  };
+  
   const buildRowForElement = (typeNode, elementDoc) => {
     const typeDoc = typeNode?.typeDoc;
+  
     const typeId = String(typeNode?.typeId ?? typeDoc?.id ?? typeDoc?._id ?? '-');
     const typeName = typeNode?.name ?? typeDoc?.name ?? '-';
-
+  
+    const revitFamily = typeNode?.family ?? typeNode?.typeDoc?.family ?? '-';
+    const revitType = typeNode?.type ?? typeNode?.name ?? '-';
+    const typeMark = getTypeMarkValue(typeDoc);
+  
     const elementId = String(elementDoc?.id ?? elementDoc?.source_id ?? elementDoc?._id ?? '-');
     const elementName = elementDoc?.name ?? elementId;
-
+  
     const typeProps = flattenPropertiesToRow(typeDoc?.properties);
     const elementProps = flattenPropertiesToRow(elementDoc?.properties);
-
+  
     const mergedProps = { ...typeProps, ...elementProps };
-
+  
     return {
       __rowKey: `type::${typeId}::el::${elementId}`,
       'Type Name': typeName,
       'Type ID': typeId,
+      'Revit Family': revitFamily,
+      'Revit Type': revitType,
+      'Type Mark': typeMark,
       'Element Name': elementName,
       'Element ID': elementId,
       ...mergedProps,
     };
   };
-
   const buildRowsForElements = ({ typeNode, elements }) => {
     const list = Array.isArray(elements) ? elements : [];
 
@@ -371,22 +391,12 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
     const cached = elementsCacheRef.current.get(cacheKey);
     if (cached) return cached;
 
-    // CHANGED: use ref-counted loading so spinner doesn't flicker or end early
-    beginLoading(typeNode.id);
-
-    try {
+    return withLoading(typeNode.id, async () => {
       const elementsResponse = await getTypeElementsLevel(typeNode.structureName, typeId);
       const elements = elementsResponse?._list || elementsResponse || [];
-
       elementsCacheRef.current.set(cacheKey, elements);
       return elements;
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('Error loading elements for type:', err);
-      return [];
-    } finally {
-      endLoading(typeNode.id);
-    }
+    });
   };
 
   const ensureLoaded = async (n) => {
@@ -402,46 +412,46 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
 
   const handleCheck = async (id, isChecked, node = null) => {
     if (!node) return;
-
+  
     const liveNode = findNodeById(treeRef.current, node.id) || node;
-
+  
     const wasChecked = !!checkedItemsRef.current?.[id];
     const wasIndeterminate = !!indeterminateItemsRef.current?.[id];
     const nextIsChecked = !(wasChecked || wasIndeterminate);
-
+  
     let newChecked = { ...checkedItemsRef.current };
     let newIndeterminate = { ...indeterminateItemsRef.current };
-
+  
     const toAddTypes = new Set();
     const toRemoveTypes = new Set();
-
+  
     const isTypeLeaf = (n) => n?.level === 4;
-
+  
     const toggleLeaf = async (leafNode, shouldCheck) => {
       if (!leafNode) return;
-
+  
       if (shouldCheck) {
         newChecked[leafNode.id] = true;
         delete newIndeterminate[leafNode.id];
         if (leafNode.name) toAddTypes.add(leafNode.name);
-
+  
         const elements = await fetchElementsForType(leafNode);
         addRowsForType(leafNode, elements);
       } else {
         delete newChecked[leafNode.id];
         delete newIndeterminate[leafNode.id];
         if (leafNode.name) toRemoveTypes.add(leafNode.name);
-
+  
         removeRowsForType(leafNode.typeId ?? leafNode?.typeDoc?.id);
       }
     };
-
+  
     // Leaf type click
     if (isTypeLeaf(liveNode)) {
       await toggleLeaf(liveNode, nextIsChecked);
-
+  
       updateAncestors(treeRef.current, id, newChecked, newIndeterminate);
-
+  
       if (toAddTypes.size > 0 || toRemoveTypes.size > 0) {
         setSelectedElements((prev) => {
           const prevList = Array.isArray(prev) ? prev.slice() : [];
@@ -452,19 +462,17 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
           return filtered;
         });
       }
-
+  
       setCheckedItems(newChecked);
       setIndeterminateItems(newIndeterminate);
       return;
     }
-
-    // CHANGED: keep the branch spinner up until the whole operation completes
-    // (types load + all element fetches + table updates)
+  
+    // Branch click: keep spinner up until EVERYTHING completes (types load + elements fetch + table updates)
     const branchNodeId = liveNode.id;
-    if (nextIsChecked) beginLoading(branchNodeId);
-
-    try {
-      // Branch click (site/building/family etc)
+  
+    await withLoading(branchNodeId, async () => {
+      // Update branch visual state immediately
       if (nextIsChecked) {
         delete newChecked[id];
         newIndeterminate[id] = true;
@@ -472,35 +480,35 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
         delete newChecked[id];
         delete newIndeterminate[id];
       }
-
-      // Ensure family children are loaded on first click
+  
+      // Ensure children exist if needed (e.g. family types not yet loaded)
       let loadedChildren = [];
       let loaded = false;
-
+  
       if (liveNode.level < 4) {
         const res = await ensureLoaded(liveNode);
         loaded = res.loaded;
         loadedChildren = res.children;
       }
-
+  
       // Resolve which type nodes to toggle
       let typesToToggle = [];
-
+  
       if (liveNode.level === 3 && loaded) {
         // family node that just loaded its types
         typesToToggle = loadedChildren.filter(isTypeLeaf);
       } else {
-        // general fallback
+        // general fallback: use whatever is currently in the tree
         typesToToggle = collectDescendants(liveNode).filter(isTypeLeaf);
       }
-
-      // Toggle all resolved types (this awaits element fetches too)
+  
+      // Toggle all resolved types (awaits element fetches too)
       for (const typeNode of typesToToggle) {
         await toggleLeaf(typeNode, nextIsChecked);
       }
-
+  
       updateAncestors(treeRef.current, id, newChecked, newIndeterminate);
-
+  
       if (toAddTypes.size > 0 || toRemoveTypes.size > 0) {
         setSelectedElements((prev) => {
           const prevList = Array.isArray(prev) ? prev.slice() : [];
@@ -511,13 +519,12 @@ const AssetTree = ({ loadingNodes, setLoadingNodes, setSelectedElements, setTabl
           return filtered;
         });
       }
-
+  
       setCheckedItems(newChecked);
       setIndeterminateItems(newIndeterminate);
-    } finally {
-      if (nextIsChecked) endLoading(branchNodeId);
-    }
+    });
   };
+  
 
   const renderTree = (nodes) => {
     return nodes?.map((node) => {
