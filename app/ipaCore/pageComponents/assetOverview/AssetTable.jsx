@@ -18,6 +18,8 @@ const DEFAULT_COLUMNS = [
   'Type Mark',
 ];
 
+const EMPTY_ROWS = [];
+
 const STORAGE_KEY = 'assetTable.selectedExtraProperties.v1';
 
 const StyledTableHeadRow = styled(TableRow)(({ theme }) => ({
@@ -336,8 +338,13 @@ const AssetTable = ({ rows }) => {
 
   const [filteredRows, setFilteredRows] = useState(() => (Array.isArray(rows) ? rows : []));
 
-  const hasRows = Array.isArray(rows) && rows.length > 0;
+  const rowsSafe = Array.isArray(rows) ? rows : EMPTY_ROWS;
+  const hasRows = rowsSafe.length > 0;
   const controlsDisabled = !hasRows;
+
+  useEffect(() => {
+    setFilteredRows(rowsSafe);
+  }, [rowsSafe]);
 
   // Persisted selection (can include items not currently available yet)
   const [persistedExtraProperties, setPersistedExtraProperties] = useState(() => {
@@ -435,7 +442,7 @@ const AssetTable = ({ rows }) => {
   return (
     <Paper sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <FilterBar
-        rows={Array.isArray(rows) ? rows : []}
+        rows={rowsSafe}
         setFilteredRows={setFilteredRows}
         setToast={setToast}
         extraPropertyOptions={extraPropertyOptions}
