@@ -55,45 +55,48 @@ export async function getInitialTreeLevels() {
   return treeData;
 }
 
-const callRaw = async (params) => {
-  const ctx = IafProj.getCurrent();
+const callRaw = async ({ structureName, family, typeId } = {}) => {
+  const ctx = IafProj.getCurrent()
+  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`
 
-  const result = await getModelTypeElements(
-    { params, headers: { origin: window.location.origin } },
-    { PlatformApi: { IafItemSvc }, IafScriptEngine },
-    ctx
-  );
+  // path param endpoint
+  const url = new URL(`${baseOmapiUrl}/model/typeElements/${encodeURIComponent(structureName)}`)
+  if (family) url.searchParams.set('family', family)
+  if (typeId != null) url.searchParams.set('typeId', String(typeId))
 
-  if (result?.status !== 200) {
-    // eslint-disable-next-line no-console
-    console.error('getModelTypeElements failed', result?.message, result);
-    return { status: result?.status ?? 500, _list: [] };
+  const res = await fetch(url.toString(), {
+    method: 'GET',
+    mode: 'cors',
+    headers: {
+      Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
+      'Content-Type': 'application/json',
+    },
+  })
+
+  const json = await res.json()
+  const result = json?._result
+
+  if (!res.ok) {
+    console.error('OMAPI typeElements call failed', { httpStatus: res.status, json })
+    return { status: res.status, _list: [] }
   }
 
-  return result;
-};
+  return result || { status: res.status, _list: [] }
+}
 
 const callList = async (params) => {
-  const result = await callRaw(params);
-  return result?._list || [];
-};
+  const result = await callRaw(params)
+  return result?._list || []
+}
 
 export async function getFamiliesLevel(structureName) {
-  return callList({ structureName });
+  return callList({ structureName })
 }
 
 export async function getFamilyTypesLevel(structureName, family) {
-  return callList({ structureName, family });
+  return callList({ structureName, family })
 }
 
-/**
- * Elements for a Type
- * Returns the full backend response so the UI can access:
- *   - status
- *   - mode
- *   - typeId
- *   - _list (elements)
- */
 export async function getTypeElementsLevel(structureName, typeId) {
-  return callRaw({ structureName, typeId });
+  return callRaw({ structureName, typeId }) // returning full object so you can read mode/typeId if needed
 }
