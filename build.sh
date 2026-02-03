@@ -21,7 +21,7 @@ if [ "$CF_PAGES_BRANCH" == "PRODUCTION" ]; then
    echo $PRODUCTION_CONFIG
    echo -e $PRODUCTION_CONFIG > ./build/config.js
 
-elif [ "$CF_PAGES_BRANCH" == "SANDBOX" ]; then
+elif [ "$CF_PAGES_BRANCH" == "STAGING" ]; then
   # Write next release config file
    echo $SANDBOX_CONFIG
    echo -e $SANDBOX_CONFIG > ./build/config.js
