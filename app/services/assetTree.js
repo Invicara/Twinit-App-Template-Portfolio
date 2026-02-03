@@ -100,3 +100,30 @@ export async function getFamilyTypesLevel(structureName, family) {
 export async function getTypeElementsLevel(structureName, typeId) {
   return callRaw({ structureName, typeId }) // returning full object so you can read mode/typeId if needed
 }
+
+export async function getStructureBulk(structureName) {
+  const ctx = IafProj.getCurrent();
+  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
+
+  const url = new URL(`${baseOmapiUrl}/model/typeElements/${encodeURIComponent(structureName)}`);
+  url.searchParams.set('bulk', '1');
+
+  const res = await fetch(url.toString(), {
+    method: 'GET',
+    mode: 'cors',
+    headers: {
+      Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const json = await res.json();
+  const result = json?._result;
+
+  if (!res.ok) {
+    console.error('Bulk call failed', { httpStatus: res.status, json });
+    return [];
+  }
+
+  return result?._list || [];
+}

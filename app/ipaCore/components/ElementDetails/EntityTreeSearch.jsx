@@ -53,6 +53,7 @@ export default function EntityTreeSearch({
   loadingNodes, // boolean: true => spinner
   expandIcon,
   collapseIcon,
+  showCheckbox = true, 
   ...other
 }) {
   const classes = useTreeItemStyles()
@@ -75,7 +76,8 @@ export default function EntityTreeSearch({
             toggle()
           }}
         >
-          {/* Keep a stable slot so checkbox doesn't "disappear" on load */}
+  
+         {showCheckbox ? (
           <div
             className={classes.checkboxSlot}
             onClick={(e) => e.stopPropagation()}
@@ -87,12 +89,13 @@ export default function EntityTreeSearch({
                 checked={checked}
                 indeterminate={indeterminate}
                 disabled={loadingNodes}
-                onChange={(e) => onCheck(nodeId, e.target.checked)}
+                onChange={(e) => onCheck?.(nodeId, e.target.checked)}
                 className={classes.checkbox}
                 size='small'
               />
             )}
           </div>
+        ) : null}
 
           <Typography variant='body2' className={classes.labelText}>
             {labelText}

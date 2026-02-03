@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import { Box, Checkbox, FormControl, ListItemText, MenuItem, Select, Snackbar } from '@material-ui/core';
-
+import TablePagination from '@mui/material/TablePagination';
 import { styled } from '@mui/material/styles';
 import MuiAlert from '@material-ui/lab/Alert';
 
@@ -328,7 +328,6 @@ const FilterBar = ({
   );
 };
 
-
 const AssetTable = ({ rows }) => {
   const [toast, setToast] = useState({
     open: false,
@@ -341,6 +340,9 @@ const AssetTable = ({ rows }) => {
   const rowsSafe = Array.isArray(rows) ? rows : EMPTY_ROWS;
   const hasRows = rowsSafe.length > 0;
   const controlsDisabled = !hasRows;
+
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   useEffect(() => {
     setFilteredRows(rowsSafe);
@@ -362,6 +364,17 @@ const AssetTable = ({ rows }) => {
   }, [rows]);
 
   const safeRows = useMemo(() => (Array.isArray(filteredRows) ? filteredRows : []), [filteredRows]);
+
+  // NEW: clamp page instead of always resetting to 0
+  useEffect(() => {
+    const maxPage = Math.max(0, Math.ceil(safeRows.length / rowsPerPage) - 1);
+    if (page > maxPage) setPage(maxPage);
+  }, [safeRows.length, rowsPerPage, page]);
+
+  const pagedRows = useMemo(() => {
+    const start = page * rowsPerPage;
+    return safeRows.slice(start, start + rowsPerPage);
+  }, [safeRows, page, rowsPerPage]);
 
   // Collect ALL non-default property names from the currently available rows (de-dup)
   const extraPropertyOptions = useMemo(() => {
@@ -515,15 +528,17 @@ const AssetTable = ({ rows }) => {
                 </TableCell>
               </TableRow>
             ) : (
-              safeRows.map((row) => (
-                <StyledTableRow key={row?.__rowKey ?? `${row?.['Type ID'] ?? ''}::${row?.['Element ID'] ?? ''}`}>
+              pagedRows.map((row) => (
+                // NEW: use ONLY __rowKey (no fallback) to avoid React key collisions
+                <StyledTableRow key={row.__rowKey}>
                   {visibleColumns.map((col) => {
                     const value = row?.[col];
                     const display = value != null && value !== '' ? String(value) : '';
 
                     return (
                       <TableCell
-                        key={`${row?.__rowKey ?? 'row'}::${col}`}
+                        // NEW: key uses the guaranteed-unique row.__rowKey
+                        key={`${row.__rowKey}::${col}`}
                         sx={{ ...baseCellSx, minWidth: colMinWidth(col) }}
                         title={display}
                       >
@@ -537,9 +552,51 @@ const AssetTable = ({ rows }) => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <TablePagination
+        component='div'
+        count={safeRows.length}
+        page={page}
+        onPageChange={(e, nextPage) => setPage(nextPage)}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={(e) => {
+          setRowsPerPage(Number(e.target.value));
+          setPage(0);
+        }}
+        rowsPerPageOptions={[10, 25, 50, 100]}
+          sx={{
+            '& .MuiTablePagination-toolbar': {
+              minHeight: 48,
+              alignItems: 'center',
+            },
+
+            '& .MuiTablePagination-selectLabel': {
+              position: 'relative',
+              top: 5,
+            },
+
+            '& .MuiTablePagination-displayedRows': {
+              position: 'relative',
+              top: 5,
+            },
+
+            '& .MuiTablePagination-selectIcon': {
+              right: 10,
+            },
+
+            // keep dropdown aligned
+            '& .MuiTablePagination-select': {
+              right: 3,
+              transform: 'translateY(1px)',
+            },
+
+            '& .MuiTablePagination-actions': {
+              marginLeft: 6,
+            },
+          }}
+      />
     </Paper>
   );
 };
-
 
 export default AssetTable;
