@@ -4,7 +4,7 @@ import ipaConfig from "../../../ipaConfig.js";
 
 const fallback = <div>Loading details…</div>;
 
-export default function StatePanel({ handler, currentState, context, userConfig, snapshot, className, send }) {
+export default function StatePanel({ handler, currentState, userConfig, className, send, context }) {
 
     const states = useMemo(()=>Object.keys(ipaConfig.mapPortfolio.statePanel.componentPaths || {}),[]);
     const stateKey = useMemo(()=>states.toReversed().find(state=>currentState.matches(state)),[states, currentState]);
@@ -25,9 +25,8 @@ export default function StatePanel({ handler, currentState, context, userConfig,
                 <Box p={0}>
                     <Suspense fallback={fallback}>
                     <LazyComponent
-                        context={context}
                         userConfig={userConfig}
-                        snapshot={snapshot}
+                        context={context}
                         send={send}
                         stateKey={stateKey}
                         handler={handler}

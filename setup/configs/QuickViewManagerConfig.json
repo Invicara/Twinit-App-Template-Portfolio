@@ -58,15 +58,7 @@
       "icon": "fas fa-map-marked-alt fa-2x",
       "pageComponent": "portfolioOverview/PortfolioOverview",
       "path": "/portfoliomap",
-      "config": { 
-        "labels": {
-          "search": "Search building...",
-          "group": "Group",
-          "structure": "Choose building / location",
-          "location": "Choose site / region",
-          "status": "Deploy Status"
-        }
-      },
+      "config": {},
       "scriptTypes": [
         "mmv_config",
         "mapTypeActions"
@@ -118,8 +110,9 @@
   },
   "settings": {
     "appTitle": "Quick Model View",
-    "appImage": {},
+    "appImage": { "url": "https://lib.invicara.io/hitachi/Hitachi%20Logo%20white.png" },
     "headerComponent": "components/HeaderBar/HeaderBar",
+    "modelSelection": [],
     "styles": {
       "--app-accent-color": "#C71784",
       "--head-bkg-color": "black",

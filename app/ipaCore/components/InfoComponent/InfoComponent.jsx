@@ -20,6 +20,7 @@ import {makeLayouts} from "../jsonForms/layouts/Layouts.jsx";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import {flushSync} from "react-dom";
+import {  rankWith, and, scopeEndsWith, isNumberControl } from '@jsonforms/core';
 
 const useStyles = makeStyles(() => ({
     iconButton: {
@@ -67,19 +68,16 @@ const isFieldRequired = (schema, fieldName) => {
     return schema?.required?.includes(fieldName) || false;
 };
 
-const isFieldEditable = (schema, fieldName) => {
+const isFieldEditable = (schema, fieldName, allowReadOnlyOverride = false) => {
     const fieldSchema = schema?.properties?.[fieldName];
-    return !fieldSchema?.readOnly;
+    return !fieldSchema?.readOnly || (fieldSchema?.readOnly && allowReadOnlyOverride);
 };
 
 const isFieldDeletable = (schema, fieldName) => {
     return !isFieldRequired(schema, fieldName);
 };
 
-export const InfoComponent = ({ entity, handleChange, type, entityType, originalEntity, disabled = false, onFieldRemove, modifyTypeCallback, debounceTime=700 }) => {
-
-    console.log("InfoComponent", {entity, handleChange, type, entityType, originalEntity, disabled, onFieldRemove, modifyTypeCallback, debounceTime})
-
+export const InfoComponent = ({ entity, handleChange, type, entityType, originalEntity, disabled = false, onFieldRemove, modifyTypeCallback, debounceTime=700, allowReadOnlyOverride = false }) => {
     // Modal states
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [modifyModalOpen, setModifyModalOpen] = useState(false);
@@ -87,13 +85,18 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
 
     const [localValue, setLocalValue] = useState(entity || {});
     const classes = useStyles();
+const handleUpdate = (newValue, name) => {
+  setLocalValue({ ...localValue, [name]: newValue });
 
-    const handleUpdate = (newValue, name) => {
-        setLocalValue({ ...localValue, [name]: newValue });
+  handleChange &&
+    handleChange(newValue, name, {
+      name,
+      entityType,
+      entity,
+      originalEntity,
+    });
+};
 
-        // Call the onChange handler with the new value
-        handleChange && handleChange(newValue, name, { name, entityType, entity, originalEntity });
-    };
 
     // Modal handlers
     const handleOpenDeleteModal = useCallback((fieldName) => {
@@ -160,30 +163,29 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
         useMemo(() => makeLayouts({
             getIsModifiable: (field) => {
                 const fieldSchema = type?.properties?.[field];
-                // modifiable if field exists and is not readOnly
-                const guard = !!fieldSchema && isFieldEditable(type, field);
+                // modifiable if field exists and is not readOnly (or readOnly override is allowed)
+                const guard = !!fieldSchema && isFieldEditable(type, field, allowReadOnlyOverride);
                 return guard;
             },
             getIsEditable: (field) => {
                 const fieldSchema = type?.properties?.[field];
-                // editable if field exists and is not readOnly
-                const guard = !!fieldSchema && isFieldEditable(type, field);
+                // editable if field exists and is not readOnly (or readOnly override is allowed)
+                const guard = !!fieldSchema && isFieldEditable(type, field, allowReadOnlyOverride);
                 return guard;
             },
             getIsDeletable: (field) => isFieldDeletable(type, field),
             onOpenModify: (field) => handleOpenModifyModal(field),
             onOpenDelete: (field) => handleOpenDeleteModal(field),
-            disabledForm: disabled
-        }), [type, disabled, handleOpenModifyModal, handleOpenDeleteModal]);
+            disabledForm: disabled,
+            entityType     
+        }), [type, disabled, handleOpenModifyModal, handleOpenDeleteModal, allowReadOnlyOverride, entityType]);
 
-    const {uiSchema, renderers, optionsResolver, ajv, materialCells, materialRenderers} = useInfoComponentJsonForms({schema: type, layouts});
+    const {processedType, uiSchema, renderers, optionsResolver, ajv, materialCells, materialRenderers} = useInfoComponentJsonForms({schema: type, layouts, allowReadOnlyOverride});
 
-    // track previous value so we can call your handleChange(name, value, meta)
     const prevRef = useRef(localValue);
     useEffect(() => { prevRef.current = localValue; }, [localValue]);
 
     const onJsonFormsChange = ({ data }) => {
-        // Compute a changed key (shallow compare)
         const prev = prevRef.current || {};
         const keys = new Set([...Object.keys(prev), ...Object.keys(data)]);
         for (const k of keys) {
@@ -193,6 +195,7 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
             }
         }
     };
+
 
     return (
         <ThemeProvider theme={formTheme}>
@@ -204,8 +207,8 @@ export const InfoComponent = ({ entity, handleChange, type, entityType, original
                         <ThemeProvider theme={formTheme}>
                             <JsonForms
                                 data={localValue}
-                                schema={type}
-                                uischema={uiSchema}
+                                schema={processedType}
+                                uischema={uiSchema} 
                                 onChange={onJsonFormsChange}
                                 renderers={renderers}
                                 cells={materialCells}

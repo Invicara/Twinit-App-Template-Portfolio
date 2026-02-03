@@ -9,15 +9,6 @@
       "path": "/modelcomparison",
       "config": {}
     },
-    "animations2D": {
-      "title": "2D Animations",
-      "icon": "fa fa-ruler-combined fa-2x",
-      "shortName": "animations2D",
-      "description": "2D Animations",
-      "pageComponent": "animations2D/Animations2DView",
-      "path": "/animations2D",
-      "config": {}
-    },
     "modelImport": {
       "title": "Model Import",
       "icon": "fas fa-file-import fa-2x",
@@ -73,21 +64,42 @@
           "group": "Group",
           "structure": "Choose building / location",
           "location": "Choose site / region",
-          "status": "Deploy Status"
+          "status": "Deploy Status",
+          "chartTitle": "Deploy Status"
+        },
+        "statusConfig": {
+          "notStarted": {
+            "label": "Not started",
+            "color": "#d3d3d3"
+          },
+          "inProgress": {
+            "label": "In Progress",
+            "color": "#f4b740"
+          },
+          "atRisk": {
+            "label": "At risk",
+            "color": "#e53935"
+          },
+          "completed": {
+            "label": "Completed",
+            "color": "#66bb6a"
+          }
         }
-      }
+      },
+      "scriptTypes": [
+        "mmv_config",
+        "mapTypeActions"
+      ]
+    },
+    "assetTree": {
+      "title": "Asset Overview",
+      "icon": "fa fa-list fa-2x",
+      "shortName": "assetoverview",
+      "description": "Asset Overview",
+      "pageComponent": "assetOverview/AssetOverviewView",
+      "path": "/assetoverview",
+      "config": {}
     }
-  },
-  "portfolioOverview": {
-    "title": "Portfolio Overview",
-    "icon": "fas fa-map-marked-alt fa-2x",
-    "pageComponent": "portfolioOverview/PortfolioOverview",
-    "path": "/portfoliomap",
-    "config": {},
-    "scriptTypes": [
-      "mmv_config",
-      "mapTypeActions"
-    ]
   },
   "homepage": {
     "handler": "portfolioOverview"
@@ -100,6 +112,10 @@
         {
           "page": "Portfolio Overview",
           "handler": "portfolioOverview"
+        },
+        {
+          "page": "Asset Overview",
+          "handler": "assetTree"
         }
       ]
     },
@@ -114,10 +130,6 @@
         {
           "page": "Model Comparison",
           "handler": "modelComparison"
-        },
-        {
-          "page": "2D Animations",
-          "handler": "animations2D"
         },
         {
           "page": "Model Import",

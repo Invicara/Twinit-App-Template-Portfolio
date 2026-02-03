@@ -22,32 +22,35 @@ const useStyles = makeStyles(theme => ({
 }));
 
 const AssetOverviewView = () => {
-    const [loadingNodes, setLoadingNodes] = useState({A: true})
+  const [loadingNodes, setLoadingNodes] = useState({})
     const [loadingTableData, setLoadingTableData] = useState()
     const [tableData, setTableData] = useState()
-    const [selectedSiteEquipment, setSelectedSiteEquipment] = useState()
-    const [equipData, setEquipData] = useState()
+    const [selectedElements, setSelectedElements] = useState()
+    const [elementData, setElementData] = useState()
+    
+    useEffect(() => {
+      console.log('PARENT tableData updated:', tableData)
+    }, [tableData])
 
     const classes = useStyles()
 
-    // Memoizing the filtered equipData
-    const filteredEquipData = useMemo(() => {
-      return tableData?.filter(data => selectedSiteEquipment?.includes(data.nameId))
-    }, [selectedSiteEquipment, tableData])
+    const filteredElementData = useMemo(() => {
+      return tableData?.filter(data => selectedElements?.includes(data.nameId))
+    }, [selectedElements, tableData])
 
-    // Setting equipData once filtered data is available
+    // Setting elementData once filtered data is available
     useEffect(() => {
-      setEquipData(filteredEquipData)
-    }, [filteredEquipData])
+      setElementData(filteredElementData)
+    }, [filteredElementData])
 
     // Callback to prevent unnecessary re-renders
-    const handleSetSelectedSiteEquipment = useCallback((newSelection) => {
-      setSelectedSiteEquipment(newSelection)
+    const handleSetSelectedElements = useCallback((newSelection) => {
+      setSelectedElements(newSelection)
     }, [])
 
-    const handleSetTableData = useCallback((newTableData) => {
-      setTableData(newTableData)
-    }, [])
+   const handleSetTableData = useCallback((updater) => {
+  setTableData(prev => (typeof updater === 'function' ? updater(prev) : updater))
+}, []);
 
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
@@ -63,7 +66,7 @@ const AssetOverviewView = () => {
           }}
         >
         <Box sx={{ flexShrink: 0 }}>
-          {Object.values(loadingNodes).includes(true) ? (
+          {Object.keys(loadingNodes || {}).some((k) => loadingNodes[k] === true) ? (
             <LinearProgress
                sx={{
                 '&.MuiLinearProgress-colorPrimary': { backgroundColor: '#DF158C' },
@@ -71,14 +74,14 @@ const AssetOverviewView = () => {
               }}
             />
           ) : null}
-          <p className="tree-panel-header">Properties</p>
+          <p className="tree-panel-header">Assets</p>
         </Box>
 
         <Box sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           <AssetTree
             loadingNodes={loadingNodes}
             setLoadingNodes={setLoadingNodes}
-            setSelectedSiteEquipment={handleSetSelectedSiteEquipment}
+            setSelectedElements={handleSetSelectedElements}
             setTableData={handleSetTableData}
           />
         </Box>
@@ -96,13 +99,13 @@ const AssetOverviewView = () => {
           }}
         >
             <>
-                <p className="table-panel-header">Equipments</p>
+                <p className="table-panel-header">Assets</p>
                 <Box sx={{ flex: 1, minHeight: 0 }}>
-                  <AssetTable 
-                    rows={equipData} 
-                    loadingTableData={loadingTableData} 
-                    setLoadingTableData={setLoadingTableData} 
-                  /> 
+                    <AssetTable
+                    rows={tableData}
+                    loadingTableData={loadingTableData}
+                    setLoadingTableData={setLoadingTableData}
+                  />
                 </Box>
             </>
           {loadingTableData ? <LinearProgress classes={{ colorPrimary: classes.colorPrimary, barColorPrimary: classes.barColorPrimary }} /> : null}

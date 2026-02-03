@@ -11,6 +11,7 @@ import {
     toggleScopedFilter
 } from "../../../utils/filters.global.js";
 
+
 const sampleFormConfig = {
     initial: { search: '', group: '', structure: '', location: '', status: '' },
     fields: {
@@ -35,24 +36,30 @@ const sampleFormConfig = {
         group: {
             label: 'Group',
             type: 'select',
-            rule: "reactorCapacityIn",
+            rule: "buildingTypeIn",
             options: () => {
-                const bins = [
-                    {id: 'low', label: 'Low', test: "reactorCapacityIn", color: "#8ecbff"},
-                    {id: "medium", label: "Medium",test: "reactorCapacityIn", color: "#1DC0F7"},
-                    {id: 'high', label: 'High', test: "reactorCapacityIn", color: "#0072BC"},
-                    {id: 'ultra', label: 'Ultra', test: "reactorCapacityIn", color: "#1D1D1D"},
-                    {id: 'Other', label: 'Other', test: () => true},
+                // const bins = [
+                //     {id: 'low', label: 'Low', test: "buildingTypeIn", color: "#8ecbff"},
+                //     {id: "medium", label: "Medium",test: "buildingTypeIn", color: "#1DC0F7"},
+                //     {id: 'high', label: 'High', test: "buildingTypeIn", color: "#0072BC"},
+                //     {id: 'ultra', label: 'Ultra', test: "buildingTypeIn", color: "#1D1D1D"},
+                //     {id: 'Other', label: 'Other', test: () => true},
+                // ];
+                    const bins = [
+                    { id: "typeA", color: "#8ecbff", test: "buildingTypeIn", label: "Type A" },
+                    { id: "typeB", color: "#1DC0F7", test: "buildingTypeIn", label: "Type B" },
+                    { id: "typeC", color: "#0072BC", test: "buildingTypeIn", label: "Type C" },
+                    { id: "typeD", color: "#1D1D1D", test: "buildingTypeIn", label: "Type D" }
                 ];
                 return bins.map((bin, index) => ({ value: bin.id, label: bin.label, meta: { bin } }));
             },
             toRule: (value, _ctx, meta) => {
                 return value !== '' && meta?.bin
-                    ? {fn: 'reactorCapacityIn', args: {values: [value]}}
+                    ? {fn: 'buildingTypeIn', args: {values: [value]}}
                     : null
             },
             fromRule: (rule, _context, selectOptions = []) => {
-                if (rule?.fn !== 'reactorCapacityIn') return null;
+                if (rule?.fn !== 'buildingTypeIn') return null;
 
                 // normalize the values coming from the rule
                 const ids = Array.isArray(rule.args?.values)
@@ -190,16 +197,51 @@ const defaultChartCfg =  {
     },
 
     // 2) GROUP
-    group: {
-        id: 'reactorCapacityIn',
-        bins: [
-            {id: 'low', label: 'Low', test: "reactorCapacityIn", color: "#8ecbff"},
-            {id: "medium", label: "Medium",test: "reactorCapacityIn", color: "#1DC0F7"},
-            {id: 'high', label: 'High', test: "reactorCapacityIn", color: "#0072BC"},
-            {id: 'ultra',  label: 'Ultra',  test: 'reactorCapacityIn', color: "#1D1D1D" },
-            {id: 'Other', label: 'Other',test: () => true},
+            group: {
+                id: 'buildingTypeIn',
+            bins: [
+        {
+            id: 'typeA',
+            label: 'Type A',
+            color: '#8ecbff',
+            test: (b) => {
+                 const cap = b?.Type;
+            return cap == 'Type A';
+            },
+        },
+        {
+            id: 'typeB',
+            label: 'Type B',
+            color: '#1DC0F7',
+            test: (b) => {
+                 const cap = b?.Type;
+            return cap == 'Type B';
+            },
+        },
+        {
+            id: 'typeC',
+            label: 'Type C',
+            color: '#0072BC',
+             test: (b) => {
+                 const cap = b?.Type;
+            return cap == 'Type C';
+            },
+        },
+        {
+            id: 'typeD',
+            label: 'Type D',
+            color: '#1D1D1D',
+            test: (b) => {
+            const cap = b?.Type;
+            return cap == 'Type D';
+            },
+        },
+        {
+            id: 'Other',
+            label: 'Other',
+            test: () => true,
+        },
         ],
-        // optional pretty label
         groupLabel: (bin) => bin.label,
     },
 
@@ -217,10 +259,10 @@ const defaultChartCfg =  {
                 "unknown": "#CCCCCC",
             },
             labelMap: {
-                "1": "Not started",
-                "2": "In Progress",
-                "3": "Completed",
-                "4": "At risk",
+                "1": "Planned",
+                "2": "Construction",
+                "3": "Operating",
+                "4": "Suspended Operation",
                 "5": "Permanent Shutdown",
                 "unknown": "Unknown",
             },
@@ -242,7 +284,7 @@ const defaultChartCfg =  {
         rules: {
             series: (statusKey) =>
                 statusKey === 'unknown' ? null : ({ fn: 'statusIn', args: { values: [statusKey] } }),
-            group:  (id, ctx) => ({ fn: 'reactorCapacityIn', args: { values: [ctx.bin.id] } }),
+            group:  (id, ctx) => ({ fn: 'buildingTypeIn', args: { values: [ctx.bin.id] } }),
         },
     },
 };
