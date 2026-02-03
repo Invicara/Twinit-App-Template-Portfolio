@@ -1,7 +1,7 @@
 {
-   "name": "model-quick-view",
-   "version": "2.1.0",
-   "description": "Model Quick View",
+   "name": "portfolio-template",
+   "version": "1.0.0",
+   "description": "Portfolio Template",
    "homepage": ".",
    "scripts": {
       "build-dev": "webpack",
