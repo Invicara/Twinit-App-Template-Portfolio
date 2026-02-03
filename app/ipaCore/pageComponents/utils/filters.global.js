@@ -5,12 +5,12 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
     const originalFns = fnsFactory({entityType, isMapFeatures});
     const fns = {
         ...originalFns,
-        capacityBetween:
+        currentValuesBetween:
             ({min, max}) =>
                 (e) => {
                     const entity = isMapFeatures ? e.properties : e;
                     //original one is about the building
-                    const originalPredicate = originalFns.capacityBetween({min, max});
+                    const originalPredicate = originalFns.valueBetween({min, max});
                     if (entityType == "site") {
                         return entity.buildings.some(originalPredicate);
                     } else {
@@ -28,27 +28,31 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
                 return originalPredicate(entity);
             }
         },
-        reactorCapacityIn:
+        buildingTypeIn:
             ({ values = [] }) =>
             (e) => {
-                const wanted = new Set(values.map(v => String(v).toLowerCase()));
+                // normalize both ids like "typeA" and labels like "Type A"
+                const normalize = (v) =>
+                String(v).toLowerCase().replace(/\s+/g, '');
+
+                const wanted = new Set(values.map(normalize));
 
                 const props = e && typeof e === 'object' ? (e.properties || e) : {};
                 const buildings = Array.isArray(props.buildings) ? props.buildings : null;
 
-                const getCapacity = (b) => Number(b?.Capacity ?? props?.Capacity ?? 0);
+                const getCapacity = (b) => b?.Type;
 
                 const getCategory = (capacity) => {
-                    if (capacity <= 899) return 'low';
-                    if (capacity <= 1299) return 'medium';
-                    if (capacity <= 1449) return 'high';
-                    if (capacity >= 1450) return 'ultra';
-                    return 'unknown';
+                if (capacity == 'Type A') return 'typeA';
+                if (capacity == 'Type B') return 'typeB';
+                if (capacity == 'Type C') return 'typeC';
+                if (capacity == 'Type D') return 'typeD';
+                return 'unknown';
                 };
 
                 const categories = buildings
-                    ? buildings.map(getCapacity).map(getCategory)
-                    : [getCategory(getCapacity(props))];
+                ? buildings.map(getCapacity).map(getCategory).map(normalize)
+                : [normalize(getCategory(getCapacity(props)))];
 
                 return categories.some((cat) => wanted.has(cat));
             },

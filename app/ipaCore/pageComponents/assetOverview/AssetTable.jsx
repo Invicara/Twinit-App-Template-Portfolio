@@ -1,411 +1,602 @@
-import React, { useState, useEffect } from "react";
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from "@mui/material";
-import { Box, FormControl, Select, MenuItem, Snackbar } from "@material-ui/core";
+import React, { useEffect, useMemo, useState } from 'react';
+import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { Box, Checkbox, FormControl, ListItemText, MenuItem, Select, Snackbar } from '@material-ui/core';
+import TablePagination from '@mui/material/TablePagination';
 import { styled } from '@mui/material/styles';
-import { makeStyles } from "@material-ui/core/styles";
-import MuiAlert from "@material-ui/lab/Alert";
+import MuiAlert from '@material-ui/lab/Alert';
 
-import './AssetTable.scss'
+import './AssetTable.scss';
+
+const BASE_COL_MIN_WIDTH = 220;
+const DYNAMIC_COL_MIN_WIDTH = 180;
+
+const DEFAULT_COLUMNS = [
+  'Type Name',
+  'Type ID',
+  'Revit Family',
+  'Revit Type',
+  'Type Mark',
+];
+
+const EMPTY_ROWS = [];
+
+const STORAGE_KEY = 'assetTable.selectedExtraProperties.v1';
 
 const StyledTableHeadRow = styled(TableRow)(({ theme }) => ({
-    backgroundColor: '#eaeaea',
-    '& .MuiTableCell-root': {
-        color: theme.palette.common.black, // Header text color
-        backgroundColor: '#F9F9F9',
-        fontWeight: 'bold',
-    },
+  backgroundColor: '#eaeaea',
+  '& .MuiTableCell-root': {
+    color: theme.palette.common.black,
+    backgroundColor: '#F9F9F9',
+    fontWeight: 'bold',
+    whiteSpace: 'nowrap',
+  },
 }));
 
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
-    '&:nth-of-type(odd)': {
-        backgroundColor: theme.palette.background.paper, // Odd row color
-    },
-    '&:nth-of-type(even)': {
-        backgroundColor: theme.palette.action.hover, // Even row color
-    },
-}));
-
-const useStyles = makeStyles((theme) => ({
-  filterBox: {
-    marginLeft: theme.spacing(2),
-    marginTop: theme.spacing(2),
-    marginBottom: theme.spacing(2),
+  '&:nth-of-type(odd)': {
+    backgroundColor: theme.palette.background.paper,
   },
-  dropdown: {
-    border: '1px solid #DCDCDC', 
-    borderRadius: '4px', 
-    color: '#DF158C',
-    padding: '8px'
+  '&:nth-of-type(even)': {
+    backgroundColor: theme.palette.action.hover,
   },
-  sortBox: {
-    minWidth: 'auto',
-    marginLeft: 'auto'
-  }
 }));
-
-const SortingDropdown = ({sortedTableData, setSortedTableData}) => {
-    const sortingOptions = ['Sort ascending', 'Sort descending']
-    const classes = useStyles();
-
-    function sortByNameId(data, order = 'ascending', setSortedTableData) {
-        if (order !== 'Sort ascending' && order !== 'Sort descending') {
-            throw new Error('Invalid order parameter. Use "ascending" or "descending".');
-        }
-
-        const sortedData = [...data].sort((a, b) => {
-            if (order === 'Sort ascending') {
-                return a.nameId.localeCompare(b.nameId)
-            } else {
-                return b.nameId.localeCompare(a.nameId)
-            }
-        })
-        setSortedTableData(sortedData)
-    }
-
-
-    return (
-        <Box className={classes.sortBox}>
-            <FormControl className={classes.formControl}>
-                <Select
-                    onChange={(e) => {
-                        sortByNameId(sortedTableData, e.target.value, setSortedTableData);
-                    }}
-                    displayEmpty
-                    disableUnderline
-                    IconComponent={() => null}
-                    renderValue={() => (
-                        <div>
-                            <i className="fas fa-sort" style={{color: '#5D5D5D'}}></i>
-                        </div>
-                    )}
-                >
-                {sortingOptions.map((option) => {
-                    return (
-                        <MenuItem key={option} value={option}>
-                            <Box display="flex" alignItems="center">
-                                {option}
-                            </Box>
-                        </MenuItem>
-                    );
-                })}
-                </Select>
-            </FormControl>
-        </Box>
-    )
-}
-
-const FilterdDropdown = ({selectedFilter, setSelectedFilter}) => {
-    const filterOptions = ['Equipment Name', 'Name ID', 'Equipment Type', 'Manufacturer', 'Model']
-
-    const classes = useStyles()
-
-    return (
-        <Box className={classes.filterBox}>
-            <FormControl className={classes.formControl}>
-                <Select
-                    value={selectedFilter}
-                    onChange={(e) => {
-                        setSelectedFilter(e.target.value);
-                    }}
-                    displayEmpty
-                    disableUnderline
-                    IconComponent={() => null}
-                    renderValue={() => (
-                        <div className={classes.dropdown}>
-                            <i className="fas fa-filter"></i>
-                            <span>Search/Filter by</span>
-                        </div>
-                    )}
-                >
-                    <div className="filter-dropdown">
-                        <i className="fas fa-search"></i>
-                        <p>Search Attributes...</p>
-                    </div>
-                    {filterOptions.map((option) => {
-                        const displayText = option === "All" ? "All" : option[0] + option.slice(1).toLowerCase();
-                        return (
-                            <MenuItem key={option} value={option}>
-                                <Box display="flex" alignItems="center">
-                                    {displayText}
-                                </Box>
-                            </MenuItem>
-                        );
-                    })}
-                </Select>
-            </FormControl>
-        </Box>
-    )
-}
-
-const FilteredContainer = ({selectedFilter, setSelectedFilter, sortedTableData, setSortedTableData, rows, setToast}) => {
-    const [selectedCondition, setSelectedCondition] = useState()
-
-    const classes = useStyles()
-
-    const conditionOptions = ['is', 'is not'] 
-
-    const deleteFilter = (rows) => {
-        setSelectedCondition()
-        setSelectedFilter()
-        setSortedTableData(rows)
-    }
-  
-    const filteredData = (keyword, setToast, data = sortedTableData) => {
-        if (!keyword || !selectedFilter || !selectedCondition) return data;
-
-        if(!data) {
-            setToast({
-                open: true,
-                severity: "error",
-                message: `No Asset data selected, please choose from the Asset Tree on the left panel`,
-            })
-            deleteFilter()
-        }
-        const lowerKeyword = keyword.toLowerCase()
-
-        const getPropertyValue = (item, propertyName) => {
-            const prop = item.Properties?.find(p => p.name === propertyName);
-            return prop ? String(prop.val).toLowerCase() : ''
-        }
-
-        const matchesFilter = (item) => {
-            switch (selectedFilter) {
-                case 'Equipment Name':
-                    return item.EquipmentName?.toLowerCase().includes(lowerKeyword)
-                
-                case 'Name ID':
-                    return item.nameId?.toLowerCase().includes(lowerKeyword)
-                
-                case 'Equipment Type':
-                case 'Manufacturer':
-                case 'Model':
-                    return getPropertyValue(item, selectedFilter).includes(lowerKeyword)
-                
-                default:
-                    return false
-            }
-        }
-
-        const result = data.filter(item => 
-            selectedCondition === 'is' ? matchesFilter(item) : !matchesFilter(item)
-        )
-
-        if(_.isEmpty(result)) {
-            setToast({
-                open: true,
-                severity: "error",
-                message: `No matching property found for ${selectedFilter}`,
-            })
-        } else {
-            setSortedTableData(result)
-        }
-    }
-    
-
-    const handleKeyDown = (event, setToast) => {
-        if (event.key === 'Enter') {
-            filteredData(event.target.value, setToast, rows)
-        }
-    }
-
-    return (
-        <div className="filter-container">
-            <div className="selected-filter">
-                <div>{selectedFilter}</div>
-            </div>
-            { selectedCondition ? 
-                <>
-                    <div className='selected-condition'>
-                        <div >
-                            {selectedCondition}
-                        </div> 
-                    </div>
-                    <input type="text" id="property" name="property" placeholder="Enter text..." onKeyDown={(event) => handleKeyDown(event, setToast)} className="property-input" />
-                </>
-                :
-                <div className="selecting-condition">
-                    <Box>
-                        <FormControl className={classes.formControl}>
-                            <Select
-                                onChange={(e) => {
-                                    setSelectedCondition(e.target.value);
-                                }}
-                                displayEmpty
-                                disableUnderline
-                                IconComponent={() => null}
-                                renderValue={() => (
-                                        <span style={{color: '#B8B8B8'}}>Select Condition</span>
-                                    )}
-                            >
-                                {conditionOptions.map((option) => {
-                                    return (
-                                        <MenuItem key={option} value={option}>
-                                            <Box display="flex" alignItems="center">
-                                                {option}
-                                            </Box>
-                                        </MenuItem>
-                                    );
-                                })}
-                            </Select>
-                        </FormControl>
-                    </Box>
-                </div>
-            }
-             <div className="delete-dropdown">
-                    <Box>
-                        <FormControl className={classes.formControl}>
-                            <Select
-                                onChange={(e) => {
-                                    setSelectedCondition(e.target.value);
-                                }}
-                                displayEmpty
-                                disableUnderline
-                                IconComponent={() => null}
-                                renderValue={() => (
-                                        <i style={{ margin: 'auto', padding: '0px'}} className="fas fa-ellipsis-v"></i>
-                                    )}
-                            >
-                                <MenuItem onClick={() => deleteFilter(rows)}>
-                                    <Box display="flex" alignItems="center" style={{color: '#D32F2F'}}>
-                                        <i style={{ margin: 'auto'}} className="fas fa-trash-alt"></i>
-                                        Delete filter
-                                    </Box>
-                                </MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Box>
-            </div>
-        </div>
-        
-    )
-}
 
 function Alert(props) {
-  return <MuiAlert elevation={6} variant="filled" {...props} />;
+  return <MuiAlert elevation={6} variant='filled' {...props} />;
 }
 
-const AssetTable = ({ rows }) => {
-    const [selectedFilter, setSelectedFilter] = useState()
-    const [sortedTableData, setSortedTableData] = useState(rows)
-    const [toast, setToast] = useState({
-        open: false,
-        severity: "error",
-        message: "",
-    })
+const FilterDropdown = ({ selectedFilter, setSelectedFilter, disabled }) => {
+  const filterOptions = DEFAULT_COLUMNS;
 
-    useEffect(() => { 
-        setSortedTableData(rows)
-    }, [rows])
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <FormControl>
+        <Select
+          disabled={disabled}
+          value={selectedFilter ?? ''}
+          onChange={(e) => setSelectedFilter(e.target.value)}
+          displayEmpty
+          disableUnderline
+          IconComponent={() => null}
+          renderValue={() => (
+            <div
+              style={{
+                border: '1px solid #DCDCDC',
+                borderRadius: 4,
+                padding: 8,
+                color: '#DF158C',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                opacity: disabled ? 0.5 : 1,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <i className='fas fa-filter'></i>
+              <span>{selectedFilter ? `Filter: ${selectedFilter}` : 'Search/Filter by'}</span>
+            </div>
+          )}
+        >
+          <div className='filter-dropdown'>
+            <i className='fas fa-search'></i>
+            <p>Search Attributes...</p>
+          </div>
 
-    const getPropertyValue = (row, name) => {
-        const property = row.Properties.find(p => p.name === name)
-        return property ? property.val : '-'
+          {filterOptions.map((option) => (
+            <MenuItem key={option} value={option}>
+              <Box display='flex' alignItems='center'>
+                {option}
+              </Box>
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    </Box>
+  );
+};
+
+const PropertyColumnsDropdown = ({ options, selected, setSelected, disabled }) => {
+  const value = Array.isArray(selected) ? selected : [];
+
+  const [anchorEl, setAnchorEl] = useState(null);
+
+  const menuProps = useMemo(
+    () => ({
+      anchorEl,
+      getContentAnchorEl: null,
+      anchorOrigin: { vertical: 'bottom', horizontal: 'left' },
+      transformOrigin: { vertical: 'top', horizontal: 'left' },
+      disableScrollLock: true,
+      PaperProps: {
+        style: {
+          maxHeight: 360,
+          minWidth: anchorEl ? anchorEl.clientWidth : 240,
+        },
+      },
+    }),
+    [anchorEl],
+  );
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <FormControl>
+        <Select
+          disabled={disabled}
+          multiple
+          value={value}
+          onOpen={(e) => {
+            if (disabled) return;
+            setAnchorEl(e.currentTarget);
+          }}
+          onClose={() => setAnchorEl(null)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setSelected(Array.isArray(next) ? next : []);
+          }}
+          displayEmpty
+          disableUnderline
+          IconComponent={() => null}
+          renderValue={(selectedVals) => (
+            <div
+              style={{
+                border: '1px solid #DCDCDC',
+                borderRadius: 4,
+                padding: 8,
+                color: '#5D5D5D',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                minWidth: 240,
+                whiteSpace: 'nowrap',
+                opacity: disabled ? 0.5 : 1,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <i className='fas fa-columns'></i>
+              <span>
+                {Array.isArray(selectedVals) && selectedVals.length
+                  ? `${selectedVals.length} properties`
+                  : 'Add properties'}
+              </span>
+            </div>
+          )}
+          MenuProps={menuProps}
+        >
+          {options.map((name) => (
+            <MenuItem key={name} value={name}>
+              <Checkbox
+                checked={value.indexOf(name) > -1}
+                size='small'
+                sx={{ padding: '2px' }}
+              />
+              <ListItemText primary={name} />
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    </Box>
+  );
+};
+
+const FilterBar = ({
+  rows,
+  setFilteredRows,
+  setToast,
+  extraPropertyOptions,
+  selectedExtraProperties,
+  setSelectedExtraProperties,
+  disabled,
+}) => {
+  const [selectedFilter, setSelectedFilter] = useState('');
+  const [selectedCondition, setSelectedCondition] = useState('');
+  const [keyword, setKeyword] = useState('');
+
+  const conditionOptions = ['is', 'is not'];
+
+  useEffect(() => {
+    if (!selectedFilter || !selectedCondition || !keyword) {
+      setFilteredRows(rows);
+      return;
     }
 
-    const handleCloseToast = () => {
-        setToast((prev) => ({ ...prev, open: false }));
+    const lowerKeyword = keyword.toLowerCase();
+
+    const matches = (item) => {
+      const v = item?.[selectedFilter];
+      const str = v == null ? '' : String(v);
+      return str.toLowerCase().includes(lowerKeyword);
     };
- 
-    return (
-        <Paper sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-             {!selectedFilter ? (
-                <FilterdDropdown
-                    selectedFilter={selectedFilter}
-                    setSelectedFilter={setSelectedFilter}
-                />
-            ) : (
-                <FilteredContainer
-                    selectedFilter={selectedFilter}
-                    setSelectedFilter={setSelectedFilter}
-                    sortedTableData={sortedTableData}
-                    setSortedTableData={setSortedTableData}
-                    rows={rows}
-                    setToast={setToast}
-                />
-            )}
-            <TableContainer
-                sx={{
-                    flex: 1,
-                    minHeight: 0,
-                    overflowY: 'auto',
-                    scrollbarWidth: 'thin',
-                    scrollbarColor: 'rgba(0, 0, 0, 0.3) transparent',
-                    '&::-webkit-scrollbar': {
-                    width: '6px',
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                    borderRadius: '10px',
-                    },
-                }}
+
+    const result = (rows || []).filter((item) => (selectedCondition === 'is' ? matches(item) : !matches(item)));
+
+    if (!result.length) {
+      setToast({
+        open: true,
+        severity: 'error',
+        message: `No matching rows found for ${selectedFilter}`,
+      });
+    }
+
+    setFilteredRows(result);
+  }, [rows, selectedFilter, selectedCondition, keyword, setFilteredRows, setToast]);
+
+  const clearFilter = () => {
+    if (disabled) return;
+    setSelectedFilter('');
+    setSelectedCondition('');
+    setKeyword('');
+    setFilteredRows(rows);
+  };
+
+  const propertiesDisabled = disabled || extraPropertyOptions.length === 0;
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 12, p: 2 }}>
+      <FilterDropdown
+        selectedFilter={selectedFilter}
+        setSelectedFilter={(v) => {
+          if (disabled) return;
+          setSelectedFilter(v);
+        }}
+        disabled={disabled}
+      />
+
+      {selectedFilter ? (
+        <>
+          <FormControl>
+            <Select
+              disabled={disabled}
+              value={selectedCondition}
+              onChange={(e) => setSelectedCondition(e.target.value)}
+              displayEmpty
+              disableUnderline
+              IconComponent={() => null}
+              inputProps={{ style: { padding: 0 } }}
+              renderValue={() => (
+                <span style={{ color: selectedCondition ? '#111' : '#B8B8B8' }}>
+                  {selectedCondition ? selectedCondition : 'Select Condition'}
+                </span>
+              )}
+              style={{
+                border: '1px solid #DCDCDC',
+                borderRadius: 4,
+                height: 36,
+                minWidth: 140,
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0 10px',
+                opacity: disabled ? 0.5 : 1,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+              }}
             >
-                <Table stickyHeader aria-label="scrollable table">
-                    <Snackbar
-                        open={toast.open}
-                        autoHideDuration={4000}
-                        onClose={handleCloseToast}
-                        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-                    >
-                        <Alert onClose={handleCloseToast} severity={toast.severity}>
-                            {toast.message}
-                        </Alert>
-                    </Snackbar>
-                    <TableHead>
-                        <StyledTableHeadRow>
-                            <TableCell className="asset-table-header-cell" sx={{ width: '30%' }}>
-                                <div>
-                                    <p>Equipment Name</p>
-                                    <SortingDropdown sortedTableData={sortedTableData} setSortedTableData={setSortedTableData}/>
-                                </div>
-                            </TableCell>
-                            <TableCell className="asset-table-header-cell">Name ID</TableCell>
-                            <TableCell className="asset-table-header-cell">Equipment Type</TableCell>
-                            <TableCell className="asset-table-header-cell">Manufacturer</TableCell>
-                            <TableCell className="asset-table-header-cell">Model</TableCell>
-                        </StyledTableHeadRow>
-                    </TableHead>
-                    <TableBody>
-                        {_.isEmpty(rows) ? (
-                            <TableCell
-                                className="asset-table-no-equip"
-                                colSpan={5}
-                                sx={{
-                                    height: 'calc(100vh - 300px)', // adjust based on your header height
-                                    p: 0,
-                                }}
-                                >
-                                <Box
-                                    sx={{
-                                        height: '100%',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        textAlign: 'center',
-                                    }}
-                                >
-                                    <Box sx={{ maxWidth: 400 }}>
-                                        <i className="fas fa-search"></i>
-                                        <p className="no-equip-header">No Equipment selected</p>
-                                        <p>Use the panel on the left to browse the filter tree and view equipment data.</p>
-                                    </Box>
-                                </Box>
-                            </TableCell>
-                        ) : (
-                            sortedTableData?.map((row, idx) => (
-                                <StyledTableRow key={idx}>
-                                    <TableCell sx={{ width: '30%' }}>{row.EquipmentName}</TableCell>
-                                    <TableCell>{row.nameId}</TableCell>
-                                    <TableCell>{getPropertyValue(row, 'Equipment Type')}</TableCell>
-                                    <TableCell>{getPropertyValue(row, 'Manufacturer')}</TableCell>
-                                    <TableCell>{getPropertyValue(row, 'Model')}</TableCell>
-                                </StyledTableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-        </Paper>
-    );
+              {conditionOptions.map((option) => (
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <input
+            type='text'
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder='Enter text...'
+            className='property-input'
+            style={{
+              height: 36,
+              border: '1px solid #DCDCDC',
+              borderRadius: 4,
+              padding: '0 10px',
+              minWidth: 240,
+              opacity: disabled ? 0.5 : 1,
+              cursor: disabled ? 'not-allowed' : 'text',
+            }}
+            disabled={disabled || !selectedCondition}
+          />
+
+          <Box
+            onClick={clearFilter}
+            sx={{
+              cursor: disabled ? 'not-allowed' : 'pointer',
+              color: '#D32F2F',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              ml: 2,
+              opacity: disabled ? 0.5 : 1,
+            }}
+            title='Clear filter'
+          >
+            <i className='fas fa-trash-alt'></i>
+            <span>Clear filter</span>
+          </Box>
+        </>
+      ) : (
+        <Box sx={{ ml: 'auto' }} />
+      )}
+
+      <Box sx={{ ml: 'auto' }}>
+        <PropertyColumnsDropdown
+          options={extraPropertyOptions}
+          selected={selectedExtraProperties}
+          setSelected={setSelectedExtraProperties}
+          disabled={propertiesDisabled}
+        />
+      </Box>
+    </Box>
+  );
+};
+
+const AssetTable = ({ rows }) => {
+  const [toast, setToast] = useState({
+    open: false,
+    severity: 'error',
+    message: '',
+  });
+
+  const [filteredRows, setFilteredRows] = useState(() => (Array.isArray(rows) ? rows : []));
+
+  const rowsSafe = Array.isArray(rows) ? rows : EMPTY_ROWS;
+  const hasRows = rowsSafe.length > 0;
+  const controlsDisabled = !hasRows;
+
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
+  useEffect(() => {
+    setFilteredRows(rowsSafe);
+  }, [rowsSafe]);
+
+  // Persisted selection (can include items not currently available yet)
+  const [persistedExtraProperties, setPersistedExtraProperties] = useState(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    setFilteredRows(Array.isArray(rows) ? rows : []);
+  }, [rows]);
+
+  const safeRows = useMemo(() => (Array.isArray(filteredRows) ? filteredRows : []), [filteredRows]);
+
+  // NEW: clamp page instead of always resetting to 0
+  useEffect(() => {
+    const maxPage = Math.max(0, Math.ceil(safeRows.length / rowsPerPage) - 1);
+    if (page > maxPage) setPage(maxPage);
+  }, [safeRows.length, rowsPerPage, page]);
+
+  const pagedRows = useMemo(() => {
+    const start = page * rowsPerPage;
+    return safeRows.slice(start, start + rowsPerPage);
+  }, [safeRows, page, rowsPerPage]);
+
+  // Collect ALL non-default property names from the currently available rows (de-dup)
+  const extraPropertyOptions = useMemo(() => {
+    const keys = new Set();
+
+    (Array.isArray(rows) ? rows : []).forEach((r) => {
+      if (!r || typeof r !== 'object') return;
+
+      Object.keys(r).forEach((k) => {
+        if (k === '__rowKey') return;
+        if (DEFAULT_COLUMNS.includes(k)) return;
+        keys.add(k);
+      });
+    });
+
+    return Array.from(keys).sort((a, b) => a.localeCompare(b));
+  }, [rows]);
+
+  // Memo set for fast lookup + stable reference
+  const optionSet = useMemo(() => new Set(extraPropertyOptions), [extraPropertyOptions]);
+
+  // Only show selected properties if they exist in current options
+  const availableSelectedExtraProperties = useMemo(() => {
+    const saved = Array.isArray(persistedExtraProperties) ? persistedExtraProperties : [];
+    return saved.filter((k) => optionSet.has(k));
+  }, [persistedExtraProperties, optionSet]);
+
+  // Called by dropdown: updates persisted selection but never loses unavailable items
+  const handleSetSelectedExtraProperties = (nextAvailableSelection) => {
+    const next = Array.isArray(nextAvailableSelection) ? nextAvailableSelection : [];
+
+    setPersistedExtraProperties((prev) => {
+      const prevSafe = Array.isArray(prev) ? prev : [];
+
+      // Keep anything that isn't currently available (so it can come back later)
+      const keepUnavailable = prevSafe.filter((k) => !optionSet.has(k));
+
+      // Persist = unavailable saved + newly chosen available
+      // Dedup while preserving order
+      const merged = [...keepUnavailable, ...next];
+      return Array.from(new Set(merged));
+    });
+  };
+
+  // Persist whenever selection changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedExtraProperties || []));
+    } catch (e) {
+      // ignore
+    }
+  }, [persistedExtraProperties]);
+
+  // Column order: default columns first, then selected extra props that are actually available
+  const visibleColumns = useMemo(() => {
+    return [...DEFAULT_COLUMNS, ...availableSelectedExtraProperties];
+  }, [availableSelectedExtraProperties]);
+
+  const colCount = visibleColumns.length;
+
+  const handleCloseToast = () => {
+    setToast((prev) => ({ ...prev, open: false }));
+  };
+
+  const baseCellSx = {
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    maxWidth: 360,
+  };
+
+  const colMinWidth = (col) => {
+    if (col === 'Type Name') return BASE_COL_MIN_WIDTH;
+    if (col === 'Type ID') return 140;
+    return DYNAMIC_COL_MIN_WIDTH;
+  };
+
+  return (
+    <Paper sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      <FilterBar
+        rows={rowsSafe}
+        setFilteredRows={setFilteredRows}
+        setToast={setToast}
+        extraPropertyOptions={extraPropertyOptions}
+        selectedExtraProperties={availableSelectedExtraProperties}
+        setSelectedExtraProperties={handleSetSelectedExtraProperties}
+        disabled={controlsDisabled}
+      />
+
+      <TableContainer
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowX: 'auto',
+          overflowY: 'auto',
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'rgba(0, 0, 0, 0.3) transparent',
+          '&::-webkit-scrollbar': { height: '8px', width: '6px' },
+          '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(0, 0, 0, 0.3)', borderRadius: '10px' },
+        }}
+      >
+        <Table
+          stickyHeader
+          aria-label='scrollable table'
+          sx={{
+            tableLayout: 'auto',
+            width: 'max-content',
+            minWidth: '100%',
+          }}
+        >
+          <Snackbar
+            open={toast.open}
+            autoHideDuration={4000}
+            onClose={handleCloseToast}
+            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+          >
+            <Alert onClose={handleCloseToast} severity={toast.severity}>
+              {toast.message}
+            </Alert>
+          </Snackbar>
+
+          <TableHead>
+            <StyledTableHeadRow>
+              {visibleColumns.map((col) => (
+                <TableCell key={col} sx={{ minWidth: colMinWidth(col) }}>
+                  {col}
+                </TableCell>
+              ))}
+            </StyledTableHeadRow>
+          </TableHead>
+
+          <TableBody>
+            {safeRows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={colCount} sx={{ height: 'calc(100vh - 300px)', p: 0 }}>
+                  <Box
+                    sx={{
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Box sx={{ maxWidth: 420 }}>
+                      <i className='fas fa-search'></i>
+                      <p className='no-elements-header'>No elements selected</p>
+                      <p>Use the tree on the left to select one or more elements.</p>
+                    </Box>
+                  </Box>
+                </TableCell>
+              </TableRow>
+            ) : (
+              pagedRows.map((row) => (
+                // NEW: use ONLY __rowKey (no fallback) to avoid React key collisions
+                <StyledTableRow key={row.__rowKey}>
+                  {visibleColumns.map((col) => {
+                    const value = row?.[col];
+                    const display = value != null && value !== '' ? String(value) : '';
+
+                    return (
+                      <TableCell
+                        // NEW: key uses the guaranteed-unique row.__rowKey
+                        key={`${row.__rowKey}::${col}`}
+                        sx={{ ...baseCellSx, minWidth: colMinWidth(col) }}
+                        title={display}
+                      >
+                        {display}
+                      </TableCell>
+                    );
+                  })}
+                </StyledTableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <TablePagination
+        component='div'
+        count={safeRows.length}
+        page={page}
+        onPageChange={(e, nextPage) => setPage(nextPage)}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={(e) => {
+          setRowsPerPage(Number(e.target.value));
+          setPage(0);
+        }}
+        rowsPerPageOptions={[10, 25, 50, 100]}
+          sx={{
+            '& .MuiTablePagination-toolbar': {
+              minHeight: 48,
+              alignItems: 'center',
+            },
+
+            '& .MuiTablePagination-selectLabel': {
+              position: 'relative',
+              top: 5,
+            },
+
+            '& .MuiTablePagination-displayedRows': {
+              position: 'relative',
+              top: 5,
+            },
+
+            '& .MuiTablePagination-selectIcon': {
+              right: 10,
+            },
+
+            // keep dropdown aligned
+            '& .MuiTablePagination-select': {
+              right: 3,
+              transform: 'translateY(1px)',
+            },
+
+            '& .MuiTablePagination-actions': {
+              marginLeft: 6,
+            },
+          }}
+      />
+    </Paper>
+  );
 };
 
 export default AssetTable;
