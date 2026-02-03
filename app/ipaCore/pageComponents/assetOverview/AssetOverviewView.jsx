@@ -22,27 +22,26 @@ const useStyles = makeStyles(theme => ({
 }));
 
 const AssetOverviewView = () => {
-    const [loadingNodes, setLoadingNodes] = useState({A: true})
+  const [loadingNodes, setLoadingNodes] = useState({})
     const [loadingTableData, setLoadingTableData] = useState()
     const [tableData, setTableData] = useState()
     const [selectedElements, setSelectedElements] = useState()
-    const [equipData, setEquipData] = useState()
-
+    const [elementData, setElementData] = useState()
+    
     useEffect(() => {
-  console.log('PARENT tableData updated:', tableData)
-}, [tableData])
+      console.log('PARENT tableData updated:', tableData)
+    }, [tableData])
 
     const classes = useStyles()
 
-    // Memoizing the filtered equipData
-    const filteredEquipData = useMemo(() => {
+    const filteredElementData = useMemo(() => {
       return tableData?.filter(data => selectedElements?.includes(data.nameId))
     }, [selectedElements, tableData])
 
-    // Setting equipData once filtered data is available
+    // Setting elementData once filtered data is available
     useEffect(() => {
-      setEquipData(filteredEquipData)
-    }, [filteredEquipData])
+      setElementData(filteredElementData)
+    }, [filteredElementData])
 
     // Callback to prevent unnecessary re-renders
     const handleSetSelectedElements = useCallback((newSelection) => {
@@ -67,7 +66,7 @@ const AssetOverviewView = () => {
           }}
         >
         <Box sx={{ flexShrink: 0 }}>
-          {Object.values(loadingNodes).includes(true) ? (
+          {Object.keys(loadingNodes || {}).some((k) => loadingNodes[k] === true) ? (
             <LinearProgress
                sx={{
                 '&.MuiLinearProgress-colorPrimary': { backgroundColor: '#DF158C' },
@@ -75,7 +74,7 @@ const AssetOverviewView = () => {
               }}
             />
           ) : null}
-          <p className="tree-panel-header">Properties</p>
+          <p className="tree-panel-header">Assets</p>
         </Box>
 
         <Box sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>

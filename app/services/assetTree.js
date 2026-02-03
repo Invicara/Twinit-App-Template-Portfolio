@@ -3,17 +3,17 @@ import { IafScriptEngine } from '@dtplatform/iaf-script-engine';
 import { getModelTypeElements } from '../../setup/scripts/omapi_entities.mjs';
 
 function splitStructureName(structureName) {
-    return structureName.split(/[-_]/).filter(word => word !== 'Facility' && word !== 'Unit')
+  return structureName.split(/[-_]/).filter((word) => word !== 'Facility' && word !== 'Unit');
 }
 
 // Get Facilities and Units levels
 export async function getInitialTreeLevels() {
-  const ctx = IafProj.getCurrent()
+  const ctx = IafProj.getCurrent();
 
-  const BaseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`
-  const URL = `${BaseOmapiUrl}/site/all`
+  const BaseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
+  const URL = `${BaseOmapiUrl}/site/all`;
 
-  let treeData = []
+  const treeData = [];
 
   try {
     const response = await fetch(URL, {
@@ -23,148 +23,115 @@ export async function getInitialTreeLevels() {
         Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
         'Content-Type': 'application/json',
       },
-    })
+    });
 
     if (response.ok) {
-      const result = await response.json()
+      const result = await response.json();
 
       result?._result?.map((res) => {
-          const facilityNode = {
-            id: res.name,
-            name: res.name,
-            level: 1,
-            children: res.buildings.map((building) => ({
-              id: `${res.name}/${building.name}`,
-              name: building.name,
-              level: 2,
-              structureName: building.structureName,
-              children: [{}],
-            })),
-          }
-          treeData.push(facilityNode)
-      })
-     
-
+        const facilityNode = {
+          id: res.name,
+          name: res.name,
+          level: 1,
+          children: res.buildings.map((building) => ({
+            id: `${res.name}/${building.name}`,
+            name: building.name,
+            level: 2,
+            structureName: building.structureName,
+            children: [{}],
+          })),
+        };
+        treeData.push(facilityNode);
+      });
     } else {
-      console.error('OMAPI facilities call failed', response.status)
+      // eslint-disable-next-line no-console
+      console.error('OMAPI facilities call failed', response.status);
     }
   } catch (err) {
-    console.error('Facility fetch error:', err)
+    // eslint-disable-next-line no-console
+    console.error('Facility fetch error:', err);
   }
 
-  return treeData
+  return treeData;
 }
 
-// export async function getElementsLevel(structureName) {
-//   const ctx = IafProj.getCurrent()
-//   const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`
-//   const elementsLevelUrl = `${baseOmapiUrl}/model/typeElements`
+const callRaw = async ({ structureName, family, typeId, typesBulk } = {}) => {
+  const ctx = IafProj.getCurrent();
+  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
 
-//   //const modelTypeElements = getModelTypeElements();
+  const url = new URL(`${baseOmapiUrl}/model/typeElements/${encodeURIComponent(structureName)}`);
+  if (family) url.searchParams.set('family', family);
+  if (typeId != null) url.searchParams.set('typeId', String(typeId));
 
-//   const resultTest = await getModelTypeElements(
-//     { params: { structureName } },
-//     { PlatformApi: { IafItemSvc }, IafScriptEngine },
-//     ctx
-//   );
+  // NEW: bulk types (families + types + typeDoc) in one request
+  if (typesBulk) url.searchParams.set('typesBulk', '1');
 
-//   console.log('resultTest', resultTest);
+  const res = await fetch(url.toString(), {
+    method: 'GET',
+    mode: 'cors',
+    headers: {
+      Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
+      'Content-Type': 'application/json',
+    },
+  });
 
+  const json = await res.json();
+  const result = json?._result;
 
-//   let system = []
-
-//     const url = `${baseOmapiUrl}/model/typeElements/${encodeURIComponent(structureName)}`
-
-//     try {
-//     //   const res = await fetch(url, {
-//     //   method: 'GET',
-//     //   mode: 'cors',
-//     //   headers: {
-//     //     Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
-//     //     'Content-Type': 'application/json',
-//     //   },
-//     // })
-
-//     const json = resultTest;
-//     console.log('json', json);
-//     const result = json?._result
-
-//     // if (res.ok && result?.status === 200) {
-//     //   return result._list || []
-//     // }
-
-//     return json?._list || []
-//     //return result._list || []
-
-//     console.error('OMAPI typeElements call failed', { httpStatus: res.status, jsonStatus: json?.status, json })
-//   } catch (err) {
-//     console.error('getElementsLevel fetch error:', err)
-//   }
-
-//   return []
-// }
-
-// export async function getElementsLevel(structureName) {
-//   const ctx = IafProj.getCurrent()
-
-//   // returns families when family is not provided
-//   const result = await getModelTypeElements(
-//     { params: { structureName }, headers: { origin: window.location.origin } },
-//     { PlatformApi: { IafItemSvc }, IafScriptEngine },
-//     ctx
-//   )
-
-//   if (result?.status !== 200) {
-//     console.error('getModelTypeElements failed', result?.message, result)
-//     return []
-//   }
-
-//   // IMPORTANT: return the tree nodes already shaped (family nodes with children placeholder)
-//   return result?._list || []
-// }
-
-// export async function getFamilyTypesLevel(structureName, family) {
-//   const ctx = IafProj.getCurrent()
-
-//   const result = await getModelTypeElements(
-//     { params: { structureName, family }, headers: { origin: window.location.origin } },
-//     { PlatformApi: { IafItemSvc }, IafScriptEngine },
-//     ctx
-//   )
-
-//   if (result?.status !== 200) {
-//     console.error('getModelTypeElements (types) failed', result?.message, result)
-//     return []
-//   }
-
-//   return result?._list || []
-// }
-
-const call = async (params) => {
-  const ctx = IafProj.getCurrent()
-
-  const result = await getModelTypeElements(
-    { params, headers: { origin: window.location.origin } },
-    { PlatformApi: { IafItemSvc }, IafScriptEngine },
-    ctx
-  )
-
-  if (result?.status !== 200) {
-    console.error('getModelTypeElements failed', result?.message, result)
-    return []
+  if (!res.ok) {
+    console.error('OMAPI typeElements call failed', { httpStatus: res.status, json });
+    return { status: res.status, _list: [] };
   }
 
-  return result?._list || []
-}
+  return result || { status: res.status, _list: [] };
+};
+
+const callList = async (params) => {
+  const result = await callRaw(params);
+  return result?._list || [];
+};
 
 export async function getFamiliesLevel(structureName) {
-  return call({ structureName })
+  return callList({ structureName });
 }
 
 export async function getFamilyTypesLevel(structureName, family) {
-  return call({ structureName, family })
+  return callList({ structureName, family });
 }
 
 export async function getTypeElementsLevel(structureName, typeId) {
-  return call({ structureName, typeId })
+  return callRaw({ structureName, typeId }); // returning full object so you can read mode/typeId if needed
+}
+
+// NEW: used when expanding a building node to avoid loading families/types per family click
+export async function getTypesBulk(structureName) {
+  return callList({ structureName, typesBulk: true });
+}
+
+// Existing heavy bulk (types + elements). Keep as-is for site/building select logic if you rely on it.
+export async function getStructureBulk(structureName) {
+  const ctx = IafProj.getCurrent();
+  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
+
+  const url = new URL(`${baseOmapiUrl}/model/typeElements/${encodeURIComponent(structureName)}`);
+  url.searchParams.set('bulk', '1');
+
+  const res = await fetch(url.toString(), {
+    method: 'GET',
+    mode: 'cors',
+    headers: {
+      Authorization: 'Bearer ' + IafSession.getAuthToken(ctx),
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const json = await res.json();
+  const result = json?._result;
+
+  if (!res.ok) {
+    console.error('Bulk call failed', { httpStatus: res.status, json });
+    return [];
+  }
+
+  return result?._list || [];
 }
