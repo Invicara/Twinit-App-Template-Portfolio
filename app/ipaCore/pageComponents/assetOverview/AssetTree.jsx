@@ -1330,31 +1330,33 @@ setIndeterminateItems(newIndeterminate);
 });
 };
 
-  const renderTree = (nodes) => {
-    return nodes?.map((node) => {
-      if (!node || !node.id) return null;
+ const renderTree = (nodes) => {
+  return nodes?.map((node) => {
+    if (!node || !node.id) return null;
 
-      const isLeaf = node.level === 4;
-      const showCheckbox = node.level >= 3;
+    const isLeaf = node.level === 4;
+    const showCheckbox = node.level >= 3;
+    const disableLabelClick = node.level < 3; // <-- NEW: site/building
 
-      return (
-        <EntityTreeSearch
-          key={node.id}
-          nodeId={node.id}
-          labelText={node.name}
-          checked={!!checkedItems[node.id]}
-          showCheckbox={showCheckbox}
-          indeterminate={!!indeterminateItems[node.id]}
-          onCheck={(nodeId, checked) => handleCheck(nodeId, checked, node)}
-          loading={!!loadingNodes?.[node.id]}
-          expandIcon={!isLeaf ? <ArrowRightIcon style={{ color: '#dbdbdb', fontSize: '25px' }} /> : null}
-          collapseIcon={!isLeaf ? <ArrowDropDownIcon style={{ color: '#dbdbdb', fontSize: '25px' }} /> : null}
-        >
-          {Array.isArray(node.children) ? renderTree(node.children) : null}
-        </EntityTreeSearch>
-      );
-    });
-  };
+    return (
+      <EntityTreeSearch
+        key={node.id}
+        nodeId={node.id}
+        labelText={node.name}
+        checked={!!checkedItems[node.id]}
+        showCheckbox={showCheckbox}
+        indeterminate={!!indeterminateItems[node.id]}
+        disableLabelClick={disableLabelClick} // <-- NEW
+        onCheck={(nodeId, checked) => handleCheck(nodeId, checked, node)}
+        loadingNodes={!!loadingNodes?.[node.id]} // <-- make prop match component
+        expandIcon={!isLeaf ? <ArrowRightIcon style={{ color: '#dbdbdb', fontSize: '25px' }} /> : null}
+        collapseIcon={!isLeaf ? <ArrowDropDownIcon style={{ color: '#dbdbdb', fontSize: '25px' }} /> : null}
+      >
+        {Array.isArray(node.children) ? renderTree(node.children) : null}
+      </EntityTreeSearch>
+    );
+  });
+};
 
   return (
     <TreeView className={classes.root} expanded={expanded} onNodeToggle={handleNodeToggle} selected={selected}>
