@@ -1,6 +1,6 @@
 # In-Depth: Template Permissions
 
-All permissions in Quick Model View are controlled by user group. Users only get permissions to Twinit by being added to one or more user groups.
+All permissions in Portfolio are controlled by user group. Users only get permissions to Twinit by being added to one or more user groups.
 
 > Remember: **Permissions on Twinit are additive**. If a user is added to multiple user groups, all actions that user takes will be governed by the super set of permissions from all user groups the user belongs to (even f they have chosen a single user in the web-client).
 

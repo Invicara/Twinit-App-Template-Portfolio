@@ -33,7 +33,7 @@ If you experience authentication issues such as the one in the image below for @
 
 ![npm-auth-error-image](../../img/npm-auth-error.png)
 
-> **Remember**: While you may be setting up the Quick Model View template on the Twinit Sandbox, when you configure your .npmrc file you must use you [Twinit Production account and credentials](https://api.invicara.com/passportsvc/api/accounts?returnUrl=https://twinit.dev/docs/apis/javascript/npm-install#authenticator).
+> **Remember**: While you may be setting up the Portfolio template on the Twinit Sandbox, when you configure your .npmrc file you must use you [Twinit Production account and credentials](https://api.invicara.com/passportsvc/api/accounts?returnUrl=https://twinit.dev/docs/apis/javascript/npm-install#authenticator).
 
 ## Update the Web Client Configuration
 

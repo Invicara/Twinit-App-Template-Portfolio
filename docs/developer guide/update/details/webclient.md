@@ -1,13 +1,13 @@
 # Web Client Changes
 
-Updates to the Quick Model View web-client include:
+Updates to the Portfolio web-client include:
 
 * Update to React 18, @dtplatform 4.6 packages, and the addition of a new node package
 * Refactoring of the ModelContext to a ```contexts``` folder and common React components to a ```components``` directory
 * Support was added for viewing older imported versions of the current model
 * Addition of a Floating Doc Viewer component for viewing files in the browser using the Twinit IafDocViewer component.
 * SimpleViewerView updates to add a document drawer allowing for associating, managing, and viewing files associated with the current model
-* Addition of a Mapbox Settings pageComponent and workflow allowing Admins in a Quick Model View Project to create Mapbox secrets enabling Mapbox features in the IafViewer
+* Addition of a Mapbox Settings pageComponent and workflow allowing Admins in a Portfolio Project to create Mapbox secrets enabling Mapbox features in the IafViewer
 * ProjectMaker now compares current project versions against a list of supported migration versions and disables migrating projects that are too old
 
 ## React 18, @dtplatform updates, and New Packages

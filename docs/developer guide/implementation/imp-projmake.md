@@ -1,13 +1,13 @@
-# In-Depth: Quick Model View Manager
+# In-Depth: Portfolio Manager
 
-The Quick Model View Manager project contains two types of items:
+The Portfolio Manager project contains two types of items:
 
 * Manager User Configs and Scripts needed for the Project Maker functionality and user interface
-* Template Scripts and User Configs to deploy to the new Quick Model View projects the Manager creates and updates
+* Template Scripts and User Configs to deploy to the new Portfolio projects the Manager creates and updates
 
 ## QMV Manager User Groups
 
-The Quick Model View Manager project has only one User Group:
+The Portfolio Manager project has only one User Group:
 
 * QMV Managers
 
@@ -17,14 +17,14 @@ In order to use the QMV Manager, users must also be added to your application's 
 
 ## QMV Manager User Configs and Scripts
 
-The QMV Manager project has one user config to provide the user interface and one script to provide the logic for creating and updating Quick Model View projects.
+The QMV Manager project has one user config to provide the user interface and one script to provide the logic for creating and updating Portfolio projects.
 
 ### QMV Manager User Config
 
 The QMV Manager user config is named "QuickViewManagerConfig" and has the _userType "quick-view".
 
 <pre><code>TWINIT
-├─ Quick Model View
+├─ Portfolio
 │  ├─ QMV Manager (p)
 │  │  ├─ Scripts
 │  │  │  ├─ [v1] importHelperTemplate (quick-temp) &lt;b>
@@ -51,7 +51,7 @@ The Project Maker pageComponent is configured to display in the web client by th
    "title": "QMV Manager",
    "icon": "fas fa-folder-plus fa-2x",
    "shortName": "projmk",
-   "description": "Create New Quick Model View Projects",
+   "description": "Create New Portfolio Projects",
    "pageComponent": "projectMaker/projectMakerView",
    "path": "/projectmaker",
    "scriptTypes": [
@@ -65,24 +65,24 @@ The Project Maker pageComponent is configured to display in the web client by th
 }
 ```
 
-The Project Maker pageComponent relies on a script or scripts to create and update Quick Model View projects.
+The Project Maker pageComponent relies on a script or scripts to create and update Portfolio projects.
 
 Those scripts are specified in the handler in two places.
 
 1. **scriptTypes**: the _userType of the script in Twinit must be specified in the handlers scriptTypes array so that the necessary script item can be loaded when the page loads, making the scripts the page needs available to be run
 2. **config**: three scripts must be configured in the handlers config to support creating and updating projects:
-   * **currentVersionScript**: returns the current versions assigned to newly created Quick Model View projects. This is also used to determine if existing projects are out of date and can be migrated to the current release.
-   * **projectCreateScript**: the script used to create new Quick Model View projects
+   * **currentVersionScript**: returns the current versions assigned to newly created Portfolio projects. This is also used to determine if existing projects are out of date and can be migrated to the current release.
+   * **projectCreateScript**: the script used to create new Portfolio projects
    * **projectUpdateScript**: the script used to migrate a project from an older version to the current version
 
-> **Why use a script for the creation and update code, instead of including the logic directly in the pageComponent?** While we could have included the code to create a new project or update an existing project directly in the pageComponent, we would have required a web client deployment in order to change the project creation or update process. By using a script, we can independently change the processes without needing a web client change. If, for instance, we wanted to create an additional user group during Quick Model View project creation, we could simply update the script, commit it to our Project Maker project on Twinit. The changes would immediately take effect. If the code was in the pageComponent, we'd need to deploy a new web client version to update the business logic of the application.
+> **Why use a script for the creation and update code, instead of including the logic directly in the pageComponent?** While we could have included the code to create a new project or update an existing project directly in the pageComponent, we would have required a web client deployment in order to change the project creation or update process. By using a script, we can independently change the processes without needing a web client change. If, for instance, we wanted to create an additional user group during Portfolio project creation, we could simply update the script, commit it to our Project Maker project on Twinit. The changes would immediately take effect. If the code was in the pageComponent, we'd need to deploy a new web client version to update the business logic of the application.
 
 ### Project Maker Script File
 
 The Project Maker script file is named "Project Maker" and has the _userType "project-maker".
 
 <pre><code>TWINIT
-├─ Quick Model View
+├─ Portfolio
 │  ├─ QMV Manager (p)
 │  │  ├─ Scripts
 │  │  │  ├─ [v1] importHelperTemplate (quick-temp) &lt;b>
@@ -99,21 +99,21 @@ This script file contains the individual scripts configured in the page handler.
 
 #### getCurrentMakerVersion
 
-The getCurrentMakerVersion script simply returns the current version of the Project Maker script. This version is applied to each new Quick Model View project it creates and is used to determine if existing projects are out of date.
+The getCurrentMakerVersion script simply returns the current version of the Project Maker script. This version is applied to each new Portfolio project it creates and is used to determine if existing projects are out of date.
 
 #### createNewQuickModelViewProject
 
-The createNewQuickModelViewProject script creates new Quick Model View projects. The script takes two inputs:
+The createNewQuickModelViewProject script creates new Portfolio projects. The script takes two inputs:
 
 * projName: the name of the project to create. A project name is required.
 * projDesc: the description of the new project. If no projDesc is provided the projName will be used as the projDesc. _The current Project Maker user interface does allow for setting the new project description_.
 
 The script does the following:
 
-1. Retrieves the template scripts and user configs that will be added to the new Quick Model View project, from the QMV Manager project. The scripts and user configs all have the _userType "quick-temp".
+1. Retrieves the template scripts and user configs that will be added to the new Portfolio project, from the QMV Manager project. The scripts and user configs all have the _userType "quick-temp".
 
 <pre><code>TWINIT
-├─ Quick Model View
+├─ Portfolio
 │  ├─ QMV Manager (p)
 │  │  ├─ Scripts
 │  │  │  ├─ <mark>[v1] importHelperTemplate (quick-temp) &lt;\b></mark>
@@ -150,11 +150,11 @@ if (callback) callback(`Step 9: Related Viewer User Config to Viewer User Group`
 
 Detailed results of each step or errors are also logged to the browser console, to allow for further debugging if needed.
 
-As new features are added to the Quick Model View Application Template, the project creation steps are likely to change and grow.
+As new features are added to the Portfolio Application Template, the project creation steps are likely to change and grow.
 
 #### projectUpdateScript
 
-The updateQuickModelViewProject script updates a Quick Model View project to the latest version by running one or more migrations on the project.
+The updateQuickModelViewProject script updates a Portfolio project to the latest version by running one or more migrations on the project.
 
 The script takes two inputs:
 
@@ -182,7 +182,7 @@ Detailed results of each step or errors are also logged to the browser console, 
 The template scripts and user configs are the templates for the scripts and user configs that will be created in new projects created using the QMV Manager. Templates all have the _userType "quick-temp".
 
 <pre><code>TWINIT
-├─ Quick Model View
+├─ Portfolio
 │  ├─ QMV Manager (p)
 │  │  ├─ Scripts
 │  │  │  ├─ <mark>[v1] importHelperTemplate (quick-temp) &lt;b></mark>
@@ -195,11 +195,11 @@ The template scripts and user configs are the templates for the scripts and user
 │  │  ├─ API Configs
 </pre></code>
 
-If you wish to make changes to how Quick Model View projects are created, you'll do so by modifying or adding to these script and config templates.
+If you wish to make changes to how Portfolio projects are created, you'll do so by modifying or adding to these script and config templates.
 
 ### importHelperTemplate Script
 
-The importHelperTemplate script is the template for the script used to import model bimpks into Twinit. It gets added to newly created Quick Model View projects and is used by the import orchestrator.
+The importHelperTemplate script is the template for the script used to import model bimpks into Twinit. It gets added to newly created Portfolio projects and is used by the import orchestrator.
 
 The script takes as inputs:
  * fileId: the _id of a bimpk in the File Service
@@ -209,7 +209,7 @@ The script then imports the contents of the bimpk into Twinit. For more informat
 
 ### mapboxTemplate Script
 
-The mapboxTemplate script is the template for the script used to requs temporary tokens from Mapbox to enable Mapbox features in the Twinit 2D/3D IafViewer. It gets added to newly created Quick Model View projects and is used by the Mapbox Token orchestrator.
+The mapboxTemplate script is the template for the script used to requs temporary tokens from Mapbox to enable Mapbox features in the Twinit 2D/3D IafViewer. It gets added to newly created Portfolio projects and is used by the Mapbox Token orchestrator.
 
 The script takes no inputs.
 
@@ -217,15 +217,15 @@ When run, it fetches the Mapbox secret token from the Secrets collection. It the
 
 ### QuickViewAdminConfigTemplate User Config
 
-The QuickViewAdminConfigTemplate user config is added to new Quick Model View projects and related to the Admin user group.
+The QuickViewAdminConfigTemplate user config is added to new Portfolio projects and related to the Admin user group.
 
-To learn more about the QuickViewAdminConfig User Config read [In-Depth: Quick Model View Projects](./imp-qmvprojects.md).
+To learn more about the QuickViewAdminConfig User Config read [In-Depth: Portfolio Projects](./imp-qmvprojects.md).
 
 ### QuickViewViewerConfigTemplate User Config
 
-The QuickViewViewerConfigTemplate user config is added to new Quick Model View projects and related to the Viewers user group.
+The QuickViewViewerConfigTemplate user config is added to new Portfolio projects and related to the Viewers user group.
 
-To learn more about the QuickViewViewerConfig User Config read [In-Depth: Quick Model View Projects](./imp-qmvprojects.md).
+To learn more about the QuickViewViewerConfig User Config read [In-Depth: Portfolio Projects](./imp-qmvprojects.md).
 
 ---
-[Developer Guide](../README.md) < Back | Next > [In-Depth: Quick Model View Projects](./imp-qmvprojects.md)
+[Developer Guide](../README.md) < Back | Next > [In-Depth: Portfolio Projects](./imp-qmvprojects.md)

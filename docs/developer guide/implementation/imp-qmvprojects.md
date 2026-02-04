@@ -1,29 +1,29 @@
-# In-Depth: Quick Model View Projects
+# In-Depth: Portfolio Projects
 
-Quick Model View projects contain:
+Portfolio projects contain:
 
 * An import script with the business logic for importing models
 * An import orchestrator that uses the import script to import models
 * A User Config for the Admin User Group
 * A User Config for the Viewers User Group
 
-## Quick Model View User Groups
+## Portfolio User Groups
 
-Quick Model View projects have these User Groups:
+Portfolio projects have these User Groups:
 
 * Admin: Full access to all Twinit Services and data for the project
 * Viewers: Read-Only access to all Twinit Services and data for the project
 
-## Quick Model View User Configs
+## Portfolio User Configs
 
-Quick Model View projects have these User Configs:
+Portfolio projects have these User Configs:
 
 * QuickModelViewAdminConfig: the user config related the Admin User Group
 * QuickModelViewViewerConfig: the user config related the Viewers User Group
 
-## Quick Model View Pages
+## Portfolio Pages
 
-Quick Model View has four pages available to configure for user interfaces. Which pages are available depend on the User Group the user is a member of.
+Portfolio has four pages available to configure for user interfaces. Which pages are available depend on the User Group the user is a member of.
 
 | User Group | User Groups Page | Model Import Page | Model View Page | Mapbox Settings |
 | ------ | ------ |------ |------ | ------ |
@@ -34,13 +34,13 @@ The User Config related to the User Group expose the pages by configuring the fo
 
 ### User Groups Page
 
-The User Groups page for managing users access to the Quick Model View project (via the header menu). This page is provided by ipa-core. Read more about this pageComponent and how to configure it on [twinit.dev](https://twinit.dev/docs/uiframework/userconfigs/pagehandlers/usergroup).
+The User Groups page for managing users access to the Portfolio project (via the header menu). This page is provided by ipa-core. Read more about this pageComponent and how to configure it on [twinit.dev](https://twinit.dev/docs/uiframework/userconfigs/pagehandlers/usergroup).
 
 ### Model Import Page
 
 The Model Import Page allows a user to see the various versions of bimpk files that have been uploaded to the project (either via Twinit plugin or through the page itself), and import those bimpks to Twinit.
 
-> **Note**: The Quick Model View Template currently only supports importing and viewing CAD models from Revit, Civil 3D, AutoCAD, and IFC produced by one of the supported [Twinit plugins](https://apps.invicara.com/ipaplugins/). The plugins for these CAD authoring applications produce bimpk files. While Twinit has a Navisworks plugin, Navisworks models are not supported by the Quick Model View template. The Navisworks Twinit plugin produces an sgpk file that lacks some of the data needed for the Quick Model View template to work.
+> **Note**: The Portfolio Template currently only supports importing and viewing CAD models from Revit, Civil 3D, AutoCAD, and IFC produced by one of the supported [Twinit plugins](https://apps.invicara.com/ipaplugins/). The plugins for these CAD authoring applications produce bimpk files. While Twinit has a Navisworks plugin, Navisworks models are not supported by the Portfolio template. The Navisworks Twinit plugin produces an sgpk file that lacks some of the data needed for the Portfolio template to work.
 
 ### Page Handler
 
@@ -64,7 +64,7 @@ The Model Import pageComponent can be configured to display in the web client by
 The Model Import handler takes two config settings:
 
 * bimpkUserType: (String) the _userType of the model import orchestrator configured to import model bimpk files
-* sgpkUserType: **NOT CURRENTLY SUPPORTED IN QUICK MODEL VIEW** the _userType of the model import orchestrator configured to import model sgpk (Navisworks) files
+* sgpkUserType: **NOT CURRENTLY SUPPORTED IN Portfolio** the _userType of the model import orchestrator configured to import model sgpk (Navisworks) files
 
 ### Model View Page
 

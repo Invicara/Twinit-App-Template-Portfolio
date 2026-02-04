@@ -18,4 +18,4 @@
 ![dletemodelreimp](../../img/delete-imp-reimport.jpg)
 
 ---
-[Quick Model View User Guide](./README.md) < Back | Next > [How to View a Model and Model Element Properties](./viewmodel.md)
+[Portfolio User Guide](./README.md) < Back | Next > [How to View a Model and Model Element Properties](./viewmodel.md)

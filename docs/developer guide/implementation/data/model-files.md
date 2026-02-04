@@ -1,6 +1,6 @@
 # Model Files
 
-Files uploaded to Quick Model View are managed differently if associated to a model or a model element.
+Files uploaded to Portfolio are managed differently if associated to a model or a model element.
 
 When uploading a file and associating it to model, the file is uploaded using the IafFileSvc PlatformApi to [Model Folders](#model-folders).
 
@@ -35,7 +35,7 @@ const fetchedBimpks = await IafFileSvc.getFiles(bimpkCriteria, null, { _pageSize
 
 ![model-comp-to-folder](../../../img/data-model/model-comp-to-folder.jpg)
 
-When a file is uploaded through the Quick Model View web-client, if a folder for the model does not yet exist in the Root Container, then one will be created with the model's name, and the file then uploaded to it.
+When a file is uploaded through the Portfolio web-client, if a folder for the model does not yet exist in the Root Container, then one will be created with the model's name, and the file then uploaded to it.
 
 Folders in the File Service can be added by:
 

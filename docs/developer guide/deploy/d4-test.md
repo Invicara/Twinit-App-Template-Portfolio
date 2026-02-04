@@ -9,8 +9,8 @@ Now that you have deployed the template to Twinit and have the template web clie
 To do so we will:
 
 1. Sign in to the "QMV Manager" project
-2. Use the "QMV Manager" project to create a new Quick Model View project
-3. Sign in to the newly created Quick Model View project
+2. Use the "QMV Manager" project to create a new Portfolio project
+3. Sign in to the newly created Portfolio project
 4. Upload and import a sample model
 5. View the imported model
 6. Test the Viewer User Group
@@ -27,14 +27,14 @@ You be automatically routed to the Project Maker pageComponent.
 
 ![empty project maker](../../img/proj-maker-empty.jpg)
 
-## Create a New Quick Model View Project
+## Create a New Portfolio Project
 
 1. Enter "Test QMV Project" in the "New Project Name" text field
 2. Click the "Create Project" button
 
 As the project is being created, you'll see updates in the creation log for each step that successfully completes. If an error is encountered at ay time, the log will display the error and print more information about the error to the browser console.
 
-> **Note**: The steps you see may differ from the one's pictured below, and will be specific to the Quick Model View release you are testing. 
+> **Note**: The steps you see may differ from the one's pictured below, and will be specific to the Portfolio release you are testing. 
 
 Once the log displays "New project creation complete!" you'll see the list of projects on the right side of the update to display your new project.
 
@@ -42,7 +42,7 @@ Once the log displays "New project creation complete!" you'll see the list of pr
 
 
 
-## Sign In the New Quick Model View Project
+## Sign In the New Portfolio Project
 
 1. From the header menu select "Switch Project"
 

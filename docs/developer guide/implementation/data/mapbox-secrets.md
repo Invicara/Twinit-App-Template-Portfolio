@@ -69,7 +69,7 @@ IafItemSvc.createRelatedItems(secretsColl._userItemId, [newSecret]).catch((error
 })
 ```
 
-A ```type: 'mapbox-secret'``` is included on the item as well, so the secrets collection may contain different types of secrets which can be queried based on their type. Currently the 'mapbox-secret' item is the only one used in the Quick Model View template.
+A ```type: 'mapbox-secret'``` is included on the item as well, so the secrets collection may contain different types of secrets which can be queried based on their type. Currently the 'mapbox-secret' item is the only one used in the Portfolio template.
 
 ## The Mapbox Token Orchestrator
 

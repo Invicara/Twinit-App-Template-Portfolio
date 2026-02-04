@@ -2,7 +2,7 @@
 
 ---
 
-# General Introduction: Quick Model View Twinit Application Template
+# General Introduction: Portfolio Twinit Application Template
 
 ## Purpose of the Template
 
@@ -22,32 +22,32 @@ The template can also be a starting point for building your own Twinit applicati
 
 ## How the Template Works
 
-The Quick Model View Application Template provides one web client that displays a different user interface depending on which type of Quick Model View project you are using.
+The Portfolio Application Template provides one web client that displays a different user interface depending on which type of Portfolio project you are using.
 
-* A Quick Model View Manager project
-* Quick Model View projects
+* A Portfolio Manager project
+* Portfolio projects
 
 ![project maker diagram](../../img/template-structure.jpeg)
 
-When using the Quick Model View Manager project, the user config related to the QMV Manager user group is used to display a user interface that allows the user to create new Quick Model View projects.
+When using the Portfolio Manager project, the user config related to the QMV Manager user group is used to display a user interface that allows the user to create new Portfolio projects.
 
-When using a Quick Model View project, created by the Quick Model View Manager, the user config related to either the Admin or Viewers user group is used to display a user interface allowing the user to view and interact with 2D/3D models.
+When using a Portfolio project, created by the Portfolio Manager, the user config related to either the Admin or Viewers user group is used to display a user interface allowing the user to view and interact with 2D/3D models.
 
-### Quick Model View Manager Projects
+### Portfolio Manager Projects
 
-When you deploy the Quick Model View template, what you first deploy is a special project on Twinit that contains the scripts, configs, and template files used to create Quick Model View projects. This special project is called a "Quick Model View Manager" project. You will then use the "Quick Model View Manager" and the templates included in it to create Quick Model View projects for your users where they can upload and view models.
+When you deploy the Portfolio template, what you first deploy is a special project on Twinit that contains the scripts, configs, and template files used to create Portfolio projects. This special project is called a "Portfolio Manager" project. You will then use the "Portfolio Manager" and the templates included in it to create Portfolio projects for your users where they can upload and view models.
 
-The "Quick Model View Manager" project contains:
+The "Portfolio Manager" project contains:
 
-* A ["QuickViewManagerConfig" User Config](../../../setup/configs/QuickViewManagerConfig.json) with the configuration for how the template web client should display the Project Maker user interface and what scripts should be used to create new Quick Model View projects
-* A ["Project Maker" web client script](../../../setup/scripts/Project%20Maker.mjs), that contains all the logic for creating and configuring new Quick Model View projects
-* Template model import scripts and user configs that will be used in newly created Quick Model View projects
+* A ["QuickViewManagerConfig" User Config](../../../setup/configs/QuickViewManagerConfig.json) with the configuration for how the template web client should display the Project Maker user interface and what scripts should be used to create new Portfolio projects
+* A ["Project Maker" web client script](../../../setup/scripts/Project%20Maker.mjs), that contains all the logic for creating and configuring new Portfolio projects
+* Template model import scripts and user configs that will be used in newly created Portfolio projects
 
-### Quick Model View Projects
+### Portfolio Projects
 
-Quick Model View projects are created by the "Quick Model View Manager" and are configured to allow users to upload and view models.
+Portfolio projects are created by the "Portfolio Manager" and are configured to allow users to upload and view models.
 
-Two user groups are created in each Quick Model View project:
+Two user groups are created in each Portfolio project:
 
 * Admin
 * Viewers
@@ -56,7 +56,7 @@ Admin users can upload and import models, as well as view the models. Thy can al
 
 Viewers users can only view models, view and download files, and have read-only access to the project.
 
-The Quick Model View projects contain:
+The Portfolio projects contain:
 
 * A [user config for the Admin group](../../../setup/configs/QuickViewAdminConfigTemplate.json) for the template web client UI
     * Configured to display the Model Import, Model View, and User Groups pages
@@ -67,16 +67,16 @@ The Quick Model View projects contain:
 * A [Mapbox script](../../../setup/scripts/mapboxTemplate.mjs) that takes a secret token stored in an encrypted NamedUserCollection and generates a temporary Mapbox token using the Mapbox API.
 * A Datasources orchestrator configured to use the Mapbox script and assigned a permission profile giving it access to the encrypted NamedUserCollection, that creates temporary Mapbox tokens.
 
-### The Quick Model View Template Workflow
+### The Portfolio Template Workflow
 
-A typical workflow for using the Quick Model View Twinit Application Template would be:
+A typical workflow for using the Portfolio Twinit Application Template would be:
 
-1. Sign in to the Quick Model View application and the "Quick Model View Manager" project
-2. Create a new project using the "Quick Model View Manager" user interface
-3. Switch to the newly created Quick Model View project
+1. Sign in to the Portfolio application and the "Portfolio Manager" project
+2. Create a new project using the "Portfolio Manager" user interface
+3. Switch to the newly created Portfolio project
 4. Upload and import a model using the model import page or one of the supported CAD Twinit plugins
 5. View the model in the Twinit 2D/3D model viewer
-6. Invite other users to Quick Model View project to view the model
+6. Invite other users to Portfolio project to view the model
 
 ## Finding Support
 

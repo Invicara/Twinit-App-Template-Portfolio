@@ -46,4 +46,4 @@ When configuring a 'between' or 'outside' filter provide two numbers to use for 
 The order of the numbers does not matter. The filter will sense the larger of two numbers and construct the correct query.
 
 ---
-[Quick Model View User Guide](./README.md) < Back
+[Portfolio User Guide](./README.md) < Back

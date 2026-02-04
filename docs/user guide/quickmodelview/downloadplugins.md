@@ -13,9 +13,9 @@
 
 ![plugin-dowload](../../img/plugin-download.jpg)
 
-> **Note**: The Navisworks plugin is not supported with the Quick Model View Application.
+> **Note**: The Navisworks plugin is not supported with the Portfolio Application.
 
 **For instructions on installing and using the plugins to upload a model to your project please visit the documentation on [twinit.dev](https://twinit.dev/docs/concepts/plug-ins/ipa-plugins)**
 
 ---
-[Quick Model View User Guide](./README.md) < Back | Next > [How to Upload a Model](./upload.md)
+[Portfolio User Guide](./README.md) < Back | Next > [How to Upload a Model](./upload.md)

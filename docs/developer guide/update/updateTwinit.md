@@ -2,8 +2,8 @@
 
 To update your deployed template on Twinit you will:
 
-1. Update scripts in your Quick Model View Manager project
-2. Update user configs to your Quick Model View Manager project
+1. Update scripts in your Portfolio Manager project
+2. Update user configs to your Portfolio Manager project
 
 ## Update Scripts
 
@@ -17,7 +17,7 @@ Using the Twinit VS Code extension:
 
 ```
 TWINIT
-├─ Quick Model View
+├─ Portfolio
 │  ├─ QMV Manager (p)
 │  │  ├─ Scripts
 │  │  │  ├─ [v3] importHelperTemplate (quick-temp) <b>
@@ -43,7 +43,7 @@ Using the Twinit VS Code extension:
 
 ```
 TWINIT
-├─ Quick Model View
+├─ Portfolio
 │  ├─ QMV Manager (p)
 │  │  ├─ Scripts
 │  │  │  ├─ [v3] importHelperTemplate (quick-temp) <b>

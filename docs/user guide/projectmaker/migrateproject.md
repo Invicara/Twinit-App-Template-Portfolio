@@ -1,6 +1,6 @@
 # How to Migrate a Project
 
-1. Sign in to your Quick Model View Manager project
+1. Sign in to your Portfolio Manager project
 
 Any projects that can be migrated will appear in the list with an 'Update Project' button. Currently, you may only migrate projects that you created.
 

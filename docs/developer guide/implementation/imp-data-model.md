@@ -1,6 +1,6 @@
 # In-Depth: Template Data Model
 
-The Quick Model View Application Template manages these types of data:
+The Portfolio Application Template manages these types of data:
 
 ![overall data model image](../../img/entire-data-model.jpg)
 
