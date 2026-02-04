@@ -4,7 +4,7 @@ In order to take advantage of all the latest features in the 2.1.0 release, proj
 
 Migration of a project is not required. All project will continue to function at the previous level of functionality. New features may appear non-functional or incomplete, however, until the project has been migrated.
 
-> **Note**: The migration process must be performed by each Quick Model View Manager on each of the projects they have created.
+> **Note**: The migration process must be performed by each Portfolio Manager on each of the projects they have created.
 
 To migrate a project:
 
@@ -14,7 +14,7 @@ To migrate a project:
 
 ![migrate complete](../../img/migrate-complete.jpg)
 
-Once you have completed the previous steps your Quick Model View projects and model will be fully migrated and enabled for all new features.
+Once you have completed the previous steps your Portfolio projects and model will be fully migrated and enabled for all new features.
 
 ---
 

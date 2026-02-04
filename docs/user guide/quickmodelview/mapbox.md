@@ -14,9 +14,9 @@ Once you have an account follow the steps to create your secret token here:
 
 [https://docs.mapbox.com/help/dive-deeper/access-tokens/](https://docs.mapbox.com/help/dive-deeper/access-tokens/)
 
-## Configure Quick Model View
+## Configure Portfolio
 
-To configure Mapbox in your Quick Model View project:
+To configure Mapbox in your Portfolio project:
 
 1. Navigate to the Mapbox Settings page
 

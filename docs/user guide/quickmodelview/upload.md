@@ -6,4 +6,4 @@
 ![upload btn](../../img/upload-button.jpg)
 
 ---
-[Quick Model View User Guide](./README.md) < Back | Next > [How to Import a Model](./importmodel.md)
+[Portfolio User Guide](./README.md) < Back | Next > [How to Import a Model](./importmodel.md)

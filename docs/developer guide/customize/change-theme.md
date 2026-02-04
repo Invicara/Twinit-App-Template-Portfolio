@@ -1,10 +1,10 @@
 # Change the Theme Colors in the Web Client
 
-The template provides a default theme for the web client. The application is defined in both the QMV Manager and Quick Model View user configs and can be changed in each independently.
+The template provides a default theme for the web client. The application is defined in both the QMV Manager and Portfolio user configs and can be changed in each independently.
 
 ## Change the Theme
 
-The theme can be changed by editing the user config templates in the QMV Manager project, or editing the QMV Manager user config, or editing the user configs in Quick Model View projects.
+The theme can be changed by editing the user config templates in the QMV Manager project, or editing the QMV Manager user config, or editing the user configs in Portfolio projects.
 
 To change the theme you will modify the "styles" in the "settings" in each user config.
 
@@ -61,13 +61,13 @@ There are potentially three places you will need to make the setting change to d
 
 If you wish a new theme to appear in the QMV Manager user interface, you'll need to modify the ProjectMakerConfig in the "QMV Manager" project.
 
-### Newly Created Quick Model View Projects
+### Newly Created Portfolio Projects
 
-If you wish a new theme to appear in newly created Quick Model View projects, you'll need to modify the QuickViewAdminConfigTemplate and QuickViewViewerConfigTemplate in the "QMV Manager" project.
+If you wish a new theme to appear in newly created Portfolio projects, you'll need to modify the QuickViewAdminConfigTemplate and QuickViewViewerConfigTemplate in the "QMV Manager" project.
 
-### Existing Quick Model View Projects
+### Existing Portfolio Projects
 
-If you wish a new theme to display in existing Quick Model View projects to display the new logo, you'll need to modify the QuickViewAdminConfig and QuickViewViewerConfig in each of the existing projects.
+If you wish a new theme to display in existing Portfolio projects to display the new logo, you'll need to modify the QuickViewAdminConfig and QuickViewViewerConfig in each of the existing projects.
 
 > This could be done by creating a custom migration and running these updates through the Project Maker pageComponent UI, but you will need to be careful when consuming future template updates.
 

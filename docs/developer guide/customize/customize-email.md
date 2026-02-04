@@ -1,6 +1,6 @@
 # Customize Your Email Invitations
 
-All new applications on Twinit receive the same default email invitation templates. By necessity this template is very generic and may be confusing to users receiving them if they are expecting an invitation from the Quick Model View application.
+All new applications on Twinit receive the same default email invitation templates. By necessity this template is very generic and may be confusing to users receiving them if they are expecting an invitation from the Portfolio application.
 
 You can customize the email invitations for your application by simply providing updated html.
 
@@ -10,7 +10,7 @@ You can customize the email invitations for your application by simply providing
 
 ### Sample Invite Templates
 
-The Quick Model View Application Template includes a set of sample email invites you can use in the following steps. They are located in the [setup folder](../../../setup/_email%20templates).
+The Portfolio Application Template includes a set of sample email invites you can use in the following steps. They are located in the [setup folder](../../../setup/_email%20templates).
 
 ### Open the Twinit Console
 
@@ -26,12 +26,12 @@ The Quick Model View Application Template includes a set of sample email invites
 ![notification edit](../../img/noification-edit.jpg)
 
 6. Paste the contents of [inviteTemplate.html](../../../setup/_email%20templates/inviteTemplate.html) into the Notification Body field.
-7. Change the Title/Subject to be "You're Invited to Quick Model View!"
+7. Change the Title/Subject to be "You're Invited to Portfolio!"
 8. Click the "Save and Close" button
 
 ![notification edit body](../../img/noification-edit2.jpg)
 
-9. Repeat steps 5 through 8 for the USER_GROUP_INVIT_REMINDER, copying he content of [inviteReminderTemplate](../../../setup/_email%20templates/inviteReminderTemplate.html) into the notification body and setting the Title/Subject to "A Reminder to Join Quick Model View".
+9. Repeat steps 5 through 8 for the USER_GROUP_INVIT_REMINDER, copying he content of [inviteReminderTemplate](../../../setup/_email%20templates/inviteReminderTemplate.html) into the notification body and setting the Title/Subject to "A Reminder to Join Portfolio".
 
 Invites sent through the User Groups page in the application will look like this.
 

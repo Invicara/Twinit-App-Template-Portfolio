@@ -6,18 +6,18 @@
 
 Next you will deploy the template and its configuration to Twinit. This is the first of two deploys to completely deploy the template. In a later step you will learn how to build and deploy the template's web client.
 
-> Note: Images are provided as an example of what you will see during the deployment process. Depending on the release of Quick Model View which you are deploying, the actual scripts and configs you see will diff
+> Note: Images are provided as an example of what you will see during the deployment process. Depending on the release of Portfolio which you are deploying, the actual scripts and configs you see will diff
 
 To deploy the template to Twinit you will:
 
 1. Clone the template code locally
 2. Sign in to Twinit and your application using the Twinit VSCode Extension
-3. Create a new "Quick Model View Manager" project for your application
+3. Create a new "Portfolio Manager" project for your application
 4. Upload the scripts, configurations, and template configurations to your new project
-5. Create an Admin user group for your "Quick Model View Manager" project
-6. Assign the Quick Model View Manager user config to the new Admin user group
+5. Create an Admin user group for your "Portfolio Manager" project
+6. Assign the Portfolio Manager user config to the new Admin user group
 
-Remember, as mentioned in the [General Introduction](../implementation/general-intro.md), what you are setting up now is the ability to create new Quick Model View projects, not actually creating new Quick Model View projects themselves.
+Remember, as mentioned in the [General Introduction](../implementation/general-intro.md), what you are setting up now is the ability to create new Portfolio projects, not actually creating new Portfolio projects themselves.
 
 ## Sign in to Your Application using the Twinit VS Code Extension
 
@@ -29,10 +29,10 @@ Your Twinit extension panel should look like this, with your application name di
 
 ```
 TWINIT
-├─ Quick Model View
+├─ Portfolio
 ```
 
-## Create a New "Quick Model View Manager" project
+## Create a New "Portfolio Manager" project
 
 1. Right click on your application name in the Twinit extension and select "New Project"
 2. Enter "QMV Manager" when prompted for a project name
@@ -43,7 +43,7 @@ A new project should now be visible in the extension panel.
 
 ```
 TWINIT
-├─ Quick Model View
+├─ Portfolio
 │  ├─ QMV Manager (p)
 ```
 
@@ -61,7 +61,7 @@ TWINIT
 
 ```
 TWINIT
-├─ Quick Model View
+├─ Portfolio
 │  ├─ QMV Manager (p)
 │  │  ├─ Scripts
 │  │  │  ├─ [v1] importHelperTemplate (quick-temp) <b>
@@ -98,7 +98,7 @@ You'll see a notice in the bottom right corner of the VS Code window once the us
 
 ## Next Steps
 
-In the previous steps you deployed the Quick Model View Manager configuration and scripts to Twinit along with the template script and user configurations it needs to create new Quick Model View projects.
+In the previous steps you deployed the Portfolio Manager configuration and scripts to Twinit along with the template script and user configurations it needs to create new Portfolio projects.
 
 In the next step you will build and run the template web client.
 

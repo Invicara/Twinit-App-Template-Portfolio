@@ -16,7 +16,7 @@ export const ConfigContext = createContext()
 
 /*
  * The ProjecMakerVew pageComponent allows for the creation of new
- * Quick Model View projects and updates of existing Quick Model View
+ * Portfolio projects and updates of existing Portfolio
  * projects.
  * 
  * In order for a user to be able to use this pageComponent, they must

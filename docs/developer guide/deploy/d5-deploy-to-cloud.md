@@ -33,7 +33,7 @@ Whichever option you choose, you'll deploy the contents of the ```./build``` to 
 
 ![redirects orgins](../../img/redirects-origins.jpg)
 
-> **Note**: Your application will not likely have a name other than Quick Model View.
+> **Note**: Your application will not likely have a name other than Portfolio.
 
 ## Next Steps
 

@@ -116,4 +116,4 @@ When the search completes the model viewer will update to isolate the searched e
 ![element table click](../../img/element-table/element-table-row-excel.jpg)
 
 ---
-[Quick Model View User Guide](./README.md) < Back | Next > [How to Invite Users to a Quick Model View Project](./inviteusers.md)
+[Portfolio User Guide](./README.md) < Back | Next > [How to Invite Users to a Portfolio Project](./inviteusers.md)

@@ -23,4 +23,4 @@ The import process will begin and the status of each import step will be display
 Once the import is complete the model is ready for viewing.
 
 ---
-[Quick Model View User Guide](./README.md) < Back | Next > [How to Delete the Latest Imported Model](./deletemodel.md)
+[Portfolio User Guide](./README.md) < Back | Next > [How to Delete the Latest Imported Model](./deletemodel.md)

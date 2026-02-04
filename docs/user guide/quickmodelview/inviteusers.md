@@ -1,4 +1,4 @@
-# How to Invite Users to a Quick Model View Project
+# How to Invite Users to a Portfolio Project
 
 1. In the header menu select "User Groups"
 
@@ -12,7 +12,7 @@
 
 ![invite workflow](../../img/invite-workflow-2.jpg)
 
-The users will receive an email with a link to accept the invitation the Quick Model View project.
+The users will receive an email with a link to accept the invitation the Portfolio project.
 
 ---
-[Quick Model View User Guide](./README.md) < Back
+[Portfolio User Guide](./README.md) < Back

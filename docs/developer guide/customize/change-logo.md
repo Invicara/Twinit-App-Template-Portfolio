@@ -1,10 +1,10 @@
 # Change the Logo in the Web Client
 
-The template provides a default Invicara logo for the web client. This logo appears in both the QMV Manager and Quick Model View user interface and can be changed in each independently.
+The template provides a default Invicara logo for the web client. This logo appears in both the QMV Manager and Portfolio user interface and can be changed in each independently.
 
 ## Change the Logo
 
-The logo can be changed by editing the user config templates in the QMV Manager project, editing the QMV Manager user config, or editing the user configs in existing Quick Model View projects.
+The logo can be changed by editing the user config templates in the QMV Manager project, editing the QMV Manager user config, or editing the user configs in existing Portfolio projects.
 
 To change the logo you will add information to the "settings" in each user config. Specifically you will modify the "appImage" setting.
 
@@ -34,15 +34,15 @@ If you wish the new logo to appear in the QMV Manager user interface, you'll nee
 
 ![qmvman config](../../img/vscode-proj-maker-config.jpg)
 
-### Newly Created Quick Model View Projects
+### Newly Created Portfolio Projects
 
-If you wish the new logo to appear in newly created Quick Model View projects, you'll need to modify the QuickViewAdminConfigTemplate and QuickViewViewerConfigTemplate in the "QMV Manager" project.
+If you wish the new logo to appear in newly created Portfolio projects, you'll need to modify the QuickViewAdminConfigTemplate and QuickViewViewerConfigTemplate in the "QMV Manager" project.
 
 ![qvmman temps](../../img/vscode-config-temps.jpg)
 
-### Existing Quick Model View Projects
+### Existing Portfolio Projects
 
-If you wish to update existing Quick Model View projects to display the new logo, you'll need to modify the QuickViewAdminConfig and QuickViewViewerConfig in each of the existing projects.
+If you wish to update existing Portfolio projects to display the new logo, you'll need to modify the QuickViewAdminConfig and QuickViewViewerConfig in each of the existing projects.
 
 ![qmv proj configs](../../img/vscode-qmvproj-configs.jpg)
 

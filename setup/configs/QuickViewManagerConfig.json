@@ -109,7 +109,7 @@
     }
   },
   "settings": {
-    "appTitle": "Quick Model View",
+    "appTitle": "Portfolio Template",
     "appImage": { "url": "https://lib.invicara.io/hitachi/Hitachi%20Logo%20white.png" },
     "headerComponent": "components/HeaderBar/HeaderBar",
     "modelSelection": [],
