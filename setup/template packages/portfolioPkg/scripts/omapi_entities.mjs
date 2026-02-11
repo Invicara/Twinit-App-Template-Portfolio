@@ -1,0 +1,1485 @@
+const COLLECTIONS = {
+    SITE_COLL_DEF: {
+        _name: 'Sites collection',
+        _shortName: 'geo_sites_coll',
+        _description: 'Sites Feature collection',
+        _userType: 'geo_sites_coll'
+    },
+    BUILDINGS_COLL_DEF: {
+        _name: 'Buildings Collection',
+        _shortName: 'building_coll',
+        _description: 'Buildings Collection',
+        _userType: 'building_coll'
+    },
+    MODEL_ELEMENT_DEF: {
+        _userType: 'rvt_element'
+    },
+    MODEL_ELEMENT_PROPERTIES_DEF: {
+        _userType: 'rvt_element_props'
+    },
+    MODEL_ELEMENT_TYPES_DEF: {
+        _userType: 'rvt_type_elements'
+    }
+}
+
+const site = COLLECTIONS.SITE_COLL_DEF;
+
+const building = COLLECTIONS.BUILDINGS_COLL_DEF;
+
+const entityCollections = {
+    "site": {
+        "entity":site,
+        related: {
+            buildings: building
+        },
+        inverslyRelated: {}
+    },
+    "building": {
+        "entity":building,
+        related: {},
+        inverslyRelated: {
+            site: site,
+        }
+    },
+    "modelElement": {
+        entity: COLLECTIONS.MODEL_ELEMENT_DEF,
+        related: {
+            modelProperties: COLLECTIONS.MODEL_ELEMENT_PROPERTIES_DEF,
+            modelTypes: COLLECTIONS.MODEL_ELEMENT_TYPES_DEF
+        },
+        inverslyRelated: {}
+    },
+}
+
+
+/* --------------------- small utils --------------------- */
+
+const norm = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
+
+function pickCollectionForModel(collections, expectedName) {
+  if (!Array.isArray(collections) || !collections.length) return null
+  const expected = norm(expectedName)
+  return (
+    collections.find(c => norm(c?._name) === expected) ||
+    collections.find(c => norm(c?._name).includes(expected)) ||
+    null
+  )
+}
+
+function chunk(arr, size) {
+    const out = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+}
+
+function uniq(arr) {
+    return Array.from(new Set(arr));
+}
+
+// Deduplicate by a key function
+function uniqBy(arr, keyFn) {
+    const seen = new Set();
+    const out = [];
+    for (const item of arr) {
+        const key = keyFn(item);
+        if (!seen.has(key)) {
+            seen.add(key);
+            out.push(item);
+        }
+    }
+    return out;
+}
+
+function serializeErr(err) {
+    return {
+        message: err?.message || String(err),
+        stack: err?.stack,
+    };
+}
+
+function uuidv4() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+        return v.toString(16);
+    });
+}
+const createOrRecreateCollectionFactory = (entityName) => async (input, libraries, ctx, callback) => {
+
+    let { PlatformApi, IafScriptEngine} = libraries
+
+    let proj = await PlatformApi.IafProj.getCurrent(ctx);
+
+    return await IafScriptEngine.createOrRecreateCollection({...entityCollections[entityName].entity, 	_namespaces: proj._namespaces}, ctx);
+}
+
+async function createRelatedItem(IafItemSvc, collection, relatedItem, ctx) {
+    let result = await IafItemSvc.createRelatedItems(
+        collection._userItemId,
+        relatedItem,
+        ctx
+    );
+    return result;
+}
+
+async function updateRelatedItem(IafItemSvc, collection, relatedItem, ctx) {
+    let result = await IafItemSvc.updateRelatedItem(
+        collection._userItemId,
+        relatedItem._id,
+        relatedItem,
+        ctx
+    );
+    return result;
+}
+async function createRelation(IafItemSvc, relation, parentUserItemId, ctx) {
+    if (!relation || !parentUserItemId) return null;
+
+    let relationsResult = await IafItemSvc.addRelations(
+        parentUserItemId,
+        relation,
+        ctx
+    );
+    return relationsResult;
+}
+async function getRelations(IafItemSvc, criteria, parentUserItemId, ctx) {
+    if (!parentUserItemId) return null;
+
+    let relationsResult = await IafItemSvc.getRelations(
+        parentUserItemId,
+        criteria,
+        ctx
+    );
+    return relationsResult;
+}
+async function deleteRelations(IafItemSvc, body, parentUserItemId, ctx) {
+    if (!parentUserItemId) return null;
+
+    let relationsResult = await IafItemSvc.deleteRelations(
+        parentUserItemId,
+        body,
+        ctx
+    );
+    return relationsResult;
+}
+
+async function updateRelations(
+    IafItemSvc,
+    payload,
+    parentUserItemId,
+    ctx,
+    opts = {}
+) {
+    const {
+        order = "create-then-remove",
+        chunkSize = 100,
+    } = opts;
+
+    if (!IafItemSvc) throw new Error("IafItemSvc is required");
+    if (!parentUserItemId) throw new Error("parentUserItemId is required");
+
+    const toCreate = Array.isArray(payload?.toCreate) ? payload.toCreate.filter(Boolean) : [];
+    const toRemoveRaw = Array.isArray(payload?.toRemove) ? payload.toRemove.filter(Boolean) : [];
+
+    // Normalize removes to IDs
+    const toRemoveIds = uniq(
+        toRemoveRaw.map(r => (typeof r === "string" ? r : r?._id)).filter(Boolean)
+    );
+
+    // Deduplicate creates (by a stable signature)
+    const toCreateDeduped = uniqBy(
+        toCreate,
+        (r) =>
+            `${r._relatedFromId}__${r._relatedUserItemDbId}__${JSON.stringify(
+                (Array.isArray(r._relatedToIds) ? [...new Set(r._relatedToIds)] : [])
+                    .slice().sort()
+            )}`
+    ).map(r => ({
+        _relatedFromId: r._relatedFromId,
+        _relatedToIds: Array.isArray(r._relatedToIds) ? uniq(r._relatedToIds) : [],
+        _relatedUserItemDbId: r._relatedUserItemDbId,
+    }));
+
+    const result = { created: [], removed: [], errors: [] };
+
+    const runCreates = async () => {
+        for (const part of chunk(toCreateDeduped, chunkSize)) {
+            if (part.length === 0) continue;
+            try {
+                // createRelation expects an array of relation objects
+                const created = await createRelation(IafItemSvc, part, parentUserItemId, ctx);
+                // Some APIs return created rows; collect if available
+                if (created) result.created.push(...(Array.isArray(created) ? created : [created]));
+            } catch (err) {
+                result.errors.push({ op: "createRelation", payload: part, error: serializeErr(err) });
+            }
+        }
+    };
+    const runDeletes = async () => {
+        for (const part of chunk(toRemoveIds, chunkSize)) {
+            if (part.length === 0) continue;
+            try {
+                await deleteRelations(IafItemSvc, part, parentUserItemId, ctx);
+                result.removed.push(...part);
+            } catch (err) {
+                result.errors.push({ op: "deleteRelations", payload: part, error: serializeErr(err) });
+            }
+        }
+    };
+
+    if (order === "remove-then-create") {
+        await runDeletes();
+        await runCreates();
+    } else {
+        // default: "create-then-remove"
+        await runCreates();
+        await runDeletes();
+    }
+
+    return result;
+}
+
+const collectionsCache = {}
+const getCollections = async (IafItemSvc, _userType, ctx, query = {}) => {
+    const key = JSON.stringify({_userType, query})
+    if(collectionsCache[key]){
+        return collectionsCache[key]
+    }
+    const q = {...query}
+    if(_userType){
+        query._userType = _userType
+    }
+    let res = await IafItemSvc.getNamedUserItems({
+        query: {...query, _kind: "collection"}
+    }, ctx)
+    collectionsCache[key] = res._list
+    return res._list
+}
+
+const  deleteRelatedItems = async (IafItemSvc, ctx, collection_userType, ids = []) => {
+
+    let coll =(await getCollections(IafItemSvc, collection_userType, ctx))[0]
+    const deleteRes= await IafItemSvc.deleteRelatedItems(coll._userItemId, ids);
+
+    return deleteRes;
+}
+
+const attachEntityToParentFactory = (entityName, parentEntityName) => async ({entity, parent}, libraries, ctx, callback) => {
+    let { PlatformApi } = libraries
+    const { IafItemSvc } = PlatformApi
+
+    const entityColl = (await getCollections(IafItemSvc, entityCollections[entityName].entity._userType, ctx))[0]
+    const parentCollection = (await getCollections(IafItemSvc, entityCollections[parentEntityName].entity._userType, ctx))[0]
+
+    let relationData = [{
+        _relatedFromId: parent._id, //parentid
+        _relatedToIds: Array.isArray(entity) ? entity.map(e=>e._id) : [entity._id],
+        _relatedUserItemDbId: entityColl._userItemId
+    }];
+
+    const relation = await createRelation(IafItemSvc, relationData, parentCollection._userItemId, ctx)
+    return relation || {}
+}
+
+const getEntityFactory = (entityName) => async (input, libraries, ctx, callback) => {
+    let { PlatformApi, IafScriptEngine } = libraries
+    const { IafItemSvc } = PlatformApi
+
+    const parent = (await getCollections(IafItemSvc, entityCollections[entityName].entity._userType, ctx))[0]
+    const {query = {} } = input || {}
+
+    const q = {
+        parent: {
+            query: query[entityName] || {},
+            collectionDesc: {
+                _userItemId: parent._userItemId,
+                _userType: parent._userType,
+            },
+        }
+    }
+
+    let parentWithChildList = await IafScriptEngine.findWithRelated(q, ctx);
+
+    const entities = parentWithChildList._list || [];
+
+    return entities
+
+}
+
+    const getAllRelatedItemsPaged = async (userItemId, queryObj, IafItemSvc, ctx) => {
+    const pageSize = 200
+    let offset = 0
+    let all = []
+
+    while (true) {
+        const res = await IafItemSvc.getRelatedItems(
+        userItemId,
+        {
+            query: queryObj,
+            options: { page: { _pageSize: pageSize, _offset: offset } },
+        },
+        ctx
+        )
+
+        const list = res?._list || []
+        all = all.concat(list)
+
+        if (list.length < pageSize) break
+        offset += pageSize
+    }
+
+    return all
+    }
+
+const getEntityWithRelatedFactory = (entityName) => async (input, libraries, ctx, callback) => {
+  let { PlatformApi, IafScriptEngine } = libraries
+  const { IafItemSvc } = PlatformApi
+
+  const parent = (await getCollections(IafItemSvc, entityCollections[entityName].entity._userType, ctx))[0]
+
+  const { query = {}, relatedPaths, inverslyRelatedPaths, relatedFilter } = input || {}
+
+  const relatedInput = relatedPaths?.reduce((accum, r) => {
+    accum[r] = entityCollections[entityName].related[r]
+    return accum
+  }, {})
+
+  const inverslyRelatedInput = inverslyRelatedPaths?.reduce((accum, r) => {
+    accum[r] = entityCollections[entityName].inverslyRelated[r]
+    return accum
+  }, {})
+
+  const related = relatedInput || entityCollections[entityName].related
+  const inverslyRelated = inverslyRelatedInput || entityCollections[entityName].inverslyRelated
+
+  let findWithRelated = {
+    parent: {
+      query: query[entityName] || {},
+      collectionDesc: {
+        _userItemId: parent._userItemId,
+        _userType: parent._userType,
+      },
+    },
+  }
+
+  // IMPORTANT: do NOT filter buildings out of inverslyRelated if you want inverse-fetch
+  const relatedWithoutEmbedded = Object.fromEntries(
+    Object.entries(related || {}).filter(([key]) => key !== 'buildings')
+  )
+
+  const hasRelated = Object.keys(relatedWithoutEmbedded).length > 0
+  const hasInverse = inverslyRelated && Object.keys(inverslyRelated).length > 0
+
+  if (hasRelated || hasInverse) {
+    findWithRelated.related = []
+      .concat(
+        hasRelated
+          ? Object.entries(relatedWithoutEmbedded).map(([key, r]) => ({
+              relatedDesc: { _relatedUserType: r._userType },
+              query: query[key] || {},
+              as: key,
+            }))
+          : []
+      )
+      .concat(
+        hasInverse
+          ? Object.entries(inverslyRelated).map(([key, r]) => ({
+              relatedDesc: { _relatedUserType: r._userType, _isInverse: true },
+              query: query[key] || {},
+              as: key,
+            }))
+          : []
+      )
+  }
+
+  if (relatedFilter) {
+    const { filterQuery = {}, relatedFilterPaths, inverslyRelatedFilterPaths, operand = '$and' } = relatedFilter || {}
+
+    const relatedFilterInput = relatedFilterPaths?.reduce((accum, r) => {
+      accum[r] = entityCollections[entityName].related[r]
+      return accum
+    }, {})
+
+    const inverslyRelatedFilterInput = inverslyRelatedFilterPaths?.reduce((accum, r) => {
+      accum[r] = entityCollections[entityName].inverslyRelated[r]
+      return accum
+    }, {})
+
+    const relatedFilterRelated = relatedFilterInput || []
+    const relatedFilterInverslyRelated = inverslyRelatedFilterInput || []
+
+    findWithRelated.relatedFilter = {
+      includeResult: true,
+      [operand]: Object.entries(relatedFilterRelated)
+        .map(([key, r]) => ({
+          relatedDesc: { _relatedUserType: r._userType },
+          query: filterQuery[key] || {},
+          as: key,
+        }))
+        .concat(
+          Object.entries(relatedFilterInverslyRelated).map(([key, r]) => ({
+            relatedDesc: { _relatedUserType: r._userType, _isInverse: true },
+            query: filterQuery[key] || {},
+            as: key,
+          }))
+        ),
+    }
+  }
+
+  console.log('getEntityWithRelatedFactory findWithRelated', findWithRelated)
+
+  let parentWithChildList = await IafScriptEngine.findWithRelated(findWithRelated, ctx)
+  console.log('getEntityWithRelatedFactory parentWithChildList', parentWithChildList)
+
+  const entities = parentWithChildList._list || []
+
+
+  const buildingsColl = (await getCollections(IafItemSvc, 'building_coll', ctx))[0]
+
+   await Promise.all(
+    entities.map(async (site) => {
+      site.buildings = await getAllRelatedItemsPaged(
+        buildingsColl._userItemId,
+        { siteId: site.siteId },
+        IafItemSvc,
+        ctx
+      )
+    })
+  )
+
+   entities.forEach((e) => {
+    e._metadata._userItemId = parent._userItemId
+
+    // related => many
+    Object.keys(entityCollections[entityName].related || {}).forEach((prop) => {
+      const v = e[prop]
+      e[prop] = Array.isArray(v) ? v : v?._list
+    })
+
+    // inverslyRelated => ALSO many (do NOT collapse to [0], because buildings is plural)
+    Object.keys(entityCollections[entityName].inverslyRelated || {}).forEach((prop) => {
+      const v = e[prop]
+      e[prop] = Array.isArray(v) ? v : v?._list || []
+    })
+
+    // ensure buildings always an array
+    if (!Array.isArray(e.buildings)) {
+      e.buildings = []
+    }
+  })
+
+  return entities
+}
+
+const updateEntityFactory = (entityName) => async (input = null, libraries, ctx, callback) => {
+    const { PlatformApi } = libraries
+    const { IafItemSvc } = PlatformApi
+
+    if(!input) return;
+
+    let coll =(await getCollections(IafItemSvc, entityCollections[entityName].entity._userType, ctx))[0];
+    let result = await IafItemSvc.updateRelatedItem(coll._userItemId, input._id, input, ctx)
+
+    return result
+}
+
+const deleteEntityFactory = (entityName) => async (input = null, libraries, ctx, callback) => {
+    const { PlatformApi } = libraries
+    const { IafItemSvc } = PlatformApi
+
+    const {id = null} = input || {};
+
+    if(!id) return;
+
+    return await deleteRelatedItems(IafItemSvc,ctx, entityCollections[entityName].entity._userType, [id]);
+}
+
+const createEntityFactory = (entityName) => async (input = null, libraries, ctx, callback) => {
+    const { PlatformApi } = libraries
+    const { IafItemSvc } = PlatformApi
+    if(!input) return;
+    const requestId = input.requestId || uuidv4();
+    let coll =(await getCollections(IafItemSvc, entityCollections[entityName].entity?._userType, ctx))[0]
+    let result = await IafItemSvc.createRelatedItems(coll._userItemId, [{...input,requestId}], ctx, {})
+    const persisted = (await IafItemSvc.getRelatedItems(coll._userItemId, {query:{requestId}}, ctx))._list[0];
+    if (entityName === 'building' && input.siteId) {
+    const sitesColl = (await getCollections(IafItemSvc, 'geo_sites_coll', ctx))[0]
+
+    const siteRes = await IafItemSvc.getRelatedItems(
+      sitesColl._userItemId,
+      { query: { siteId: input.siteId } },
+      ctx
+    )
+
+    const site = siteRes?._list?.[0]
+
+    if (site) {
+      const current = Array.isArray(site.buildings) ? site.buildings : []
+
+      // de-dupe by buildingId or _id (choose what’s stable for you)
+      const next = current.some((b) => b?.buildingId === persisted?.buildingId || b?._id === persisted?._id)
+        ? current
+        : current.concat(persisted)
+
+      // IMPORTANT: use the correct update method your SDK provides
+      // If you have IafItemSvc.updateRelatedItems / updateItem / patch etc., use that.
+      await IafItemSvc.updateRelatedItems(
+        sitesColl._userItemId,
+        [{ ...site, buildings: next }],
+        ctx,
+        {}
+      )
+    }
+  }
+    return persisted
+}
+
+/*
+Create and attach steps at once for comment
+ */
+const createAndAttachToEntityFactory = (entityName, parentEntityName) => async ({parent, entity}, libraries, ctx, callback) => {
+    let { PlatformApi } = libraries
+    const { IafItemSvc } = PlatformApi
+
+    const createFactory = createEntityFactory(entityName);
+
+    const parentColl = (await getCollections(IafItemSvc, entityCollections[parentEntityName].entity?._userType, ctx))[0]
+    const entityColl = (await getCollections(IafItemSvc, entityCollections[entityName].entity?._userType, ctx))[0]
+    const persisted = (await createFactory(entity,libraries, ctx, callback));
+
+    let relationData = [{
+        _relatedFromId: parent._id, //parentid
+        _relatedToIds: [persisted._id], // comments id
+        _relatedUserItemDbId: entityColl._userItemId
+    }];
+
+    const relation = await createRelation(IafItemSvc, relationData, parentColl._userItemId, ctx)
+    return persisted
+}
+
+// Factory: create a new entity, then attach it to exactly one parent resolved by a key on the entity.
+// If multiple parents match, keeps the canonical one and removes relations to the others.
+const createAndAttachToOneParentFactory = (entityName, parentEntityName) => async ({ parentKeyId= "siteId", entity }, libraries, ctx, callback) => {
+    const { PlatformApi } = libraries;
+    const { IafItemSvc } = PlatformApi;
+
+    // Helper: pick exactly one canonical parent deterministically
+    function chooseCanonicalParent(parents) {
+        if (!Array.isArray(parents) || parents.length === 0) return null;
+        // Prefer most recently updated; fallback to created; then array order
+        const score = (p) => {
+            const u = p._updatedAt ? new Date(p._updatedAt).getTime() : 0;
+            const c = p._createdAt ? new Date(p._createdAt).getTime() : 0;
+            return Math.max(u, c);
+        };
+        return parents.slice().sort((a, b) => score(b) - score(a))[0];
+    }
+
+    if (!parentKeyId) {
+        throw new Error("parentKeyId is required");
+    }
+    if (!entity || entity[parentKeyId] == null) {
+        throw new Error(`entity.${parentKeyId} is required to resolve the parent. Entity: ${JSON.stringify(entity)}`);
+    }
+    
+  // 1) Create the new entity
+  const createEntity = createEntityFactory(entityName);
+  const persisted = await createEntity(entity, libraries, ctx, callback);
+
+  // 2) Resolve collections
+  const parentColl = (await getCollections(
+      IafItemSvc,
+      entityCollections[parentEntityName].entity?._userType,
+      ctx
+  ))?.[0];
+  const entityColl = (await getCollections(
+      IafItemSvc,
+      entityCollections[entityName].entity?._userType,
+      ctx
+  ))?.[0];
+
+  if (!parentColl?.[ "_userItemId" ]) {
+      throw new Error(`Parent collection not found for ${parentEntityName}`);
+  }
+  if (!entityColl?.[ "_userItemId" ]) {
+      throw new Error(`Entity collection not found for ${entityName}`);
+  }
+
+  // 3) Fetch ALL candidate parents by key on the entity
+  const getParent = getEntityFactory(parentEntityName);
+  const parentQuery = { [parentEntityName]: { [parentKeyId]: entity[parentKeyId] } };
+  const parentsResult = await getParent({ query: parentQuery }, libraries, ctx, callback);
+  const parentList = Array.isArray(parentsResult)
+      ? parentsResult
+      : (parentsResult ? [parentsResult] : []);
+
+  if (parentList.length === 0) {
+      throw new Error(
+          `No ${parentEntityName} found where ${parentKeyId} == ${String(entity[parentKeyId])}`
+      );
+  }
+
+  // 4) Choose canonical parent, treat the rest as "unnecessary"
+  const canonicalParent = chooseCanonicalParent(parentList);
+  const unnecessaryParents = parentList.filter(p => p._id !== canonicalParent._id);
+
+  // 5) Find existing relations (any parent → this child, within this relation space & child collection)
+  let existingRels = (await getRelations(
+      IafItemSvc,
+      parentColl._userItemId,
+      ctx,
+      {
+          _relatedToId: persisted._id,                         // SDK should match where child id is in _relatedToIds
+          _relatedUserItemDbId: entityColl._userItemId,        // make sure it's the same child collection binding
+      }
+  )) || [];
+  existingRels = existingRels._list ? existingRels._list : []
+
+  // 6) Ensure no attachments to unnecessary parents
+  //    - If a relation row from an unnecessary parent contains this child, remove it (update or delete if empty)
+  for (const rel of existingRels) {
+      if (rel._relatedFromId && unnecessaryParents.some(p => p._id === rel._relatedFromId)) {
+          const toIds = Array.isArray(rel._relatedToIds) ? rel._relatedToIds.slice() : [];
+          const idx = toIds.indexOf(persisted._id);
+          if (idx !== -1) toIds.splice(idx, 1);
+
+          if (toIds.length === 0) {
+              await deleteRelations(IafItemSvc, [rel], parentColl._userItemId, ctx);
+          } else {
+              const updated = { ...rel, _relatedToIds: toIds };
+              await updateRelations(IafItemSvc, {toRemove: [rel], toCreate: [updated]}, parentColl._userItemId, ctx);
+          }
+      }
+  }
+
+    // 7) Also proactively sweep any relation rows *owned by the unnecessary parents* that might include this child,
+    //    even if they weren't caught above (defensive clean-up).
+    for (const badParent of unnecessaryParents) {
+        let badParentRows = (await getRelations(
+            IafItemSvc,
+            parentColl._userItemId,
+            ctx,
+            {
+                _relatedFromId: badParent._id,
+                _relatedUserItemDbId: entityColl._userItemId,
+            }
+        )) || [];
+        badParentRows = badParentRows._list ? badParentRows._list : badParentRows;
+
+        for (const rel of badParentRows) {
+            if (Array.isArray(rel._relatedToIds) && rel._relatedToIds.includes(persisted._id)) {
+                const toIds = rel._relatedToIds.filter(id => id !== persisted._id);
+                if (toIds.length === 0) {
+                    await deleteRelations(IafItemSvc, [rel], parentColl._userItemId, ctx);
+                } else {
+                    await updateRelations(
+                        IafItemSvc,
+                        { toRemove: [rel], toCreate: [{...rel, _relatedToIds: toIds}] },
+                        parentColl._userItemId,
+                        ctx
+                    );
+                }
+            }
+        }
+    }
+
+    // 8) Now ensure attachment to the canonical parent
+    let canonicalRows = (await getRelations(
+        IafItemSvc,
+        parentColl._userItemId,
+        ctx,
+        {
+            _relatedFromId: canonicalParent._id,
+            _relatedUserItemDbId: entityColl._userItemId,
+        }
+    )) || [];
+    canonicalRows = canonicalRows._list ? canonicalRows._list : canonicalRows;
+
+    // If there's already a row for canonical parent → child-collection, append child id if missing
+    const parentRow = canonicalRows.find(r => r._relatedFromId === canonicalParent._id);
+    if (parentRow) {
+        const toIds = new Set(parentRow._relatedToIds || []);
+        if (!toIds.has(persisted._id)) {
+            toIds.add(persisted._id);
+            await updateRelations(
+                IafItemSvc,
+                { toRemove: [parentRow], toCreate: [{ ...parentRow, _relatedToIds: Array.from(toIds) }] },
+                parentColl._userItemId,
+                ctx
+            );
+        }
+    } else {
+        const relationData = [
+            {
+                _relatedFromId: canonicalParent._id,
+                _relatedToIds: [persisted._id],
+                _relatedUserItemDbId: entityColl._userItemId,
+            },
+        ];
+        await createRelation(IafItemSvc, relationData, parentColl._userItemId, ctx);
+    }
+
+    // Optional: return extra metadata so callers can see what was cleaned up
+    persisted.__parentResolution = {
+        canonicalParentId: canonicalParent._id,
+        removedParentIds: unnecessaryParents.map(p => p._id),
+    };
+
+    return persisted;
+};
+
+const updateAndAttachToOneParentFactory = (entityName, parentEntityName) => async ({ parentKeyId= "siteId", entity }, libraries, ctx, callback) => {
+    const { PlatformApi } = libraries;
+    const { IafItemSvc } = PlatformApi;
+
+    // Helper: pick exactly one canonical parent deterministically
+    function chooseCanonicalParent(parents) {
+        if (!Array.isArray(parents) || parents.length === 0) return null;
+        // Prefer most recently updated; fallback to created; then array order
+        const score = (p) => {
+            const u = p._updatedAt ? new Date(p._updatedAt).getTime() : 0;
+            const c = p._createdAt ? new Date(p._createdAt).getTime() : 0;
+            return Math.max(u, c);
+        };
+        return parents.slice().sort((a, b) => score(b) - score(a))[0];
+    }
+
+    
+    if (!parentKeyId) {
+        throw new Error("parentKeyId is required");
+    }
+    if (!entity || entity[parentKeyId] == null) {
+        throw new Error(`entity.${parentKeyId} is required to resolve the parent. Entity: ${JSON.stringify(entity)}`);
+    }
+
+    // 1) Update the entity
+    const updateEntity = updateEntityFactory(entityName);
+    const persisted = await updateEntity(entity, libraries, ctx, callback);
+
+    // 2) Resolve collections
+    const parentColl = (await getCollections(
+        IafItemSvc,
+        entityCollections[parentEntityName].entity?._userType,
+        ctx
+    ))?.[0];
+    const entityColl = (await getCollections(
+        IafItemSvc,
+        entityCollections[entityName].entity?._userType,
+        ctx
+    ))?.[0];
+
+    if (!parentColl?.[ "_userItemId" ]) {
+        throw new Error(`Parent collection not found for ${parentEntityName}`);
+    }
+    if (!entityColl?.[ "_userItemId" ]) {
+        throw new Error(`Entity collection not found for ${entityName}`);
+    }
+
+    // 3) Fetch ALL candidate parents by key on the entity
+    const getParent = getEntityFactory(parentEntityName);
+    const parentQuery = { [parentEntityName]: { [parentKeyId]: entity[parentKeyId] } };
+    const parentsResult = await getParent({ query: parentQuery }, libraries, ctx, callback);
+    const parentList = Array.isArray(parentsResult)
+        ? parentsResult
+        : (parentsResult ? [parentsResult] : []);
+
+    if (parentList.length === 0) {
+        throw new Error(
+            `No ${parentEntityName} found where ${parentKeyId} == ${String(entity[parentKeyId])}`
+        );
+    }
+
+    // 4) Choose canonical parent, treat the rest as "unnecessary"
+    const canonicalParent = chooseCanonicalParent(parentList);
+    const unnecessaryParents = parentList.filter(p => p._id !== canonicalParent._id);
+
+    // 5) Find existing relations (any parent → this child, within this relation space & child collection)
+    let existingRels = (await getRelations(
+        IafItemSvc,
+        parentColl._userItemId,
+        ctx,
+        {
+            _relatedToId: persisted._id,                         // SDK should match where child id is in _relatedToIds
+            _relatedUserItemDbId: entityColl._userItemId,        // make sure it's the same child collection binding
+        }
+    )) || [];
+    existingRels = existingRels._list ? existingRels._list : []
+
+    // 6) Ensure no attachments to unnecessary parents
+    //    - If a relation row from an unnecessary parent contains this child, remove it (update or delete if empty)
+    for (const rel of existingRels) {
+        if (rel._relatedFromId && unnecessaryParents.some(p => p._id === rel._relatedFromId)) {
+            const toIds = Array.isArray(rel._relatedToIds) ? rel._relatedToIds.slice() : [];
+            const idx = toIds.indexOf(persisted._id);
+            if (idx !== -1) toIds.splice(idx, 1);
+
+            if (toIds.length === 0) {
+                await deleteRelations(IafItemSvc, [rel], parentColl._userItemId, ctx);
+            } else {
+                const updated = { ...rel, _relatedToIds: toIds };
+                await updateRelations(IafItemSvc, {toRemove: [rel], toCreate: [updated]}, parentColl._userItemId, ctx);
+            }
+        }
+    }
+
+    // 7) Also proactively sweep any relation rows *owned by the unnecessary parents* that might include this child,
+    //    even if they weren't caught above (defensive clean-up).
+    for (const badParent of unnecessaryParents) {
+        let badParentRows = (await getRelations(
+            IafItemSvc,
+            parentColl._userItemId,
+            ctx,
+            {
+                _relatedFromId: badParent._id,
+                _relatedUserItemDbId: entityColl._userItemId,
+            }
+        )) || [];
+        badParentRows = badParentRows._list ? badParentRows._list : badParentRows;
+
+        for (const rel of badParentRows) {
+            if (Array.isArray(rel._relatedToIds) && rel._relatedToIds.includes(persisted._id)) {
+                const toIds = rel._relatedToIds.filter(id => id !== persisted._id);
+                if (toIds.length === 0) {
+                    await deleteRelations(IafItemSvc, [rel], parentColl._userItemId, ctx);
+                } else {
+                    await updateRelations(
+                        IafItemSvc,
+                        { toRemove: [rel], toCreate: [{...rel, _relatedToIds: toIds}] },
+                        parentColl._userItemId,
+                        ctx
+                    );
+                }
+            }
+        }
+    }
+
+    // 8) Now ensure attachment to the canonical parent
+    let canonicalRows = (await getRelations(
+        IafItemSvc,
+        parentColl._userItemId,
+        ctx,
+        {
+            _relatedFromId: canonicalParent._id,
+            _relatedUserItemDbId: entityColl._userItemId,
+        }
+    )) || [];
+    canonicalRows = canonicalRows._list ? canonicalRows._list : canonicalRows;
+
+    // If there's already a row for canonical parent → child-collection, append child id if missing
+    const parentRow = canonicalRows.find(r => r._relatedFromId === canonicalParent._id);
+    if (parentRow) {
+        const toIds = new Set(parentRow._relatedToIds || []);
+        if (!toIds.has(persisted._id)) {
+            toIds.add(persisted._id);
+            await updateRelations(
+                IafItemSvc,
+                { toRemove: [parentRow], toCreate: [{ ...parentRow, _relatedToIds: Array.from(toIds) }] },
+                parentColl._userItemId,
+                ctx
+            );
+        }
+    } else {
+        const relationData = [
+            {
+                _relatedFromId: canonicalParent._id,
+                _relatedToIds: [persisted._id],
+                _relatedUserItemDbId: entityColl._userItemId,
+            },
+        ];
+        await createRelation(IafItemSvc, relationData, parentColl._userItemId, ctx);
+    }
+
+    // Optional: return extra metadata so callers can see what was cleaned up
+    persisted.__parentResolution = {
+        canonicalParentId: canonicalParent._id,
+        removedParentIds: unnecessaryParents.map(p => p._id),
+    };
+
+    return persisted;
+};
+
+const getRelatedDistinctFieldsFactory = (entityName) => async (input, libraries, ctx, callback) => {
+
+    let { PlatformApi, IafScriptEngine } = libraries
+    const { IafItemSvc, IafFetch, IafSession, IafProj } = PlatformApi
+
+    const parent = (await getCollections(IafItemSvc, entityCollections[entityName].entity._userType, ctx))[0]
+    const {query = {}, relatedPaths, inverslyRelatedPaths, relatedDistinctFields } = input || {}
+
+    //RELATED
+    const relatedInput = relatedPaths?.reduce((accum,r)=>{
+        accum[r] = entityCollections[entityName].related[r]
+        return accum;
+    },{});
+    const inverslyRelatedInput = inverslyRelatedPaths?.reduce((accum,r)=>{
+        accum[r] = entityCollections[entityName].inverslyRelated[r];
+        return accum;
+    },{});
+
+    const related = relatedInput || entityCollections[entityName].related;
+    const inverslyRelated = inverslyRelatedInput || entityCollections[entityName].inverslyRelated;
+
+    let findWithRelated = {
+        parent: {
+            query: query[entityName] || {},
+            collectionDesc: {
+                _userItemId: parent._userItemId,
+                _userType: parent._userType,
+            },
+        }
+    };
+
+    if(related && Object.keys(related).length>0){
+
+        const { field = {}, query={} } = relatedDistinctFields
+
+        findWithRelated.relatedDistinctFields = Object.entries(related).map(([key,r])=>(
+            {
+                relatedDesc: {_relatedUserType: r._userType},
+                query: query[key] || {},
+                field: field[key] || {},
+                as: key,
+            })).concat(Object.entries(inverslyRelated).map(([key,r])=>({
+            relatedDesc: {_relatedUserType: r._userType, _isInverse: true},
+            query: query[key] || {},
+            field: field[key] || {},
+            as: key,
+        })))
+    }
+
+    const refArray = Object.keys(related).concat(Object.keys(inverslyRelated));
+
+    //console.log("getRelatedDistinctFieldsFactory",{related, findWithRelated,relatedDistinctFields});
+
+    let p = await IafProj.getCurrent();
+    const baseUri = IafFetch.CONFIG.itemServiceOrigin;
+    const namespace = encodeURI(`nsfilter=${p._namespaces[0]}`);
+    const response = await fetch(`${baseUri}/itemsvc/api/v1/nameduseritems/search?${namespace}`, {
+        method: "POST",
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': IafSession.getAuthToken()
+        },
+        body: JSON.stringify({$findWithRelated:findWithRelated})
+    });
+
+    const result = await response.json();
+    //console.log("getRelatedDistinctFieldsFactory",{related, findWithRelated,result,relatedDistinctFields});
+    return result?._list[0]?._versions?.[0]?._relatedDistinctFields.reduce((accum,data,i)=>{accum[refArray[i]]=data;return accum;},{}) || {}
+}
+
+const getDistinctFieldsFactory = (entityName) => async (input, libraries, ctx, callback) => {
+
+    let { PlatformApi, IafScriptEngine } = libraries
+    const { IafItemSvc, IafFetch, IafSession, IafProj } = PlatformApi
+
+    const {fields = [] } = input || {}
+
+    let distinctWithMultiInput = fields.map(field=>({
+        query: field.query || {},
+        field: field.name,
+        collectionDesc: entityCollections[entityName].entity,
+        "collectionProject": {
+            "_id": 1,
+            "_userItemId": 1
+        },
+    }));
+
+    let distinctWithMulti = await IafScriptEngine.getDistinctMulti(distinctWithMultiInput, ctx);
+
+    const distinctRelatedItemFields = {
+        collectionDesc: entityCollections[entityName].entity,
+        "collectionProject": {
+            "_id": 1,
+            "_userItemId": 1
+        },
+        "fieldDesc": fields.map(field=>({
+            query: field.query || {},
+            field: field.name,
+            count: field.count,
+        }))
+
+    }
+
+        let p = ctx || await IafProj.getCurrent();
+
+    const baseUri = IafFetch.CONFIG.itemServiceOrigin;
+    const namespace = encodeURI(`nsfilter=${p._namespaces[0]}`);
+    const response = await fetch(`${baseUri}/itemsvc/api/v1/nameduseritems/search?${namespace}`, {
+        method: "POST",
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': IafSession.getAuthToken(ctx)
+        },
+        body: JSON.stringify({$distinctRelatedItemFields: distinctRelatedItemFields})
+    });
+
+    const result = await response.json();
+
+    const aggregatedResult = {};
+    result?._list.map(collection=>{
+        const items = collection?._versions?.[0]?._relatedItems;
+        if(items){
+            Object.entries(items).forEach(([fieldName, uniqueValues])=>{
+                uniqueValues.map(uniqueValue=> {
+                    aggregatedResult[fieldName] = aggregatedResult[fieldName] || [];
+
+                    if(Object(uniqueValue) !== uniqueValue){
+                        const existingValue = aggregatedResult[fieldName].find(ev=>ev.value == uniqueValue);
+
+                        if(!existingValue){
+                            aggregatedResult[fieldName].push({value : uniqueValue})
+                        }
+                    } else {
+                        const existingValue = aggregatedResult[fieldName].find(ev=>ev.value == uniqueValue.value);
+
+                        if(existingValue){
+                            existingValue.count = existingValue.count + uniqueValue.count;
+                        } else {
+                            aggregatedResult[fieldName].push(uniqueValue)
+                        }
+                    }
+
+                })
+            })
+        }
+    })
+    console.log("getDistinctFieldsFactory",{input, distinctRelatedItemFields,result, aggregatedResult});
+    return {result,aggregatedResult}
+}
+
+const getModelTypeElements = async (input, libraries, ctx) => {
+    const origin = input?.headers?.origin || input?.headers?.Origin || '*'
+  
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    }
+  
+    //handle preflight before doing anything else
+    const method = (input?.method || input?.httpMethod || input?.request?.method || '').toUpperCase()
+    if (method === 'OPTIONS') {
+      return { status: 200, headers: corsHeaders, _list: [] }
+    }
+  
+    try {
+      const { PlatformApi, IafScriptEngine } = libraries || {}
+      const { IafItemSvc } = PlatformApi || {}
+  
+      if (!IafItemSvc || !IafScriptEngine) {
+        return { status: 500, headers: corsHeaders, message: 'Missing libraries injection', _list: [] }
+      }
+  
+      const structureName =
+        input?.structureName ??
+        input?.query?.structureName ??
+        input?.params?.structureName
+  
+      const family =
+        input?.family ??
+        input?.query?.family ??
+        input?.params?.family
+  
+      // NEW: types bulk mode (families + types + typeDoc, no elements)
+      const typesBulkRaw =
+        input?.typesBulk ??
+        input?.query?.typesBulk ??
+        input?.params?.typesBulk
+  
+      const typesBulk =
+        typesBulkRaw === true ||
+        typesBulkRaw === 1 ||
+        typesBulkRaw === '1' ||
+        String(typesBulkRaw || '').toLowerCase() === 'true'
+  
+      // for elements mode
+      const typeIdRaw =
+        input?.typeId ??
+        input?.type_id ??
+        input?.query?.typeId ??
+        input?.query?.type_id ??
+        input?.params?.typeId ??
+        input?.params?.type_id
+  
+      const typeId = typeIdRaw != null ? Number(typeIdRaw) : null
+  
+      if (!structureName) {
+        return { status: 400, headers: corsHeaders, message: 'Missing structureName', _list: [] }
+      }
+  
+      // 1) resolve structure -> modelName
+      const structuresColl = (await getCollections(IafItemSvc, 'map_structures', ctx))[0]
+      if (!structuresColl) {
+        return { status: 500, headers: corsHeaders, message: 'map_structures_coll not found', _list: [] }
+      }
+  
+      const structuresRes = await IafScriptEngine.findWithRelated({
+        parent: {
+          query: { name: structureName },
+          collectionDesc: {
+            _userItemId: structuresColl._userItemId,
+            _userType: structuresColl._userType,
+          },
+        },
+      }, ctx)
+  
+      const structure = structuresRes?._list?.[0]
+      if (!structure) {
+        return {
+          status: 404,
+          headers: corsHeaders,
+          message: `No structure found for name '${structureName}'`,
+          _list: [],
+        }
+      }
+  
+      const { modelName } = structure
+      if (!modelName) {
+        return {
+          status: 422,
+          headers: corsHeaders,
+          message: `Structure '${structureName}' has no modelName`,
+          _list: [],
+        }
+      }
+  
+      // 2) find rvt_type_elements + rvt_elements collections for this modelName
+      const allTypeCollections = await getCollections(IafItemSvc, 'rvt_type_elements', ctx)
+      const allElemCollections = await getCollections(IafItemSvc, 'rvt_elements', ctx)
+  
+      const expectedTypesName = `${modelName}_type_el`
+      const expectedElemsName = `${modelName}_el`
+  
+      const rvtTypesColl = pickCollectionForModel(allTypeCollections, expectedTypesName)
+      const rvtElemsColl = pickCollectionForModel(allElemCollections, expectedElemsName)
+  
+      // IMPORTANT: validate before using rvtTypesColl
+      if (!rvtTypesColl) {
+        return {
+          status: 404,
+          headers: corsHeaders,
+          message: `No rvt_type_elements collection found for modelName '${modelName}' (expected '${expectedTypesName}')`,
+          _list: [],
+        }
+      }
+  
+      // Helpers
+      const splitName = (n) => {
+        const s = String(n ?? '')
+        const idx = s.indexOf('::')
+        if (idx === -1) return { family: s.trim(), type: '' }
+        return { family: s.slice(0, idx).trim(), type: s.slice(idx + 2).trim() }
+      }
+  
+      // MODE C: typeId provided -> return ELEMENTS from rvt_elements by type_id
+      if (typeId != null) {
+        if (!rvtElemsColl) {
+          return {
+            status: 404,
+            headers: corsHeaders,
+            message: `No rvt_elements collection found for modelName '${modelName}' (expected '${expectedElemsName}')`,
+            _list: [],
+          }
+        }
+  
+        const elemsRes = await IafScriptEngine.findWithRelated({
+          parent: {
+            query: { type_id: typeId },
+            collectionDesc: {
+              _userItemId: rvtElemsColl._userItemId,
+              _userType: rvtElemsColl._userType,
+            },
+            options: { limit: 5000 },
+          },
+        }, ctx)
+  
+        const elems = elemsRes?._list || []
+  
+        const list = elems.map((el, i) => {
+          const elKey = el?._id || el?.source_id || el?.id || i
+          const elementId = String(el?.id ?? el?.source_id ?? elKey)
+  
+          const hasProps =
+            el?.properties &&
+            typeof el.properties === 'object' &&
+            Object.values(el.properties).some((p) => Boolean(p?.psDispName))
+  
+          return {
+            id: `${structureName}/typeId/${typeId}/el/${encodeURIComponent(elementId)}`,
+            name: el?.name || elementId,
+            level: 5,
+            structureName,
+            element: el,
+            children: hasProps ? [{}] : [],
+          }
+        })
+  
+        return {
+          status: 200,
+          headers: corsHeaders,
+          structure,
+          modelName,
+          mode: 'elements',
+          typeId,
+          _list: list,
+        }
+      }
+  
+      // MODE D: typesBulk=1 -> return ALL families + types in one response (no elements)
+      if (typesBulk) {
+        const typeDocsRes = await IafScriptEngine.findWithRelated({
+          parent: {
+            query: {},
+            collectionDesc: {
+              _userItemId: rvtTypesColl._userItemId,
+              _userType: rvtTypesColl._userType,
+            },
+            options: { limit: 5000 },
+          },
+        }, ctx)
+
+        const typeDocs = typeDocsRes?._list || []
+
+        const seen = new Set()
+        const list = typeDocs
+          .map((t) => {
+            const full = t?.name
+            const tid = t?.id
+            if (!full || tid == null) return null
+  
+            const { family: fam, type } = splitName(full)
+            if (!fam || !type) return null
+  
+            const key = `${fam}::${tid}`
+            if (seen.has(key)) return null
+            seen.add(key)
+  
+            return {
+              family: fam,
+              type,
+              typeId: tid,
+              typeDoc: t,
+            }
+          })
+          .filter(Boolean)
+          .sort((a, b) => {
+            const af = a.family.localeCompare(b.family)
+            if (af !== 0) return af
+            return a.type.localeCompare(b.type)
+          })
+  
+        return {
+          status: 200,
+          headers: corsHeaders,
+          structure,
+          modelName,
+          mode: 'typesBulk',
+          _list: list,
+        }
+      }
+  
+      // names from rvt_type_elements
+      // Use distinct names to get families quickly
+      const distinctRes = await IafScriptEngine.getDistinct({
+        getAllUserItems: true,
+        collectionDesc: {
+          _userItemId: rvtTypesColl._userItemId,
+          '_versions.all': true,
+        },
+        field: 'name',
+        query: {},
+        options: { getCollInfo: false },
+      }, ctx)
+  
+      const names = distinctRes?.name || []
+  
+      // MODE A: no family -> return families
+      if (!family) {
+        const families = Array.from(
+          new Set(names.map((n) => splitName(n).family).filter(Boolean))
+        ).sort((a, b) => a.localeCompare(b))
+  
+        const list = families.map((f) => ({
+          id: `${structureName}/family/${encodeURIComponent(f)}`,
+          name: f,
+          level: 3,
+          structureName,
+          family: f,
+          children: [{}],
+        }))
+  
+        return {
+          status: 200,
+          headers: corsHeaders,
+          structure,
+          modelName,
+          mode: 'families',
+          _list: list,
+        }
+      }
+  
+      // MODE B: family specified -> return TYPES (include typeId!)
+      // Instead of only distinct strings, we fetch the docs so we can return their numeric `id`
+      const typeDocsRes = await IafScriptEngine.findWithRelated({
+        parent: {
+          query: { name: { $regex: `^${escapeRegex(String(family))}::` } },
+          collectionDesc: {
+            _userItemId: rvtTypesColl._userItemId,
+            _userType: rvtTypesColl._userType,
+          },
+          options: { limit: 5000 },
+        },
+      }, ctx)
+  
+      const typeDocs = typeDocsRes?._list || []
+  
+      // by numeric type id (or by name if needed)
+      const seen = new Set()
+      const list = typeDocs
+        .map((t) => {
+          const full = t?.name
+          const { type } = splitName(full)
+          const tid = t?.id
+          if (!type || tid == null) return null
+  
+          const key = `${type}::${tid}`
+          if (seen.has(key)) return null
+          seen.add(key)
+  
+          return {
+            id: `${structureName}/family/${encodeURIComponent(family)}/typeId/${tid}`,
+            name: type,
+            level: 4,
+            structureName,
+            family,
+            typeId: tid,
+            typeDoc: t,
+            children: [],
+          }
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.name.localeCompare(b.name))
+  
+      return {
+        status: 200,
+        headers: corsHeaders,
+        structure,
+        modelName,
+        mode: 'types',
+        family,
+        _list: list,
+      }
+    } catch (e) {
+      return {
+        status: 500,
+        headers: corsHeaders,
+        message: e?.message || String(e),
+        _list: [],
+      }
+    }
+  }
+  function escapeRegex(str) {
+    return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  }
+
+function decodeDecimal128({ high, low, negative }) {
+    const SIGN_BIT_MASK = 0x8000000000000000n;
+    const COMBINATION_MASK = 0x7C00000000000000n;
+    const EXPONENT_CONTINUATION_MASK = 0x03FFC00000000000n;
+    const SIGNIFICAND_MASK = 0x00003FFFFFFFFFFFn;
+
+    // Convert to BigInts
+    let highBig = BigInt(high);
+    let lowBig = BigInt(low);
+
+    // Combine high and low into a full 128-bit value
+    const full = (highBig << 64n) | lowBig;
+
+    // Extract sign
+    const isNegative = (highBig & SIGN_BIT_MASK) !== 0n;
+
+    // Extract the combination field (bits 1-5 after sign)
+    const comb = (highBig & COMBINATION_MASK) >> 58n;
+
+    // Handle special values
+    if (comb === 0x1f) return NaN;
+    if (comb === 0x1e) return isNegative ? -Infinity : Infinity;
+
+    // Extract exponent (bits 1–14 after sign)
+    const biasedExponent = Number((highBig >> 49n) & 0x3FFFn);
+    const exponent = biasedExponent - 6176; // Decimal128 bias is 6176
+
+    // Extract significand (coefficient)
+    // We'll combine the last 49 bits of high + all 64 of low
+    const significandHigh = highBig & 0x0001FFFFFFFFFFFFn;
+    const significand = (significandHigh << 64n) | lowBig;
+
+    // Now convert to a decimal using BigInt math and scaling
+    const decimalValue = BigInt(significand.toString());
+
+    // Convert to float (approximate!)
+    const floatVal = Number(decimalValue) * 10 ** exponent;
+
+    return isNegative ? -floatVal : floatVal;
+}
+
+function modifyCoordinates(coords, callback) {
+    return coords.map(item => {
+        if (Array.isArray(item)) {
+            return modifyCoordinates(item, callback); // recurse into nested arrays
+        } else if (typeof item === "object") {
+            return callback(item); // apply transformation to object
+        } else {
+            return item; // if it's neither array nor number, leave it as is
+        }
+    });
+}
+
+const withDecimalFix = (originalFn) => async (input, libraries, ctx, callback) => {
+    const resultList = await originalFn(input, libraries, ctx, callback);
+    const fixedResult = resultList.map(r=>{
+        if(r.latitude && typeof r.latitude === 'object' && !Array.isArray(r.latitude) && r.latitude !== null){
+            r.latitude = decodeDecimal128(r.latitude)
+        }
+        if(r.longitude && typeof r.longitude === 'object' && !Array.isArray(r.longitude) && r.longitude !== null){
+            r.longitude = decodeDecimal128(r.longitude)
+        }
+        if(r.coordinates && typeof r.coordinates === 'object' && Array.isArray(r.coordinates) && r.coordinates !== null){
+            r.coordinates = modifyCoordinates(r.coordinates, decodeDecimal128)
+        }
+        return r;
+    })
+    return fixedResult;
+}
+
+const createSite =  (input, libraries, ctx) => createEntityFactory("site")(input?.params || {}, libraries, ctx);
+const updateSite =  (input, libraries, ctx) => updateEntityFactory("site")(input?.params || {}, libraries, ctx);
+const deleteSite =  (input, libraries, ctx) => deleteEntityFactory("site")(input?.params || {}, libraries, ctx);
+const getSitesWithRelated = withDecimalFix(getEntityWithRelatedFactory("site"));
+
+
+//BUILDING ENTITY
+const createBuilding =  (input, libraries, ctx) => createEntityFactory("building")(input?.params || {}, libraries, ctx);
+const updateBuilding =  (input, libraries, ctx) => updateEntityFactory("building")(input?.params || {}, libraries, ctx);
+const deleteBuilding =  (input, libraries, ctx) => deleteEntityFactory("building")(input?.params || {}, libraries, ctx);
+const attachBuildingToSite =  (input, libraries, ctx) => createAndAttachToEntityFactory("building","site")(input?.params || {}, libraries, ctx);
+const createBuildingAndAttachToSite = (input, libraries, ctx) => createAndAttachToEntityFactory("building","site")(input?.params || {}, libraries, ctx);
+const createBuildingAndAttachToOneSite = (input, libraries, ctx) => createAndAttachToOneParentFactory("building","site")(input?.params || {}, libraries, ctx);
+const updateBuildingAndAttachToOneSite = (input, libraries, ctx) =>  updateAndAttachToOneParentFactory("building","site")(input?.params || {}, libraries, ctx);
+const getBuildingsWithRelated = withDecimalFix(getEntityWithRelatedFactory("building"));
+
+//MODEL
+const getModelElementsWithRelated = (input, libraries, ctx) => getEntityWithRelatedFactory("modelElement")(input?.params || {}, libraries, ctx);
+const getModelTypeElementsWithRelated = (input, libraries, ctx) => getModelTypeElements(input, libraries, ctx);
+
+function getRunnableScripts() {
+    return [
+        { name: "------GET", script: ""},
+        { name: "3. Get Sites", script: "getSitesWithRelated" },
+        { name: "3. Get Buildings", script: "getBuildingsWithRelated" },
+        { name: "3. Get Model Elements", script: "getModelElementsWithRelated" },
+        { name: "3. Get Model Type Elements", script: "getModelTypeElementsWithRelated" },
+    ]
+}
+
