@@ -4,11 +4,11 @@
  * 1. setupMapTypes     – create map_types from custom/customUploads/mapTypes.json
  * 2. setupGraphicRefs  – create map_graphic_references (name only) from custom/customUploads/baseGraphicReferences.json
  * 3. setupStructures   – create map_structures from custom/customUploads/structures.json, linked to graphic refs
- * 4. Upload from custom – for each ref name: read custom/customUploads/{name}.glb and custom/customUploads/{name}-thumbnail.* from package,
- *    upload via IafScriptEngine.uploadFile, create file items via IafFile.createFileItemFromFile (same as types_and_graphrefs_setup),
- *    then update map_graphic_references with graphic and thumbnail _fileIds. Logs specific errors if files missing or APIs fail.
+ * 4. Upload from package – for each ref name: read {name}.glb and {name}-thumbnail.* from package (tries fileUploads/ then custom/customUploads/),
+ *    upload via IafScriptEngine.uploadFile, create file items via IafFile.createFileItemFromFile,
+ *    then update map_graphic_references with graphic and thumbnail _fileIds. Single source: put GLBs/PNGs in fileUploads/ once; manifest.files + setup both use them.
  * 5. Mapbox secret     – add Mapbox secret to Secrets Collection (unchanged)
- * 6. BIMPK import      – find .bimpk files in file collections (or upload from custom/customUploads), run bimpk_importer orchestrator for each (sequentially).
+ * 6. BIMPK import      – find .bimpk files in file collections; if none, read from package (fileUploads/ then custom/customUploads/), upload, then run bimpk_importer for each. Put .bimpk files in fileUploads/ or custom/customUploads/ and list in manifest.files.
  */
 
 const BIMPK_IMPORTER_USER_TYPE = 'bimpk_importer';
@@ -18,6 +18,24 @@ const ORCH_MAX_WAIT_MS = 60 * 60 * 1000; // 1 hour per file
 const MAP_GRAPHICS_COLLECTION = 'map_graphics';
 const GRAPHIC_THUMBNAILS_COLLECTION = 'graphic_thumbnails';
 const THUMBNAIL_EXTS = ['.png', '.jpg', '.jpeg'];
+
+/** Paths tried when reading GLB/PNG from the package. */
+const ASSET_DIRS_TO_TRY = ['fileUploads', 'custom/customUploads'];
+
+/** Try reading from package at candidate paths; returns { buffer, path } for first success, or throws. */
+async function readFromPackageFirst(packageData, filename) {
+	let lastErr;
+	for (const dir of ASSET_DIRS_TO_TRY) {
+		const path = dir ? `${dir}/${filename}` : filename;
+		try {
+			const buffer = await packageData.file(path).async('arraybuffer');
+			return { buffer, path };
+		} catch (e) {
+			lastErr = e;
+		}
+	}
+	throw lastErr || new Error(`File not found: ${filename}`);
+}
 
 /** Build a File-like object with guaranteed .size and .name (Node deploy may expose File/Blob where .size is undefined). */
 function bufferToFile(arrayBuffer, filename) {
@@ -126,7 +144,7 @@ export async function setup(input, libraries, ctx, callback) {
 	}));
 	await setupCollEntities('map_structures', structureEntities);
 
-	// --- 4. Upload GLB + thumbnail from custom/customUploads and link to map_graphic_references (same flow as types_and_graphrefs_setup) ---
+	// --- 4. Upload GLB + thumbnail from package (fileUploads/ or custom/customUploads/) and link to map_graphic_references ---
 	const refNames = graphicRefsJson.map(r => r.name).filter(Boolean);
 	const collId = graphicRefsColl._userItemId ?? graphicRefsColl._id;
 	let linked = 0;
@@ -137,50 +155,45 @@ export async function setup(input, libraries, ctx, callback) {
 		const containers = await IafFile.getContainers(proj, {}, ctx);
 		fileContainer = Array.isArray(containers) ? containers[0] : containers;
 		if (!fileContainer) {
-			send('WARN: No file container from IafFile.getContainers; reason: empty list. Upload/link from custom will be skipped.');
+			send('WARN: No file container from IafFile.getContainers; reason: empty list. Upload/link from package will be skipped.');
 		} else {
 			send(`INFO: Using file container '${fileContainer._shortName || fileContainer._name || 'container'}' for GLB and thumbnail uploads`);
 		}
 	} catch (e) {
 		const reason = e && (e.message || String(e));
-		send(`WARN: Could not get file container (IafFile.getContainers): ${reason}. Ensure custom/customUploads has {name}.glb and {name}-thumbnail.png and run deploy when file APIs are available, or run "types and graphrefs" in UI.`);
+		send(`WARN: Could not get file container (IafFile.getContainers): ${reason}. Ensure fileUploads/ or custom/customUploads/ has {name}.glb and {name}-thumbnail.png and run deploy when file APIs are available, or run "types and graphrefs" in UI.`);
 	}
 
 	if (fileContainer) {
 		ensureFileReader();
 		for (const refName of refNames) {
-			const glbPath = `custom/customUploads/${refName}.glb`;
-			let thumbPath = null;
-			let thumbFilename = null;
-
-			// --- Read GLB from package ---
-			let glbBuf;
+			// --- Read GLB from package (tries fileUploads/ then custom/customUploads/) ---
+			let glbBuf, glbPath;
 			try {
-				glbBuf = await packageData.file(glbPath).async('arraybuffer');
+				const out = await readFromPackageFirst(packageData, `${refName}.glb`);
+				glbBuf = out.buffer;
+				glbPath = out.path;
 			} catch (e) {
-				send(`ERROR: Could not read GLB from custom/customUploads for '${refName}': ${glbPath} – ${e && (e.message || String(e))}. Ensure the file exists in the template package under custom/customUploads/.`);
+				send(`ERROR: Could not read GLB for '${refName}': ${e && (e.message || String(e))}. Ensure ${refName}.glb exists under fileUploads/ or custom/customUploads/ in the template package.`);
 				continue;
 			}
 
-			// --- Read thumbnail from package ({name}-thumbnail.png or .jpg/.jpeg) ---
+			// --- Read thumbnail from package ({name}-thumbnail.png or .jpg/.jpeg), same path order ---
+			let thumbBuf, thumbPath, thumbFilename;
+			let thumbFound = false;
 			for (const ext of THUMBNAIL_EXTS) {
-				const p = `custom/customUploads/${refName}-thumbnail${ext}`;
+				const name = `${refName}-thumbnail${ext}`;
 				try {
-					await packageData.file(p).async('arraybuffer');
-					thumbPath = p;
-					thumbFilename = `${refName}-thumbnail${ext}`;
+					const out = await readFromPackageFirst(packageData, name);
+					thumbBuf = out.buffer;
+					thumbPath = out.path;
+					thumbFilename = name;
+					thumbFound = true;
 					break;
-				} catch (_) { /* try next */ }
+				} catch (_) { /* try next ext */ }
 			}
-			if (!thumbPath) {
-				send(`ERROR: No thumbnail found in custom/customUploads for '${refName}': expected one of custom/customUploads/${refName}-thumbnail.png, .jpg, .jpeg – none present in package.`);
-				continue;
-			}
-			let thumbBuf;
-			try {
-				thumbBuf = await packageData.file(thumbPath).async('arraybuffer');
-			} catch (e) {
-				send(`ERROR: Could not read thumbnail from custom/customUploads: ${thumbPath} – ${e && (e.message || String(e))}.`);
+			if (!thumbFound) {
+				send(`ERROR: No thumbnail found for '${refName}': expected ${refName}-thumbnail.png, .jpg, or .jpeg under fileUploads/ or custom/customUploads/.`);
 				continue;
 			}
 
@@ -285,7 +298,7 @@ export async function setup(input, libraries, ctx, callback) {
 		console.error(error);
 	}
 
-	// --- 6. BIMPK import: find .bimpk files in file collections (or upload from custom/fileUploads), run bimpk_importer for each (sequentially) ---
+	// --- 6. BIMPK import: find .bimpk in file collections; if none, read from package (fileUploads/ then custom/customUploads/) and upload, then run bimpk_importer ---
 	if (IafDataSource && fileContainer) {
 		let bimpkFileItems = [];
 		try {
@@ -306,43 +319,33 @@ export async function setup(input, libraries, ctx, callback) {
 			send(`WARN: Could not list file collections for bimpk search: ${e && (e.message || String(e))}.`);
 		}
 
-		// Fallback: if no .bimpk in file collections, read bimpk filenames from custom/ (same pattern as GLBs) and upload from custom/ or fileUploads/.
+		// Fallback: platform didn't add bimpks to file collections; read from package (fileUploads/ then custom/customUploads/) and upload
 		if (bimpkFileItems.length === 0) {
 			let bimpkNames = [];
-			// 1) Same as GLBs: read a list from the package. custom/customUploads/bimpk-files.json = array of filenames to look for.
-			try {
-				const bimpkListStr = await packageData.file('custom/customUploads/bimpk-files.json').async('string');
-				const list = JSON.parse(bimpkListStr);
-				bimpkNames = Array.isArray(list) ? list : (list.files || list.names || []);
-				bimpkNames = bimpkNames.filter(n => typeof n === 'string' && n.toLowerCase().endsWith('.bimpk'));
-				if (bimpkNames.length > 0) send(`INFO: Found ${bimpkNames.length} .bimpk file(s) in custom/customUploads/bimpk-files.json.`);
-			} catch (_) { /* no bimpk-files.json */ }
-			// 2) Fallback: manifest or package file list (for zips that don't include bimpk-files.json)
+			for (const dir of ASSET_DIRS_TO_TRY) {
+				try {
+					const bimpkListStr = await packageData.file(`${dir}/bimpk-files.json`).async('string');
+					const list = JSON.parse(bimpkListStr);
+					bimpkNames = Array.isArray(list) ? list : (list.files || list.names || []);
+					bimpkNames = bimpkNames.filter(n => typeof n === 'string' && n.toLowerCase().endsWith('.bimpk'));
+					if (bimpkNames.length > 0) {
+						send(`INFO: Found ${bimpkNames.length} .bimpk in ${dir}/bimpk-files.json; reading from package.`);
+						break;
+					}
+				} catch (_) { /* try next dir */ }
+			}
 			if (bimpkNames.length === 0) {
-				const manifestPaths = ['manifest.json', 'template/manifest.json', 'custom/../manifest.json'];
-				for (const mp of manifestPaths) {
-					try {
-						const manifestStr = await packageData.file(mp).async('string');
-						const manifest = JSON.parse(manifestStr);
-						const files = manifest.files || [];
-						bimpkNames = files.map(f => f._name || '').filter(n => n && n.toLowerCase().endsWith('.bimpk'));
-						if (bimpkNames.length > 0) {
-							send(`INFO: Found ${bimpkNames.length} .bimpk file(s) in manifest (${mp}).`);
-							break;
-						}
-					} catch (_) { /* try next */ }
-				}
+				try {
+					const manifestStr = await packageData.file('manifest.json').async('string');
+					const manifest = JSON.parse(manifestStr);
+					const files = manifest.files || [];
+					bimpkNames = files.map(f => f._name || '').filter(n => n && n.toLowerCase().endsWith('.bimpk'));
+					if (bimpkNames.length > 0) send(`INFO: Found ${bimpkNames.length} .bimpk in manifest.files; reading from package.`);
+				} catch (_) { /* no manifest */ }
 			}
-			if (bimpkNames.length === 0 && typeof packageData.files === 'object' && packageData.files !== null) {
-				const paths = Array.isArray(packageData.files) ? packageData.files : Object.keys(packageData.files);
-				bimpkNames = paths.filter(p => (p || '').toLowerCase().endsWith('.bimpk')).map(p => (p.match(/[/\\]([^/\\]+)$/) || [])[1]).filter(Boolean);
-				if (bimpkNames.length > 0) send(`INFO: Found ${bimpkNames.length} .bimpk path(s) from package file list.`);
-			}
-			// Read and upload each (same pattern as GLBs: try custom/<name> then fileUploads/<name>)
-			const dirsToTry = ['custom', 'fileUploads', 'custom/fileUploads'];
 			for (const name of bimpkNames) {
 				let uploaded = false;
-				for (const dir of dirsToTry) {
+				for (const dir of ASSET_DIRS_TO_TRY) {
 					if (uploaded) break;
 					try {
 						const readPath = `${dir}/${name}`;
@@ -363,9 +366,7 @@ export async function setup(input, libraries, ctx, callback) {
 						}
 					} catch (_) { /* not at this path */ }
 				}
-			}
-			if (bimpkNames.length > 0 && bimpkFileItems.length === 0) {
-				send('WARN: .bimpk names were listed but files could not be read. Ensure files exist under custom/customUploads/ (or custom/ or fileUploads/) in the package.');
+				if (!uploaded) send(`WARN: Could not read bimpk from package: ${name} (tried fileUploads/ and custom/customUploads/).`);
 			}
 		}
 
@@ -424,7 +425,7 @@ export async function setup(input, libraries, ctx, callback) {
 									}
 									if (status === 'ERROR') {
 										const errMsg = runRecord != null ? (runRecord._statusmsg != null ? runRecord._statusmsg : runRecord.statusmsg) : '';
-										const isStatusCheckBug = typeof errMsg === 'string' && errMsg.includes("reading 'status'");
+										const isStatusCheckBug = typeof errMsg === 'string' && (errMsg.includes("reading 'status'") || errMsg.includes("reading \"status\"") || /Cannot read properties of undefined \(reading 'status'\)/.test(errMsg));
 										if (isStatusCheckBug) {
 											// Import often succeeds despite this platform quirk; don't show as ERROR
 											send(`INFO: Model import step finished for ${displayName}.`);
@@ -443,14 +444,20 @@ export async function setup(input, libraries, ctx, callback) {
 								send(`WARN: runOrchestrator did not return a run id for ${displayName}.`);
 							}
 						} catch (e) {
-							send(`ERROR: Model import failed for ${displayName}: ${e && (e.message || String(e))}.`);
+							const errMsg = e && (e.message || String(e));
+							const isStatusCheckBug = typeof errMsg === 'string' && (errMsg.includes("reading 'status'") || errMsg.includes("reading \"status\"") || /Cannot read properties of undefined \(reading 'status'\)/.test(errMsg));
+							if (isStatusCheckBug) {
+								send(`INFO: Model import step finished for ${displayName}.`);
+							} else {
+								send(`ERROR: Model import failed for ${displayName}: ${errMsg || 'unknown'}.`);
+							}
 						}
 					}
 					send(`INFO: BIMPK import step finished (${bimpkFileItems.length} file(s) processed).`);
 				}
 			}
 		} else {
-			send('INFO: No .bimpk files found in file collections or in package custom/; skipping bimpk import.');
+			send('INFO: No .bimpk files found in file collections or in package (fileUploads/ or custom/customUploads/); skipping bimpk import.');
 		}
 	} else {
 		if (!IafDataSource) send('INFO: IafDataSource not available; skipping bimpk import.');

@@ -2,17 +2,7 @@
     "Template Name": "Portfolio Template",
     "Template Version": "1.0.0",
     "setupScript": "custom/setupMyTemplate.mjs",
-    "itemsToCreate": [
-        {
-            "collectionName": "Sites Collection",
-            "items": [
-                {
-                    "file": "default-site.json",
-                    "ifExists": "add"
-                }
-            ]
-        }
-    ],
+ 
     "configs": [
        {
           "_name": "QuickViewAdminConfigTemplate",
@@ -75,21 +65,21 @@
         {
            "ifExists": "recreate",
            "_name": "Buildings Collection",
-           "_shortName": "Buildings",
+           "_shortName": "building_coll",
            "_description": "Named User Collection",
            "_userType": "building_coll"
         },
         {
             "ifExists": "recreate",
             "_name": "Sites Collection",
-            "_shortName": "Sites",
+            "_shortName": "geo_sites_coll",
             "_description": "Named User Collection",
             "_userType": "geo_sites_coll"
          },
          {
             "ifExists": "recreate",
             "_name": "Secrets Collection",
-            "_shortName": "Secrets",
+            "_shortName": "secrets_coll",
             "_description": "Named User Collection",
             "_userType": "secrets",
             "_encryptionEnabled": true
@@ -175,6 +165,14 @@
     "userGroupToUserConfig": [
        { "group": "Admin", "config": "QuickViewAdminConfigTemplate" }
     ],
+    "itemsToCreate": [
+        {
+            "collectionName": "Sites Collection",
+            "items": [
+                { "file": "default-site.json", "ifExists": "default" }
+            ]
+        }
+    ],
     "files": [
         { "_name": "exchange.glb", "_path": "", "_tags": [] },
        { "_name": "medical.glb", "_path": "", "_tags": [] },
@@ -184,7 +182,7 @@
        { "_name": "medical-thumbnail.png", "_path": "", "_tags": [] },
        { "_name": "tower-thumbnail.png", "_path": "", "_tags": [] },
        { "_name": "antena-thumbnail.png", "_path": "", "_tags": [] },
-        { "_name": "General Medical - Architecture.bimpk", "_path": "", "_tags": [] },
-        { "_name": "EX11034-INV-Federated.bimpk", "_path": "", "_tags": [] }
+       { "_name": "EX11034-INV-Federated.bimpk", "_path": "", "_tags": [] },
+       { "_name": "General Medical - Architecture.bimpk", "_path": "", "_tags": [] }
     ]
 }
