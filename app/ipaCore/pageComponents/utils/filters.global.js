@@ -20,13 +20,29 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
                 },
         statusIn: ({values}) => (e) => {
             const entity = isMapFeatures ? e.properties : e;
-            //original one is about the building
+            const knownStatuses = new Set(['1', '2', '3', '4', '5']);
+            const isStatusOther = (status) => {
+                const s = status == null || status === '' ? null : String(status);
+                return s === null || !knownStatuses.has(s);
+            };
+            const filteringOther = values && values.map(String).some((v) => {
+                const lower = (v || '').toLowerCase();
+                return lower === 'unknown' || lower === 'unkown' || lower === 'other';
+            });
+            if (filteringOther) {
+                if (entityType === "site") {
+                    const buildings = Array.isArray(entity?.buildings) ? entity.buildings : [];
+                    if (buildings.length === 0) return true;
+                    return buildings.some((b) => isStatusOther(b?.StatusId));
+                }
+                return isStatusOther(entity?.StatusId);
+            }
             const originalPredicate = originalFns.statusIn({values});
             if (entityType == "site") {
-                return entity.buildings.some(originalPredicate);
-            } else {
-                return originalPredicate(entity);
+                const buildings = Array.isArray(entity?.buildings) ? entity.buildings : [];
+                return buildings.some(originalPredicate);
             }
+            return originalPredicate(entity);
         },
         buildingTypeIn:
             ({ values = [] }) =>

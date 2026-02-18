@@ -160,7 +160,7 @@ export function deriveChartMatrix({ data, fns, chartCfg }) {
     acc[k] = { label: labelMap[k], color: sanitizeColor(colorMap[k] || '#999') };
     return acc;
   }, {});
-  if (!legend.unknown) legend.unknown = { label: 'Unknown', color: '#CCCCCC' };
+  if (!legend.unknown) legend.unknown = { label: 'Other', color: '#CCCCCC' };
 
   // rows
   const seriesKeysSeen = new Set(Object.keys(legend));
@@ -296,8 +296,11 @@ export const getChartFilters = (click, chartCfg) => {
     if (r) rules.push(r);
   }
 
-  // build group rule (default to bin.test or reactorPalierIn)
-  if (click?.bin) {
+  const seriesKeyLower = (click?.seriesKey ?? '').toString().toLowerCase();
+  const isOtherStatus = seriesKeyLower === 'unknown' || seriesKeyLower === 'unkown' || seriesKeyLower === 'other';
+
+  // When clicking Other status segment, only apply status filter (no group) so all sites with Other/no status show
+  if (click?.bin && !isOtherStatus) {
     const groupDef = filterCfg.rules?.group ?? (click.bin.test);
     const r = makeRule(groupDef, String(click.bin.id), { bin: click.bin, click, chartCfg });
     if (r) rules.push(r);

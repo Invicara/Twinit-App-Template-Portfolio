@@ -26,7 +26,7 @@ const sampleFormConfig = {
                     "3": "Operating",
                     "4": "Suspended Operation",
                     "5": "Permanent Shutdown",
-                    "unknown": "Unknown",
+                    "unknown": "Other",
                 }
                 return Object.entries(labelMap).map(([id,label]) => ({ value: id, label: label || `Status ${id}` }));
             },
@@ -246,10 +246,14 @@ const defaultChartCfg =  {
         groupLabel: (bin) => bin.label,
     },
 
-    // 3) SERIES: StatusId → stacks, with label/color maps
+    // 3) SERIES: StatusId → stacks, with label/color maps (1–5 only; 7, 5.6, null, etc. → Other)
     series: {
         id: 'statusIn',
-        keyProp: (b) => String(b?.StatusId ?? 'unknown'),
+        keyProp: (b) => {
+            const s = b?.StatusId;
+            const known = ['1', '2', '3', '4', '5'];
+            return (s != null && known.includes(String(s))) ? String(s) : 'unknown';
+        },
         config: {
            colorMap: {
                 "1": "#d3d3d3",   // Not started / Planned (adjust if you want your old palette)
@@ -265,7 +269,7 @@ const defaultChartCfg =  {
                 "3": "Operating",
                 "4": "Suspended Operation",
                 "5": "Permanent Shutdown",
-                "unknown": "Unknown",
+                "unknown": "Other",
             },
         },
         // keep a stable legend order
@@ -284,7 +288,7 @@ const defaultChartCfg =  {
         combine: 'and',
         rules: {
             series: (statusKey) =>
-                statusKey === 'unknown' ? null : ({ fn: 'statusIn', args: { values: [statusKey] } }),
+                ({ fn: 'statusIn', args: { values: [statusKey] } }),
             group:  (id, ctx) => ({ fn: 'buildingTypeIn', args: { values: [ctx.bin.id] } }),
         },
     },

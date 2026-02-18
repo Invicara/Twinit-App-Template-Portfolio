@@ -28,8 +28,8 @@ const ModelComparisonPage = () => {
 
     const [selectModelOne, setSelectModelOne] = useState("");
     const [selectModelTwo, setSelectModelTwo] = useState("");
-    // const [selectModelOneVersion, setSelectModelOneVersion] = useState("");
-    // const [selectModelTwoVersion, setSelectModelTwoVersion] = useState("");
+    const [selectModelOneVersion, setSelectModelOneVersion] = useState("");
+    const [selectModelTwoVersion, setSelectModelTwoVersion] = useState("");
 
     const [modelOne, setModelOne] = useState(null);
     const [modelTwo, setModelTwo] = useState(null);
@@ -90,7 +90,7 @@ const ModelComparisonPage = () => {
             }
         };
 
-        // setSelectModelOneVersion("");
+        setSelectModelOneVersion("");
 
         if (modelOne) { getModelVersion(modelOne); }
     }, [modelOne]);
@@ -104,7 +104,7 @@ const ModelComparisonPage = () => {
             }
         };
 
-        // setSelectModelTwoVersion("");
+        setSelectModelTwoVersion("");
 
         if (modelTwo) { getModelVersion(modelTwo); }
     }, [modelTwo]);
@@ -133,7 +133,7 @@ const ModelComparisonPage = () => {
                                         {availableModelComposites.map(({ _name }, key) => <option key={key} value={_name}>{_name}</option>)}
                                     </select>
                                 </div>
-                                {/* {modelOneWithVersions?.fetchedVersions?._list?.length > 0 && (
+                                {modelOneWithVersions?.fetchedVersions?._list?.length > 0 && (
                                     <div className='viewer-sidebar'>
                                         <label htmlFor="model-one-version" className="model-select-label">Select Model One Version:</label>
                                         <select id="model-one-version" value={selectModelOneVersion} onChange={(e) => setSelectModelOneVersion(e.target.value)}>
@@ -141,7 +141,7 @@ const ModelComparisonPage = () => {
                                             {modelOneWithVersions.fetchedVersions._list.map(({ _version }, key) => <option key={key} value={_version}>{_version}</option>)}
                                         </select>
                                     </div>
-                                )} */}
+                                )}
                                 <div className='viewer-sidebar'>
                                     <label htmlFor="model-two" className="model-select-label">Select Model Two:</label>
                                     <select id="model-two" value={selectModelTwo} onChange={(e) => setSelectModelTwo(e.target.value)}>
@@ -149,7 +149,7 @@ const ModelComparisonPage = () => {
                                         {availableModelComposites.map(({ _name }, key) => <option key={key} value={_name}>{_name}</option>)}
                                     </select>
                                 </div>
-                                {/* {modelTwoWithVersions?.fetchedVersions?._list?.length > 0 && (
+                                {modelTwoWithVersions?.fetchedVersions?._list?.length > 0 && (
                                     <div className='viewer-sidebar'>
                                         <label htmlFor="model-two-version" className="model-select-label">Select Model Two Version:</label>
                                         <select id="model-two-version" value={selectModelTwoVersion} onChange={(e) => setSelectModelTwoVersion(e.target.value)}>
@@ -157,7 +157,7 @@ const ModelComparisonPage = () => {
                                             {modelTwoWithVersions.fetchedVersions._list.map(({ _version }, key) => <option key={key} value={_version}>{_version}</option>)}
                                         </select>
                                     </div>
-                                )} */}
+                                )}
                                 <div className="viewer-sidebar">
                                     <label htmlFor="camera-synch" className="synch-check">Enable Camera Sync</label>
                                     <input
@@ -191,8 +191,8 @@ const ModelComparisonPage = () => {
                                     {
                                         modelOneWithVersions &&
                                         modelTwoWithVersions &&
-                                        // selectModelOneVersion !== "" &&
-                                        // selectModelTwoVersion !== "" &&
+                                        selectModelOneVersion !== "" &&
+                                        selectModelTwoVersion !== "" &&
                                         <ElementSearch
                                             modelOne={{
                                                 ...modelOneWithVersions,
@@ -219,8 +219,8 @@ const ModelComparisonPage = () => {
                             {
                                 modelOneWithVersions
                                 && modelTwoWithVersions
-                                // && selectModelOneVersion !== ""
-                                // && selectModelTwoVersion !== ""
+                                && selectModelOneVersion !== ""
+                                && selectModelTwoVersion !== ""
                                 && (
                                     <div className="viewers">
                                         <CompareView mode={viewerMode}>
