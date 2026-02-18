@@ -73,6 +73,7 @@
             },
             "buildingId": {
                 "type": "string",
+                "readOnly": true,
                 "title": "Building ID",
                 "description": "Unique identifier for the building",
                 "propertyOrder": 11
@@ -92,6 +93,7 @@
             },
             "siteId": {
                 "type": "string",
+                "readOnly": true,
                 "title": "Site ID",
                 "description": "Identifier of the site where this building is located",
                 "propertyOrder": 14
@@ -145,6 +147,19 @@
                 "title": "Site Address",
                 "description": "Address of the site installations",
                 "propertyOrder": 4
+            },
+            "siteType": {
+                "propertyOrder": 5,
+                "description": "Site type range",
+                "readOnly": false,
+                "type": "string",
+                "title": "Site Type",
+                "enum": [
+                    "Type A",
+                    "Type B",
+                    "Type C",
+                    "Type D"
+                ]
             }
         }
     }

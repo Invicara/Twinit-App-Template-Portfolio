@@ -73,6 +73,7 @@
             },
             "buildingId": {
                 "type": "string",
+                "readOnly": true,
                 "title": "Building ID",
                 "description": "Unique identifier for the building",
                 "propertyOrder": 11
@@ -92,6 +93,7 @@
             },
             "siteId": {
                 "type": "string",
+                "readOnly": true,
                 "title": "Site ID",
                 "description": "Identifier of the site where this building is located",
                 "propertyOrder": 14
