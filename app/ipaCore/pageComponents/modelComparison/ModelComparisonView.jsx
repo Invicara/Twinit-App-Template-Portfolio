@@ -211,8 +211,8 @@ const ModelComparisonPage = () => {
                                     {
                                         modelOneWithVersions &&
                                         modelTwoWithVersions &&
-                                        modelOneVersion &&
-                                        modelTwoVersion &&
+                                        selectModelOneVersion !== "" &&
+                                        selectModelTwoVersion !== "" &&
                                         <ElementSearch
                                             modelOne={{
                                                 ...modelOneWithVersions,
@@ -234,7 +234,7 @@ const ModelComparisonPage = () => {
                                         {modelOneSelectedElement && <ElementDetails element={modelOneSelectedElement} horizontal={false} displayFiles={false} />}
                                         {modelTwoSelectedElement && <ElementDetails element={modelTwoSelectedElement} horizontal={false} displayFiles={false} />}
                                         {!modelOneSelectedElement && !modelTwoSelectedElement && (
-                                            <p className="element-details-placeholder">Select an element in the model(s) displayed or in the table below to view element information.</p>
+                                            <p className="element-details-placeholder">Select an element in the model(s) displayed to view element information.</p>
                                         )}
                                     </div>
                                 </div>
@@ -242,8 +242,8 @@ const ModelComparisonPage = () => {
                             {
                                 modelOneWithVersions
                                 && modelTwoWithVersions
-                                && modelOneVersion
-                                && modelTwoVersion
+                                && selectModelOneVersion !== ""
+                                && selectModelTwoVersion !== ""
                                 && (
                                     <div className="viewers">
                                         <CompareView mode={viewerMode}>
