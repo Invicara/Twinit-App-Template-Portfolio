@@ -1,20 +1,16 @@
-# User Guide: Portfolio Twinit Application
-
-<img align="left" width="60" src='../img/alert.jpg' />
-
-**If you have made your own changes to Portfolio from a previous release, be sure to read the [Migration User Guide](./migrationguide/migrate.md) to ensure you have access to all of the latest features.**
+# User Guide: Template Portfolio Twinit Application
 
 ---
 
-![qmv](../img/model-view-w-gis.jpg)
+![portfolio](../img/model-view-w-gis.jpg)
 
-The **Portfolio Application** gives you the ability to upload and import your models to Twinit and then view and interactively explore your models in 2D and 3D.
+The **Template Portfolio Application** gives you the ability to upload and import your models to Twinit, view and interactively explore your models in 2D and 3D, and view portfolio data (sites, buildings, status) on a map with search and filters.
 
-[Learn how to use the Portfolio Application](./quickmodelview/README.md)
+[Learn how to use the Template Portfolio Application](./portfolio/README.md)
 
- ![maker](../img/project-maker.jpg)
+![maker](../img/project-maker.jpg)
 
-Using the **Portfolio Manager** you can create new Portfolio projects. This allows you to separate models and users for different designs or activities into their own workspaces. The **Portfolio Manager** also allows you to update existing workspaces as new releases of the template become available.
+Using the **Portfolio Manager** you can create new Template Portfolio projects and deploy the template package so each project is pre-configured with map types, structures, and optional default data. This allows you to separate models and users for different designs or activities into their own workspaces.
 
 [Learn how to use the Portfolio Manager](./projectmaker/README.md)
 

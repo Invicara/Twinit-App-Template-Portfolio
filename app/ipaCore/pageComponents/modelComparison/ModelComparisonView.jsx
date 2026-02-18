@@ -119,6 +119,26 @@ const ModelComparisonPage = () => {
         }
     }, [modelOneSliceIDs, modelTwoSliceIDs]);
 
+    const modelOneVersion = useMemo(() => {
+        if (!modelOneWithVersions?.fetchedVersions?._list?.length) return null;
+        const list = modelOneWithVersions.fetchedVersions._list;
+        if (selectModelOneVersion) {
+            const v = list.find((x) => String(x._version) === String(selectModelOneVersion));
+            return v || list.find(({ _isTip }) => _isTip === true);
+        }
+        return list.find(({ _isTip }) => _isTip === true);
+    }, [modelOneWithVersions, selectModelOneVersion]);
+
+    const modelTwoVersion = useMemo(() => {
+        if (!modelTwoWithVersions?.fetchedVersions?._list?.length) return null;
+        const list = modelTwoWithVersions.fetchedVersions._list;
+        if (selectModelTwoVersion) {
+            const v = list.find((x) => String(x._version) === String(selectModelTwoVersion));
+            return v || list.find(({ _isTip }) => _isTip === true);
+        }
+        return list.find(({ _isTip }) => _isTip === true);
+    }, [modelTwoWithVersions, selectModelTwoVersion]);
+
     return (
         availableModelComposites?.length > 0 && (
             <div className="viewerWrapper">
@@ -191,16 +211,16 @@ const ModelComparisonPage = () => {
                                     {
                                         modelOneWithVersions &&
                                         modelTwoWithVersions &&
-                                        selectModelOneVersion !== "" &&
-                                        selectModelTwoVersion !== "" &&
+                                        modelOneVersion &&
+                                        modelTwoVersion &&
                                         <ElementSearch
                                             modelOne={{
                                                 ...modelOneWithVersions,
-                                                selectedVersion: modelOneWithVersions.fetchedVersions._list.find(({ _isTip }) => _isTip === true)
+                                                selectedVersion: modelOneVersion
                                             }}
                                             modelTwo={{
                                                 ...modelTwoWithVersions,
-                                                selectedVersion: modelTwoWithVersions.fetchedVersions._list.find(({ _isTip }) => _isTip === true)
+                                                selectedVersion: modelTwoVersion
                                             }}
                                             setModelOneSliceIDs={setModelOneSliceIDs}
                                             setModelTwoSliceIDs={setModelTwoSliceIDs}
@@ -213,14 +233,17 @@ const ModelComparisonPage = () => {
                                     <div className="elementDetails">
                                         {modelOneSelectedElement && <ElementDetails element={modelOneSelectedElement} horizontal={false} displayFiles={false} />}
                                         {modelTwoSelectedElement && <ElementDetails element={modelTwoSelectedElement} horizontal={false} displayFiles={false} />}
+                                        {!modelOneSelectedElement && !modelTwoSelectedElement && (
+                                            <p className="element-details-placeholder">Select an element in the model(s) displayed or in the table below to view element information.</p>
+                                        )}
                                     </div>
                                 </div>
                             </StackableDrawer>
                             {
                                 modelOneWithVersions
                                 && modelTwoWithVersions
-                                && selectModelOneVersion !== ""
-                                && selectModelTwoVersion !== ""
+                                && modelOneVersion
+                                && modelTwoVersion
                                 && (
                                     <div className="viewers">
                                         <CompareView mode={viewerMode}>
@@ -228,7 +251,7 @@ const ModelComparisonPage = () => {
                                                 ref={viewerOne}
                                                 serverUri={endPointConfig.graphicsServiceOrigin}
                                                 model={modelOneWithVersions}
-                                                modelVersionId={modelOneWithVersions.fetchedVersions._list.find(({ _isTip }) => _isTip === true)._id}
+                                                modelVersionId={modelOneVersion._id}
                                                 sliceElementIds={modelOneSliceIDs.map(se => [se.package_id, se.source_id]).flat()}
                                                 highlightedElementIds={[]}
                                                 isolatedElementIds={[]}
@@ -237,7 +260,7 @@ const ModelComparisonPage = () => {
                                                 OnSelectedElementChangeCallback={async (pkgids) => {
                                                     const modelColls = await loadModelCollections(null, {
                                                         ...modelOneWithVersions,
-                                                        selectedVersion: modelOneWithVersions.fetchedVersions._list.find(({ _isTip }) => _isTip === true)
+                                                        selectedVersion: modelOneVersion
                                                     });
 
                                                     const element = await getSelectedElement(pkgids, modelColls);
@@ -254,7 +277,7 @@ const ModelComparisonPage = () => {
                                                 ref={viewerTwo}
                                                 serverUri={endPointConfig.graphicsServiceOrigin}
                                                 model={modelTwoWithVersions}
-                                                modelVersionId={modelTwoWithVersions.fetchedVersions._list.find(({ _isTip }) => _isTip === true)._id}
+                                                modelVersionId={modelTwoVersion._id}
                                                 sliceElementIds={modelTwoSliceIDs.map(se => [se.package_id, se.source_id]).flat()}
                                                 highlightedElementIds={[]}
                                                 isolatedElementIds={[]}
@@ -263,7 +286,7 @@ const ModelComparisonPage = () => {
                                                 OnSelectedElementChangeCallback={async (pkgids) => {
                                                     const modelColls = await loadModelCollections(null, {
                                                         ...modelTwoWithVersions,
-                                                        selectedVersion: modelTwoWithVersions.fetchedVersions._list.find(({ _isTip }) => _isTip === true)
+                                                        selectedVersion: modelTwoVersion
                                                     });
 
                                                     const element = await getSelectedElement(pkgids, modelColls);
