@@ -5,25 +5,19 @@
  
     "configs": [
        {
-          "_name": "QuickViewAdminConfigTemplate",
-          "_shortName": "AdminConfigTemplate",
-          "_description": "QuickViewAdminConfigTemplate",
-          "_userType": "quick-view"
+          "_name": "PortfolioAdminConfig",
+          "_shortName": "AdminConfig",
+          "_description": "PortfolioAdminConfig",
+          "_userType": "portfolio"
        },
        {
-          "_name": "QuickViewViewerConfigTemplate",
-          "_shortName": "ViewerConfigTemplate",
-          "_description": "QuickViewViewerConfigTemplate",
-          "_userType": "quick-temp"
+          "_name": "PortfolioViewerConfig",
+          "_shortName": "ViewerConfig",
+          "_description": "PortfolioViewerConfig",
+          "_userType": "portfolio"
        }
     ],
     "scripts": [
-       {
-          "_name": "Project Maker",
-          "_shortName": "Project Maker",
-          "_description": "Project Maker",
-          "_userType": "project-maker"
-       },
        {
           "_name": "importHelper",
           "_shortName": "importHelper",
@@ -160,10 +154,17 @@
           "permissions": {
              "accessAll": true
           }
+       },
+       {
+          "_name": "Viewer",
+          "_description": "viewer",
+          "_shortName": "viewer",
+          "permissions": {}
        }
     ],
     "userGroupToUserConfig": [
-       { "group": "Admin", "config": "QuickViewAdminConfigTemplate" }
+       { "group": "Admin", "config": "PortfolioAdminConfig" },
+       { "group": "Viewer", "config": "PortfolioViewerConfig" }
     ],
     "itemsToCreate": [
         {

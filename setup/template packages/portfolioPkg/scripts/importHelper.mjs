@@ -1,5 +1,6 @@
-// version qmv 2.0.0
-
+/**
+ * Import helper for the Portfolio template: validates and imports BIMPK models.
+ */
 class InputValidation {
 	constructor(params, libraries, ctx) {
 		this.params = params

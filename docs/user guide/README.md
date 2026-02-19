@@ -8,12 +8,6 @@ The **Template Portfolio Application** gives you the ability to upload and impor
 
 [Learn how to use the Template Portfolio Application](./portfolio/README.md)
 
-![maker](../img/project-maker.jpg)
-
-Using the **Portfolio Manager** you can create new Template Portfolio projects and deploy the template package so each project is pre-configured with map types, structures, and optional default data. This allows you to separate models and users for different designs or activities into their own workspaces.
-
-[Learn how to use the Portfolio Manager](./projectmaker/README.md)
-
 ---
 
 [Home](../../README.md) < Back

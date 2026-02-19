@@ -337,7 +337,7 @@ let scriptModule = {
 		let projectMakerProject = await IafProj.getCurrent()
 
 		// retrieve user config templates from this project (the project maker project)
-		let userConfigTemplates = await IafProj.getUserConfigs(projectMakerProject, {_userType: 'quick-temp'})
+		let userConfigTemplates = await IafProj.getUserConfigs(projectMakerProject, {_userType: 'portfolio'})
 		let scriptTemplates = await IafProj.getScripts(projectMakerProject, {query: {_userType: 'quick-temp'}})
 		console.log('STEP 1: userConfigTemplates', userConfigTemplates)
 		console.log('STEP 1: scriptTemplates', scriptTemplates)
@@ -350,7 +350,7 @@ let scriptModule = {
 			_shortName: projName.slice(0,6),
 			_userAttributes: {
 				nextScriptEngine: true,
-				quickModelView: {
+				portfolio: {
 					originalVersion: CURRENT_MAKER_VERSION,
 					currentVersion: CURRENT_MAKER_VERSION
 				}
@@ -376,11 +376,11 @@ let scriptModule = {
 			if (callback) callback(`STEP 4: Created Admin User Group ${adminGroup._id}`)
 
 			// create admin user config
-			let adminUCTemplate = userConfigTemplates.find(uct => uct._name === 'QuickViewAdminConfigTemplate')
+			let adminUCTemplate = userConfigTemplates.find(uct => uct._name === 'PortfolioAdminConfig')
 			let adminUserConfig = await IafProj.addUserConfig(newProject, {
-				_name: 'QuickViewAdminConfig',
-				_shortName: 'QuickViewAdminConfig',
-				_userType: 'quick-view',
+				_name: 'PortfolioAdminConfig',
+				_shortName: 'PortfolioAdminConfig',
+				_userType: 'portfolio',
 				_version: {
 					_userData: adminUCTemplate._versions[0]._userData
 				}
@@ -419,11 +419,11 @@ let scriptModule = {
 			if (callback) callback(`STEP 7: Created Viewers User Group ${viewerGroup._id}`)
 
 			// create viewers user config
-			let viewerUCTemplate = userConfigTemplates.find(uct => uct._name === 'QuickViewViewerConfigTemplate')
+			let viewerUCTemplate = userConfigTemplates.find(uct => uct._name === 'PortfolioViewerConfig')
 			let viewerUserConfig = await IafProj.addUserConfig(newProject, {
-				_name: 'QuickViewViewerConfig',
-				_shortName: 'QuickViewViewerConfig',
-				_userType: 'quick-view',
+				_name: 'PortfolioViewerConfig',
+				_shortName: 'PortfolioViewerConfig',
+				_userType: 'portfolio',
 				_version: {
 					_userData: viewerUCTemplate._versions[0]._userData
 				}
@@ -544,9 +544,9 @@ let scriptModule = {
 
 			let userConfigs = await IafProj.getUserConfigs(updateProject)
 
-			let adminConfig = userConfigs.find(uc => uc._name === 'QuickViewAdminConfig')
+			let adminConfig = userConfigs.find(uc => uc._name === 'PortfolioAdminConfig')
 			let adminConfigVersion = adminConfig._versions[0]
-			let adminTemplate = userConfigTemplates.find(uc => uc._name === 'QuickViewAdminConfigTemplate')._versions[0]
+			let adminTemplate = userConfigTemplates.find(uc => uc._name === 'PortfolioAdminConfig')._versions[0]
 			adminConfigVersion._userData = adminTemplate._userData
 
 			let adminUpdateResult = await IafUserConfig.createVersion(adminConfig._id, adminConfigVersion)
@@ -567,11 +567,11 @@ let scriptModule = {
 				updateProject._description = updateProject._name
 			}
 			
-			if (updateProject._userAttributes?.quickModelView) {
-				updateProject._userAttributes.quickModelView.currentVersion = '2.1.0'
+			if (updateProject._userAttributes?.portfolio) {
+				updateProject._userAttributes.portfolio.currentVersion = '2.1.0'
 			} else if (updateProject._userAttributes?.projectMaker) {
-				updateProject._userAttributes.quickModelView = Object.assign({}, updateProject._userAttributes.projectMaker)
-				updateProject._userAttributes.quickModelView.currentVersion = '2.1.0'
+				updateProject._userAttributes.portfolio = Object.assign({}, updateProject._userAttributes.projectMaker)
+				updateProject._userAttributes.portfolio.currentVersion = '2.1.0'
 			}
 			let projUpdateResult = await IafProj.update(updateProject)
 			console.log(`STEP ${step}:`, updateProject, projUpdateResult)
@@ -664,8 +664,8 @@ let scriptModule = {
 				updateProject._description = updateProject._name
 			}
 			
-			if (updateProject._userAttributes?.quickModelView) {
-				updateProject._userAttributes.quickModelView.currentVersion = '2.1.1'
+			if (updateProject._userAttributes?.portfolio) {
+				updateProject._userAttributes.portfolio.currentVersion = '2.1.1'
 			}
 			let projUpdateResult = await IafProj.update(updateProject)
 			console.log(`STEP 3:`, updateProject, projUpdateResult)
@@ -687,7 +687,7 @@ let scriptModule = {
 			callback(`Beginning ${nextMigration.from} -> ${nextMigration.to} migration`)
 			try {
 				// retrieve user config templates from this project (the project maker project)
-				let userConfigTemplates = await IafProj.getUserConfigs(managerProject, {_userType: 'quick-temp'})
+				let userConfigTemplates = await IafProj.getUserConfigs(managerProject, {_userType: 'portfolio'})
 				let scriptTemplates = await IafProj.getScripts(managerProject, {query: {_userType: 'quick-temp'}})
 				console.log('userConfigTemplates', userConfigTemplates)
 				console.log('scriptTemplates', scriptTemplates)

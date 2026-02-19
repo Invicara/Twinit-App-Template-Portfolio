@@ -23,7 +23,7 @@ setup/template packages/portfolioPkg/
 ├── itemsToCreate/
 │   └── default-site.json     # Optional default site(s) created in the project
 ├── configs/                  # User config templates (Admin, Viewer, etc.)
-├── scripts/                  # Scripts (Project Maker, importHelper, mapbox, etc.)
+├── scripts/                  # Scripts (importHelper, mapbox, etc.)
 ├── omapiConfig/              # API config (e.g. entities_api.json)
 └── (fileUploads or root)     # Optional: GLB, PNG, .bimpk files referenced by manifest or setup
 ```
@@ -39,8 +39,8 @@ The **manifest** tells the platform what to create (scripts, configs, collection
 **Key sections**:
 
 - **setupScript**: Path to the custom setup script, e.g. `custom/setupMyTemplate.mjs`. This script runs after the platform has created the items listed in the manifest.
-- **configs**: User config templates (e.g. QuickViewAdminConfigTemplate, QuickViewViewerConfigTemplate).
-- **scripts**: Scripts such as Project Maker, importHelper, mapbox, mmv_config, mapTypeActions, types_and_graphrefs_setup, omapi_entities.
+- **configs**: User config templates (**PortfolioAdminConfig**, **PortfolioViewerConfig**). Each config uses userType **portfolio** so the application can resolve the user's config. The manifest maps user groups (e.g. Admin, Viewer) to these configs via **userGroupToUserConfig**.
+- **scripts**: Scripts such as importHelper, mapbox, mmv_config, mapTypeActions, types_and_graphrefs_setup, omapi_entities.
 - **namedUserCollections**: Collections that will exist in the project (e.g. Buildings Collection, Sites Collection, Secrets Collection).
 - **orchestrators**: e.g. Import BIMPK Models, Request MapBox Token.
 - **userGroups** / **userGroupToUserConfig**: Which group gets which config.
@@ -133,8 +133,8 @@ To use your own 3D models and BIMPKs instead of the defaults:
    - After import, the **model name** in Twinit (used in the app and in **structures.json**) is typically derived from the BIMPK; set **modelName** in **structures.json** to match that name.
 
 5. **Re-zip and deploy**
-   - Zip the updated **portfolioPkg** (or the folder that contains manifest + custom + files).
-   - Use **Deploy Template to Project** and select the new zip so the project gets your map types, structures, and models.
+   - Zip the updated **portfolioPkg** (or the folder that contains manifest + custom + files). Name the zip **portfolio-template.zip** and place it in the **setup** folder.
+   - Use **Deploy Template to Project** and select **portfolio-template.zip** so the project gets your map types, structures, and models.
 
 ---
 
@@ -194,8 +194,8 @@ The **custom setup script** may also create or replace the default site by delet
 | **custom/customUploads/structures.json** | Map structures; each references a graphic by **name** and can set **modelName**. |
 | **custom/customUploads/bimpk-files.json** | Optional list of .bimpk file names to import from the package. |
 | **itemsToCreate/default-site.json** | Optional default site(s) created in the project. |
-| **configs/** | User config templates. |
-| **scripts/** | Scripts (Project Maker, importHelper, mapbox, etc.). |
+| **configs/** | User config templates (PortfolioAdminConfig, PortfolioViewerConfig; userType **portfolio**). |
+| **scripts/** | Scripts (importHelper, mapbox, etc.). |
 
 To **update map types or structures**: Edit the JSON files in **custom/customUploads/** and re-zip the template package, then run **Deploy Template to Project** again (or create a new project and deploy).
 
