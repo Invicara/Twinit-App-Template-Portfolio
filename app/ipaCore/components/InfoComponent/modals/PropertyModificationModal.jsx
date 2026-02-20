@@ -93,7 +93,7 @@ export function PropertyModificationModal({schema, modifyModalOpen, setModifyMod
                 readOnly: modifyForm.readOnly,
             };
 
-            if (modifyForm.enum?.trim()) {
+            if (modifyForm.type !== 'boolean' && modifyForm.enum?.trim()) {
                 newProperty.enum = modifyForm.enum.split(',').map(s => s.trim()).filter(Boolean);
             }
 
@@ -181,8 +181,15 @@ export function PropertyModificationModal({schema, modifyModalOpen, setModifyMod
                         label="Enum Values"
                         fullWidth
                         value={modifyForm.enum}
-                        onChange={(e) => setModifyForm({ ...modifyForm, enum: e.target.value })}
-                        placeholder="option1, option2, option3"
+                        onChange={(e) => {
+                            let value = e.target.value;
+                            if (modifyForm.type === 'number') {
+                                value = value.replace(/[^0-9,.\s]/g, '');
+                            }
+                            setModifyForm({ ...modifyForm, enum: value });
+                        }}
+                        placeholder={modifyForm.type === 'number' ? '1, 2.5, 3.14' : 'option1, option2, option3'}
+                        disabled={modifyForm.type === 'boolean'}
                     />
                 </Grid>
 
