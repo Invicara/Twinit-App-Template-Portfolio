@@ -1,20 +1,38 @@
 [
    {
-      "_name": "Project Maker",
-      "_shortName": "Project Maker",
-      "_description": "Project Maker",
-      "_userType": "project-maker"
+      "_name": "importHelper",
+      "_shortName": "importHelper",
+      "_description": "importHelper",
+      "_userType": "importHelper"
    },
    {
-      "_name": "importHelperTemplate",
-      "_shortName": "importHelperTemplate",
-      "_description": "importHelperTemplate",
-      "_userType": "quick-temp"
+      "_name": "mapbox",
+      "_shortName": "mapbox",
+      "_description": "mapbox",
+      "_userType": "mapbox"
    },
    {
-      "_name": "mapboxTemplate",
-      "_shortName": "mapboxTemplate",
-      "_description": "mapboxTemplate",
-      "_userType": "quick-temp"
-   }
+    "_name": "mmv_config",
+    "_shortName": "mmv config",
+    "_description": "mmv config script",
+    "_userType": "mmv_config"
+ },
+ {
+    "_name": "mapTypeActions",
+    "_shortName": "map type",
+    "_description": "map type actions",
+    "_userType": "mapTypeActions"
+ },
+ {
+    "_name": "types_and_graphrefs_setup",
+    "_shortName": "types and graphrefs",
+    "_description": "types graphrefs setup",
+    "_userType": "types_and_graphrefs_setup"
+ },
+ {
+    "_name": "omapi_entities",
+    "_shortName": "omapi_entities",
+    "_description": "omapi_entities",
+    "_userType": "omapi_entities"
+ }
 ]

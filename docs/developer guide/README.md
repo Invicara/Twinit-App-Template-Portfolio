@@ -2,7 +2,7 @@
 
 The Developer Guide helps you:
 
-* Set up a default project using the template package zip and the Twinit extension (New Project → Deploy Template to Project)
+* Set up a default project using the template package zip (**portfolio-template.zip**) and the Twinit extension (New Project → Deploy Template to Project)
 * Customize the template package (map types, structures, models, BIMPKs) in `setup/template packages/portfolioPkg`
 * Deploy the Template Portfolio application and web client
 * Customize and extend the template (theme, logo, etc.)
@@ -13,7 +13,7 @@ The Developer Guide helps you:
 
 To create a new Twinit project and deploy the default Template Portfolio setup (map types, structures, optional site, optional models/BIMPKs):
 
-1. **[Setting up a default project](./setup-default-project.md)** – Get the template package zip from the `setup` folder, create a new project in the Twinit extension (right-click application name → **New Project**), then right-click the project name and select **Deploy Template to Project**, and choose the zip.
+1. **[Setting up a default project](./setup-default-project.md)** – Get **portfolio-template.zip** from the `setup` folder, create a new project in the Twinit extension (right-click application name → **New Project**), then right-click the project name and select **Deploy Template to Project**, and choose the zip.
 
 To change what gets deployed (your own map types, structures, models, or BIMPKs):
 

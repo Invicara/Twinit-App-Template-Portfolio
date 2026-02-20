@@ -1,7 +1,5 @@
 # Learn How to Use the Template Portfolio Application
 
-![portfolio image](../../img/model-view-docs.jpg)
-
 ## Features
 
 The Template Portfolio Application provides capabilities to upload, import, and view model data on Twinit, and to work with portfolio data (sites and buildings) on a map. Features include:
@@ -16,10 +14,10 @@ The Template Portfolio Application provides capabilities to upload, import, and 
 
 ## User Groups
 
-Feature access is controlled by the User Group to which a user belongs. Typical groups include:
+Feature access is controlled by the User Group to which a user belongs. Projects created from the template use:
 
-* **Admin** – Full permissions (config, import, files, Mapbox, invite users).
-* **Viewers** – Read-only access to view models, map, and portfolio data.
+* **Admin** – Uses **PortfolioAdminConfig**; full permissions (config, import, files, Mapbox, invite users).
+* **Viewer** – Uses **PortfolioViewerConfig**; read-only access to view models, map, and portfolio data (Portfolio Overview opens by default).
 
 Exact permissions depend on how your project is configured.
 
