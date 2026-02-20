@@ -8,19 +8,19 @@ Release: 1.0.2
 
 **Template Portfolio** is a project template that lets you view all your structures and their digital twins on a single map. Each site is shown within its perimeter, so you can see at a glance where your assets are and how they relate. The interface surfaces structure and asset information through **map markers** and **chart data** (e.g. status, KPIs, or custom metrics), so key information is visible directly on the map and in the UI.
 
-![Marker information on the map for building or asset data within a site](./docs/img/markers-info.png)
+![Marker information on the map for building or asset data within a site](./docs/img/markers-info.jpg)
 
 *Marker information on the map for building or asset data within a site.*
 
-![Customizable legend data on map regarding building information to display](./docs/img/legend.png)
+![Customizable legend data on map regarding building information to display](./docs/img/legend.jpg)
 
 *Customizable legend data on the map regarding building information to display.*
 
-![Bar chart displays assets collectively categorized by data type; selectable by data type to filter markers and data on the map for easy search, find, or data drilling](./docs/img/chart.png)
+![Bar chart displays assets collectively categorized by data type; selectable by data type to filter markers and data on the map for easy search, find, or data drilling](./docs/img/chart.jpg)
 
 *The bar chart displays assets collectively categorized by their data types. The chart is selectable by data type and can filter the marker and data information on the map for easy search and find or data drilling.*
 
-![Assets Overview displays model element and properties information in an organized tree view and table by map building and site data](./docs/img/assets-overview.png)
+![Assets Overview displays model element and properties information in an organized tree view and table by map building and site data](./docs/img/assets-overview.jpg)
 
 *The Assets Overview displays model element and properties information in an organized tree view and table display by the map building and site data.*
 
