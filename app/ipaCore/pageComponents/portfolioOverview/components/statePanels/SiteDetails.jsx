@@ -144,68 +144,54 @@ export default function SiteDetails({ context }) {
     const handleSubmitEntity = async () => {
         if (!currentEntity || !mapInstance || !currentState.context?.namedPaths) return;
 
+        // Step 2: Update the entity to mark it as no longer draft
         const finalizedEntity = { ...currentEntity };
         delete finalizedEntity.isDraft;
 
-        const currentData = _.cloneDeep(currentState.context?.data || {});
-        const draftBuildings = buildings.filter(b => b.isDraft === true);
+        // Update XState context
+        const currentData = currentState.context?.data || {};
+        const currentEntities = currentData[currentElementType] || [];
+        const updatedEntities = currentEntities.map(s =>
+            s[idKey] === entityId ? finalizedEntity : s
+        );
+        const updatedData = {
+            ...currentData,
+            [currentElementType]: updatedEntities
+        };
 
-        try {
-            // 1) Persist the site first
-            const coll = (await IafItemSvc.getNamedUserItems({ query: { _shortName: namedPath.collShortName } }))._list[0];
-            const result = await IafItemSvc.createRelatedItems(coll._userItemId, [finalizedEntity]);
+        // Send event to update XState context with finalized entity
+        send({
+            type: 'UPDATE_DATA',
+            data: updatedData
+        });
 
-            const createdSite = (Array.isArray(result) ? result[0] : result?._list?.[0]);
-            const siteIdFromApi = createdSite?._id;
-            if (createdSite?._id) {
-                Object.assign(finalizedEntity, { _id: createdSite._id });
-            }
+        // Step 4: Pre-select the new entity with a GO_TO operation
+        send({
+            type: 'GO_TO',
+            ...lowerLevelState,
+            [idKey]: finalizedEntity[idKey]
+        });
 
-            // 2) Persist any draft buildings that belong to this site (so they exist after refresh)
-            if (draftBuildings.length && lowerNamedPath?.collShortName && siteIdFromApi) {
-                const siteColl = (await IafItemSvc.getNamedUserItems({ query: { _shortName: namedPath.collShortName } }))._list[0];
-                const buildingColl = (await IafItemSvc.getNamedUserItems({ query: { _shortName: lowerNamedPath.collShortName } }))._list[0];
-                const buildingIdKey = lowerNamedPath.idKey;
-                for (const b of draftBuildings) {
-                    const finalizedBuilding = { ...b };
-                    delete finalizedBuilding.isDraft;
-                    finalizedBuilding._relationships = [{
-                        _relatedUserItemId: siteColl._userItemId,
-                        _relatedToIds: [siteIdFromApi]
-                    }];
-                    const buildingResult = await IafItemSvc.createRelatedItems(buildingColl._userItemId, [finalizedBuilding]);
-                    const createdBuilding = (Array.isArray(buildingResult) ? buildingResult[0] : buildingResult?._list?.[0]);
-                    if (createdBuilding?._id) {
-                        const currentBuildings = currentData.building || [];
-                        currentData.building = currentBuildings.map(prev =>
-                            prev[buildingIdKey] === b[buildingIdKey]
-                                ? { ...finalizedBuilding, _id: createdBuilding._id }
-                                : prev
-                        );
-                    }
-                }
-            }
+        // if(namedPath.parentState){
+        //     const parentPath = namedPaths.find(el => el.state === namedPath.parentState);
+        //     const parentColl = (await IafItemSvc.getNamedUserItems({query: {_shortName: parentPath.collShortName}}))._list[0];
 
-            // 3) Update XState only after all API calls succeeded
-            const currentEntities = currentData[currentElementType] || [];
-            const updatedEntities = currentEntities.map(s =>
-                s[idKey] === entityId ? finalizedEntity : s
-            );
-            const updatedData = {
-                ...currentData,
-                [currentElementType]: updatedEntities
-            };
-            send({ type: 'UPDATE_DATA', data: updatedData });
-            send({
-                type: 'GO_TO',
-                ...lowerLevelState,
-                [idKey]: finalizedEntity[idKey]
-            });
+        //     const parentEntity = currentState.context.data[parentPath.state]
+        //         .find(el => [currentState.context[parentPath.idKey], finalizedEntity[parentPath.idKey]].includes(el[parentPath.idKey]))
 
-            console.log('Entity submitted and finalized:', { finalizedEntity, result });
-        } catch (error) {
-            console.error('Error saving site (and child buildings):', error);
-        }
+        //     finalizedEntity._relationships = [{
+        //         "_relatedUserItemId": parentColl._userItemId,
+        //         "_relatedToIds": [
+        //             parentEntity._id
+        //         ]
+        //     }]
+        // }
+
+        //item service creation side effect
+        const coll = (await IafItemSvc.getNamedUserItems({query: {_shortName: namedPath.collShortName}}))._list[0];
+        const result = await IafItemSvc.createRelatedItems(coll._userItemId, [finalizedEntity]);
+
+        console.log('Entity submitted and finalized:', {finalizedEntity, result});
     };
 
     // Handle entity cancellation (remove draft entity)

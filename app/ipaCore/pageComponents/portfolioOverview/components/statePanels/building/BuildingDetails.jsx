@@ -86,6 +86,48 @@ export default function BuildingDetails({ context }) {
         [currentElementType, higherNamedPath, currentEntity, currentState.context, idKey]
     );
 
+    /**
+     * If the building's parent site exists in context but has not been saved to the collection yet
+     * (no _id), persist the site first. Returns the parent entity (with _id set) for use in
+     * _relationships. Caller should merge the returned site _id into their data and send UPDATE_DATA.
+     */
+    const ensureParentSiteSaved = React.useCallback(async (context, namedPath, entityWithParentId) => {
+        if (!namedPath?.parentState || !context?.namedPaths?.[0] || !context?.data) {
+            return null;
+        }
+        const parentPath = context.namedPaths[0].find(el => el.state === namedPath.parentState);
+        if (!parentPath) return null;
+
+        const parentId = entityWithParentId?.[parentPath.idKey];
+        if (!parentId) return null;
+
+        const parentEntity = (context.data[parentPath.state] || []).find(
+            el => el[parentPath.idKey] === parentId
+        );
+        if (!parentEntity) return null;
+
+        if (parentEntity._id) {
+            return parentEntity;
+        }
+
+        try {
+            const sitePayload = { ...parentEntity };
+            delete sitePayload.isDraft;
+            const parentColl = (await IafItemSvc.getNamedUserItems({ query: { _shortName: parentPath.collShortName } }))._list[0];
+            const result = await IafItemSvc.createRelatedItems(parentColl._userItemId, [sitePayload]);
+            const created = Array.isArray(result) ? result[0] : result?._list?.[0] ?? result;
+            const createdId = created?._id;
+            if (!createdId) {
+                console.warn('ensureParentSiteSaved: created site had no _id', result);
+                return parentEntity;
+            }
+            return { ...parentEntity, _id: createdId };
+        } catch (err) {
+            console.error('Error saving parent site before building:', err);
+            return null;
+        }
+    }, []);
+
     const { mapInstance } = useContext(MapContext);
     const dispatch = useDispatch();
 
@@ -289,6 +331,27 @@ export default function BuildingDetails({ context }) {
             );
         });
 
+        // 3) If parent site is new (not in collection), save it first and merge _id into data
+        if (namedPath.parentState) {
+            const parentEntityForRel = await ensureParentSiteSaved(currentState.context, namedPath, finalizedEntity);
+            if (parentEntityForRel?._id) {
+                const parentPath = currentState.context.namedPaths[0].find(el => el.state === namedPath.parentState);
+                if (parentPath) {
+                    const parentId = finalizedEntity[parentPath.idKey];
+                    updatedData[parentPath.state] = (updatedData[parentPath.state] || []).map(s =>
+                        s[parentPath.idKey] === parentId ? { ...s, _id: parentEntityForRel._id } : s
+                    );
+                    const parentColl = (await IafItemSvc.getNamedUserItems({ query: { _shortName: parentPath.collShortName } }))._list[0];
+                    if (parentColl) {
+                        finalizedEntity._relationships = [{
+                            _relatedUserItemId: parentColl._userItemId,
+                            _relatedToIds: [parentEntityForRel._id]
+                        }];
+                    }
+                }
+            }
+        }
+
         setCachedPositioning(null);
         setIsPositioningMode(false);
 
@@ -300,19 +363,6 @@ export default function BuildingDetails({ context }) {
             ...lowerLevelState,
             [idKey]: finalizedEntity[idKey]
         });
-
-        if (namedPath.parentState) {
-            const parentPath = currentState.context.namedPaths[0].find(el => el.state === namedPath.parentState);
-            const parentColl = (await IafItemSvc.getNamedUserItems({ query: { _shortName: parentPath.collShortName } }))._list[0];
-
-            const parentEntity = currentState.context.data[parentPath.state]
-                .find(el => [currentState.context[parentPath.idKey], finalizedEntity[parentPath.idKey]].includes(el[parentPath.idKey]));
-
-            finalizedEntity._relationships = [{
-                _relatedUserItemId: parentColl._userItemId,
-                _relatedToIds: [parentEntity._id]
-            }];
-        }
 
         const coll = (await IafItemSvc.getNamedUserItems({ query: { _shortName: namedPath.collShortName } }))._list[0];
         const result = await IafItemSvc.createRelatedItems(coll._userItemId, [finalizedEntity]);
@@ -357,6 +407,20 @@ export default function BuildingDetails({ context }) {
 
         if (hasChanges) {
             try {
+                const parentEntityForRel = await ensureParentSiteSaved(currentState.context, namedPath, finalizedEntity);
+                if (parentEntityForRel?._id && namedPath.parentState) {
+                    const parentPath = currentState.context.namedPaths[0].find(el => el.state === namedPath.parentState);
+                    if (parentPath) {
+                        const parentId = finalizedEntity[parentPath.idKey];
+                        const siteInData = (currentState.context.data[parentPath.state] || []).find(s => s[parentPath.idKey] === parentId);
+                        if (siteInData && !siteInData._id) {
+                            updatedData[parentPath.state] = (updatedData[parentPath.state] || []).map(s =>
+                                s[parentPath.idKey] === parentId ? { ...s, _id: parentEntityForRel._id } : s
+                            );
+                            send({ type: 'UPDATE_DATA', data: updatedData });
+                        }
+                    }
+                }
                 const coll = (await IafItemSvc.getNamedUserItems({ query: { _shortName: namedPath.collShortName } }))._list[0];
                 const result = await IafItemSvc.updateRelatedItems(coll._userItemId, [finalizedEntity]);
                 console.log('Entity updated successfully:', { finalizedEntity, result });
