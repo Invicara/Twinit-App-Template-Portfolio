@@ -1,7 +1,7 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import DeployStatusChart from './DeployStatusBarChart';
 import SearchPanel from './SearchPanel';
-import {Box} from "@mui/material";
+import {Box, Typography, Button, Divider} from "@mui/material";
 import {useDispatch, useSelector} from "react-redux";
 import {getFilter, setFilter} from "../../../redux/filters.js";
 import {
@@ -285,10 +285,41 @@ const defaultChartCfg =  {
     },
 };
 
+function hasActiveSiteFilter(globalFilters) {
+    const siteFilter = globalFilters?.site;
+    if (!siteFilter || typeof siteFilter !== 'object') return false;
+    if (siteFilter.fn) return true;
+    if (siteFilter.op && Array.isArray(siteFilter.rules) && siteFilter.rules.length > 0) return true;
+    return false;
+}
+
 export default function PortfolioDetails({ context, userConfig, snapshot, send, stateKey, handler }) {
 
     const globalFilters = useSelector(getFilter)
     const dispatch = useDispatch();
+
+    const { filteredSiteCount, totalSiteCount, siteFilterActive } = useMemo(() => {
+        const sites = Array.isArray(context?.data?.site) ? context.data.site : [];
+        const active = hasActiveSiteFilter(globalFilters);
+        if (!active) {
+            return { filteredSiteCount: sites.length, totalSiteCount: sites.length, siteFilterActive: false };
+        }
+        try {
+            const fns = getGlobalFilterFunctions("site", false);
+            const compiler = new FilterCompiler(fns);
+            const filterNode = globalFilters?.site ?? null;
+            const filterFn = compiler.compileFilter(filterNode);
+            const filtered = sites.filter(filterFn ?? Boolean);
+            return { filteredSiteCount: filtered.length, totalSiteCount: sites.length, siteFilterActive: true };
+        } catch (e) {
+            console.warn("PortfolioDetails filter count", e);
+            return { filteredSiteCount: 0, totalSiteCount: sites.length, siteFilterActive: true };
+        }
+    }, [context?.data?.site, globalFilters]);
+
+    const handleClearSiteFilters = () => {
+        dispatch(setFilter({ ...globalFilters, site: null }));
+    };
 
     useEffect(()=>{
         send({ type: 'UPDATE_FILTERS', filters: globalFilters });
@@ -315,6 +346,25 @@ export default function PortfolioDetails({ context, userConfig, snapshot, send, 
                         dispatch(setFilter(merged));
                     }}
                 />
+
+                <Box sx={{ minHeight: 20, mb: 0.5 }}>
+                    {siteFilterActive && (
+                        <Typography variant="body2" color="textSecondary">
+                            {filteredSiteCount === 0 ? (
+                                <>
+                                    No sites match your search.
+                                    <Button size="small" color="primary" onClick={handleClearSiteFilters} sx={{ ml: 0.5, textTransform: 'none', minWidth: 'auto', p: 0 }}>
+                                        Clear filters
+                                    </Button>
+                                </>
+                            ) : (
+                                <>Showing {filteredSiteCount} {filteredSiteCount === 1 ? 'site' : 'sites'}{totalSiteCount !== filteredSiteCount ? ` of ${totalSiteCount}` : ''}</>
+                            )}
+                        </Typography>
+                    )}
+                </Box>
+
+                <Divider sx={{ border: 'none', borderTop: '1px solid #EBEBEB', marginBottom: 3, marginTop: 0 }} />
 
                 <DeployStatusChart
                     initialFilter={globalFilters["site"]}

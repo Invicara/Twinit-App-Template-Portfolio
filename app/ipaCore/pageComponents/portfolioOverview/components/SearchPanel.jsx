@@ -178,8 +178,19 @@ export default function SearchPanel({
         setFilters((prev) => ({ ...prev, [name]: value }));
     };
 
+    const hasAnyFilter = useMemo(() => {
+        const searchVal = (filters.search || '').trim();
+        if (searchVal) return true;
+        if (filters.group) return true;
+        if (filters.location) return true;
+        if (filters.structure) return true;
+        if (filters.status) return true;
+        return false;
+    }, [filters]);
+
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (!hasAnyFilter) return;
 
         const rules = [];
         for (const [key, value] of Object.entries(filters)) {
@@ -324,14 +335,21 @@ export default function SearchPanel({
                         </Grid>
 
                         <Grid item xs={12}>
-                            <Button type="submit" variant="contained" color="primary" fullWidth>
+                            <Button
+                                type="submit"
+                                variant="contained"
+                                color="primary"
+                                fullWidth
+                                disabled={!hasAnyFilter}
+                                aria-disabled={!hasAnyFilter}
+                                title={!hasAnyFilter ? 'Enter a search term or select at least one filter' : undefined}
+                            >
                                 Search
                             </Button>
                         </Grid>
                     </Grid>
                 </form>
             </Box>
-            <Box className={classes.divider} />
         </div>
     );
 }
