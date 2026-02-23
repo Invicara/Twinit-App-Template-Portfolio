@@ -115,6 +115,46 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
                     return false;
                 }
             },
+        // Search: for sites also match if any building's Type or status label matches the query
+        searchQuery: ({ q }) => (e) => {
+            const entity = isMapFeatures ? e.properties : e;
+            if (!q) return true;
+            const query = (q || '').trim().toLowerCase();
+            if (!query) return true;
+
+            const statusIdToLabel = {
+                '1': 'Planned',
+                '2': 'Construction',
+                '3': 'Operating',
+                '4': 'Suspended Operation',
+                '5': 'Permanent Shutdown',
+                'unknown': 'Other',
+            };
+
+            const textMatches = (text) => text != null && String(text).toLowerCase().includes(query);
+
+            if (entityType === 'site') {
+                const siteMatch = textMatches(entity?.name) || textMatches(entity?.siteId);
+                if (siteMatch) return true;
+                const buildings = Array.isArray(entity?.buildings) ? entity.buildings : [];
+                return buildings.some((b) => {
+                    if (textMatches(b?.name) || textMatches(b?.buildingId)) return true;
+                    if (textMatches(b?.Type)) return true;
+                    const statusId = b?.StatusId != null ? String(b.StatusId) : 'unknown';
+                    const label = statusIdToLabel[statusId] || statusIdToLabel['unknown'] || '';
+                    if (textMatches(label)) return true;
+                    return false;
+                });
+            }
+
+            const originalPredicate = originalFns.searchQuery({ q });
+            const baseMatch = originalPredicate(entity);
+            if (baseMatch) return true;
+            if (textMatches(entity?.Type)) return true;
+            const statusId = entity?.StatusId != null ? String(entity.StatusId) : 'unknown';
+            const label = statusIdToLabel[statusId] || statusIdToLabel['unknown'] || '';
+            return textMatches(label);
+        },
     }
     return fns;
 }
