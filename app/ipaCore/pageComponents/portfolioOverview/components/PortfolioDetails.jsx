@@ -375,6 +375,10 @@ export default function PortfolioDetails({ context, userConfig, snapshot, send, 
                     stateKey={stateKey}
                     chartCfg={defaultChartCfg}
                     onFilterChange={(filter, options) => {
+                        if (options?.clear) {
+                            dispatch(setFilter({ ...globalFilters, site: null }));
+                            return;
+                        }
                         const mergingOptions = {
                             dropMissing: [defaultChartCfg.group.id, defaultChartCfg.series.id],
                             replace: options?.replace !== false
