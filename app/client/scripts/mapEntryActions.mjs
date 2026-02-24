@@ -586,12 +586,72 @@ export function markHandled(e) {
   if (e.originalEvent) e.originalEvent[CLICK_HANDLED] = true;
 }
 
+function getStateValueString(value) {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object') {
+    const parts = [];
+    let o = value;
+    while (o && typeof o === 'object') {
+      const keys = Object.keys(o);
+      if (keys.length !== 1) break;
+      parts.push(keys[0]);
+      o = o[keys[0]];
+      if (typeof o === 'string') {
+        parts.push(o);
+        break;
+      }
+    }
+    return parts.join('.');
+  }
+  return '';
+}
+
+const BUILDING_CIRCLES_HALO_LAYER = 'building-features-circles-halo-layer';
+const BUILDING_CIRCLES_LAYER = 'building-features-circles-layer';
+
+// Match status config from mmv_config for building circle popup (same design as site tooltip)
+const BUILDING_POPUP_STATUS_CONFIG = {
+  colorMap: {
+    '1': '#d3d3d3',
+    '2': '#f4b740',
+    '3': '#66bb6a',
+    '4': '#e53935',
+    '5': '#6B7280',
+    unknown: '#CCCCCC'
+  },
+  labelMap: {
+    '1': 'Planned',
+    '2': 'Construction',
+    '3': 'Operating',
+    '4': 'Suspended Operation',
+    '5': 'Permanent Shutdown',
+    unknown: 'Unknown'
+  }
+};
+
+export function setBuildingCirclesVisibility(map, stateValue) {
+  if (!map) return;
+  try {
+    const visibility = stateValue === 'portfolio.site' ? 'visible' : 'none';
+    if (map.getLayer(BUILDING_CIRCLES_HALO_LAYER)) {
+      map.setLayoutProperty(BUILDING_CIRCLES_HALO_LAYER, 'visibility', visibility);
+    }
+    if (map.getLayer(BUILDING_CIRCLES_LAYER)) {
+      map.setLayoutProperty(BUILDING_CIRCLES_LAYER, 'visibility', visibility);
+    }
+  } catch (_) {}
+}
+
 /**
  * Generic Mapbox click handler
  */
 export function makeMapOnClickHandler({ map, namedPath, send, context, pixelTolerance = 0, getContext }) {
   const featureLayers = getFeatureLayers(namedPath);
-  const layerIds = featureLayers.map((l) => l.layerId);
+  const layerIds = featureLayers.flatMap((l) =>
+    (l.state === 'building' && l.feature === 'mesh')
+      ? [l.layerId, BUILDING_CIRCLES_LAYER, BUILDING_CIRCLES_HALO_LAYER]
+      : [l.layerId]
+  );
 
   return (e) => {
     if (isHandled(e)) return;
@@ -607,7 +667,7 @@ export function makeMapOnClickHandler({ map, namedPath, send, context, pixelTole
 
     const byState = {};
     for (const def of featureLayers) {
-      const f = hits.find((h) => h.layer && h.layer.id === def.layerId) || null;
+      const f = hits.find((h) => h.layer && (h.layer.id === def.layerId || (def.state === 'building' && (h.layer.id === BUILDING_CIRCLES_LAYER || h.layer.id === BUILDING_CIRCLES_HALO_LAYER)))) || null;
       byState[def.state] = f;
     }
 
@@ -2609,7 +2669,23 @@ export async function upsertOrUpdateAllFeatures({ map, namedPath, getContext, se
             : { 'fill-color': '#fff', 'fill-opacity': 0.18 })
       });
       map.on('mouseenter', baseLayerId, () => { map.getCanvas().style.cursor = 'pointer'; });
-      map.on('mouseleave', baseLayerId, () => { map.getCanvas().style.cursor = ''; });
+      map.on('mouseleave', baseLayerId, () => {
+        map.getCanvas().style.cursor = '';
+        map.getCanvas().removeAttribute('title');
+      });
+      if (level.feature === 'point') {
+        map.on('mousemove', baseLayerId, (e) => {
+          const features = map.queryRenderedFeatures(e.point, { layers: [baseLayerId] });
+          const canvas = map.getCanvas();
+          if (features && features.length > 0) {
+            const props = features[0].properties || {};
+            const name = props.name ?? props.structureName ?? props[level.idKey] ?? '';
+            canvas.setAttribute('title', String(name || ''));
+          } else {
+            canvas.removeAttribute('title');
+          }
+        });
+      }
     }
 
     if (!isMesh) {
@@ -2619,6 +2695,36 @@ export async function upsertOrUpdateAllFeatures({ map, namedPath, getContext, se
       const structures = reduxState?.pageComponentState?.structures || {};
       const mapGraphicRefs = reduxState?.pageComponentState?.mapGraphicReferences || [];
       const idByRef = Object.fromEntries(mapGraphicRefs.map((r) => [r._id, r.graphic]));
+
+      if (level.state === 'building') {
+        const colorMap = BUILDING_POPUP_STATUS_CONFIG.colorMap || {};
+        const pointFeatures = level.features
+          .map((f) => {
+            const c = centroid(f.geometry)?.geometry?.coordinates;
+            if (!c) return null;
+            const props = f.properties || {};
+            const statusId = props.StatusId != null && props.StatusId !== '' ? String(props.StatusId) : null;
+            const statusColor = (statusId && colorMap[statusId]) ? colorMap[statusId] : '#000000';
+            return {
+              type: 'Feature',
+              id: f.id ?? props[level.idKey],
+              properties: { ...props, statusColor },
+              geometry: { type: 'Point', coordinates: c }
+            };
+          })
+          .filter(Boolean);
+        const circlesSourceId = `${level.state}-features-circles`;
+        if (!map.getSource(circlesSourceId)) {
+          map.addSource(circlesSourceId, {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: pointFeatures },
+            promoteId: level.idKey
+          });
+        } else {
+          map.getSource(circlesSourceId).setData({ type: 'FeatureCollection', features: pointFeatures });
+        }
+        // Circle layers (halo + center) are added in loadGraphics().then() after 3D layer so they render on top
+      }
 
       const graphicIds = Array.from(new Set(
         levels
@@ -2669,6 +2775,106 @@ export async function upsertOrUpdateAllFeatures({ map, namedPath, getContext, se
             layerObj.updateFeatures(level.features, loadedGraphics, getContext, level);
           }
         }
+        // Add circle layers on top of 3D structures (site view only; visibility set in entry actions)
+        const circlesSourceId = 'building-features-circles';
+        const circlesHaloLayerId = 'building-features-circles-halo-layer';
+        const circlesLayerId = 'building-features-circles-layer';
+        if (map.getSource(circlesSourceId) && !map.getLayer(circlesHaloLayerId)) {
+          map.addLayer({
+            id: circlesHaloLayerId,
+            type: 'circle',
+            source: circlesSourceId,
+            paint: {
+              'circle-radius': 20,
+              'circle-color': '#808080',
+              'circle-opacity': 0.35,
+              'circle-blur': 0.2
+            },
+            layout: { visibility: 'none' }
+          });
+          map.addLayer({
+            id: circlesLayerId,
+            type: 'circle',
+            source: circlesSourceId,
+            paint: {
+              'circle-radius': 5,
+              'circle-opacity': 1,
+              'circle-color': [
+                'match',
+                ['to-string', ['get', 'StatusId']],
+                '1', BUILDING_POPUP_STATUS_CONFIG.colorMap['1'],
+                '2', BUILDING_POPUP_STATUS_CONFIG.colorMap['2'],
+                '3', BUILDING_POPUP_STATUS_CONFIG.colorMap['3'],
+                '4', BUILDING_POPUP_STATUS_CONFIG.colorMap['4'],
+                '5', BUILDING_POPUP_STATUS_CONFIG.colorMap['5'],
+                '#000000'
+              ],
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#fff'
+            },
+            layout: { visibility: 'none' }
+          });
+          map.on('mouseenter', circlesLayerId, () => { map.getCanvas().style.cursor = 'pointer'; });
+          const setPopupState = getContext?.()?.setPopupState;
+          const HOVER_DELAY_MS = 280;
+          let buildingTooltipShowTimer = null;
+          const clearBuildingTooltipTimer = () => {
+            if (buildingTooltipShowTimer) {
+              clearTimeout(buildingTooltipShowTimer);
+              buildingTooltipShowTimer = null;
+            }
+          };
+          const showBuildingTooltip = (e) => {
+            const features = map.queryRenderedFeatures(e.point, { layers: [circlesLayerId] });
+            if (features && features.length > 0 && setPopupState) {
+              const props = features[0].properties || {};
+              // Same as building form "Name (Alternative)" = lowercase name (exclude ModelName)
+              const buildingName = props.name ?? props.Name ?? props.buildingDesignator ?? props.structureName ?? props[level.idKey] ?? '';
+              const typeVal = props.Type != null && String(props.Type).trim() !== '' ? props.Type : '--';
+              setPopupState({
+                open: true,
+                lngLat: e.lngLat,
+                data: {
+                  properties: {
+                    ...props,
+                    name: buildingName,
+                    Type: typeVal
+                  }
+                },
+                config: {
+                  statusPopup: {
+                    titleProp: 'properties.name',
+                    descriptionProp: 'properties.Type',
+                    statusProp: (data) => {
+                      const id = data?.properties?.StatusId;
+                      if (id == null || id === '') return undefined;
+                      return String(id);
+                    },
+                    statusConfig: BUILDING_POPUP_STATUS_CONFIG,
+                    maxWidth: 280
+                  }
+                }
+              });
+            }
+          };
+          map.on('mouseleave', circlesLayerId, () => {
+            map.getCanvas().style.cursor = '';
+            clearBuildingTooltipTimer();
+            if (setPopupState) setPopupState((s) => ({ ...s, open: false }));
+          });
+          map.on('mousemove', circlesLayerId, (e) => {
+            if (!setPopupState) return;
+            clearBuildingTooltipTimer();
+            const features = map.queryRenderedFeatures(e.point, { layers: [circlesLayerId] });
+            if (features && features.length > 0) {
+              buildingTooltipShowTimer = setTimeout(() => showBuildingTooltip(e), HOVER_DELAY_MS);
+            } else {
+              setPopupState((s) => ({ ...s, open: false }));
+            }
+          });
+        }
+        const stateStr = getStateValueString(self?.getSnapshot?.()?.value);
+        setBuildingCirclesVisibility(map, stateStr);
       });
     }
 
@@ -3206,6 +3412,7 @@ if (machineCtx.__mmv3d?.portfolio) {
      const { manageMarkers } = await handleMarkers(stateValue, markersConfig, { context: machineCtx, self });
 const { manageFeatureFilters } = await handleFeatureFilters(stateValue, namedPath, { context: machineCtx, self });
 setGateReady(machineCtx, 'portfolio');
+      setBuildingCirclesVisibility(context.map, stateValue);
       return {
         commands: null,
         manageMarkers: { ...context.manageMarkers, [stateValue]: manageMarkers },
@@ -3250,6 +3457,7 @@ setGateReady(machineCtx, 'portfolio');
         }
       }
 
+      setBuildingCirclesVisibility(context.map, stateValue);
       return { commands: null, manageMarkers: { ...context.manageMarkers, [stateValue]: manageMarkers }, theme, legend, manageFeatureFilters };
     }
 
@@ -3261,6 +3469,7 @@ setGateReady(machineCtx, 'portfolio');
 
       zoomToFeature({ map: context.map, context, state: 'building', featureId: buildingId });
 
+      setBuildingCirclesVisibility(context.map, stateValue);
       return { commands: null, legend };
     }
 
