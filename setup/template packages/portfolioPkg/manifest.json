@@ -175,15 +175,11 @@
         }
     ],
     "files": [
-        { "_name": "exchange.glb", "_path": "", "_tags": [] },
+       { "_name": "snowdon.glb", "_path": "", "_tags": [] },
        { "_name": "medical.glb", "_path": "", "_tags": [] },
-       { "_name": "tower.glb", "_path": "", "_tags": [] },
-       { "_name": "antena.glb", "_path": "", "_tags": [] },
-       { "_name": "exchange-thumbnail.png", "_path": "", "_tags": [] },
+       { "_name": "snowdon-thumbnail.png", "_path": "", "_tags": [] },
        { "_name": "medical-thumbnail.png", "_path": "", "_tags": [] },
-       { "_name": "tower-thumbnail.png", "_path": "", "_tags": [] },
-       { "_name": "antena-thumbnail.png", "_path": "", "_tags": [] },
-       { "_name": "EX11034-INV-Federated.bimpk", "_path": "", "_tags": [] },
+       { "_name": "Snowdon Towers Sample Architectural.bimpk", "_path": "", "_tags": [] },
        { "_name": "General Medical - Architecture.bimpk", "_path": "", "_tags": [] }
     ]
 }
