@@ -737,11 +737,15 @@ export default function SiteDetails({ context }) {
                 <BuildingThumbnails {...{mapGraphicReferences, handleCancelNewBuildingMode, lowerNamedPath, send, upperLevelEntity: currentEntity}} />
             ) : (
                 <>
-                    <Typography variant="body2">Units: {buildings.length}</Typography>
+                    <Typography component="h3" sx={{ fontWeight: 700, fontSize: 20 }}>Units</Typography>
+                    <Box sx={{ marginTop: 1, marginBottom: 2 }}>
+                        <Typography variant="body2">Units: {buildings.length}</Typography>
+                    </Box>
                     {buildings.map((unit, i) => (
-                        <Typography key={i} variant="body2">
-                            {unit.name}
-                        </Typography>
+                        <Box key={i}>
+                            <Typography variant="body2" sx={{ marginTop: '5px', marginBottom: '5px' }}>{unit.name}</Typography>
+                            <Divider sx={{ border: 'none', borderTop: '1px solid #EBEBEB', marginTop: 0, marginBottom: 0 }} />
+                        </Box>
                     ))}
                 </>
             )}

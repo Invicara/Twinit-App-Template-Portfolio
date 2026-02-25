@@ -14,9 +14,11 @@ function Title({ children }) {
     return (
         <div
             style={{
+                fontSize: 12,
                 fontWeight: 600,
                 lineHeight: 1.2,
                 marginBottom: SPACING.titleBottom,
+                textAlign: "center",
             }}
         >
             {children}
@@ -29,10 +31,11 @@ function Description({ children }) {
     return (
         <div
             style={{
-                opacity: 0.85,
-                fontSize: 12,
+                fontSize: 14,
+                fontWeight: 600,
                 lineHeight: 1.2,
                 marginBottom: SPACING.descBottom,
+                textAlign: "center",
             }}
         >
             {children}
@@ -46,8 +49,10 @@ function StatusRow({ children }) {
             style={{
                 display: "flex",
                 flexWrap: "wrap",
-                gap: `${SPACING.badgeWrapGap}px ${SPACING.badgeGap}px`, // row & column gaps
+                justifyContent: "center",
+                gap: `${SPACING.badgeWrapGap}px ${SPACING.badgeGap}px`,
                 marginTop: SPACING.statusTop,
+                textAlign: "center",
             }}
         >
             {children}
@@ -148,7 +153,19 @@ export default function StatusPopup({ data: initialData, actor, config = {}, cla
         return initialData;
     }, [initialData, currentState]);
 
-    const title = titleProp ? get(data, titleProp, "") : "";
+    // When popup is for a building, use same as form "Name (Alternative)" from context building entity (avoid site name from circle/marker props)
+    const buildingId = data?.properties?.buildingId ?? data?.buildingId;
+    const buildings = currentState?.context?.data?.building;
+    const contextBuilding = buildingId && Array.isArray(buildings)
+        ? buildings.find((b) => String(b?.buildingId) === String(buildingId))
+        : null;
+    const buildingTitle = contextBuilding
+        ? (contextBuilding.name ?? contextBuilding.Name ?? contextBuilding.buildingDesignator ?? contextBuilding.structureName ?? "")
+        : (data?.properties?.buildingId != null || data?.buildingId != null) && data?.properties
+            ? (data.properties.name ?? data.properties.Name ?? data.properties.buildingDesignator ?? data.properties.structureName ?? "")
+            : "";
+    const isBuilding = buildingId != null;
+    const title = (isBuilding && buildingTitle) ? buildingTitle : (titleProp ? get(data, titleProp, "") : "");
     const description = descriptionProp ? get(data, descriptionProp, "") : undefined;
 
     // Helpers/context we pass if statusProp is a function
@@ -172,26 +189,27 @@ export default function StatusPopup({ data: initialData, actor, config = {}, cla
     const isMulti =
         statusValue && typeof statusValue === "object" && statusValue.mode === "multi";
 
-    // Single status branch
-    const singleStatusId = !isMulti ? String(statusValue ?? "unknown") : undefined;
+    // Single status branch (hide row when statusValue is undefined, e.g. building has no StatusId)
+    const singleStatusId = !isMulti && statusValue !== undefined ? String(statusValue ?? "unknown") : undefined;
     const labelMap = statusConfig?.labelMap || {};
     const colorMap = statusConfig?.colorMap || {};
     const singleLabel =
         !isMulti &&
+        singleStatusId &&
         (labelMap[singleStatusId] ||
             (typeof singleStatusId === "string" ? humanize(singleStatusId) : undefined));
-    const singleColor = !isMulti ? colorMap[singleStatusId] : undefined;
+    const singleColor = !isMulti && singleStatusId ? colorMap[singleStatusId] : undefined;
 
     return (
-        <div style={{ maxWidth: 280, fontSize: 14, lineHeight: 1.2, color: "#fff" }}>
+        <div style={{ maxWidth: 280, fontSize: 14, lineHeight: 1.2, color: "#fff", textAlign: "center" }}>
             {title ? <Title>{title}</Title> : null}
             {description ? <Description>{description}</Description> : null}
 
-            {/* single status */}
+            {/* single status - slightly smaller, not bold */}
             {!isMulti && singleStatusId ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: SPACING.statusTop }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: SPACING.statusTop }}>
                     <StatusDot color={singleColor}/>
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>{singleLabel ?? String(singleStatusId)}</span>
+                    <span style={{ fontSize: 12, fontWeight: 400 }}>{singleLabel ?? String(singleStatusId)}</span>
                 </div>
             ) : null}
 

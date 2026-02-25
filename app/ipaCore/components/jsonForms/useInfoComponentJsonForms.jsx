@@ -3,6 +3,7 @@ import { materialRenderers, materialCells } from '@jsonforms/material-renderers'
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { EnumSelectRenderer, enumTester } from './renderers/EnumSelectRenderer';
+import { EnumNumberSelectRenderer, enumNumberTester } from './renderers/EnumNumberSelectRenderer';
 
 const buildUiFromSchema = (schema) => {
     if (!schema?.properties) return { type: 'VerticalLayout', elements: [] };
@@ -36,6 +37,7 @@ export function useInfoComponentJsonForms({schema, layouts, allowReadOnlyOverrid
         { tester: verticalLayoutTester, renderer: VerticalLayout },
         { tester: groupLayoutTester,    renderer: GroupLayout },
         { tester: enumTester,           renderer: EnumSelectRenderer },
+        { tester: enumNumberTester,     renderer: EnumNumberSelectRenderer },
         ...materialRenderers
     ]), [verticalLayoutTester, VerticalLayout, groupLayoutTester, GroupLayout]);
 
