@@ -332,7 +332,29 @@ export const getChartFilters = (click, chartCfg) => {
   return { op, rules: merged };
 };
 
-export default function DeployStatusChart({ handler, context, onFilterChange, chartCfg }) {
+/** Get sorted values array for a rule by fn name, or null if missing */
+function getRuleValues(node, fnName) {
+  if (!node?.rules) return null;
+  const rule = node.rules.find((r) => r && r.fn === fnName);
+  const vals = rule?.args?.values;
+  return Array.isArray(vals) ? [...vals].map(String).sort() : null;
+}
+
+/** True if current site filter matches the same chart segment as newFilter (status + group) */
+function isSameChartSegment(currentNode, newFilter) {
+  if (!currentNode || !newFilter?.rules?.length) return false;
+  const chartFns = ['statusIn', 'buildingTypeIn'];
+  for (const fn of chartFns) {
+    const a = getRuleValues(currentNode, fn);
+    const b = getRuleValues(newFilter, fn);
+    const aStr = (a || []).join(',');
+    const bStr = (b || []).join(',');
+    if (aStr !== bStr) return false;
+  }
+  return true;
+}
+
+export default function DeployStatusChart({ handler, context, onFilterChange, chartCfg, initialFilter }) {
   const chartTitle = handler.config.labels?.chartTitle || 'Status';
   const fns = getGlobalFilterFunctions('building', false);
   const gateReady = useReduxSelector((s) => !!s.graphicsGate?.byState?.portfolio?.ready);
@@ -470,7 +492,12 @@ const isLoading = !gateReady || isChartEmpty;
         { seriesKey, series: matrix.legend[seriesKey], bin, ctx: {} },
         chartCfg
       );
-      onFilterChange(newFilter);
+      if (!Object.keys(newFilter).length) return;
+      if (isSameChartSegment(initialFilter, newFilter)) {
+        onFilterChange(null, { clear: true });
+      } else {
+        onFilterChange(newFilter, { replace: true });
+      }
     },
   };
 

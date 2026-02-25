@@ -374,13 +374,17 @@ export default function PortfolioDetails({ context, userConfig, snapshot, send, 
                     send={send}
                     stateKey={stateKey}
                     chartCfg={defaultChartCfg}
-                    onFilterChange={(filter) => {
+                    onFilterChange={(filter, options) => {
+                        if (options?.clear) {
+                            dispatch(setFilter({ ...globalFilters, site: null }));
+                            return;
+                        }
                         const mergingOptions = {
                             dropMissing: [defaultChartCfg.group.id, defaultChartCfg.series.id],
-                            replace: true
-                        }
-                        const merged = mergeFiltersGeneric(globalFilters, filter, "site",  mergingOptions);
-                        console.log("mergeFiltersGeneric DeployStatusChart", {merged, filter, globalFilters, mergingOptions})
+                            replace: options?.replace !== false
+                        };
+                        const merged = mergeFiltersGeneric(globalFilters, filter, "site", mergingOptions);
+                        console.log("mergeFiltersGeneric DeployStatusChart", {merged, filter, globalFilters, mergingOptions});
                         dispatch(setFilter(merged));
                     }}
                 />
