@@ -66,7 +66,7 @@ const statusConfig = {
         "3": "Operating",
         "4": "Suspended Operation",
         "5": "Permanent Shutdown",
-        "unknown": "Unknown",
+        "unknown": "Other",
     },
 }
 
@@ -90,7 +90,7 @@ const THEMES = {
             { id: "3", color: "#66bb6a", label: "Operating" },
             { id: "4", color: "#e53935", label: "Suspended Operation"},
             { id: "5", color: "#6B7280", label: "Permanent Shutdown" },
-            { id: "unknown", color: "#CCCCCC", label: "Unknown" }
+            { id: "unknown", color: "#CCCCCC", label: "Other" }
         ],
         "circle-radius": 7
     },

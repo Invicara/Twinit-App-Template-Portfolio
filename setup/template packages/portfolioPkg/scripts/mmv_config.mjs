@@ -66,22 +66,12 @@ const statusConfig = {
         "3": "Operating",
         "4": "Suspended Operation",
         "5": "Permanent Shutdown",
-        "unknown": "Unknown",
+        "unknown": "Other",
     },
 }
 
 
 const THEMES = {
-    BY_CAPACITY: {
-        property: "Type",//this is used to as a property to match agains the bin (unless getCounts is overwritten)
-        bins: [
-            { id: "typeA", color: "#8ecbff", label: "Type A" },
-            { id: "typeB", color: "#1DC0F7", label: "Type B" },
-            { id: "typeC", color: "#0072BC", label: "Type C" },
-            { id: "typeD", color: "#1D1D1D", label: "Type D" }
-        ],
-        "circle-radius": 7
-    },
     BY_TYPE: {
         property: "Type",//this is used to as a property to match agains the bin (unless getCounts is overwritten)
         bins: [
@@ -100,7 +90,7 @@ const THEMES = {
             { id: "3", color: "#66bb6a", label: "Operating" },
             { id: "4", color: "#e53935", label: "Suspended Operation"},
             { id: "5", color: "#6B7280", label: "Permanent Shutdown" },
-            { id: "unknown", color: "#CCCCCC", label: "Unknown" }
+            { id: "unknown", color: "#CCCCCC", label: "Other" }
         ],
         "circle-radius": 7
     },
@@ -253,18 +243,8 @@ let scriptModule = {
                 const legend = THEMES.BY_STATUS;
 
                 const theme = {
-                    //theme building features by Capacity property
+                    //theme building features by Type property
                     "building-features-layer": THEMES.BY_TYPE,
-                    //we will keep site features invisible by default
-                    /*"site-features-layer": {
-                        property: "buildings_count",//TODO: addept property to be a function
-                        bins: [
-                            { id: "few",   min: 0,   max: 5,  color: "#8ecbff", label: "1–4 buildings" },
-                            { id: "mid",   min: 5,   max: 10, color: "#3aa7ff", label: "5–9 buildings" },
-                            { id: "large", min: 10,  max: 20, color: "#7fb2c8", label: "10–19 buildings" },
-                            { id: "mega",  min: 20,  max: null, color: "#2b2b2b", label: "20+" }
-                        ]
-                    }*/
                 }
                 const singleMarkers = [{
                     featureDef: {
@@ -290,7 +270,7 @@ let scriptModule = {
                 return { commands: null, theme, singleMarkers, legend };
             }
             case 'portfolio.site.building': {
-                const legend = THEMES.BY_STATUS;
+                const legend = THEMES.BY_TYPE;
                 return {legend}
             }
 
@@ -332,18 +312,6 @@ let scriptModule = {
             (building) => {
                 if (building.StatusId == null) return false;
                 return values.map(String).includes(String(building.StatusId));
-            },
-            capacityBetween:
-            ({ min, max }) =>
-            (building) => {
-                const cap = building.Capacity;
-                if (typeof cap !== "number") return false;
-
-                if (max == null) {
-                return cap >= min;
-                }
-
-                return cap >= min && cap < max;
             },
             searchQuery: ({ q }) => (e) => {
                 if (!q) return true;
