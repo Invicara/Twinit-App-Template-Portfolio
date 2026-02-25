@@ -8,10 +8,10 @@
       }
   },
   {
-      "modelName": "EX11034-INV-Federated",
+      "modelName": "Snowdon Towers Sample Architectural",
       "mapGraphicRefId": "68c1889e56dd1014ccf092c6",
       "structureMetadata": {},
-      "name": "exchange",
+      "name": "snowdon",
       "requiredBackgroundProperties": {
       }
   }
