@@ -14,7 +14,7 @@ function Title({ children }) {
     return (
         <div
             style={{
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: 600,
                 lineHeight: 1.2,
                 marginBottom: SPACING.titleBottom,

@@ -123,10 +123,10 @@ const AccountMenu = ({ user, ...props }) => {
         let project = await IafProj.getCurrent()
 
         let projVersion
-        projVersion = project._userAttributes?.portfolio?.currentVersion
+        projVersion = props?.userConfig?.projectVersion ?? project._userAttributes?.portfolio?.currentVersion
         if (!projVersion) projVersion = project._userAttributes?.projectMaker?.currentVersion // legacy
 
-        projVersion = props?.userConfig?.homepage.handler === 'projectMaker' ? 'Manager' : projVersion
+        projVersion = props?.userConfig?.homepage?.handler === 'projectMaker' ? 'Manager' : (projVersion || '1.0.0')
         setProjectVersion(projVersion)
     }
 
