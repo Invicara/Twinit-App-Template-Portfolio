@@ -7,7 +7,7 @@
  * 4. Upload from package – for each ref name: read {name}.glb and {name}-thumbnail.* from package (tries fileUploads/ then custom/customUploads/),
  *    upload via IafScriptEngine.uploadFile, create file items via IafFile.createFileItemFromFile,
  *    then update map_graphic_references with graphic and thumbnail _fileIds. Single source: put GLBs/PNGs in fileUploads/ once; manifest.files + setup both use them.
- * 5. Mapbox secret     – add Mapbox secret to Secrets Collection (unchanged)
+ * 5. Mapbox secret     – add Mapbox secret to Secrets Collection: if MAPBOX_CREATOR_SECRET and MAPBOX_CREATOR_USERNAME are set, create a new token per project via Mapbox API and save it; else use preset.
  * 6. BIMPK import      – find .bimpk files in file collections; if none, read from package (custom/customUploads/ only), upload, then run bimpk_importer for each. Put .bimpk files in custom/customUploads/ so the platform does not auto-upload them from fileUploads/ (which would cause duplicate imports).
  */
 
@@ -24,6 +24,39 @@ const ASSET_DIRS_TO_TRY = ['fileUploads', 'custom/customUploads'];
 
 /** Paths tried for BIMPK list and files only. Use custom only so fileUploads auto-upload does not create duplicates. */
 const BIMPK_DIRS_TO_TRY = ['custom/customUploads'];
+
+/** Mapbox Tokens API v2: create a new token (used for per-project secrets when creator env is set). */
+const MAPBOX_TOKENS_V2_URL = 'https://api.mapbox.com/tokens/v2/';
+/** Scopes for a new Mapbox secret token so the mapbox_temp_token orchestrator can create temporary tokens. */
+const MAPBOX_NEW_TOKEN_SCOPES = ['styles:read', 'styles:tiles', 'fonts:read', 'datasets:read', 'vision:read', 'tokens:write'];
+
+/**
+ * Create a new Mapbox secret token via Tokens API v2.
+ * @param {string} creatorUsername - Mapbox account username
+ * @param {string} creatorSecret - Mapbox secret token (sk.) with tokens:write
+ * @param {string} note - Token description (e.g. project name)
+ * @returns {Promise<string|null>} - The new token string, or null on failure
+ */
+async function createMapboxTokenViaApi(creatorUsername, creatorSecret, note) {
+	if (!creatorUsername || !creatorSecret) return null;
+	const url = `${MAPBOX_TOKENS_V2_URL}${encodeURIComponent(creatorUsername)}`;
+	const body = JSON.stringify({ note: String(note || 'project').slice(0, 256), scopes: MAPBOX_NEW_TOKEN_SCOPES });
+	let res;
+	try {
+		res = await fetch(url, {
+			method: 'POST',
+			headers: { Authorization: `Bearer ${creatorSecret}`, 'Content-Type': 'application/json' },
+			body,
+		});
+	} catch (e) {
+		console.error('Mapbox token creation request failed:', e);
+		return null;
+	}
+	const data = typeof res?.json === 'function' ? await res.json() : res;
+	const token = data?.token ?? data?.key ?? null;
+	if (!token && (data?.message || data?.errmsg)) console.error('Mapbox token API error:', data.message || data.errmsg);
+	return token;
+}
 
 /** Try reading from package at candidate paths; returns { buffer, path } for first success, or throws. */
 async function readFromPackageFirst(packageData, filename) {
