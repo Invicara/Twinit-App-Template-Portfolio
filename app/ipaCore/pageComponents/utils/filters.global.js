@@ -52,6 +52,8 @@ export function getGlobalFilterFunctions(entityType, isMapFeatures = false) {
                 String(v).toLowerCase().replace(/\s+/g, '');
 
                 const wanted = new Set(values.map(normalize));
+                // "Other" bar = buildings where Type is not A/B/C/D; getCategory maps those to 'unknown'
+                if (wanted.has('other')) wanted.add('unknown');
 
                 const props = e && typeof e === 'object' ? (e.properties || e) : {};
                 const buildings = Array.isArray(props.buildings) ? props.buildings : null;

@@ -69,6 +69,18 @@ const ModelComparisonPage = () => {
 
     const { availableModelComposites, getSelectedElement, loadModelCollections } = useContext(ModelContext);
 
+    // One entry per model name (dedupe so double-imported models don't appear twice in the dropdown)
+    const uniqueModelsForDropdown = useMemo(() => {
+        if (!Array.isArray(availableModelComposites) || availableModelComposites.length === 0) return [];
+        const seen = new Set();
+        return availableModelComposites.filter((m) => {
+            const name = m._name;
+            if (seen.has(name)) return false;
+            seen.add(name);
+            return true;
+        });
+    }, [availableModelComposites]);
+
     useEffect(() => {
         if (Array.isArray(availableModelComposites) && availableModelComposites.length > 0 && selectModelOne !== "") {
             setModelOne(availableModelComposites.find(item => item._name === selectModelOne));
@@ -140,7 +152,7 @@ const ModelComparisonPage = () => {
     }, [modelTwoWithVersions, selectModelTwoVersion]);
 
     return (
-        availableModelComposites?.length > 0 && (
+        uniqueModelsForDropdown?.length > 0 && (
             <div className="viewerWrapper">
                 <PanelGroup autoSaveId="modelComp" direction="vertical">
                     <Panel id="model-comp-panel" collapsible={false} order={1}>
@@ -150,7 +162,7 @@ const ModelComparisonPage = () => {
                                     <label htmlFor="model-one" className="model-select-label">Select Model One:</label>
                                     <select id="model-one" value={selectModelOne} onChange={(e) => setSelectModelOne(e.target.value)}>
                                         <option value="">--Please choose an option--</option>
-                                        {availableModelComposites.map(({ _name }, key) => <option key={key} value={_name}>{_name}</option>)}
+                                        {uniqueModelsForDropdown.map(({ _name }, key) => <option key={key} value={_name}>{_name}</option>)}
                                     </select>
                                 </div>
                                 {modelOneWithVersions?.fetchedVersions?._list?.length > 0 && (
@@ -166,7 +178,7 @@ const ModelComparisonPage = () => {
                                     <label htmlFor="model-two" className="model-select-label">Select Model Two:</label>
                                     <select id="model-two" value={selectModelTwo} onChange={(e) => setSelectModelTwo(e.target.value)}>
                                         <option value="">--Please choose an option--</option>
-                                        {availableModelComposites.map(({ _name }, key) => <option key={key} value={_name}>{_name}</option>)}
+                                        {uniqueModelsForDropdown.map(({ _name }, key) => <option key={key} value={_name}>{_name}</option>)}
                                     </select>
                                 </div>
                                 {modelTwoWithVersions?.fetchedVersions?._list?.length > 0 && (
