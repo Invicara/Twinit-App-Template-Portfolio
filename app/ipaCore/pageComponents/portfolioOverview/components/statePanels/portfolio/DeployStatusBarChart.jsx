@@ -297,10 +297,10 @@ export const getChartFilters = (click, chartCfg) => {
   }
 
   const seriesKeyLower = (click?.seriesKey ?? '').toString().toLowerCase();
-  const isOtherStatus = seriesKeyLower === 'unknown' || seriesKeyLower === 'unkown' || seriesKeyLower === 'other';
 
-  // When clicking Other status segment, only apply status filter (no group) so all sites with Other/no status show
-  if (click?.bin && !isOtherStatus) {
+  // Always apply group (bar) rule when a bar is clicked: Type A/B/C/D or Other.
+  // Other bar = buildings where Type is not A/B/C/D; status segment (including "Other" status) is applied via series rule above.
+  if (click?.bin) {
     const groupDef = filterCfg.rules?.group ?? (click.bin.test);
     const r = makeRule(groupDef, String(click.bin.id), { bin: click.bin, click, chartCfg });
     if (r) rules.push(r);

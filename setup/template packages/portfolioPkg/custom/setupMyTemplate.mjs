@@ -8,7 +8,7 @@
  *    upload via IafScriptEngine.uploadFile, create file items via IafFile.createFileItemFromFile,
  *    then update map_graphic_references with graphic and thumbnail _fileIds. Single source: put GLBs/PNGs in fileUploads/ once; manifest.files + setup both use them.
  * 5. Mapbox secret     – add Mapbox secret to Secrets Collection (unchanged)
- * 6. BIMPK import      – find .bimpk files in file collections; if none, read from package (fileUploads/ then custom/customUploads/), upload, then run bimpk_importer for each. Put .bimpk files in fileUploads/ or custom/customUploads/ and list in manifest.files.
+ * 6. BIMPK import      – find .bimpk files in file collections; if none, read from package (custom/customUploads/ only), upload, then run bimpk_importer for each. Put .bimpk files in custom/customUploads/ so the platform does not auto-upload them from fileUploads/ (which would cause duplicate imports).
  */
 
 const BIMPK_IMPORTER_USER_TYPE = 'bimpk_importer';
@@ -21,6 +21,9 @@ const THUMBNAIL_EXTS = ['.png', '.jpg', '.jpeg'];
 
 /** Paths tried when reading GLB/PNG from the package. */
 const ASSET_DIRS_TO_TRY = ['fileUploads', 'custom/customUploads'];
+
+/** Paths tried for BIMPK list and files only. Use custom only so fileUploads auto-upload does not create duplicates. */
+const BIMPK_DIRS_TO_TRY = ['custom/customUploads'];
 
 /** Try reading from package at candidate paths; returns { buffer, path } for first success, or throws. */
 async function readFromPackageFirst(packageData, filename) {
@@ -319,10 +322,10 @@ export async function setup(input, libraries, ctx, callback) {
 			send(`WARN: Could not list file collections for bimpk search: ${e && (e.message || String(e))}.`);
 		}
 
-		// Fallback: platform didn't add bimpks to file collections; read from package (fileUploads/ then custom/customUploads/) and upload
+		// Fallback: read from package (custom/customUploads/ only) and upload. Using custom only avoids duplicate imports from fileUploads auto-upload.
 		if (bimpkFileItems.length === 0) {
 			let bimpkNames = [];
-			for (const dir of ASSET_DIRS_TO_TRY) {
+			for (const dir of BIMPK_DIRS_TO_TRY) {
 				try {
 					const bimpkListStr = await packageData.file(`${dir}/bimpk-files.json`).async('string');
 					const list = JSON.parse(bimpkListStr);
@@ -345,7 +348,7 @@ export async function setup(input, libraries, ctx, callback) {
 			}
 			for (const name of bimpkNames) {
 				let uploaded = false;
-				for (const dir of ASSET_DIRS_TO_TRY) {
+				for (const dir of BIMPK_DIRS_TO_TRY) {
 					if (uploaded) break;
 					try {
 						const readPath = `${dir}/${name}`;
@@ -366,7 +369,7 @@ export async function setup(input, libraries, ctx, callback) {
 						}
 					} catch (_) { /* not at this path */ }
 				}
-				if (!uploaded) send(`WARN: Could not read bimpk from package: ${name} (tried fileUploads/ and custom/customUploads/).`);
+				if (!uploaded) send(`WARN: Could not read bimpk from package: ${name} (tried custom/customUploads/).`);
 			}
 		}
 
@@ -457,7 +460,7 @@ export async function setup(input, libraries, ctx, callback) {
 				}
 			}
 		} else {
-			send('INFO: No .bimpk files found in file collections or in package (fileUploads/ or custom/customUploads/); skipping bimpk import.');
+			send('INFO: No .bimpk files found in file collections or in package (custom/customUploads/); skipping bimpk import.');
 		}
 	} else {
 		if (!IafDataSource) send('INFO: IafDataSource not available; skipping bimpk import.');
