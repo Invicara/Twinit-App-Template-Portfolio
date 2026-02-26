@@ -270,7 +270,7 @@ let scriptModule = {
                 return { commands: null, theme, singleMarkers, legend };
             }
             case 'portfolio.site.building': {
-                const legend = THEMES.BY_TYPE;
+                const legend = THEMES.BY_STATUS;
                 return {legend}
             }
 
