@@ -75,16 +75,29 @@ const scriptModule = {
 
 		const { IafScriptEngine, PlatformApi: {IafItemSvc}, UiUtils } = libraries
 
-		const itemName = "exchange"; //graphic reference name to enrich
+		//NOTE: name of glb must match name of map_graphic_references entry for this to work
+		// User selects GLB first; we match by filename (without .glb) to a map_graphic_references entry
+		const glbFile = (await UiUtils.IafLocalFile.selectFiles({ multiple: false, accept: ".glb" }))[0]
+		if (!glbFile || !glbFile.name) {
+			throw new Error("No GLB file selected.");
+		}
+		const itemName = glbFile.name.replace(/\.glb$/i, "").trim();
+		if (!itemName) {
+			throw new Error("Could not derive a name from the selected GLB file.");
+		}
 
 		const graphicRefsColl = (await IafItemSvc.getNamedUserItems({query: {_kind: "collection", _shortName: "map_graphic_references"}}, ctx))._list?.[0];
+		if (!graphicRefsColl?._userItemId) {
+			throw new Error("map_graphic_references collection not found.");
+		}
 		const graphicReferenceItem = (await IafItemSvc.getRelatedItems(graphicRefsColl._userItemId, {query: {name: itemName}}, ctx))._list?.[0];
+		if (!graphicReferenceItem) {
+			throw new Error(`There is no structure or model saved that matches this GLB/PNG file selection. No map graphic reference found with name "${itemName}". Add a matching entry in map_structures / map_graphic_references first.`);
+		}
 
-		const glbFile = (await UiUtils.IafLocalFile.selectFiles({ multiple: false, accept: ".glb" }))[0]
 		const mapGraphicsContainerKey = "map_graphics"
-
 		const {fileItem: graphicFile} = await uploadFielAndCreateItem({
-			containerName: mapGraphicsContainerKey, 
+			containerName: mapGraphicsContainerKey,
 			file: glbFile
 		}, libraries, ctx, callback);
 
@@ -92,7 +105,7 @@ const scriptModule = {
 		const thumbnailContainerKey = "graphic_thumbnails"
 
 		const {fileItem: thumbnailFile} = await uploadFielAndCreateItem({
-			containerName: thumbnailContainerKey, 
+			containerName: thumbnailContainerKey,
 			file: pngFile
 		}, libraries, ctx, callback);
 
