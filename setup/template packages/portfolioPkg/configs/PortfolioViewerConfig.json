@@ -1,5 +1,14 @@
 {
   "handlers": {
+    "modelComparison": {
+      "title": "Model Comparison",
+      "icon": "fa fa-clone fa-2x",
+      "shortName": "modelComparison",
+      "description": "Model Comparison",
+      "pageComponent": "modelComparison/ModelComparisonView",
+      "path": "/modelcomparison",
+      "config": {}
+    },
     "modelView": {
       "title": "Model View",
       "icon": "fas fa-building fa-2x",
@@ -19,6 +28,15 @@
         "mmv_config",
         "mapTypeActions"
       ]
+    },
+    "assetTree": {
+      "title": "Asset Overview",
+      "icon": "fa fa-list fa-2x",
+      "shortName": "assetoverview",
+      "description": "Asset Overview",
+      "pageComponent": "assetOverview/AssetOverviewView",
+      "path": "/assetoverview",
+      "config": {}
     }
   },
   "homepage": {
@@ -32,6 +50,10 @@
         {
           "page": "Portfolio Overview",
           "handler": "portfolioOverview"
+        },
+        {
+          "page": "Asset Overview",
+          "handler": "assetTree"
         }
       ]
     },
@@ -42,6 +64,10 @@
         {
           "page": "Model View",
           "handler": "modelView"
+        },
+        {
+          "page": "Model Comparison",
+          "handler": "modelComparison"
         }
       ]
     }

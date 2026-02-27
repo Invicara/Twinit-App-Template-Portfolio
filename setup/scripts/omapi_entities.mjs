@@ -66,6 +66,34 @@ function pickCollectionForModel(collections, expectedName) {
   )
 }
 
+/**
+ * Fallback when composite name has a suffix (e.g. "General Medical - Architecture2024").
+ * Find a collection whose _name starts with norm(modelName) and ends with the given suffix.
+ * suffix: '_type_el' for type collections, or '_el' for element collections (and not _type_el).
+ */
+function pickCollectionForModelByPrefix(collections, modelName, suffix) {
+  if (!Array.isArray(collections) || !collections.length || !modelName) return null
+  const prefix = norm(modelName)
+  const wantTypeEl = suffix === '_type_el'
+  return collections.find((c) => {
+    const n = norm(c?._name)
+    if (!n) return false
+    if (wantTypeEl) return n.startsWith(prefix) && n.endsWith('_type_el')
+    return n.startsWith(prefix) && n.endsWith('_el') && !n.endsWith('_type_el')
+  }) || null
+}
+
+/**
+ * If modelName ends with a 4-digit year (e.g. "General Medical - Architecture2024"), return
+ * the base name without it ("General Medical - Architecture"). Otherwise return null.
+ */
+function modelNameWithoutTrailingYear(modelName) {
+  if (!modelName || typeof modelName !== 'string') return null
+  const s = String(modelName).trim()
+  const match = s.match(/^(.+?)(\d{4})$/)
+  return match ? match[1].trim() : null
+}
+
 async function getTotalCount(IafScriptEngine, coll, ctx) {
   // Cheap count without pulling docs
   const res = await IafScriptEngine.find({
@@ -1178,8 +1206,17 @@ const getDistinctFieldsFactory = (entityName) => async (input, libraries, ctx, c
       const expectedTypesName = `${modelName}_type_el`
       const expectedElemsName = `${modelName}_el`
   
-      const rvtTypesColl = pickCollectionForModel(allTypeCollections, expectedTypesName)
-      const rvtElemsColl = pickCollectionForModel(allElemCollections, expectedElemsName)
+      let rvtTypesColl = pickCollectionForModel(allTypeCollections, expectedTypesName)
+      let rvtElemsColl = pickCollectionForModel(allElemCollections, expectedElemsName)
+      // Fallback 1: collection name may have extra suffix (e.g. "...Architecture2024_type_el")
+      if (!rvtTypesColl) rvtTypesColl = pickCollectionForModelByPrefix(allTypeCollections, modelName, '_type_el')
+      if (!rvtElemsColl) rvtElemsColl = pickCollectionForModelByPrefix(allElemCollections, modelName, '_el')
+      // Fallback 2: structure modelName may have trailing year but collection does not (e.g. "..Architecture2024" -> "..Architecture_type_el")
+      const modelNameNoYear = modelNameWithoutTrailingYear(modelName)
+      if (modelNameNoYear) {
+        if (!rvtTypesColl) rvtTypesColl = pickCollectionForModel(allTypeCollections, `${modelNameNoYear}_type_el`) || pickCollectionForModelByPrefix(allTypeCollections, modelNameNoYear, '_type_el')
+        if (!rvtElemsColl) rvtElemsColl = pickCollectionForModel(allElemCollections, `${modelNameNoYear}_el`) || pickCollectionForModelByPrefix(allElemCollections, modelNameNoYear, '_el')
+      }
 
     //   const elemDocsRes = await IafScriptEngine.findWithRelated({
     //     parent: {
