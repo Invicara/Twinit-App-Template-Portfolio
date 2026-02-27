@@ -24,7 +24,7 @@ import './TablePanel.scss'
 // and more than 100 isn't usable in the bottom panel
 const TABLE_PAGE_SIZE = 100
 
-const TablePanel = ({ readOnly, onView }) => {
+const TablePanel = ({ project, readOnly, onView }) => {
 
    // Model Context
    const { selectedElement, selectedPropRefs, sliceElements } = useContext(ModelContext)
@@ -86,11 +86,13 @@ const TablePanel = ({ readOnly, onView }) => {
    // recalculate the columns
    useEffect(() => {
 
-      getTableConfig()
-      setExpandedRowIds([])
+      if (sliceElements) {
+         getTableConfig()
+         setExpandedRowIds([])
+      }
 
    }, [selectedPropRefs, sliceElements])
-
+ 
 
    // get the value to display in the table cell
    const getPropertyValueIfExists = (spr, item) => {
@@ -165,10 +167,10 @@ const TablePanel = ({ readOnly, onView }) => {
    }
 
    return <div className='element-table-container'>
-      {!sliceElements.length && <div className='no-table-data'>
+      {!sliceElements?.length && <div className='no-table-data'>
          Perform a Search to Display Element Data
       </div>}
-      {!!columns.length && !!sliceElements.length && <div className='table-wrapper'>
+      {!!columns.length && !!sliceElements?.length && <div className='table-wrapper'>
          <div className='table-actions'>
             <div className='ctrls action-ctrls'>
                <span className='actions-header'>Actions:</span>
@@ -195,7 +197,7 @@ const TablePanel = ({ readOnly, onView }) => {
             }}
             rowOptions={{
                renderAfterRow: (item) => ( <>
-                  {expandedRowIds.includes(item._id) && <ElementDetails element={item} readOnly={readOnly} onView={onView}/>}
+                  {expandedRowIds.includes(item._id) && <ElementDetails project={project} element={item} readOnly={readOnly} onView={onView}/>}
                </>)
             }}
          /></div>}
@@ -203,4 +205,4 @@ const TablePanel = ({ readOnly, onView }) => {
 
 }
 
-export default TablePanel
+export default TablePanel;

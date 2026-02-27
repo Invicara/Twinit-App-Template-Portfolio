@@ -1,0 +1,88 @@
+// FilterDropdown
+.filter-dropdown {
+    display: flex;
+    border-bottom: 1px solid #EBEBEB;
+    padding: 8px;
+
+    i {
+        color: #5D5D5D;
+    }
+
+    p {
+        color: #999;
+    }
+}
+
+// FilterContainer
+.filter-container {
+    display: flex;
+    margin: 12px;
+    max-width: 505px;
+
+    .selected-filter {
+        border: 1px solid #DCDCDC;
+        border-radius: 4px 0px 0px 4px;
+        background-color: #F3F3F3;
+        padding: 9px;
+        align-content: center;
+    }
+
+    .selected-condition {
+        border-top: 1px solid #DCDCDC;
+        border-bottom: 1px solid #DCDCDC;
+        background-color: #F3F3F3;
+        padding: 9px;
+        align-content: center;
+    }
+
+    .property-input {
+        border-width: 1px 0px 1px 1px;
+        border-color: #DCDCDC;
+        border-style: solid;
+        padding: 9px;
+    }
+
+    .selecting-condition {
+        border-top: 1px solid #DCDCDC;
+        border-bottom: 1px solid #DCDCDC;
+        padding: 9px;
+    }
+
+    .delete-dropdown {
+        border: 1px solid #DCDCDC;
+        border-radius: 0px 4px 4px 0px;
+        padding: 9px;
+        align-content: center;
+    }
+}
+
+
+// AssetTable
+.asset-table-header-cell {
+    border-right: 1px solid #EBEBEB;
+
+    div {
+        display: flex;
+        justify-content: space-between;
+    }
+}
+
+.asset-table-no-elements {
+  height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  div {
+    width: 90%;
+    max-width: 400px;
+    margin: auto;
+    text-align: center;
+  }
+
+  .no-elements-header {
+    font-weight: 700;
+    font-size: 16px;
+    color: #5D5D5D;
+  }
+}

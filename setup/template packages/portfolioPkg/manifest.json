@@ -1,0 +1,183 @@
+{
+    "Template Name": "Portfolio Template",
+    "Template Version": "1.0.0",
+    "setupScript": "custom/setupMyTemplate.mjs",
+ 
+    "configs": [
+       {
+          "_name": "PortfolioAdminConfig",
+          "_shortName": "AdminConfig",
+          "_description": "PortfolioAdminConfig",
+          "_userType": "portfolio"
+       },
+       {
+          "_name": "PortfolioViewerConfig",
+          "_shortName": "ViewerConfig",
+          "_description": "PortfolioViewerConfig",
+          "_userType": "portfolio"
+       }
+    ],
+    "scripts": [
+       {
+          "_name": "importHelper",
+          "_shortName": "importHelper",
+          "_description": "importHelper",
+          "_userType": "importHelper"
+       },
+       {
+          "_name": "mapbox",
+          "_shortName": "mapbox",
+          "_description": "mapbox",
+          "_userType": "mapbox"
+       },
+       {
+        "_name": "mmv_config",
+        "_shortName": "mmv config",
+        "_description": "mmv config script",
+        "_userType": "mmv_config"
+     },
+     {
+        "_name": "mapTypeActions",
+        "_shortName": "map type",
+        "_description": "map type actions",
+        "_userType": "mapTypeActions"
+     },
+     {
+        "_name": "types_and_graphrefs_setup",
+        "_shortName": "types and graphrefs",
+        "_description": "types graphrefs setup",
+        "_userType": "types_and_graphrefs_setup"
+     },
+     {
+        "_name": "omapi_entities",
+        "_shortName": "omapi_entities",
+        "_description": "omapi_entities",
+        "_userType": "omapi_entities"
+     }
+    ],
+    "namedUserCollections": [
+        {
+           "ifExists": "recreate",
+           "_name": "Buildings Collection",
+           "_shortName": "building_coll",
+           "_description": "Named User Collection",
+           "_userType": "building_coll"
+        },
+        {
+            "ifExists": "recreate",
+            "_name": "Sites Collection",
+            "_shortName": "geo_sites_coll",
+            "_description": "Named User Collection",
+            "_userType": "geo_sites_coll"
+         },
+         {
+            "ifExists": "recreate",
+            "_name": "Secrets Collection",
+            "_shortName": "secrets_coll",
+            "_description": "Named User Collection",
+            "_userType": "secrets",
+            "_encryptionEnabled": true
+         }
+     ],
+     "omapiConfig": [
+        {
+           "_name": "entities_api",
+           "_shortName": "api_config",
+           "_description": "API config"
+        }
+     ],
+     "orchestrators": [
+      {
+         "ifExists": "recreate",
+         "_name": "Import BIMPK Models",
+            "_description": "Orchestrator to import model from BIMPK file",
+         "_userType": "bimpk_importer",
+         "_schemaversion": "2.0",
+         "_params": {
+            "tasks": [
+               {
+                  "_orchcomp": "default_script_target",
+                  "_name": "Import Model from bimpk File",
+                  "_actualparams": {
+                     "userType": "importHelper",
+                     "_scriptName": "importModel"
+                  },
+                  "_sequenceno": 1
+               },
+               {
+                  "_orchcomp": "default_script_target",
+                  "_name": "Post Process Imported Model",
+                  "_actualparams": {
+                     "userType": "importHelper",
+                     "_scriptName": "createModelDataCache"
+                  },
+                  "_sequenceno": 2
+               },
+               {
+                  "_orchcomp": "default_script_target",
+                  "_name": "Migrate File Item Relations",
+                  "_actualparams": {
+                     "userType": "importHelper",
+                     "_scriptName": "migrateFileItemRelations"
+                  },
+                  "_sequenceno": 3
+               }
+            ]
+         }
+      },
+      {
+        "ifExists": "recreate",
+        "_name": "Request MapBox Token",
+		"_description": "Requests a MapBox token for a user",
+		"_userType": "mapbox_temp_token",
+		"_schemaversion": "2.0",
+		"_instant": true,
+		"_params": {
+			"tasks": [
+				{
+					"name": "default_script_target",
+					"_actualparams": {
+						"userType": "mapbox",
+						"_scriptName": "fetchMapboxToken"
+					},
+					"_sequenceno": 1
+				}
+			]
+		}
+    }
+    ],
+    "userGroups": [
+       {
+          "_name": "Admin",
+          "_description": "admin",
+          "_shortName": "admin",
+          "permissions": {
+             "accessAll": true
+          }
+       },
+       {
+          "_name": "Viewer",
+          "_description": "viewer",
+          "_shortName": "viewer",
+          "permissions": {}
+       }
+    ],
+    "userGroupToUserConfig": [
+       { "group": "Admin", "config": "PortfolioAdminConfig" },
+       { "group": "Viewer", "config": "PortfolioViewerConfig" }
+    ],
+    "itemsToCreate": [
+        {
+            "collectionName": "Sites Collection",
+            "items": [
+                { "file": "default-site.json", "ifExists": "default" }
+            ]
+        }
+    ],
+    "files": [
+       { "_name": "snowdon.glb", "_path": "", "_tags": [] },
+       { "_name": "medical.glb", "_path": "", "_tags": [] },
+       { "_name": "snowdon-thumbnail.png", "_path": "", "_tags": [] },
+       { "_name": "medical-thumbnail.png", "_path": "", "_tags": [] }
+    ]
+}

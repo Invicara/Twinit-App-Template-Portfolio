@@ -1,0 +1,1 @@
+setup/template[[:space:]]packages/portfolioPkg/fileUploads/snowdon.glb filter=lfs diff=lfs merge=lfs -text

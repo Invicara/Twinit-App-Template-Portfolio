@@ -1,0 +1,18 @@
+[
+  {
+      "modelName": "General Medical - Architecture2024",
+      "mapGraphicRefId": "68c13e1a71aa127e59765ab0",
+      "structureMetadata": {},
+      "name": "medical",
+      "requiredBackgroundProperties": {
+      }
+  },
+  {
+      "modelName": "Snowdon Towers Sample Architectural",
+      "mapGraphicRefId": "68c1889e56dd1014ccf092c6",
+      "structureMetadata": {},
+      "name": "snowdon",
+      "requiredBackgroundProperties": {
+      }
+  }
+]

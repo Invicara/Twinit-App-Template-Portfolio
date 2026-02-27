@@ -21,7 +21,7 @@ const VIEWABLES = ['pdf', 'xls', 'xlsx', 'doc', 'docx', 'ppt', 'pptx', 'jpg', 'j
 const ModelDocs = ({ onView, readOnly }) => {
 
    // currently selected model
-   const { selectedModelComposite } = useContext(ModelContext)
+   const { selectedModelComposite, selectedModelCompositeVersion } = useContext(ModelContext)
 
    // th elis tof fils to display
    const [ files, setFiles ] = useState()
@@ -79,7 +79,7 @@ const ModelDocs = ({ onView, readOnly }) => {
    }
 
    return <div className='model-docs-component'>
-      {!readOnly && <ModelDocUpload onFilesUploaded={fetchFiles}/>}
+      {!readOnly && selectedModelCompositeVersion?._isTip && <ModelDocUpload onFilesUploaded={fetchFiles}/>}
       <table className='file-table'>
          <tr>
             <th className='row-expander-head'></th>

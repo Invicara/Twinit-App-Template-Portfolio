@@ -12,6 +12,7 @@ const ModelSelect = () => {
 
    // if only one model is in the available list, select it by default
    useEffect(() => {
+      console.log("availableModelComposites",availableModelComposites)
       if (availableModelComposites?.length === 1) {
          onModelSelect(availableModelComposites[0]._id)
       }
@@ -39,7 +40,7 @@ const ModelSelect = () => {
          console.log(selectedModelCompositeVersions, newVersion, version)
          setSelectedModelCompositeVersion(version)
       })
-      
+
 
    }
 

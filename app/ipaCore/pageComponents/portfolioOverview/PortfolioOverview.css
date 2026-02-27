@@ -1,0 +1,44 @@
+.generic-page-body {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 80px) !important;
+    overflow: hidden;
+}
+.count-badge-label {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    pointer-events: none;
+}
+.count-badge {
+    background: white;
+    border: 2px solid #9E9E9E;
+    border-radius: 50%;
+    width: 21px;
+    height: 21px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font: 600 11px/1 system-ui, sans-serif;
+    color: black;
+    line-height: normal;
+}
+/* Reset Mapbox marker container to defaults */
+.mapboxgl-marker {
+    position: absolute !important;
+}
+.mapboxgl-map, .mapboxgl-canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+/* Site selection cursor styles */
+.map-selecting-position {
+    cursor: url('/icons/map-pin.svg') 12 24, crosshair !important;
+}
+
+.map-selecting-position * {
+    cursor: url('/icons/map-pin.svg') 12 24, crosshair !important;
+}
+
+.map-selecting-position canvas {
+    cursor: url('/icons/map-pin.svg') 12 24, crosshair !important;
+}

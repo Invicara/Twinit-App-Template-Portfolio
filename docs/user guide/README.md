@@ -1,22 +1,12 @@
-# User Guide: Quick Model View Twinit Application
-
-<img align="left" width="60" src='../img/alert.jpg' />
-
-**If you have updated your Quick Model View from a previous release, be sure to read the [Migration User Guide](./migrationguide/migrate.md) to ensure you have access to all of the latest features.**
+# User Guide: Template Portfolio Twinit Application
 
 ---
 
-![qmv](../img/model-view.jpg)
+![portfolio](../img/model-view-w-gis.jpg)
 
-The **Quick Model View Application** gives you the ability to upload and import your models to Twinit and then view and interactively explore your models in 2D and 3D.
+The **Template Portfolio Application** gives you the ability to upload and import your models to Twinit, view and interactively explore your models in 2D and 3D, and view portfolio data (sites, buildings, status) on a map with search and filters.
 
-[Learn how to use the Quick Model View Application](./quickmodelview/README.md)
-
- ![maker](../img/project-maker.jpg)
-
-Using the **Quick Model View Manager** you can create new Quick Model View projects. This allows you to separate models and users for different designs or activities into their own workspaces. The **Quick Model View Manager** also allows you to update existing workspaces as new releases of the template become available.
-
-[Learn how to use the Quick Model View Manager](./projectmaker/README.md)
+[Learn how to use the Template Portfolio Application](./portfolio/README.md)
 
 ---
 

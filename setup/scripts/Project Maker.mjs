@@ -1,5 +1,5 @@
-const CURRENT_MAKER_VERSION = '2.1.0'
-const MIGRATE_PROJECT_VERSIONS = ['2.0.0']
+const CURRENT_MAKER_VERSION = '2.1.1'
+const MIGRATE_PROJECT_VERSIONS = ['2.0.0', '2.1.0']
 
 const _enableGis = async (stepNum, project, scriptTemplates, libraries, callback) => {
 
@@ -244,6 +244,15 @@ const _updatePermissions = async (stepNum, project, libraries, callback) => {
 		}
 	})
 
+	let sharedContainerReadPerms = Object.assign({}, basePerm, {
+		_resourceDesc: {
+			_irn: `${IafPermission.Resources.NamedUserItem.Irn}*`,
+			_criteria: {
+				_userType: 'file_container'
+			}
+		}
+	})
+
 	// give Viewers READ to workspaces that they belong to
 	let WorkspacePerm = Object.assign({}, basePerm, {
 		_resourceDesc: {
@@ -263,7 +272,8 @@ const _updatePermissions = async (stepNum, project, libraries, callback) => {
 		elementTypesItemReadPerms,
 		geomViewsItemReadPerms,
 		geomResourcesItemReadPerms,
-		dataCacheItemReadPerms
+		dataCacheItemReadPerms,
+		sharedContainerReadPerms,
 	])
 
 	await IafPermission.createPassPermissions([WorkspacePerm])
@@ -279,6 +289,31 @@ const _updatePermissions = async (stepNum, project, libraries, callback) => {
 
 }
 
+const _alwaysPatchAdminPermExists = async(IafPermission, IafPassSvc, adminGroup, viewerGroup) => {
+
+	// chck o se if th permission allowing Admins to manag the Viewer user group already exists
+	let adminPerms = await IafPassSvc.getUsergroupPermissions(adminGroup._id)
+	let adminViewerPerm = adminPerms._list.find(p => p._resourceDesc?._irn === `passportsvc:usergroup:${viewerGroup._id}`)
+	console.log('existing', adminViewerPerm)
+
+	// if the permision does not exist create it
+	if (!adminViewerPerm) {
+
+		let adminReportersAllPerm = await IafPermission.constructPermObjWithActions(
+			[IafPermission.PermConst.Action.All],
+			viewerGroup._namespaces[0],
+			adminGroup._id,
+			'passportsvc:usergroup:',
+			viewerGroup._id,
+			false,
+			false
+		)
+
+		let passPermsResult = await IafPermission.createPassPermissions([adminReportersAllPerm])
+		console.log('Created Admin Viewer Managemenet Permission', JSON.stringify(passPermsResult))
+	}
+}
+
 let scriptModule = {
 	async getCurrentMakerVersion() {
 		return  { CURRENT_MAKER_VERSION, MIGRATE_PROJECT_VERSIONS }
@@ -286,7 +321,7 @@ let scriptModule = {
 	// input { projName: <REQUIRED>, projDesc: <OPTIONAL> }
 	async createNewQuickModelViewProject(input, libraries, ctx, callback) {
 
-		const { IafProj, IafUserGroup, IafWorkspace, IafDataSource, IafPermission } = libraries.PlatformApi
+		const { IafProj, IafUserGroup, IafWorkspace, IafDataSource, IafPermission, IafPassSvc } = libraries.PlatformApi
 
 		const {
 			projName,	// REQUIRED: name of the new project to create
@@ -302,7 +337,7 @@ let scriptModule = {
 		let projectMakerProject = await IafProj.getCurrent()
 
 		// retrieve user config templates from this project (the project maker project)
-		let userConfigTemplates = await IafProj.getUserConfigs(projectMakerProject, {_userType: 'quick-temp'})
+		let userConfigTemplates = await IafProj.getUserConfigs(projectMakerProject, {_userType: 'portfolio'})
 		let scriptTemplates = await IafProj.getScripts(projectMakerProject, {query: {_userType: 'quick-temp'}})
 		console.log('STEP 1: userConfigTemplates', userConfigTemplates)
 		console.log('STEP 1: scriptTemplates', scriptTemplates)
@@ -315,7 +350,7 @@ let scriptModule = {
 			_shortName: projName.slice(0,6),
 			_userAttributes: {
 				nextScriptEngine: true,
-				quickModelView: {
+				portfolio: {
 					originalVersion: CURRENT_MAKER_VERSION,
 					currentVersion: CURRENT_MAKER_VERSION
 				}
@@ -341,11 +376,11 @@ let scriptModule = {
 			if (callback) callback(`STEP 4: Created Admin User Group ${adminGroup._id}`)
 
 			// create admin user config
-			let adminUCTemplate = userConfigTemplates.find(uct => uct._name === 'QuickViewAdminConfigTemplate')
+			let adminUCTemplate = userConfigTemplates.find(uct => uct._name === 'PortfolioAdminConfig')
 			let adminUserConfig = await IafProj.addUserConfig(newProject, {
-				_name: 'QuickViewAdminConfig',
-				_shortName: 'QuickViewAdminConfig',
-				_userType: 'quick-view',
+				_name: 'PortfolioAdminConfig',
+				_shortName: 'PortfolioAdminConfig',
+				_userType: 'portfolio',
 				_version: {
 					_userData: adminUCTemplate._versions[0]._userData
 				}
@@ -378,16 +413,17 @@ let scriptModule = {
 			// create read only permissions for the viewer user group on across all of Twinit
 			let readViewerPermCreate = await IafWorkspace.addAllAccess(newProject, viewerGroup, [ IafPermission.PermConst.Action.Read ])
 
+			await _alwaysPatchAdminPermExists(IafPermission, IafPassSvc, adminGroup, viewerGroup)
 			console.log('STEP 7: viewerGroup', viewerGroup, readViewerPermCreate)
 			console.log('STEP 7: viewerGroup read permissons create', readViewerPermCreate)
 			if (callback) callback(`STEP 7: Created Viewers User Group ${viewerGroup._id}`)
 
 			// create viewers user config
-			let viewerUCTemplate = userConfigTemplates.find(uct => uct._name === 'QuickViewViewerConfigTemplate')
+			let viewerUCTemplate = userConfigTemplates.find(uct => uct._name === 'PortfolioViewerConfig')
 			let viewerUserConfig = await IafProj.addUserConfig(newProject, {
-				_name: 'QuickViewViewerConfig',
-				_shortName: 'QuickViewViewerConfig',
-				_userType: 'quick-view',
+				_name: 'PortfolioViewerConfig',
+				_shortName: 'PortfolioViewerConfig',
+				_userType: 'portfolio',
 				_version: {
 					_userData: viewerUCTemplate._versions[0]._userData
 				}
@@ -453,7 +489,17 @@ let scriptModule = {
 								'_scriptName': 'createModelDataCache'
 							},
 							_sequenceno: 2
-						}
+						},
+						{
+							// our import helper script again, but this time running migrateFileItemRelations
+							_orchcomp: 'default_script_target',
+							_name: 'Migrate File Item Relations',
+							'_actualparams': {
+								'userType': 'importHelper',
+								'_scriptName': 'migrateFileItemRelations'
+							},
+							_sequenceno: 3
+						},
 					]
 				}
 			})
@@ -480,7 +526,7 @@ let scriptModule = {
 	// input { project, version }
 	async updateQuickModelViewProject(input, libraries, ctx, callback) {
 
-		const { IafProj, IafScripts, IafUserConfig } = libraries.PlatformApi
+		const { IafProj, IafScripts, IafUserConfig, IafPassSvc, IafPermission, IafDataSource } = libraries.PlatformApi
 		const { 	project,	// REQUIRED: the project to migrate
 					version 	// REQUIRED: the current version of the project to migrate
 		} = input
@@ -498,9 +544,9 @@ let scriptModule = {
 
 			let userConfigs = await IafProj.getUserConfigs(updateProject)
 
-			let adminConfig = userConfigs.find(uc => uc._name === 'QuickViewAdminConfig')
+			let adminConfig = userConfigs.find(uc => uc._name === 'PortfolioAdminConfig')
 			let adminConfigVersion = adminConfig._versions[0]
-			let adminTemplate = userConfigTemplates.find(uc => uc._name === 'QuickViewAdminConfigTemplate')._versions[0]
+			let adminTemplate = userConfigTemplates.find(uc => uc._name === 'PortfolioAdminConfig')._versions[0]
 			adminConfigVersion._userData = adminTemplate._userData
 
 			let adminUpdateResult = await IafUserConfig.createVersion(adminConfig._id, adminConfigVersion)
@@ -508,18 +554,24 @@ let scriptModule = {
 			callback('STEP 1: Updated Admin User Config')
 
 			let step = await _enableGis(2, updateProject, scriptTemplates, libraries, callback)
-			step = await _updatePermissions(step, project, libraries, callback)
+			step = await _updatePermissions(step, updateProject, libraries, callback)
+
+			const allUserGroups = await IafProj.getUserGroups(updateProject, ctx)
+
+			const viewerGroup = allUserGroups.find(ug => ug._name === 'Viewers')
+			const adminGroup = allUserGroups.find(ug => ug._name === 'Admin')
+			await _alwaysPatchAdminPermExists(IafPermission, IafPassSvc, adminGroup, viewerGroup)
 
 			// project updates onyl allowed if _description is present
 			if (!updateProject._description) {
 				updateProject._description = updateProject._name
 			}
 			
-			if (updateProject._userAttributes?.quickModelView) {
-				updateProject._userAttributes.quickModelView.currentVersion = '2.1.0'
+			if (updateProject._userAttributes?.portfolio) {
+				updateProject._userAttributes.portfolio.currentVersion = '2.1.0'
 			} else if (updateProject._userAttributes?.projectMaker) {
-				updateProject._userAttributes.quickModelView = Object.assign({}, updateProject._userAttributes.projectMaker)
-				updateProject._userAttributes.quickModelView.currentVersion = '2.1.0'
+				updateProject._userAttributes.portfolio = Object.assign({}, updateProject._userAttributes.projectMaker)
+				updateProject._userAttributes.portfolio.currentVersion = '2.1.0'
 			}
 			let projUpdateResult = await IafProj.update(updateProject)
 			console.log(`STEP ${step}:`, updateProject, projUpdateResult)
@@ -527,8 +579,103 @@ let scriptModule = {
 
 		}
 
+		const migrate_2_1_0_to_2_1_1 = async (userConfigTemplates, scriptTemplates) => {
+
+			callback(`Applying 2.1.1 patch to project ${project._name}`)
+			console.log(`STEP 0: Updating project`, project)
+			await IafProj.switchProject(project._id)
+			let updateProject = await IafProj.getCurrent()
+
+			const allUserGroups = await IafProj.getUserGroups(updateProject, ctx)
+			const viewerGroup = allUserGroups.find(ug => ug._name === 'Viewers')
+			const adminGroup = allUserGroups.find(ug => ug._name === 'Admin')
+			await _alwaysPatchAdminPermExists(IafPermission, IafPassSvc, adminGroup, viewerGroup)
+
+			// update import script
+			let scripts = await IafProj.getScripts(updateProject)
+			let importScript = scripts.find(s => s._userType === 'importHelper')
+			let importScriptTemplate = scriptTemplates.find(s => s._name === "importHelperTemplate")
+			
+			let newVersion = importScript._versions[0]
+			newVersion._userData = importScriptTemplate._versions[0]._userData
+
+			let verResult = await IafScripts.createVersion(importScript._id, newVersion)
+			console.log('STEP 1:', importScript, importScriptTemplate, verResult)
+			callback('STEP 1: Updated bimpk Import Script')
+
+			// update import orchestrator by deleting the exsting one and creating a new one
+			let currentImportOrch = (await IafDataSource.getOrchestratorBasedOnUserType('bimpk_importer'))[0]
+			if (currentImportOrch) {
+				await IafDataSource.deleteOrchestrator(currentImportOrch.id)
+			}
+			currentImportOrch = (await IafDataSource.getOrchestratorBasedOnUserType('bimpk_importer'))[0]
+			if (currentImportOrch) {
+				throw('Failed to delete existing Import Orchestrator')
+			}
+
+			// recreate import orchestrator with updatd steps
+			let importOrch =  await IafDataSource.createOrchestrator({
+				_name: 'Import BIMPK Models',
+				_description: 'Orchestrator to import model from BIMPK file',
+				_namespaces: updateProject._namespaces,
+				_userType: 'bimpk_importer', // _userType we will use to find the orchestrator when we want to run it
+				_schemaversion: '2.0',
+				_params: {
+					tasks: [
+						{
+							// our import helper script that runs importModel from the script
+							// uses the parameter passed to it at runtime
+							_orchcomp: 'default_script_target',
+							_name: 'Import Model from bimpk File',
+							'_actualparams': {
+								'userType': 'importHelper',
+								'_scriptName': 'importModel'
+							},
+							_sequenceno: 1
+						},
+						{
+							// our import helper script again, but this time running createModelDataCache
+							_orchcomp: 'default_script_target',
+							_name: 'Post Process Imported Model',
+							'_actualparams': {
+								'userType': 'importHelper',
+								'_scriptName': 'createModelDataCache'
+							},
+							_sequenceno: 2
+						},
+						{
+							// our import helper script again, but this time running migrateFileItemRelations
+							_orchcomp: 'default_script_target',
+							_name: 'Migrate File Item Relations',
+							'_actualparams': {
+								'userType': 'importHelper',
+								'_scriptName': 'migrateFileItemRelations'
+							},
+							_sequenceno: 3
+						},
+					]
+				}
+			})
+			console.log('STEP 2: importOrch', importOrch)
+			if (callback) callback(`STEP 2: Recreated Import Orchestrator`)
+
+			// project updates onyl allowed if _description is present
+			if (!updateProject._description) {
+				updateProject._description = updateProject._name
+			}
+			
+			if (updateProject._userAttributes?.portfolio) {
+				updateProject._userAttributes.portfolio.currentVersion = '2.1.1'
+			}
+			let projUpdateResult = await IafProj.update(updateProject)
+			console.log(`STEP 3:`, updateProject, projUpdateResult)
+			callback(`STEP 3: Updated Project Current Version -> 2.1.0`)
+
+		}
+
 		const migrations = [
-			{ from: '2.0.0', to: '2.1.0', migrateFunction: migrate_2_0_0_to_2_1_0 }
+			{ from: '2.0.0', to: '2.1.0', migrateFunction: migrate_2_0_0_to_2_1_0 },
+			{ from: '2.1.0', to: '2.1.1', migrateFunction: migrate_2_1_0_to_2_1_1 }
 		]
 
 		const managerProject = await IafProj.getCurrent()
@@ -540,7 +687,7 @@ let scriptModule = {
 			callback(`Beginning ${nextMigration.from} -> ${nextMigration.to} migration`)
 			try {
 				// retrieve user config templates from this project (the project maker project)
-				let userConfigTemplates = await IafProj.getUserConfigs(managerProject, {_userType: 'quick-temp'})
+				let userConfigTemplates = await IafProj.getUserConfigs(managerProject, {_userType: 'portfolio'})
 				let scriptTemplates = await IafProj.getScripts(managerProject, {query: {_userType: 'quick-temp'}})
 				console.log('userConfigTemplates', userConfigTemplates)
 				console.log('scriptTemplates', scriptTemplates)
