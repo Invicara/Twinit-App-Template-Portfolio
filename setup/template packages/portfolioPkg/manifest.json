@@ -174,10 +174,5 @@
             ]
         }
     ],
-    "files": [
-       { "_name": "snowdon.glb", "_path": "", "_tags": [] },
-       { "_name": "medical.glb", "_path": "", "_tags": [] },
-       { "_name": "snowdon-thumbnail.png", "_path": "", "_tags": [] },
-       { "_name": "medical-thumbnail.png", "_path": "", "_tags": [] }
-    ]
+    "files": []
 }

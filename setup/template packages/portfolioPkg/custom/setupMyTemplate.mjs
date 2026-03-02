@@ -4,9 +4,7 @@
  * 1. setupMapTypes     – create map_types from custom/customUploads/mapTypes.json
  * 2. setupGraphicRefs  – create map_graphic_references (name only) from custom/customUploads/baseGraphicReferences.json
  * 3. setupStructures   – create map_structures from custom/customUploads/structures.json, linked to graphic refs
- * 4. Upload from package – for each ref name: read {name}.glb and {name}-thumbnail.* from package (tries fileUploads/ then custom/customUploads/),
- *    upload via IafScriptEngine.uploadFile, create file items via IafFile.createFileItemFromFile,
- *    then update map_graphic_references with graphic and thumbnail _fileIds. Single source: put GLBs/PNGs in fileUploads/ once; manifest.files + setup both use them.
+ * 4. Upload GLB + thumbnail from package only – read from custom/customUploads/ (like BIMPK); one ref at a time, wait for each to finish then short delay before next to avoid deployment cutouts. No fileUploads/manifest.
  * 5. Mapbox secret     – add Mapbox secret to Secrets Collection: if MAPBOX_CREATOR_SECRET and MAPBOX_CREATOR_USERNAME are set, create a new token per project via Mapbox API and save it; else use preset.
  * 6. BIMPK import      – find .bimpk files in file collections; if none, read from package (custom/customUploads/ only), upload, then run bimpk_importer for each. Put .bimpk files in custom/customUploads/ so the platform does not auto-upload them from fileUploads/ (which would cause duplicate imports).
  */
@@ -19,8 +17,10 @@ const MAP_GRAPHICS_COLLECTION = 'map_graphics';
 const GRAPHIC_THUMBNAILS_COLLECTION = 'graphic_thumbnails';
 const THUMBNAIL_EXTS = ['.png', '.jpg', '.jpeg'];
 
-/** Paths tried when reading GLB/PNG from the package. */
-const ASSET_DIRS_TO_TRY = ['fileUploads', 'custom/customUploads'];
+/** Paths tried when reading GLB/thumbnail from the package (step 4). Use custom only to avoid platform fileUploads/manifest load; sequential uploads + delay reduce deployment cutouts. */
+const GLB_PACKAGE_DIRS = ['custom/customUploads'];
+/** Delay in ms between finishing one graphic ref (GLB+thumbnail+link) and starting the next. */
+const GLB_UPLOAD_DELAY_MS = 2000;
 
 /** Paths tried for BIMPK list and files only. Use custom only so fileUploads auto-upload does not create duplicates. */
 const BIMPK_DIRS_TO_TRY = ['custom/customUploads'];
@@ -59,9 +59,9 @@ async function createMapboxTokenViaApi(creatorUsername, creatorSecret, note) {
 }
 
 /** Try reading from package at candidate paths; returns { buffer, path } for first success, or throws. */
-async function readFromPackageFirst(packageData, filename) {
+async function readFromPackageFirst(packageData, filename, dirs = GLB_PACKAGE_DIRS) {
 	let lastErr;
-	for (const dir of ASSET_DIRS_TO_TRY) {
+	for (const dir of dirs) {
 		const path = dir ? `${dir}/${filename}` : filename;
 		try {
 			const buffer = await packageData.file(path).async('arraybuffer');
@@ -180,7 +180,7 @@ export async function setup(input, libraries, ctx, callback) {
 	}));
 	await setupCollEntities('map_structures', structureEntities);
 
-	// --- 4. Upload GLB + thumbnail from package (fileUploads/ or custom/customUploads/) and link to map_graphic_references ---
+	// --- 4. Upload GLB + thumbnail from package only (custom/customUploads/), one ref at a time with delay between refs ---
 	const refNames = graphicRefsJson.map(r => r.name).filter(Boolean);
 	const collId = graphicRefsColl._userItemId ?? graphicRefsColl._id;
 	let linked = 0;
@@ -193,28 +193,34 @@ export async function setup(input, libraries, ctx, callback) {
 		if (!fileContainer) {
 			send('WARN: No file container from IafFile.getContainers; reason: empty list. Upload/link from package will be skipped.');
 		} else {
-			send(`INFO: Using file container '${fileContainer._shortName || fileContainer._name || 'container'}' for GLB and thumbnail uploads`);
+			send(`INFO: Using file container for GLB/thumbnail uploads from package (custom/customUploads/ only, sequential with ${GLB_UPLOAD_DELAY_MS}ms delay between refs).`);
 		}
 	} catch (e) {
 		const reason = e && (e.message || String(e));
-		send(`WARN: Could not get file container (IafFile.getContainers): ${reason}. Ensure fileUploads/ or custom/customUploads/ has {name}.glb and {name}-thumbnail.png and run deploy when file APIs are available, or run "types and graphrefs" in UI.`);
+		send(`WARN: Could not get file container (IafFile.getContainers): ${reason}. Put {name}.glb and {name}-thumbnail.png in custom/customUploads/ and run deploy when file APIs are available.`);
 	}
 
 	if (fileContainer) {
 		ensureFileReader();
-		for (const refName of refNames) {
-			// --- Read GLB from package (tries fileUploads/ then custom/customUploads/) ---
+		for (let refIndex = 0; refIndex < refNames.length; refIndex++) {
+			const refName = refNames[refIndex];
+			// Wait before each ref after the first to avoid overloading the platform (reduces deployment cutouts)
+			if (refIndex > 0) {
+				await new Promise((r) => setTimeout(r, GLB_UPLOAD_DELAY_MS));
+			}
+
+			// --- Read GLB from package (custom/customUploads/ only) ---
 			let glbBuf, glbPath;
 			try {
 				const out = await readFromPackageFirst(packageData, `${refName}.glb`);
 				glbBuf = out.buffer;
 				glbPath = out.path;
 			} catch (e) {
-				send(`ERROR: Could not read GLB for '${refName}': ${e && (e.message || String(e))}. Ensure ${refName}.glb exists under fileUploads/ or custom/customUploads/ in the template package.`);
+				send(`ERROR: Could not read GLB for '${refName}': ${e && (e.message || String(e))}. Ensure ${refName}.glb exists under custom/customUploads/ in the template package.`);
 				continue;
 			}
 
-			// --- Read thumbnail from package ({name}-thumbnail.png or .jpg/.jpeg), same path order ---
+			// --- Read thumbnail from package (custom/customUploads/ only) ---
 			let thumbBuf, thumbPath, thumbFilename;
 			let thumbFound = false;
 			for (const ext of THUMBNAIL_EXTS) {
@@ -229,7 +235,7 @@ export async function setup(input, libraries, ctx, callback) {
 				} catch (_) { /* try next ext */ }
 			}
 			if (!thumbFound) {
-				send(`ERROR: No thumbnail found for '${refName}': expected ${refName}-thumbnail.png, .jpg, or .jpeg under fileUploads/ or custom/customUploads/.`);
+				send(`ERROR: No thumbnail found for '${refName}': expected ${refName}-thumbnail.png, .jpg, or .jpeg under custom/customUploads/.`);
 				continue;
 			}
 
@@ -301,10 +307,10 @@ export async function setup(input, libraries, ctx, callback) {
 				const updatedItem = { ...(existingRef || {}), name: refName, graphic: graphicFileId, thumbnail: thumbnailFileId };
 				if (refId) {
 					await IafItemSvc.updateRelatedItem(collId, refId, updatedItem, ctx);
-					send(`INFO: Uploaded custom/${refName}.glb and ${thumbFilename}, created file items, and linked graphic ref '${refName}'`);
+					send(`INFO: Uploaded ${refName}.glb and ${thumbFilename} from package, linked graphic ref '${refName}'`);
 				} else {
 					await IafItemSvc.createRelatedItems(collId, [updatedItem], ctx);
-					send(`INFO: Uploaded custom/customUploads/${refName}.glb and ${thumbFilename}, created file items, and added graphic ref '${refName}'`);
+					send(`INFO: Uploaded ${refName}.glb and ${thumbFilename} from package, added graphic ref '${refName}'`);
 				}
 				linked++;
 			} catch (e) {
@@ -314,23 +320,66 @@ export async function setup(input, libraries, ctx, callback) {
 		send(`INFO: Upload-from-custom and link: ${linked} of ${refNames.length} graphic ref(s) processed.`);
 	}
 
-	// --- 5. Mapbox secret (unchanged) ---
+	// --- 5. Mapbox secret: create a new token per project (unique to project), save to Secrets Collection ---
+	// Prefer: use creator credentials (env or preset) to call Mapbox API → new token → save that. Better than reusing same .secret everywhere.
+	async function upsertMapboxSecret(secretsCollectionId, secretItem, ctx) {
+		const existing = await IafItemSvc.getRelatedItems(secretsCollectionId, { query: { type: 'mapbox-secret' } }, ctx);
+		const first = (existing?._list || [])[0];
+		if (first && first._id) {
+			await IafItemSvc.updateRelatedItem(secretsCollectionId, first._id, { ...first, ...secretItem }, ctx);
+			return 'updated';
+		}
+		await IafItemSvc.createRelatedItems(secretsCollectionId, [secretItem], ctx);
+		return 'created';
+	}
+
+	const PRESET_MAPBOX_USERNAME = 'dominika-oles-invicara';
+	const PRESET_MAPBOX_SECRET = 'sk.eyJ1IjoiZG9taW5pa2Etb2xlcy1pbnZpY2FyYSIsImEiOiJjbWRoNzNsOWwwMDh3Mnhxdng5ajQ1OXYzIn0.n8dXsPMD7DPq3poppzrF2Q';
+
 	try {
 		const secretsResp = await IafItemSvc.getNamedUserItems({ query: { _userType: 'secrets' } }, ctx);
 		const secretsCollection = (secretsResp._list || [])[0];
-		if (secretsCollection?._userItemId) {
-			const newSecret = {
-				type: 'mapbox-secret',
-				'.secret': 'sk.eyJ1IjoiZG9taW5pa2Etb2xlcy1pbnZpY2FyYSIsImEiOiJjbWRoNzNsOWwwMDh3Mnhxdng5ajQ1OXYzIn0.n8dXsPMD7DPq3poppzrF2Q',
-				username: 'dominika-oles-invicara',
-			};
-			await IafItemSvc.createRelatedItems(secretsCollection._userItemId, [newSecret], ctx);
-			send('INFO: Created Mapbox secret in Secrets Collection');
-		} else {
+
+		if (!secretsCollection?._userItemId) {
 			send('WARN: Secrets Collection not found; skipping Mapbox secret');
+		} else {
+			const creatorUsername =
+				(typeof process !== 'undefined' && process.env && process.env.MAPBOX_CREATOR_USERNAME) ||
+				(ctx && ctx.env && ctx.env.MAPBOX_CREATOR_USERNAME) ||
+				PRESET_MAPBOX_USERNAME;
+			const creatorSecret =
+				(typeof process !== 'undefined' && process.env && process.env.MAPBOX_CREATOR_SECRET) ||
+				(ctx && ctx.env && ctx.env.MAPBOX_CREATOR_SECRET) ||
+				PRESET_MAPBOX_SECRET;
+
+			const projectName = project?._name || project?.name || 'project';
+			const note = `${projectName} (${project?._id || 'no-id'})`;
+
+			// Always try to create a new token per project; store that in secrets (unique to project).
+			const newToken = await createMapboxTokenViaApi(creatorUsername, creatorSecret, note);
+
+			if (newToken) {
+				const secretItem = {
+					type: 'mapbox-secret',
+					'.secret': newToken,
+					username: creatorUsername,
+				};
+				const mode = await upsertMapboxSecret(secretsCollection._userItemId, secretItem, ctx);
+				send(`INFO: Mapbox secret ${mode} (per-project token for "${projectName}")`);
+			} else {
+				// Token creation failed (e.g. preset lacks tokens:write); fall back to preset so app still works.
+				send('WARN: Mapbox token creation failed; saving preset secret. Set MAPBOX_CREATOR_SECRET with a token that has tokens:write for per-project tokens.');
+				const secretItem = {
+					type: 'mapbox-secret',
+					'.secret': creatorSecret,
+					username: creatorUsername,
+				};
+				await upsertMapboxSecret(secretsCollection._userItemId, secretItem, ctx);
+				send('INFO: Mapbox secret created/updated with preset.');
+			}
 		}
 	} catch (error) {
-		send('ERROR: Creating New Mapbox Secret Item');
+		send(`ERROR: Creating/updating Mapbox Secret Item: ${error && (error.message || String(error))}`);
 		console.error(error);
 	}
 
