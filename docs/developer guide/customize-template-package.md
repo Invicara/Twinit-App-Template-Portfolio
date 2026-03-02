@@ -15,20 +15,23 @@ setup/template packages/portfolioPkg/
 ├── manifest.json              # Template metadata and list of scripts, configs, collections, etc.
 ├── custom/
 │   ├── setupMyTemplate.mjs    # Custom setup script run during deploy
-│   └── customUploads/         # Data files used by the setup script
+│   └── customUploads/         # Data files and assets used by the setup script
 │       ├── mapTypes.json
 │       ├── structures.json
 │       ├── baseGraphicReferences.json
-│       └── bimpk-files.json   # Optional: list of .bimpk files to import
+│       ├── bimpk-files.json   # Optional: list of .bimpk file names to import
+│       ├── *.glb              # 3D graphics (one per graphic reference name)
+│       ├── *-thumbnail.png   # Thumbnails (or .jpg/.jpeg) for each GLB
+│       └── *.bimpk            # Optional: BIMPK model files to import
 ├── itemsToCreate/
 │   └── default-site.json     # Optional default site(s) created in the project
 ├── configs/                  # User config templates (Admin, Viewer, etc.)
 ├── scripts/                  # Scripts (importHelper, mapbox, etc.)
 ├── omapiConfig/              # API config (e.g. entities_api.json)
-└── (fileUploads or root)     # Optional: GLB, PNG, .bimpk files referenced by manifest or setup
+└── fileUploads/               # Optional: extra files for later upload; setup does NOT use this for GLBs, thumbnails, or BIMPKs
 ```
 
-The **manifest** tells the platform what to create (scripts, configs, collections, orchestrators, etc.). The **custom setup script** (`custom/setupMyTemplate.mjs`) runs after the platform has created those items and uses the JSON files in **custom/customUploads/** to create map types, graphic references, structures, default site, and optionally upload and import BIMPKs.
+The **manifest** tells the platform what to create (scripts, configs, collections, orchestrators, etc.). The **custom setup script** (`custom/setupMyTemplate.mjs`) runs after the platform has created those items and uses the JSON files and assets in **custom/customUploads/** to create map types, graphic references, structures, default site, and optionally upload and import BIMPKs. **GLBs, thumbnails, and BIMPKs are read only from custom/customUploads/** during setup—not from fileUploads. If you have other files you want to upload later, you can use fileUploads or the platform's upload; for updating or replacing BIMPKs, GLBs, and thumbnails used by the template, put them in **custom/customUploads/**.
 
 ---
 
@@ -45,7 +48,7 @@ The **manifest** tells the platform what to create (scripts, configs, collection
 - **orchestrators**: e.g. Import BIMPK Models, Request MapBox Token.
 - **userGroups** / **userGroupToUserConfig**: Which group gets which config.
 - **itemsToCreate**: Optional. Describes default data to create (e.g. collection + JSON file for default site). The custom setup script can also create default site data.
-- **files**: List of file names (and paths/tags) that the platform may upload and attach to the project. Include here any **.glb**, **.png**, or **.bimpk** files you want the platform to add so the setup script can use them.
+- **files**: List of file names (and paths/tags) that the platform includes in the template package. Include any **.glb**, **.png**, or **.bimpk** files that live in **custom/customUploads/** so they are in the zip. The setup script reads these assets only from **custom/customUploads/**—not from fileUploads.
 
 **Customization**: Edit names, add/remove scripts or configs, add/remove collections or orchestrators, or change the list of **files** when you add or remove GLBs, thumbnails, or BIMPKs.
 
@@ -75,12 +78,12 @@ The setup script reads these JSON files from **`custom/customUploads/`** and use
 
 **Purpose**: Defines the **map graphic references** by **name**. Each entry is a reference that will later be linked to a GLB (3D graphic) and a thumbnail image.
 
-**What it does**: The setup script creates items in the **map_graphic_references** collection with these names. It then looks for files **`{name}.glb`** and **`{name}-thumbnail.png`** (or `.jpg`/`.jpeg`) in the package (e.g. under `fileUploads/` or `custom/customUploads/`), uploads them, and links the graphic and thumbnail file IDs to each reference.
+**What it does**: The setup script creates items in the **map_graphic_references** collection with these names. It then reads **`{name}.glb`** and **`{name}-thumbnail.png`** (or `.jpg`/`.jpeg`) **only from custom/customUploads/** in the package, uploads them one reference at a time (with a short delay between refs to avoid overloading the platform), and links the graphic and thumbnail file IDs to each reference.
 
 **Customization**:
 - Add or remove entries (each has at least `name`).
 - Use the same names as in **structures.json** so each structure can reference a graphic by name.
-- Ensure the corresponding **.glb** and **-thumbnail.*** files exist in the package and are listed in **manifest.json** **files** (or placed in a path the setup script reads).
+- Put the corresponding **.glb** and **-thumbnail.*** files in **custom/customUploads/** and ensure they are included in the template package (e.g. listed in **manifest.json** **files** if your build includes them). The setup does **not** read GLBs or thumbnails from fileUploads.
 
 **Example**:
 `[{"name":"exchange"},{"name":"medical"}]`  
@@ -105,15 +108,21 @@ Then you need `exchange.glb`, `exchange-thumbnail.png`, `medical.glb`, `medical-
 
 ---
 
+## Where to put GLBs, thumbnails, and BIMPKs
+
+The setup script **does not** read GLBs, thumbnails, or BIMPKs from **fileUploads**. It reads them **only from custom/customUploads/** (and for BIMPKs, optionally from file collections if already uploaded). To update or replace BIMPKs, GLBs, or thumbnails, **put them in custom/customUploads/** and update the relevant JSON (baseGraphicReferences, structures, bimpk-files.json) as needed. If you have other files you want to upload later (after deploy), you can use **fileUploads** or the platform's file upload; for template deployment and for these assets, use **custom/customUploads/**.
+
+---
+
 ## Switching to your own models and BIMPKs
 
 To use your own 3D models and BIMPKs instead of the defaults:
 
-1. **Add your files to the template package**
+1. **Add or replace files in custom/customUploads/**
    - **GLB + thumbnails**: For each graphic you want (e.g. `mystructure`), add:
      - `mystructure.glb`
      - `mystructure-thumbnail.png` (or `.jpg`/`.jpeg`)
-   - Put them in **`fileUploads/`** or **`custom/customUploads/`** inside `portfolioPkg`, and list them in **manifest.json** under **files** (so the platform includes them in the package).
+   - Put them in **`custom/customUploads/`** inside `portfolioPkg`. The setup script reads only from this folder. Include them in the template package (e.g. list in **manifest.json** under **files** so they are in the zip).
 
 2. **Update baseGraphicReferences.json**
    - Add an entry for each new graphic, e.g. `{"name":"mystructure"}`.
@@ -125,11 +134,10 @@ To use your own 3D models and BIMPKs instead of the defaults:
    - Remove or update existing structures if you drop or rename models.
 
 4. **BIMPKs**
-   - Add your **.bimpk** files to the package (e.g. in **fileUploads/** or **custom/customUploads/**) and list them in **manifest.json** **files**.
+   - Put your **.bimpk** files in **custom/customUploads/** and, if you use **bimpk-files.json**, update it to list the exact .bimpk file names. The setup script reads BIMPKs from the package only from **custom/customUploads/** (or finds them in the project's file collections if already present). Include the .bimpk files in the template package (e.g. **manifest.json** **files**).
    - The setup script will either:
      - Find .bimpk files in the project’s file collections (if the platform added them from **files**), or
      - Read from the package (e.g. **custom/customUploads/bimpk-files.json** plus the actual .bimpk files) and upload them, then run the BIMPK importer for each.
-   - If you use **bimpk-files.json**, update it to list the exact .bimpk file names you include.
    - After import, the **model name** in Twinit (used in the app and in **structures.json**) is typically derived from the BIMPK; set **modelName** in **structures.json** to match that name.
 
 5. **Re-zip and deploy**
@@ -140,9 +148,9 @@ To use your own 3D models and BIMPKs instead of the defaults:
 
 ## custom/customUploads/bimpk-files.json
 
-**Purpose**: Optional. Lists the **.bimpk** file names that the setup script should import when the platform has not already added them to file collections. The setup reads from the package (e.g. **fileUploads/** or **custom/customUploads/**), uploads each listed file, and runs the BIMPK importer.
+**Purpose**: Optional. Lists the **.bimpk** file names that the setup script should import when the platform has not already added them to file collections. The setup reads .bimpk files **only from custom/customUploads/** in the package, uploads each listed file, and runs the BIMPK importer for each.
 
-**Customization**: Update the list to match the .bimpk files you put in the package. Ensure those files are in the package and, if required by your manifest, listed in **manifest.json** **files**.
+**Customization**: Update the list to match the .bimpk files you put in **custom/customUploads/**.
 
 ---
 
@@ -174,10 +182,12 @@ The **custom setup script** may also create or replace the default site by delet
 1. **Map types** – Create/recreate **map_types** from **custom/customUploads/mapTypes.json**.
 2. **Graphic references** – Create **map_graphic_references** from **custom/customUploads/baseGraphicReferences.json** (name only at first).
 3. **Structures** – Create **map_structures** from **custom/customUploads/structures.json**, linking each structure to the matching graphic reference by name.
-4. **GLB and thumbnails** – For each graphic reference name, read **{name}.glb** and **{name}-thumbnail.*** from the package (e.g. fileUploads then custom/customUploads), upload them, create file items, and update the graphic reference with graphic and thumbnail file IDs.
-5. **Mapbox secret** – Add the Mapbox secret to the Secrets collection (if configured).
+4. **GLB and thumbnails** – For each graphic reference name, read **{name}.glb** and **{name}-thumbnail.*** **only from custom/customUploads/** in the package. Uploads are done **one reference at a time**, with a short delay between refs, to avoid overloading the platform during deployment. File items are created and each graphic reference is updated with graphic and thumbnail file IDs.
+5. **Mapbox secret** – Create a **new Mapbox token per project** (unique to the project) via the Mapbox API using creator credentials (from env or preset), and save that token to the Secrets collection. If token creation fails, the script falls back to saving the preset so the app still works.
 6. **Default site** – Delete existing default site by **siteId** and create default site(s) from **itemsToCreate/default-site.json** (if the script implements this).
-7. **BIMPK import** – Find .bimpk files in file collections or read from the package (e.g. **bimpk-files.json** + files), upload if needed, and run the BIMPK importer for each.
+7. **BIMPK import** – Find .bimpk files in the project's file collections or read from the package **custom/customUploads/** (**bimpk-files.json** plus the actual .bimpk files). Upload if needed and run the BIMPK importer for each.
+
+**Important**: GLBs, thumbnails, and BIMPKs are **not** read from fileUploads. Put them in **custom/customUploads/** to update or replace them. Extra files you want to upload later can use fileUploads or the platform's upload.
 
 **Customization**: Usually you do **not** need to change the setup script when you only change data (map types, structures, your own GLBs/BIMPKs). If you add a new kind of entity or step, you would edit this script and re-zip the template package.
 
@@ -199,7 +209,7 @@ The **custom setup script** may also create or replace the default site by delet
 
 To **update map types or structures**: Edit the JSON files in **custom/customUploads/** and re-zip the template package, then run **Deploy Template to Project** again (or create a new project and deploy).
 
-To **switch models and BIMPKs**: Add your GLBs, thumbnails, and .bimpk files to the package; update **baseGraphicReferences.json**, **structures.json**, and optionally **bimpk-files.json** and **manifest.json** **files**; then re-zip and deploy.
+To **switch or update models and BIMPKs**: Put your GLBs, thumbnails, and .bimpk files in **custom/customUploads/** (replace or add files there). Update **baseGraphicReferences.json**, **structures.json**, and optionally **bimpk-files.json** and **manifest.json** **files**. Then re-zip and deploy. The setup does not use fileUploads for these assets; use **custom/customUploads/** for BIMPKs, GLBs, and thumbnails. If you have other files to upload later, you can use fileUploads or the platform's upload.
 
 ---
 [Setting up a default project](./setup-default-project.md) < Back | [Developer Guide](./README.md)

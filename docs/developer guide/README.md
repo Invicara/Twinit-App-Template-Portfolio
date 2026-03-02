@@ -17,7 +17,7 @@ To create a new Twinit project and deploy the default Template Portfolio setup (
 
 To change what gets deployed (your own map types, structures, models, or BIMPKs):
 
-2. **[Customizing the template package](./customize-template-package.md)** – Use the files and folders in `setup/template packages/portfolioPkg` to update map types, structures, graphic references, and to switch to your own models and BIMPKs; includes what each file does and how to re-zip and deploy.
+2. **[Customizing the template package](./customize-template-package.md)** – Use the files and folders in `setup/template packages/portfolioPkg` to update map types, structures, graphic references, and to switch to your own models and BIMPKs. Put **GLBs, thumbnails, and BIMPKs** in **custom/customUploads/** (the setup does not use fileUploads for these). Extra files for later upload can use fileUploads. See the guide for details and how to re-zip and deploy.
 
 ## Full deployment (Twinit + web client)
 
