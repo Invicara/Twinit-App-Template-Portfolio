@@ -10,7 +10,7 @@ function splitStructureName(structureName) {
 export async function getInitialTreeLevels() {
   const ctx = IafProj.getCurrent();
 
-  const BaseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
+  const BaseOmapiUrl = `${endPointConfig.itemServiceOrigin}/omapi/${ctx._namespaces[0]}`;
   const URL = `${BaseOmapiUrl}/site/all`;
 
   const treeData = [];
@@ -57,7 +57,7 @@ export async function getInitialTreeLevels() {
 
 const callRaw = async ({ structureName, family, typeId, typesBulk } = {}) => {
   const ctx = IafProj.getCurrent();
-  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
+  const baseOmapiUrl = `${endPointConfig.itemServiceOrigin}/omapi/${ctx._namespaces[0]}`;
 
   const url = new URL(`${baseOmapiUrl}/model/typeElements/${encodeURIComponent(structureName)}`);
   if (family) url.searchParams.set('family', family);
@@ -111,7 +111,7 @@ export async function getTypesBulk(structureName) {
 // Existing heavy bulk (types + elements). Keep as-is for site/building select logic if you rely on it.
 export async function getStructureBulk(structureName) {
   const ctx = IafProj.getCurrent();
-  const baseOmapiUrl = `https://sandbox-api.invicara.com/omapi/${ctx._namespaces[0]}`;
+  const baseOmapiUrl = `${endPointConfig.itemServiceOrigin}/omapi/${ctx._namespaces[0]}`;
 
   const url = new URL(`${baseOmapiUrl}/model/typeElements/${encodeURIComponent(structureName)}`);
   url.searchParams.set('bulk', '1');
