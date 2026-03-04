@@ -22,6 +22,8 @@ import { setGraphicsGateLoading, setGraphicsGateReady } from '../../ipaCore/redu
 
 // Global Map to store loaded geometries, accessible throughout the application
 const globalLoadedGeometries = new Map();
+// Module-level cache of in-flight load promises so preload + add-to-map share the same load
+const geometryLoadPromises = new Map();
 // stable snapshot of what we’ve mirrored downstream per layer
 const globalFilterKeys = new Map(); // layerId -> string
 
@@ -786,7 +788,6 @@ export function featureFromKnownType(type, coords, properties = {}) {
  * Load and cache all unique graphics (3D models)
  */
 export async function loadGraphics(graphicIds) {
-  const geometryLoadPromises = new Map();
   const loader = new GLTFLoader();
 
   const loadGeometry = async (graphicId) => {
@@ -870,6 +871,15 @@ export async function loadGraphics(graphicIds) {
     console.error('Error loading graphics:', error);
     return globalLoadedGeometries;
   }
+}
+
+/**
+ * Start loading a single graphic in the background (e.g. when user selects a building thumbnail).
+ * When they add it to the map, the model will already be loaded or in progress, so it appears faster.
+ */
+export function preloadGraphic(graphicId) {
+  if (!graphicId) return;
+  loadGraphics([graphicId]).catch(() => {});
 }
 
 /**
