@@ -24,6 +24,33 @@ import { setGraphicsGateLoading, setGraphicsGateReady } from '../../ipaCore/redu
 const globalLoadedGeometries = new Map();
 // Module-level cache of in-flight load promises so preload + add-to-map share the same load
 const geometryLoadPromises = new Map();
+/** Set when all mesh levels' loadGraphics().then() have completed; useGraphicsVisibility only signals gate when this is true */
+let portfolioAllMeshLoadComplete = false;
+
+export function isPortfolioMeshLoadComplete() {
+  return portfolioAllMeshLoadComplete;
+}
+
+export function setPortfolioMeshLoadComplete(value) {
+  portfolioAllMeshLoadComplete = !!value;
+}
+
+/**
+ * Signal that portfolio graphics are ready (markers + bar chart can show).
+ * Called from useGraphicsVisibility after all mesh loads are done and the map has rendered.
+ */
+export function signalPortfolioGraphicsReady(machineCtx) {
+  if (!machineCtx) return;
+  machineCtx?.reduxDispatch?.(setGraphicsGateReady({ stateValue: 'portfolio' }));
+  signal3DInitialized(machineCtx, 'portfolio');
+  const token = machineCtx?._graphicsGateToken?.portfolio;
+  window.dispatchEvent(
+    new CustomEvent('mmv:3d-layer-initialized', {
+      detail: { stateValue: 'portfolio', layerId: 'portfolio-graphics-visibility', token }
+    })
+  );
+}
+
 // stable snapshot of what we’ve mirrored downstream per layer
 const globalFilterKeys = new Map(); // layerId -> string
 
@@ -641,6 +668,9 @@ export function setBuildingCirclesVisibility(map, stateValue) {
     if (map.getLayer(BUILDING_CIRCLES_LAYER)) {
       map.setLayoutProperty(BUILDING_CIRCLES_LAYER, 'visibility', visibility);
     }
+    if (typeof map.triggerRepaint === 'function') {
+      map.triggerRepaint();
+    }
   } catch (_) {}
 }
 
@@ -789,6 +819,7 @@ export function featureFromKnownType(type, coords, properties = {}) {
  */
 export async function loadGraphics(graphicIds) {
   const loader = new GLTFLoader();
+  const progressLogLast = {};
 
   const loadGeometry = async (graphicId) => {
     if (geometryLoadPromises.has(graphicId)) {
@@ -846,7 +877,13 @@ export async function loadGraphics(graphicIds) {
             resolve(geometryInfo);
           },
           (progress) => {
-            console.log(`Loading progress for ${graphicId}: ${(progress.loaded / progress.total * 100).toFixed(2)}%`);
+            if (progress.total <= 0) return;
+            const pct = (progress.loaded / progress.total) * 100;
+            const last = progressLogLast[graphicId] ?? -1;
+            if (pct >= last + 25 || pct >= 99.9) {
+              progressLogLast[graphicId] = Math.floor(pct / 25) * 25;
+              console.log(`Loading progress for ${graphicId}: ${pct.toFixed(1)}%`);
+            }
           },
           (error) => {
             console.error(`Error loading graphic ${graphicId}:`, error);
@@ -2118,24 +2155,7 @@ function createGraphicsCustomLayer(layerId, features, loadedGraphics, level, get
       this.updateFeatures(features, loadedGraphics, getContext);
 
       console.log('3D graphics layer initialized');
-
-      const ctxData = getContext ? getContext() : null;
-        const machineCtx = ctxData?.__ctxRef || ctxData?.context || ctxData;
-        machineCtx?.reduxDispatch?.(setGraphicsGateReady({ stateValue: 'portfolio' }));
-
-      try {
-        const ctxData = getContext ? getContext() : null;
-        const machineCtx = ctxData?.__ctxRef || ctxData?.context || ctxData;
-        signal3DInitialized(machineCtx, 'portfolio');
-
-        const token = machineCtx?._graphicsGateToken?.portfolio;
-
-        window.dispatchEvent(new CustomEvent('mmv:3d-layer-initialized', {
-        detail: { stateValue: 'portfolio', layerId: this.id, token }
-        }));
-      } catch (e) {
-        // ignore
-      }
+      // Gate is signalled only from useGraphicsVisibility after all mesh levels have loaded and the map has rendered
     },
 
     updateFeatures: function(newFeatures, graphics, contextGetter) {
@@ -2651,6 +2671,11 @@ export async function upsertOrUpdateAllFeatures({ map, namedPath, getContext, se
     allFeatureLayers[lvl.state] = features.map((f) => f.properties);
   }
 
+  const meshLevels = levels.filter((l) => l.feature === 'mesh');
+  const meshLevelCount = meshLevels.length;
+  let completedMeshLevels = 0;
+  if (meshLevelCount === 0) setPortfolioMeshLoadComplete(true);
+
   for (const level of levels) {
     const sourceId = `${level.state}-features`;
     const baseLayerId = `${sourceId}-layer`;
@@ -2885,6 +2910,26 @@ export async function upsertOrUpdateAllFeatures({ map, namedPath, getContext, se
         }
         const stateStr = getStateValueString(self?.getSnapshot?.()?.value);
         setBuildingCirclesVisibility(map, stateStr);
+        completedMeshLevels++;
+        if (completedMeshLevels === meshLevelCount) {
+          setPortfolioMeshLoadComplete(true);
+          const ctx = getContext?.() || {};
+          const machineCtx = ctx?.__ctxRef || ctx?.context || ctx;
+          if (machineCtx?.reduxDispatch && map) {
+            let signalled = false;
+            let timeoutId;
+            const doSignal = () => {
+              if (signalled) return;
+              signalled = true;
+              if (timeoutId) clearTimeout(timeoutId);
+              map.off('render', onRender);
+              signalPortfolioGraphicsReady(machineCtx);
+            };
+            const onRender = doSignal;
+            map.once('render', onRender);
+            timeoutId = setTimeout(doSignal, 1500);
+          }
+        }
       });
     }
 
@@ -3153,15 +3198,15 @@ async function handleMarkers(stateValue, markersConfig, { context, self }) {
     };
 
     if (context.map) {
+      // Run initial render before registering map listeners so zoom's moveend doesn't trigger an immediate second run (reduces flicker when going site -> portfolio)
+      await manageMarkers();
+
       context.map.on('moveend', manageMarkers);
       context.map.on('idle', manageMarkers);
       context.map.on('sourcedata', manageMarkers);
       context.map.on('remove', clearAllMarkers);
     }
 
-    await manageMarkers();
-
-    
     setGateReady(context, stateValue);
   }
 
@@ -3370,12 +3415,11 @@ export async function getEntryAction({ mapMachineInput }) {
 
 if (machineCtx?.reduxDispatch) {
   setGateLoading(machineCtx, 'portfolio');
-
-// reset the 3D gate promise for this run (on the same ctx)
-if (machineCtx.__mmv3d?.portfolio) {
-  machineCtx.__mmv3d.portfolio.done = false;
-}
-      ensure3DInitializedGate(machineCtx, 'portfolio');
+  setPortfolioMeshLoadComplete(false);
+  if (machineCtx.__mmv3d?.portfolio) {
+    machineCtx.__mmv3d.portfolio.done = false;
+  }
+  ensure3DInitializedGate(machineCtx, 'portfolio');
 }
 
       const { commands, theme = {}, singleMarkers, legend } =
@@ -3412,16 +3456,13 @@ if (machineCtx.__mmv3d?.portfolio) {
       clearAllMarkers();
 
       const ready = await waitFor3DInitialized(machineCtx, 'portfolio', { timeoutMs: 15000 });
-      if (!ready) {
-        console.warn('[portfolio] 3D layer init gate timed out. Allowing markers anyway.');
-      }
+      if (!ready) console.warn('[portfolio] 3D layer init gate timed out (running in background).');
 
-    zoomToFeature({ map: context.map, context });
+      zoomToFeature({ map: context.map, context });
 
       const markersConfig = singleMarkers;
-     const { manageMarkers } = await handleMarkers(stateValue, markersConfig, { context: machineCtx, self });
+      const { manageMarkers } = await handleMarkers(stateValue, markersConfig, { context: machineCtx, self });
 const { manageFeatureFilters } = await handleFeatureFilters(stateValue, namedPath, { context: machineCtx, self });
-setGateReady(machineCtx, 'portfolio');
       setBuildingCirclesVisibility(context.map, stateValue);
       return {
         commands: null,
@@ -3554,6 +3595,8 @@ export async function getExitAction({ mapMachineInput }) {
         context.mmvSend(commands);
       }
       clearAllMarkers();
+      // Restore building circles (hover + tooltip) when leaving building view back to site
+      setBuildingCirclesVisibility(context.map, 'portfolio.site');
 
       return { manageMarkers: { ...context.manageMarkers, [stateValue]: null } };
     }
