@@ -24,6 +24,7 @@ import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
 import { useGraphicsVisibility } from '../../hooks/useGraphicsVisibility.js';
 import { useNewEntityManagement } from '../../hooks/useEntityManagement.js';
+import { getMapPinCursorValue } from '../../utils/mapPinCursor.js';
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -359,7 +360,8 @@ function PortfolioOverview({handler, userConfig, selectedItems}) {
                                     visibility: showSimpleViewer ? 'hidden' : 'visible',
                                     opacity: showSimpleViewer ? 0 : 1,
                                     pointerEvents: showSimpleViewer ? 'none' : 'auto',
-                                    zIndex: showSimpleViewer ? 0 : 1
+                                    zIndex: showSimpleViewer ? 0 : 1,
+                                    ...(isSelectingPosition ? { cursor: getMapPinCursorValue() } : {})
                                 }}
                             >
                                 <MMVIntegratedMap
