@@ -58,9 +58,11 @@ TWINIT
 4. When prompted to select a template package, choose the **zip file** you prepared in step 1:
    - Go to the **`setup`** folder of this repository (or where you saved the zip).
    - Select the template package zip (**`portfolio-template.zip`**).
-5. Confirm and wait for the deployment to finish. The deploy log will show progress (map types, structures, graphic references, optional default site, Mapbox secret, and optional BIMPK import).
+5. Confirm and wait for the deployment to finish. The deploy log will show progress (map types, structures, graphic references, optional default site, and optional BIMPK import).
 
 When deployment completes, the project will have scripts, user configs (**PortfolioAdminConfig** and **PortfolioViewerConfig**, with userType **portfolio**), user groups (Admin, Viewer), map types, structures, and optionally default site and pre-imported models as defined in the template package.
+
+**Mapbox**: When going into a new project for the first time, as **Admin** you can add your Mapbox username and secret token in the **Mapbox Settings** screen so the map works correctly.
 
 You can now use this project in the web client. To change what gets deployed next time, see [Customizing the template package](./customize-template-package.md).
 

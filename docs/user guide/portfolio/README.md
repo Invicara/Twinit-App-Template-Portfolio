@@ -24,6 +24,7 @@ Exact permissions depend on how your project is configured.
 ## Getting started
 
 * Sign in to the Template Portfolio application and open a project.
+* **New projects**: When going into a new project for the first time, as **Admin** you can add your Mapbox username and secret token in the **Mapbox Settings** screen so the map works correctly.
 * Use the **Portfolio** view to see sites and buildings on the map, and use the status chart and filters to explore by status, group, or facility.
 * Use the **Model** views to import and view models, and to compare two models and inspect element properties.
 

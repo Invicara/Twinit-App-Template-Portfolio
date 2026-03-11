@@ -183,9 +183,8 @@ The **custom setup script** may also create or replace the default site by delet
 2. **Graphic references** – Create **map_graphic_references** from **custom/customUploads/baseGraphicReferences.json** (name only at first).
 3. **Structures** – Create **map_structures** from **custom/customUploads/structures.json**, linking each structure to the matching graphic reference by name.
 4. **GLB and thumbnails** – For each graphic reference name, read **{name}.glb** and **{name}-thumbnail.*** **only from custom/customUploads/** in the package. Uploads are done **one reference at a time**, with a short delay between refs, to avoid overloading the platform during deployment. File items are created and each graphic reference is updated with graphic and thumbnail file IDs.
-5. **Mapbox secret** – Create a **new Mapbox token per project** (unique to the project) via the Mapbox API using creator credentials (from env or preset), and save that token to the Secrets collection. If token creation fails, the script falls back to saving the preset so the app still works.
-6. **Default site** – Delete existing default site by **siteId** and create default site(s) from **itemsToCreate/default-site.json** (if the script implements this).
-7. **BIMPK import** – Find .bimpk files in the project's file collections or read from the package **custom/customUploads/** (**bimpk-files.json** plus the actual .bimpk files). Upload if needed and run the BIMPK importer for each.
+5. **Default site** – Delete existing default site by **siteId** and create default site(s) from **itemsToCreate/default-site.json** (if the script implements this).
+6. **BIMPK import** – Find .bimpk files in the project's file collections or read from the package **custom/customUploads/** (**bimpk-files.json** plus the actual .bimpk files). Upload if needed and run the BIMPK importer for each.
 
 **Important**: GLBs, thumbnails, and BIMPKs are **not** read from fileUploads. Put them in **custom/customUploads/** to update or replace them. Extra files you want to upload later can use fileUploads or the platform's upload.
 
@@ -198,7 +197,7 @@ The **custom setup script** may also create or replace the default site by delet
 | File or folder | Purpose |
 |----------------|--------|
 | **manifest.json** | Template metadata; list of scripts, configs, collections, orchestrators, files. |
-| **custom/setupMyTemplate.mjs** | Custom setup: map types, graphic refs, structures, GLB/thumbnail upload, Mapbox secret, default site, BIMPK import. |
+| **custom/setupMyTemplate.mjs** | Custom setup: map types, graphic refs, structures, GLB/thumbnail upload, default site, BIMPK import. |
 | **custom/customUploads/mapTypes.json** | Schema definitions for map entities (e.g. site, building). |
 | **custom/customUploads/baseGraphicReferences.json** | Names of map graphic references (GLB + thumbnail linked by setup). |
 | **custom/customUploads/structures.json** | Map structures; each references a graphic by **name** and can set **modelName**. |

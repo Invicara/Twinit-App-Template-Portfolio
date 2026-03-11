@@ -6,6 +6,7 @@ import { getCachedFile } from '../../../../../services/utils';
 import { Cancel, Dashboard } from '@material-ui/icons';
 import { setDraftType, setIsSelectingPosition } from '../../../../redux/siteSetup';
 import { getSelectedStructure, getStructures, setSelectedGraphicReference, setSelectedStructure } from '../../../../redux/pageComponentState';
+import { preloadGraphic } from '../../../../../client/scripts/mapEntryActions.mjs';
 
 
 const BuildingThumbnails = ({
@@ -98,6 +99,10 @@ const BuildingThumbnails = ({
             dispatch(setSelectedStructure(structure));
             dispatch(setSelectedGraphicReference(graphicReference));
             send({ type: "START_DRAFT" });
+            // Start loading the 3D model now so it's ready when the user places it on the map
+            if (graphicReference?.graphic) {
+                preloadGraphic(graphicReference.graphic);
+            }
         } else {
             dispatch(setDraftType());
             dispatch(setIsSelectingPosition(false));
@@ -121,6 +126,10 @@ const BuildingThumbnails = ({
                     } catch (error) {
                         console.error(`Failed to load thumbnail for ${ref.thumbnail}:`, error);
                     }
+                }
+                // Prefetch the 3D model URL so when the user adds the building to the map it loads faster
+                if (ref.graphic) {
+                    getCachedFile(ref.graphic).catch(() => {});
                 }
             }
             setThumbnailUrls(urls);
