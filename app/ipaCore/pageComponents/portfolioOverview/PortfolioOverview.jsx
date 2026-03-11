@@ -24,6 +24,8 @@ import StatusPopup from "./components/map/popup/StatusPopup.jsx";
 import {usePopupState} from "./components/map/popup/usePopupState.jsx";
 import { useGraphicsVisibility } from '../../hooks/useGraphicsVisibility.js';
 import { useNewEntityManagement } from '../../hooks/useEntityManagement.js';
+import { getMapPinCursorValue } from '../../utils/mapPinCursor.js';
+import { setBuildingCirclesVisibility } from '../../../client/scripts/mapEntryActions.mjs';
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -294,6 +296,16 @@ function PortfolioOverview({handler, userConfig, selectedItems}) {
         }
     }, [showSimpleViewer, mapInstance]);
 
+    // Restore building circles (hover + tooltip) whenever we're in site view and not placing a new building
+    const isSiteView = currentState?.matches?.('portfolio.site') && !currentState?.matches?.('portfolio.site.building');
+    useEffect(() => {
+        if (!mapInstance || !isSiteView || isSelectingPosition) return;
+        const showCircles = () => setBuildingCirclesVisibility(mapInstance, 'portfolio.site');
+        showCircles();
+        const t = setTimeout(showCircles, 150);
+        return () => clearTimeout(t);
+    }, [mapInstance, isSiteView, isSelectingPosition]);
+
     const handleMMVEvent = useCallback((event) => {
         //console.log('PortfolioOverview MMV Event:', event);
         // Handle MMV events as needed
@@ -359,7 +371,8 @@ function PortfolioOverview({handler, userConfig, selectedItems}) {
                                     visibility: showSimpleViewer ? 'hidden' : 'visible',
                                     opacity: showSimpleViewer ? 0 : 1,
                                     pointerEvents: showSimpleViewer ? 'none' : 'auto',
-                                    zIndex: showSimpleViewer ? 0 : 1
+                                    zIndex: showSimpleViewer ? 0 : 1,
+                                    ...(isSelectingPosition ? { cursor: getMapPinCursorValue() } : {})
                                 }}
                             >
                                 <MMVIntegratedMap

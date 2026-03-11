@@ -12,6 +12,7 @@ import {useSelector as useXstateSelector} from "@xstate/react";
 import _ from 'lodash';
 import { Add, Dashboard, Cancel, Edit } from '@material-ui/icons';
 import { getActiveLevels, getCachedFile } from '../../../../../services/utils';
+import { setBuildingCirclesVisibility } from '../../../../../client/scripts/mapEntryActions.mjs';
 import BuildingThumbnails from './BuildingThumbnails';
 
 
@@ -319,6 +320,7 @@ export default function SiteDetails({ context }) {
     // Handle canceling new building placement mode
     const handleCancelNewBuildingMode = () => {
         setIsNewBuildingMode(false);
+        if (mapInstance) setBuildingCirclesVisibility(mapInstance, 'portfolio.site');
         console.log('Cancelled new building placement mode');
     };
 

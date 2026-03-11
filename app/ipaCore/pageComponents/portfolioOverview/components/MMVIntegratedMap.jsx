@@ -7,11 +7,14 @@ import { setClickEvent } from '../../../redux/pageComponentState.js';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectIsSelectingPosition } from '../../../redux/siteSetup.js';
 import useAutoRefreshToken from "../../../hooks/useAutoRefreshMapboxToken.jsx";
+import { getMapPinCursorValue } from "../../../utils/mapPinCursor.js";
 
 export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId, mmvEventHandler, command }) {
 
     const dispatch = useDispatch();
     const isSelectingPosition = useSelector(selectIsSelectingPosition);
+    const mapRef = useRef(null);
+    const mapPinCursor = useMemo(() => getMapPinCursorValue(), []);
 
     const mmvContainerRef = useRef();
     useEffect(()=>{
@@ -55,7 +58,7 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
         // Extract map reference from MMV when available
         if (event.eventName === 'viewer_ready' && event?.payload?.map) {
             console.log('Viewer is ready:', event.payload.map);
-
+            mapRef.current = event.payload.map;
             // Pass the map reference to parent component for layer management
             if (onMapReady) {
                 onMapReady(event.payload.map);
@@ -86,6 +89,26 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
         return {accessToken: mapboxToken, ...mmvConfig}
     },[mmvConfig,mapboxToken])
 
+    // Apply map-pin (or crosshair fallback) directly to Mapbox canvas when placing a structure
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        const canvas = map.getCanvas();
+        if (!canvas) return;
+
+        if (isSelectingPosition) {
+            canvas.style.cursor = mapPinCursor;
+            const reapplyCursor = () => { canvas.style.cursor = mapPinCursor; };
+            map.on('mousemove', reapplyCursor);
+            return () => {
+                map.off('mousemove', reapplyCursor);
+                canvas.style.cursor = '';
+            };
+        } else {
+            canvas.style.cursor = '';
+        }
+    }, [isSelectingPosition, mapPinCursor]);
+
     if(!mapboxToken) return <></>
 
     return (
@@ -93,14 +116,14 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
             width: '100%',
             height: '100%',
             position: 'relative',
-            cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
+            cursor: isSelectingPosition ? mapPinCursor : 'default'
         }}>
             <div
                 ref={mmvContainerRef}
                 style={{
                     width: '100%',
                     height: '100%',
-                    cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
+                    cursor: isSelectingPosition ? mapPinCursor : 'default'
                 }}
             >
                 {mapboxToken && <IafMultiModalViewer
@@ -112,7 +135,7 @@ export default function MMVIntegratedMap({ onMapReady, mmvConfig, mmvMode, appId
                     style={{
                         width: '100%',
                         height: '100%',
-                        cursor: isSelectingPosition ? `url('/icons/map-pin.svg') 12 24, crosshair` : 'default'
+                        cursor: isSelectingPosition ? mapPinCursor : 'default'
                     }}
                 />}
             </div>

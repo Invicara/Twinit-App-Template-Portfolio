@@ -5,8 +5,7 @@
  * 2. setupGraphicRefs  – create map_graphic_references (name only) from custom/customUploads/baseGraphicReferences.json
  * 3. setupStructures   – create map_structures from custom/customUploads/structures.json, linked to graphic refs
  * 4. Upload GLB + thumbnail from package only – read from custom/customUploads/ (like BIMPK); one ref at a time, wait for each to finish then short delay before next to avoid deployment cutouts. No fileUploads/manifest.
- * 5. Mapbox secret     – add Mapbox secret to Secrets Collection: if MAPBOX_CREATOR_SECRET and MAPBOX_CREATOR_USERNAME are set, create a new token per project via Mapbox API and save it; else use preset.
- * 6. BIMPK import      – find .bimpk files in file collections; if none, read from package (custom/customUploads/ only), upload, then run bimpk_importer for each. Put .bimpk files in custom/customUploads/ so the platform does not auto-upload them from fileUploads/ (which would cause duplicate imports).
+ * 5. BIMPK import      – find .bimpk files in file collections; if none, read from package (custom/customUploads/ only), upload, then run bimpk_importer for each. Put .bimpk files in custom/customUploads/ so the platform does not auto-upload them from fileUploads/ (which would cause duplicate imports).
  */
 
 const BIMPK_IMPORTER_USER_TYPE = 'bimpk_importer';
@@ -25,37 +24,37 @@ const GLB_UPLOAD_DELAY_MS = 2000;
 /** Paths tried for BIMPK list and files only. Use custom only so fileUploads auto-upload does not create duplicates. */
 const BIMPK_DIRS_TO_TRY = ['custom/customUploads'];
 
-/** Mapbox Tokens API v2: create a new token (used for per-project secrets when creator env is set). */
-const MAPBOX_TOKENS_V2_URL = 'https://api.mapbox.com/tokens/v2/';
-/** Scopes for a new Mapbox secret token so the mapbox_temp_token orchestrator can create temporary tokens. */
-const MAPBOX_NEW_TOKEN_SCOPES = ['styles:read', 'styles:tiles', 'fonts:read', 'datasets:read', 'vision:read', 'tokens:write'];
+/** Retry config: transient failures (connection cut, platform overload) can be retried. */
+const RETRY_DEFAULT_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 2000;
+const RETRY_BACKOFF_MULTIPLIER = 1.5;
 
 /**
- * Create a new Mapbox secret token via Tokens API v2.
- * @param {string} creatorUsername - Mapbox account username
- * @param {string} creatorSecret - Mapbox secret token (sk.) with tokens:write
- * @param {string} note - Token description (e.g. project name)
- * @returns {Promise<string|null>} - The new token string, or null on failure
+ * Run an async function with retries. On failure waits delayMs then retries; delay increases by backoffMultiplier each time.
+ * @param {() => Promise<T>} asyncFn - Function to run (no args).
+ * @param {{ maxAttempts?: number, delayMs?: number, backoffMultiplier?: number, send?: (msg: string) => void, stepName?: string }} options
+ * @returns {Promise<T>}
  */
-async function createMapboxTokenViaApi(creatorUsername, creatorSecret, note) {
-	if (!creatorUsername || !creatorSecret) return null;
-	const url = `${MAPBOX_TOKENS_V2_URL}${encodeURIComponent(creatorUsername)}`;
-	const body = JSON.stringify({ note: String(note || 'project').slice(0, 256), scopes: MAPBOX_NEW_TOKEN_SCOPES });
-	let res;
-	try {
-		res = await fetch(url, {
-			method: 'POST',
-			headers: { Authorization: `Bearer ${creatorSecret}`, 'Content-Type': 'application/json' },
-			body,
-		});
-	} catch (e) {
-		console.error('Mapbox token creation request failed:', e);
-		return null;
+async function withRetry(asyncFn, options = {}) {
+	const maxAttempts = options.maxAttempts ?? RETRY_DEFAULT_ATTEMPTS;
+	let delayMs = options.delayMs ?? RETRY_DELAY_MS;
+	const backoffMultiplier = options.backoffMultiplier ?? RETRY_BACKOFF_MULTIPLIER;
+	const send = options.send || (() => {});
+	const stepName = options.stepName || 'operation';
+	let lastErr;
+	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+		try {
+			return await asyncFn();
+		} catch (e) {
+			lastErr = e;
+			if (attempt < maxAttempts) {
+				send(`WARN: ${stepName} failed (${e && (e.message || String(e))}); retrying in ${(delayMs / 1000).toFixed(1)}s (attempt ${attempt}/${maxAttempts}).`);
+				await new Promise(r => setTimeout(r, delayMs));
+				delayMs = Math.round(delayMs * backoffMultiplier);
+			}
+		}
 	}
-	const data = typeof res?.json === 'function' ? await res.json() : res;
-	const token = data?.token ?? data?.key ?? null;
-	if (!token && (data?.message || data?.errmsg)) console.error('Mapbox token API error:', data.message || data.errmsg);
-	return token;
+	throw lastErr;
 }
 
 /** Try reading from package at candidate paths; returns { buffer, path } for first success, or throws. */
@@ -149,16 +148,18 @@ export async function setup(input, libraries, ctx, callback) {
 	send('INFO: Loaded custom mapTypes, baseGraphicReferences, structures from package');
 
 	async function setupCollEntities(collKey, entities) {
-		const coll = await IafScriptEngine.createOrRecreateCollection({
-			_name: collKey,
-			_description: collKey,
-			_shortName: collKey,
-			_userType: collKey,
-			_namespaces: namespaces,
-		}, ctx);
-		const result = await IafItemSvc.createRelatedItems(coll._userItemId, entities, ctx);
-		send(`INFO: Created/updated collection ${collKey} with ${entities.length} item(s)`);
-		return { coll, result };
+		return await withRetry(async () => {
+			const coll = await IafScriptEngine.createOrRecreateCollection({
+				_name: collKey,
+				_description: collKey,
+				_shortName: collKey,
+				_userType: collKey,
+				_namespaces: namespaces,
+			}, ctx);
+			const result = await IafItemSvc.createRelatedItems(coll._userItemId, entities, ctx);
+			send(`INFO: Created/updated collection ${collKey} with ${entities.length} item(s)`);
+			return { coll, result };
+		}, { send, stepName: `setup collection ${collKey}` });
 	}
 
 	// --- 1. setupMapTypes ---
@@ -188,13 +189,13 @@ export async function setup(input, libraries, ctx, callback) {
 	let fileContainer = null;
 	try {
 		const proj = await IafProj.getCurrent(ctx);
-		const containers = await IafFile.getContainers(proj, {}, ctx);
-		fileContainer = Array.isArray(containers) ? containers[0] : containers;
-		if (!fileContainer) {
-			send('WARN: No file container from IafFile.getContainers; reason: empty list. Upload/link from package will be skipped.');
-		} else {
-			send(`INFO: Using file container for GLB/thumbnail uploads from package (custom/customUploads/ only, sequential with ${GLB_UPLOAD_DELAY_MS}ms delay between refs).`);
-		}
+		fileContainer = await withRetry(async () => {
+			const containers = await IafFile.getContainers(proj, {}, ctx);
+			const c = Array.isArray(containers) ? containers[0] : containers;
+			if (!c) throw new Error('getContainers returned empty list');
+			return c;
+		}, { send, stepName: 'get file container' });
+		send(`INFO: Using file container for GLB/thumbnail uploads from package (custom/customUploads/ only, sequential with ${GLB_UPLOAD_DELAY_MS}ms delay between refs).`);
 	} catch (e) {
 		const reason = e && (e.message || String(e));
 		send(`WARN: Could not get file container (IafFile.getContainers): ${reason}. Put {name}.glb and {name}-thumbnail.png in custom/customUploads/ and run deploy when file APIs are available.`);
@@ -261,32 +262,30 @@ export async function setup(input, libraries, ctx, callback) {
 			}
 			let graphicFileItem, thumbnailFileItem;
 			try {
-				const newGlb = await IafScriptEngine.uploadFile(glbFilePayload, ctx);
-				if (!newGlb) {
-					send(`ERROR: uploadFile returned nothing for ${refName}.glb.`);
-					continue;
-				}
-				if (newGlb._fileVersion && (newGlb._uploadMeta == null || newGlb._uploadMeta._size == null) && glbBuf.byteLength > 0) {
-					newGlb._uploadMeta = newGlb._uploadMeta || {};
-					newGlb._uploadMeta._size = glbBuf.byteLength;
-				}
-				graphicFileItem = await IafFile.createFileItemFromFile(fileContainer, newGlb, ctx);
+				graphicFileItem = await withRetry(async () => {
+					const newGlb = await IafScriptEngine.uploadFile(glbFilePayload, ctx);
+					if (!newGlb) throw new Error('uploadFile returned nothing');
+					if (newGlb._fileVersion && (newGlb._uploadMeta == null || newGlb._uploadMeta._size == null) && glbBuf.byteLength > 0) {
+						newGlb._uploadMeta = newGlb._uploadMeta || {};
+						newGlb._uploadMeta._size = glbBuf.byteLength;
+					}
+					return await IafFile.createFileItemFromFile(fileContainer, newGlb, ctx);
+				}, { send, stepName: `upload GLB ${refName}.glb` });
 			} catch (e) {
 				const reason = e && (e.message || String(e));
 				send(`ERROR: Upload or createFileItemFromFile failed for ${refName}.glb: ${reason}.`);
 				continue;
 			}
 			try {
-				const newThumb = await IafScriptEngine.uploadFile(thumbFilePayload, ctx);
-				if (!newThumb) {
-					send(`ERROR: uploadFile returned nothing for ${thumbFilename}.`);
-					continue;
-				}
-				if (newThumb._fileVersion && (newThumb._uploadMeta == null || newThumb._uploadMeta._size == null) && thumbBuf.byteLength > 0) {
-					newThumb._uploadMeta = newThumb._uploadMeta || {};
-					newThumb._uploadMeta._size = thumbBuf.byteLength;
-				}
-				thumbnailFileItem = await IafFile.createFileItemFromFile(fileContainer, newThumb, ctx);
+				thumbnailFileItem = await withRetry(async () => {
+					const newThumb = await IafScriptEngine.uploadFile(thumbFilePayload, ctx);
+					if (!newThumb) throw new Error('uploadFile returned nothing');
+					if (newThumb._fileVersion && (newThumb._uploadMeta == null || newThumb._uploadMeta._size == null) && thumbBuf.byteLength > 0) {
+						newThumb._uploadMeta = newThumb._uploadMeta || {};
+						newThumb._uploadMeta._size = thumbBuf.byteLength;
+					}
+					return await IafFile.createFileItemFromFile(fileContainer, newThumb, ctx);
+				}, { send, stepName: `upload thumbnail ${thumbFilename}` });
 			} catch (e) {
 				const reason = e && (e.message || String(e));
 				send(`ERROR: Upload or createFileItemFromFile failed for ${thumbFilename}: ${reason}.`);
@@ -302,16 +301,17 @@ export async function setup(input, libraries, ctx, callback) {
 
 			// --- Update map_graphic_references (same as fillGraphicRefItems in types_and_graphrefs_setup) ---
 			try {
-				const refId = refIdByName[refName];
-				const existingRef = createdRefs.find(r => r.name === refName);
-				const updatedItem = { ...(existingRef || {}), name: refName, graphic: graphicFileId, thumbnail: thumbnailFileId };
-				if (refId) {
-					await IafItemSvc.updateRelatedItem(collId, refId, updatedItem, ctx);
-					send(`INFO: Uploaded ${refName}.glb and ${thumbFilename} from package, linked graphic ref '${refName}'`);
-				} else {
-					await IafItemSvc.createRelatedItems(collId, [updatedItem], ctx);
-					send(`INFO: Uploaded ${refName}.glb and ${thumbFilename} from package, added graphic ref '${refName}'`);
-				}
+				await withRetry(async () => {
+					const refId = refIdByName[refName];
+					const existingRef = createdRefs.find(r => r.name === refName);
+					const updatedItem = { ...(existingRef || {}), name: refName, graphic: graphicFileId, thumbnail: thumbnailFileId };
+					if (refId) {
+						await IafItemSvc.updateRelatedItem(collId, refId, updatedItem, ctx);
+					} else {
+						await IafItemSvc.createRelatedItems(collId, [updatedItem], ctx);
+					}
+				}, { send, stepName: `link graphic ref '${refName}'` });
+				send(`INFO: Uploaded ${refName}.glb and ${thumbFilename} from package, linked graphic ref '${refName}'`);
 				linked++;
 			} catch (e) {
 				send(`ERROR: Failed to update map_graphic_references for '${refName}': ${e && (e.message || String(e))}.`);
@@ -320,80 +320,21 @@ export async function setup(input, libraries, ctx, callback) {
 		send(`INFO: Upload-from-custom and link: ${linked} of ${refNames.length} graphic ref(s) processed.`);
 	}
 
-	// --- 5. Mapbox secret: create a new token per project (unique to project), save to Secrets Collection ---
-	// Prefer: use creator credentials (env or preset) to call Mapbox API → new token → save that. Better than reusing same .secret everywhere.
-	async function upsertMapboxSecret(secretsCollectionId, secretItem, ctx) {
-		const existing = await IafItemSvc.getRelatedItems(secretsCollectionId, { query: { type: 'mapbox-secret' } }, ctx);
-		const first = (existing?._list || [])[0];
-		if (first && first._id) {
-			await IafItemSvc.updateRelatedItem(secretsCollectionId, first._id, { ...first, ...secretItem }, ctx);
-			return 'updated';
-		}
-		await IafItemSvc.createRelatedItems(secretsCollectionId, [secretItem], ctx);
-		return 'created';
-	}
-
-	const PRESET_MAPBOX_USERNAME = 'dominika-oles-invicara';
-	const PRESET_MAPBOX_SECRET = 'sk.eyJ1IjoiZG9taW5pa2Etb2xlcy1pbnZpY2FyYSIsImEiOiJjbWRoNzNsOWwwMDh3Mnhxdng5ajQ1OXYzIn0.n8dXsPMD7DPq3poppzrF2Q';
-
-	try {
-		const secretsResp = await IafItemSvc.getNamedUserItems({ query: { _userType: 'secrets' } }, ctx);
-		const secretsCollection = (secretsResp._list || [])[0];
-
-		if (!secretsCollection?._userItemId) {
-			send('WARN: Secrets Collection not found; skipping Mapbox secret');
-		} else {
-			const creatorUsername =
-				(typeof process !== 'undefined' && process.env && process.env.MAPBOX_CREATOR_USERNAME) ||
-				(ctx && ctx.env && ctx.env.MAPBOX_CREATOR_USERNAME) ||
-				PRESET_MAPBOX_USERNAME;
-			const creatorSecret =
-				(typeof process !== 'undefined' && process.env && process.env.MAPBOX_CREATOR_SECRET) ||
-				(ctx && ctx.env && ctx.env.MAPBOX_CREATOR_SECRET) ||
-				PRESET_MAPBOX_SECRET;
-
-			const projectName = project?._name || project?.name || 'project';
-			const note = `${projectName} (${project?._id || 'no-id'})`;
-
-			// Always try to create a new token per project; store that in secrets (unique to project).
-			const newToken = await createMapboxTokenViaApi(creatorUsername, creatorSecret, note);
-
-			if (newToken) {
-				const secretItem = {
-					type: 'mapbox-secret',
-					'.secret': newToken,
-					username: creatorUsername,
-				};
-				const mode = await upsertMapboxSecret(secretsCollection._userItemId, secretItem, ctx);
-				send(`INFO: Mapbox secret ${mode} (per-project token for "${projectName}")`);
-			} else {
-				// Token creation failed (e.g. preset lacks tokens:write); fall back to preset so app still works.
-				send('WARN: Mapbox token creation failed; saving preset secret. Set MAPBOX_CREATOR_SECRET with a token that has tokens:write for per-project tokens.');
-				const secretItem = {
-					type: 'mapbox-secret',
-					'.secret': creatorSecret,
-					username: creatorUsername,
-				};
-				await upsertMapboxSecret(secretsCollection._userItemId, secretItem, ctx);
-				send('INFO: Mapbox secret created/updated with preset.');
-			}
-		}
-	} catch (error) {
-		send(`ERROR: Creating/updating Mapbox Secret Item: ${error && (error.message || String(error))}`);
-		console.error(error);
-	}
-
-	// --- 6. BIMPK import: find .bimpk in file collections; if none, read from package (fileUploads/ then custom/customUploads/) and upload, then run bimpk_importer ---
+	// --- 5. BIMPK import: find .bimpk in file collections; if none, read from package (fileUploads/ then custom/customUploads/) and upload, then run bimpk_importer ---
 	if (IafDataSource && fileContainer) {
 		let bimpkFileItems = [];
 		try {
 			const proj = await IafProj.getCurrent(ctx);
-			const containers = await IafFile.getContainers(proj, {}, ctx);
-			const containerList = Array.isArray(containers) ? containers : (containers ? [containers] : []);
+			const containerList = await withRetry(async () => {
+				const containers = await IafFile.getContainers(proj, {}, ctx);
+				return Array.isArray(containers) ? containers : (containers ? [containers] : []);
+			}, { send, stepName: 'get file containers for bimpk search' });
 			for (const container of containerList) {
 				try {
-					const fileItemsRes = await IafFile.getFileItems(container, {}, ctx);
-					const list = fileItemsRes?._list || [];
+					const list = await withRetry(
+						async () => (await IafFile.getFileItems(container, {}, ctx))?._list || [],
+						{ send, stepName: `getFileItems for container` }
+					);
 					for (const item of list) {
 						const n = (item.name || '').toLowerCase();
 						if (n.endsWith('.bimpk')) bimpkFileItems.push({ container, fileItem: item });
@@ -409,7 +350,10 @@ export async function setup(input, libraries, ctx, callback) {
 			let bimpkNames = [];
 			for (const dir of BIMPK_DIRS_TO_TRY) {
 				try {
-					const bimpkListStr = await packageData.file(`${dir}/bimpk-files.json`).async('string');
+					const bimpkListStr = await withRetry(
+						() => packageData.file(`${dir}/bimpk-files.json`).async('string'),
+						{ send, stepName: `read ${dir}/bimpk-files.json` }
+					);
 					const list = JSON.parse(bimpkListStr);
 					bimpkNames = Array.isArray(list) ? list : (list.files || list.names || []);
 					bimpkNames = bimpkNames.filter(n => typeof n === 'string' && n.toLowerCase().endsWith('.bimpk'));
@@ -417,7 +361,7 @@ export async function setup(input, libraries, ctx, callback) {
 						send(`INFO: Found ${bimpkNames.length} .bimpk in ${dir}/bimpk-files.json; reading from package.`);
 						break;
 					}
-				} catch (_) { /* try next dir */ }
+				} catch (_) { /* try next dir or retries exhausted */ }
 			}
 			if (bimpkNames.length === 0) {
 				try {
@@ -434,22 +378,26 @@ export async function setup(input, libraries, ctx, callback) {
 					if (uploaded) break;
 					try {
 						const readPath = `${dir}/${name}`;
-						const buf = await packageData.file(readPath).async('arraybuffer');
+						const buf = await withRetry(
+							() => packageData.file(readPath).async('arraybuffer'),
+							{ send, stepName: `read bimpk from package ${readPath}` }
+						);
 						const isNode = typeof process !== 'undefined' && process.versions && process.versions.node;
 						const payload = isNode && typeof Buffer !== 'undefined'
 							? { fileObj: Buffer.from(buf), name }
 							: { fileObj: bufferToFile(buf, name), name };
 						ensureFileReader();
-						const up = await IafScriptEngine.uploadFile(payload, ctx);
-						if (up && up._fileVersion) {
+						const { fileItem } = await withRetry(async () => {
+							const up = await IafScriptEngine.uploadFile(payload, ctx);
+							if (!up || !up._fileVersion) throw new Error('uploadFile returned no _fileVersion');
 							const fileItem = await IafFile.createFileItemFromFile(fileContainer, up, ctx);
-							if (fileItem && fileItem._fileId) {
-								bimpkFileItems.push({ container: fileContainer, fileItem, fromPackage: true });
-								send(`INFO: Uploaded bimpk from package: ${readPath}`);
-								uploaded = true;
-							}
-						}
-					} catch (_) { /* not at this path */ }
+							if (!fileItem || !fileItem._fileId) throw new Error('createFileItemFromFile returned no _fileId');
+							return { fileItem };
+						}, { send, stepName: `upload bimpk ${name}` });
+						bimpkFileItems.push({ container: fileContainer, fileItem, fromPackage: true });
+						send(`INFO: Uploaded bimpk from package: ${readPath}`);
+						uploaded = true;
+					} catch (_) { /* not at this path or retries exhausted */ }
 				}
 				if (!uploaded) send(`WARN: Could not read bimpk from package: ${name} (tried custom/customUploads/).`);
 			}
@@ -458,8 +406,12 @@ export async function setup(input, libraries, ctx, callback) {
 		if (bimpkFileItems.length > 0) {
 			let orch;
 			try {
-				const orchRes = await IafDataSource.getOrchestrators({ query: { _userType: BIMPK_IMPORTER_USER_TYPE } }, ctx);
-				orch = (orchRes._list && orchRes._list.length > 0) ? orchRes._list[0] : null;
+				orch = await withRetry(async () => {
+					const orchRes = await IafDataSource.getOrchestrators({ query: { _userType: BIMPK_IMPORTER_USER_TYPE } }, ctx);
+					const o = (orchRes._list && orchRes._list.length > 0) ? orchRes._list[0] : null;
+					if (!o) throw new Error('no bimpk_importer orchestrator in list');
+					return o;
+				}, { send, stepName: 'get bimpk_importer orchestrator' });
 			} catch (e) {
 				send(`WARN: Could not get bimpk_importer orchestrator: ${e && (e.message || String(e))}. Skipping bimpk import.`);
 			}
@@ -491,7 +443,10 @@ export async function setup(input, libraries, ctx, callback) {
 						const displayName = fileItem.name || fileItem._name || _fileId;
 						try {
 							send(`INFO: Importing model (${i + 1}/${bimpkFileItems.length}): ${displayName}.`);
-							const runResult = await IafDataSource.runOrchestrator(orch.id, req, ctx);
+							const runResult = await withRetry(
+								() => IafDataSource.runOrchestrator(orch.id, req, ctx),
+								{ send, stepName: `run orchestrator for ${displayName}` }
+							);
 							const runId = runResult && (runResult.id || runResult._id);
 							if (runId) {
 								const start = Date.now();
@@ -499,9 +454,18 @@ export async function setup(input, libraries, ctx, callback) {
 								await new Promise(r => setTimeout(r, 3000));
 								let completed = false;
 								while (Date.now() - start < ORCH_MAX_WAIT_MS) {
-									const statusRes = await IafDataSource.getOrchRunStatus(runId, ctx);
-									// API often returns array of run records; use [0] so we never read .status on undefined
-									const runRecord = Array.isArray(statusRes) ? statusRes[0] : statusRes;
+									let runRecord;
+									try {
+										const statusRes = await withRetry(
+											() => IafDataSource.getOrchRunStatus(runId, ctx),
+											{ send, stepName: `poll status for ${displayName}`, maxAttempts: 5, delayMs: 1000 }
+										);
+										runRecord = Array.isArray(statusRes) ? statusRes[0] : statusRes;
+									} catch (pollErr) {
+										send(`WARN: getOrchRunStatus failed for ${displayName}, retrying poll: ${pollErr && (pollErr.message || String(pollErr))}.`);
+										await new Promise(r => setTimeout(r, ORCH_POLL_INTERVAL_MS));
+										continue;
+									}
 									const status = runRecord != null ? (runRecord._status !== undefined ? runRecord._status : runRecord.status) : undefined;
 									if (status === 'COMPLETED') {
 										send(`INFO: Model imported: ${displayName}.`);

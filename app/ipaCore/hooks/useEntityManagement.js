@@ -10,7 +10,7 @@ import {
     setSelectedCoordinate 
 } from "../redux/siteSetup";
 import { v4 as uuid } from "uuid";
-import { getClickEvent, getMapTypes, getSelectedGraphicReference, getSelectedStructure, setSelectedGraphicReference } from "../redux/pageComponentState";
+import { getClickEvent, getMapTypes, getSelectedGraphicReference, getSelectedStructure, setSelectedGraphicReference, setSelectedStructure } from "../redux/pageComponentState";
 import { addFeatureToMapLayer, removeFeatureFromMapLayer, getGeometryInfo } from "../../client/scripts/mapEntryActions.mjs";
 import { useSelector as useXstateSelector } from "@xstate/react";
 import _ from "lodash";
@@ -161,6 +161,7 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 dispatch(setDraftType());
                 dispatch(setIsSelectingPosition(false));
                 dispatch(setSelectedGraphicReference());
+                dispatch(setSelectedStructure());
                 return;
             }
 
@@ -226,10 +227,12 @@ export const useNewEntityManagement = ({portContext, mapInstance}) => {
                 });
             }, 100);
 
-            // Clear the selected coordinate
+            // Clear the selected coordinate and thumbnail selection so user can place another
             dispatch(setSelectedCoordinate());
             dispatch(setIsSelectingPosition(false));
             dispatch(setDraftType());
+            dispatch(setSelectedGraphicReference());
+            dispatch(setSelectedStructure());
             dispatch(setSelectedCoordinate([]));
       
         }
