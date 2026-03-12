@@ -8,14 +8,14 @@ import {IpaMainLayout} from '@invicara/ipa-core/modules/IpaLayouts';
 import { ModelContextProvider } from '../ipaCore/contexts/ModelContext';
 import ipaConfig from '../ipaCore/ipaConfig'
 import './styles/app.scss'
-import { mapboxGISMode, mmvRegisterMode } from '@invicara/ipa-core-mmv';
+import { mmvMapboxGISMode, mmvRegisterMode } from '@invicara/ipa-core-mmv';
 import { ThemeProvider, CssBaseline } from '@material-ui/core';
 import { ThemeProvider as ThemeProviderV5, CssBaseline as CssBaselineV5 } from '@mui/material';
 import { themeOptions } from '../styles/defaultTheme';
 import { themeOptions as themeOptionsV5 } from '../styles/defaultTheme_mui_v5';
 import { TreeProvider } from '../ipaCore/contexts/TreeContext'; 
 
-mmvRegisterMode("mmvGIS", mapboxGISMode)
+mmvRegisterMode("mmvGIS", mmvMapboxGISMode)
 
 // Wrapper component to provide ModelContext globally
 const AppWithModelContext = () => {
