@@ -15,9 +15,34 @@
          height: 100%;
       }
 
+      // Earlier drawers must stack above later ones so closed upper tabs
+      // stay visible/clickable when a lower drawer is open (ipa-dt style).
+      // Open panel content is pushed down so it clears those overlaid tabs
+      // (tab tops: 20 + 50*(level-1)).
       .drawer {
          background-color: white;
-         z-index: 98;
+         overflow: visible;
+
+         &:nth-of-type(1) { z-index: 110; }
+         &:nth-of-type(2) { z-index: 109; }
+         &:nth-of-type(3) { z-index: 108; }
+         &:nth-of-type(4) { z-index: 107; }
+
+         .drawer-toggle {
+            z-index: 6;
+         }
+
+         &:nth-of-type(2) .drawer-content {
+            padding-top: 70px; // clear level-1 tab (20 + 50) — keep while closing to avoid jump
+         }
+
+         &:nth-of-type(3) .drawer-content {
+            padding-top: 120px; // clear level-1 + level-2 tabs (20 + 50*2)
+         }
+
+         &:nth-of-type(4) .drawer-content {
+            padding-top: 170px; // clear three tabs above (20 + 50*3)
+         }
 
          .drawer-content-open {
             direction: rtl;

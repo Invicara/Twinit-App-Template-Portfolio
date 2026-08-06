@@ -15,8 +15,30 @@
 
         .drawer {
             background-color: white;
-            z-index: 98;
+            overflow: visible;
             border-right: 2px solid #d8d8d8;
+
+            // Earlier drawers above later ones so closed upper tabs stay clickable
+            &:nth-of-type(1) { z-index: 110; }
+            &:nth-of-type(2) { z-index: 109; }
+            &:nth-of-type(3) { z-index: 108; }
+            &:nth-of-type(4) { z-index: 107; }
+
+            .drawer-toggle {
+                z-index: 6;
+            }
+
+            &:nth-of-type(2) .drawer-content {
+                padding-top: 70px; // clear level-1 tab — keep while closing to avoid jump
+            }
+
+            &:nth-of-type(3) .drawer-content {
+                padding-top: 120px; // clear level-1 + level-2 tabs
+            }
+
+            &:nth-of-type(4) .drawer-content {
+                padding-top: 170px;
+            }
 
             .viewerMode {
                 padding: 20px;
