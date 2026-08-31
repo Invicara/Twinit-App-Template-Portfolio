@@ -13,9 +13,9 @@
             height: 100%;
         }
 
+        // z-index + content padding for N drawers: see components/_drawers.scss
         .drawer {
             background-color: white;
-            z-index: 98;
             border-right: 2px solid #d8d8d8;
 
             .viewerMode {
