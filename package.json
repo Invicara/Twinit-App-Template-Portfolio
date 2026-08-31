@@ -20,7 +20,7 @@
       "@dtplatform/platform-api": "4.6.14",
       "@emotion/react": "^11.14.0",
       "@emotion/styled": "^11.14.1",
-      "@invicara/ipa-core": "3.0.57",
+      "@invicara/ipa-core": "3.0.81",
       "@invicara/ipa-core-ct": "^1.0.19",
       "@invicara/ipa-core-mmv": "^0.3.1",
       "@jsonforms/core": "~3.6.0",
