@@ -15,9 +15,9 @@
          height: 100%;
       }
 
+      // z-index + content padding for N drawers: see components/_drawers.scss
       .drawer {
          background-color: white;
-         z-index: 98;
 
          .drawer-content-open {
             direction: rtl;

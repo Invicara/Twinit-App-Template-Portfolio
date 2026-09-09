@@ -240,7 +240,7 @@ const ModelComparisonPage = () => {
                                     }
                                 </div>
                             </StackableDrawer>
-                            <StackableDrawer level={2} iconKey='fa-info' tooltip='Element' isOpen={false}>
+                            <StackableDrawer level={2} iconKey='fa-info' tooltip='Element' isDrawerOpen={false}>
                                 <div className='viewer-sidebar'>
                                     <div className="elementDetails">
                                         {modelOneSelectedElement && <ElementDetails element={modelOneSelectedElement} horizontal={false} displayFiles={false} />}
