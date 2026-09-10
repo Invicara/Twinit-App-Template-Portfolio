@@ -1,5 +1,43 @@
+// Shared stacking for Portfolio panel-row drawers.
+// Absolute full-bleed viewers force drawers into a stacking context; without a
+// descending z-index, a lower open panel covers upper closed tabs.
+// Tab tops in StackableDrawer are: 20 + 50*(level-1) — content padding matches.
+
+$stackable-drawer-toggle-top: 20px;
+$stackable-drawer-toggle-height: 50px;
+$stackable-drawer-z-base: 200;
+$stackable-drawer-max: 24; // raise if you ever need more stacked drawers
+
+@mixin stackable-drawer-rail-stack($max: $stackable-drawer-max) {
+  overflow: visible;
+
+  .drawer-toggle {
+    z-index: 6;
+  }
+
+  @for $i from 1 through $max {
+    &:nth-of-type(#{$i}) {
+      // First drawer highest; each next drawer one step lower
+      z-index: $stackable-drawer-z-base - $i + 1;
+
+      @if $i > 1 {
+        .drawer-content {
+          // Keep padding while closed too so close animation doesn't jump
+          padding-top: $stackable-drawer-toggle-top + $stackable-drawer-toggle-height * ($i - 1);
+        }
+      }
+    }
+  }
+}
+
 .drawer-toggle-open {
   opacity: 0.5;
+}
+
+.panel-row {
+  .drawer {
+    @include stackable-drawer-rail-stack;
+  }
 }
 
 .navigator-view {
