@@ -15,7 +15,7 @@
    "author": "Scott Mollon",
    "dependencies": {
       "@arcgis/core": "^4.30.8",
-      "@dtplatform/iaf-script-engine": "~4.6.0",
+      "@dtplatform/iaf-script-engine": "~5.2.0",
       "@dtplatform/iaf-viewer": "^5.0.98",
       "@dtplatform/platform-api": "^5.2.1",
       "@emotion/react": "^11.14.0",
