@@ -1,8 +1,8 @@
 # Template Portfolio – Twinit Application Template
 
-Release: 1.0.2
+Release: 1.0.8
 
-> **Project name**: This application is called **Template Portfolio**. The repository may be named differently (e.g. Hitachi-Fleet-Management-PoC) in your environment.
+> **Project name**: This application is called **Template Portfolio**. 
 
 ![Portfolio User Interface](./docs/img/model-view-w-gis.jpg)
 
@@ -61,4 +61,4 @@ Two sets of documentation are provided:
 
 ## Release notes
 
-See [Release Notes](./docs/release-notes.md) for version history and changes (if present).
+See [Release Notes](./docs/release-notes.md) for version history and changes.

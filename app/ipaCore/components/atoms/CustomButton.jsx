@@ -13,7 +13,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 /**
- * CustomButton - A themed button component following Hitachi design system
+ * CustomButton - A themed button component
  * 
  * @param {Object} props - Button props
  * @param {string} props.variant - Button variant: 'contained', 'outlined', 'text'
