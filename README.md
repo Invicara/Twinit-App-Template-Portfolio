@@ -1,6 +1,6 @@
 # Template Portfolio – Twinit Application Template
 
-Release: 1.0.8
+Release: 1.0.9
 
 > **Project name**: This application is called **Template Portfolio**. 
 
