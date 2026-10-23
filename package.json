@@ -17,10 +17,10 @@
       "@arcgis/core": "^4.30.8",
       "@dtplatform/iaf-script-engine": "~4.6.0",
       "@dtplatform/iaf-viewer": "^5.0.98",
-      "@dtplatform/platform-api": "4.6.14",
+      "@dtplatform/platform-api": "^5.2.1",
       "@emotion/react": "^11.14.0",
       "@emotion/styled": "^11.14.1",
-      "@invicara/ipa-core": "3.0.57",
+      "@invicara/ipa-core": "3.0.91",
       "@invicara/ipa-core-ct": "^1.0.19",
       "@invicara/ipa-core-mmv": "^0.3.1",
       "@jsonforms/core": "~3.6.0",
@@ -142,18 +142,12 @@
       "react": "^18.0.0",
       "react-dom": "^18.0.0",
       "react-router-dom": "^5.3.4",
-      "@dtplatform/iaf-script-engine": "~4.6.0",
-      "@dtplatform/platform-api": "4.6.14",
-      "@dtplatform/iaf-doc-viewer": "~4.6.0",
-      "@invicara/ipa-core": {
-         "@dtplatform/core-utils": "~4.6.0",
-         "@dtplatform/ui-utils": "~4.6.0"
-      },
       "@dtplatform/react-ifef": {
          "react-router": "^4.3.1"
       },
       "@emotion/react": "^11.14.0",
-      "@emotion/styled": "^11.14.1"
+      "@emotion/styled": "^11.14.1",
+      "lodash-es": "^4.18.1"
    },
    "type": "module",
    "dev_twinit": {
