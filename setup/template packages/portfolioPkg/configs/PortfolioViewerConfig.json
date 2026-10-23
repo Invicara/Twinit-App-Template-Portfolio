@@ -75,7 +75,6 @@
   "settings": {
     "appTitle": "Portfolio Template",
     "appImage": {},
-    "headerComponent": "components/HeaderBar/HeaderBar",
     "modelSelection": [],
     "styles": {
       "--app-accent-color": "#C71784",
