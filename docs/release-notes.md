@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.0.9
+
+### Changed
+
+- **New header by default.** The User Configs in `setup/configs` and in the `portfolioPkg` template package no longer set `headerComponent`, so the application renders ipa-core's new header alongside its new side navigation. To keep the template's own header, set `"headerComponent": "components/HeaderBar/HeaderBar"` in the User Config's `settings`.
+
 ## 1.0.8 (hotfix)
 
 ### Fixed

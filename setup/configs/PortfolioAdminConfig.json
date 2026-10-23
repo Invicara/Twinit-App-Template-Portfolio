@@ -155,7 +155,6 @@
   "settings": {
     "appTitle": "Portfolio Template",
     "appImage": {},
-    "headerComponent": "components/HeaderBar/HeaderBar",
     "styles": {
       "--app-accent-color": "#C71784",
       "--head-bkg-color": "black",
